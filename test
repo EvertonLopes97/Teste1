@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advocacia Especializada</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+        }
+        .header, .footer {
+            background-color: #2c3e50;
+            color: white;
+            padding: 10px 0;
+            text-align: center;
+        }
+        .header h1, .footer p {
+            margin: 0;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .section h2 {
+            color: #2c3e50;
+        }
+        .contact-form input, .contact-form textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        .contact-form button {
+            padding: 10px 20px;
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .contact-form button:hover {
+            background-color: #34495e;
+        }
+        .whatsapp-button {
+            display: block;
+            width: 200px;
+            margin: 20px auto;
+            padding: 10px;
+            text-align: center;
+            background-color: #25d366;
+            color: white;
+            border-radius: 5px;
+            text-decoration: none;
+        }
+        .whatsapp-button:hover {
+            background-color: #1ebe54;
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Advocacia Especializada</h1>
+</div>
+
+<div class="container">
+
+    <div class="section">
+        <h2>Bem-vindo ao nosso Escritório de Advocacia</h2>
+        <p>Somos especializados em Direito Contratual e Direito de Trânsito, oferecendo serviços de elaboração de contratos e consultoria jurídica para recursos de multas.</p>
+    </div>
+
+    <div class="section">
+        <h2>Nossos Serviços</h2>
+        <h3>Direito Contratual</h3>
+        <p>Oferecemos serviços de elaboração de contratos de prestação de serviços e de venda, garantindo segurança jurídica e clareza nas relações contratuais.</p>
+        <h3>Direito de Trânsito</h3>
+        <p>Prestamos consultoria jurídica para recursos de multas e representação em processos administrativos de trânsito, protegendo seus direitos e garantindo a melhor defesa possível.</p>
+    </div>
+
+    <div class="section">
+        <h2>Sobre Nós</h2>
+        <p>Nosso escritório é dedicado a fornecer serviços jurídicos de alta qualidade, com foco na satisfação e na resolução eficaz dos problemas dos nossos clientes.</p>
+    </div>
+
+    <div class="section">
+        <h2>Contato</h2>
+        <form class="contact-form" action="/submit_form" method="POST">
+            <input type="text" name="nome" placeholder="Seu Nome" required>
+            <input type="email" name="email" placeholder="Seu E-mail" required>
+            <input type="tel" name="telefone" placeholder="Seu Telefone" required>
+            <textarea name="mensagem" rows="5" placeholder="Sua Mensagem" required></textarea>
+            <button type="submit">Enviar</button>
+        </form>
+        <a class="whatsapp-button" href="https://api.whatsapp.com/send?phone=SEU_NUMERO_DE_TELEFONE" target="_blank">Fale Conosco pelo WhatsApp</a>
+    </div>
+
+</div>
+
+<div class="footer">
+    <p>&copy; 2024 Advocacia Especializada. Todos os direitos reservados.</p>
+</div>
+
+</body>
+</html>
