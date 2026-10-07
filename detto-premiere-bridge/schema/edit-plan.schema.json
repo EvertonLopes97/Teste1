@@ -1,0 +1,130 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://detto.video/schemas/edit-plan-1.0.json",
+  "title": "DETTO EDIT_PLAN",
+  "description": "Contrato entre o DETTO ORCHESTRATOR e o DETTO PREMIERE BRIDGE. Tempos em segundos. Regras de coerência (FPS igual entre project e sequence, end > start, end <= media.duration, referências de mídia) são verificadas pelo validador do Bridge (plugin/src/core/schema.js).",
+  "type": "object",
+  "required": ["project", "media", "sequence"],
+  "properties": {
+    "version": { "type": "string" },
+    "job_id": { "type": "string" },
+    "project": {
+      "type": "object",
+      "required": ["name", "fps", "width", "height"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "description": "Opcional. .prproj a abrir (se existir) ou criar (se não existir)." },
+        "fps": { "type": "number", "exclusiveMinimum": 0 },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "media": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "path"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "path": { "type": "string", "minLength": 1 },
+          "duration": { "type": "number", "exclusiveMinimum": 0, "description": "Opcional. Permite rejeitar cortes fora do intervalo antes de executar." }
+        }
+      }
+    },
+    "sequence": {
+      "type": "object",
+      "required": ["name", "fps", "width", "height"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "preset": { "type": "string", "description": "Opcional. Caminho de um .sqpreset (recomendado: 5 tracks de vídeo / 4 de áudio)." },
+        "fps": { "type": "number", "exclusiveMinimum": 0 },
+        "width": { "type": "integer", "minimum": 1 },
+        "height": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "cuts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["source", "start", "end", "timeline"],
+        "properties": {
+          "id": { "type": "string" },
+          "source": { "type": "string", "description": "media[].id" },
+          "start": { "type": "number", "minimum": 0 },
+          "end": { "type": "number", "minimum": 0 },
+          "timeline": { "type": "number", "minimum": 0 },
+          "track": { "$ref": "#/definitions/videoTrack" },
+          "audioTrack": { "$ref": "#/definitions/audioTrack" }
+        }
+      }
+    },
+    "markers": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["time", "name"],
+        "properties": {
+          "id": { "type": "string" },
+          "time": { "type": "number", "minimum": 0 },
+          "name": { "type": "string", "minLength": 1 },
+          "duration": { "type": "number", "minimum": 0 },
+          "comment": { "type": "string" },
+          "color": { "enum": ["green", "red", "purple", "magenta", "orange", "yellow", "white", "blue", "cyan"] }
+        }
+      }
+    },
+    "graphics": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "start", "duration"],
+        "properties": {
+          "id": { "type": "string" },
+          "type": { "type": "string", "description": "headline | lower_third | title | caption | logo | overlay | generic" },
+          "start": { "type": "number", "minimum": 0 },
+          "duration": { "type": "number", "exclusiveMinimum": 0 },
+          "text": { "type": "string" }
+        }
+      }
+    },
+    "vfx": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["start", "duration"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "description": { "type": "string" },
+          "start": { "type": "number", "minimum": 0 },
+          "duration": { "type": "number", "exclusiveMinimum": 0 }
+        }
+      }
+    },
+    "effects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "target": { "type": "string" }
+        }
+      }
+    },
+    "audio": { "type": "array", "description": "Reservado para a fase 2." },
+    "export": { "type": "object", "description": "Reservado para a fase 2." },
+    "meta": { "type": "object" }
+  },
+  "definitions": {
+    "videoTrack": {
+      "description": "V1..V5, função (PRESENTER, B-ROLL, GRAPHICS, OVERLAYS, VFX REFERENCES) ou número 1..5. Padrão: V1.",
+      "type": ["string", "integer"]
+    },
+    "audioTrack": {
+      "description": "A1..A4, função (VOICE, MUSIC, SFX, AMBIENCE) ou número 1..4. Padrão: A1.",
+      "type": ["string", "integer"]
+    }
+  }
+}
