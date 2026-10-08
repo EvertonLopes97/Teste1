@@ -508,3 +508,158 @@ body {
   color: #ff3b4e;
   text-shadow: 0 0 30px rgba(255, 59, 78, 0.5);
 }
+
+/* ---------- câmera virtual e layouts ---------- */
+#stage {
+  background: #000;
+}
+.camwrap {
+  position: absolute;
+  overflow: hidden;
+  z-index: 1;
+}
+.camwrap .cam {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+.camwrap.framed {
+  border-radius: calc(28px * var(--k));
+  box-shadow: 0 0 0 calc(5px * var(--k)) #fff, 0 0 calc(40px * var(--k)) rgba(233, 255, 59, calc(0.35 * var(--k))), 0 24px 60px rgba(0, 0, 0, calc(0.55 * var(--k)));
+}
+.pc {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1280px;
+  height: 720px;
+  transform-origin: 0 0;
+}
+.layout-gfxCard,
+.layout-photoCard {
+  border-radius: 26px;
+  overflow: hidden;
+  box-shadow: 0 0 0 5px #fff, 0 0 40px rgba(233, 255, 59, 0.3), 0 30px 70px rgba(0, 0, 0, 0.6);
+}
+.layout-photoCard {
+  background: #fff;
+  border-radius: 18px;
+}
+.photo-frame {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  right: 12px;
+  bottom: 46px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #111;
+}
+.photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform-origin: 50% 40%;
+}
+.photo-label {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(5, 10, 20, 0.85);
+  color: #fff;
+  font-size: 24px;
+  text-transform: uppercase;
+}
+.photo-credit {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#stage.side-active .caption {
+  left: 560px;
+  right: 30px;
+}
+
+/* ---------- formato vertical (9:16) ---------- */
+body.format-vertical,
+body.format-vertical #stage {
+  width: 720px;
+  height: 1280px;
+}
+body.format-vertical .caption {
+  bottom: 330px;
+  font-size: 50px;
+}
+body.format-vertical #stage.side-active .caption {
+  left: 30px;
+  right: 30px;
+  bottom: 610px;
+}
+body.format-vertical .keyword {
+  bottom: 520px;
+}
+body.format-vertical .cta {
+  bottom: 420px;
+}
+
+/* conteúdo em card estreito */
+.narrow .team {
+  width: 290px;
+  top: 200px;
+}
+.narrow .team .flag {
+  width: 160px;
+  height: 160px;
+}
+.narrow .team .name {
+  font-size: 40px;
+}
+.narrow .score-num {
+  top: 240px;
+  font-size: 170px;
+}
+.narrow .score-num .x {
+  font-size: 90px;
+  margin: 0 10px;
+  vertical-align: 24px;
+}
+.narrow .row {
+  left: 50px;
+  right: 50px;
+}
+.narrow .list-title {
+  left: 50px;
+}
+
+/* ---------- foto em tela cheia (estilo "só o motion com a voz ao fundo") ---------- */
+.layout-full.type-photo {
+  background: #000;
+}
+.layout-full .photo-frame {
+  inset: 0;
+  border-radius: 0;
+}
+.layout-full .photo-label {
+  left: 40px;
+  top: 40px;
+  font-size: 30px;
+}
+.layout-full .photo-credit {
+  left: auto;
+  right: 24px;
+  bottom: 18px;
+  width: auto;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.75);
+  text-shadow: 0 1px 3px #000;
+}

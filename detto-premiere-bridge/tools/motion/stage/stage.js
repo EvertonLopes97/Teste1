@@ -37,13 +37,15 @@
     if (text !== undefined) e.textContent = text;
     return e;
   }
+  /** fundo da placa vai no contêiner do layout (tela cheia ou card); o conteúdo fica em el */
   function plateBase(el, mood) {
-    el.classList.add("plate");
-    if (mood) el.classList.add(mood);
+    const wrap = el.__wrap || el;
+    wrap.classList.add("plate");
+    if (mood) wrap.classList.add(mood);
     const s = h("div", "streaks");
-    el.appendChild(s);
+    wrap.insertBefore(s, wrap.firstChild);
     const b = h("div", "baseline");
-    el.appendChild(b);
+    wrap.appendChild(b);
     return { streaks: s, baseline: b };
   }
   function animatePlate(refs, lt, dur) {
@@ -56,7 +58,9 @@
     else d.style.background = "#22314f";
     return d;
   }
+  let CANVAS_W = 1280; // largura do quadro de conteúdo em construção (cards são mais estreitos)
   function fitFont(text, max, min, perChar) {
+    perChar = (perChar * CANVAS_W) / 1280;
     const longest = String(text)
       .split("\n")
       .reduce((m, l) => Math.max(m, l.length), 0);
@@ -281,6 +285,24 @@
       },
     },
 
+    photo: {
+      build(el, d) {
+        const r = {};
+        r.frame = h("div", "photo-frame");
+        r.img = h("img", "photo-img");
+        r.img.src = window.STAGE_ASSETS.file(d.file);
+        r.frame.appendChild(r.img);
+        if (d.label) r.frame.appendChild(h("div", "photo-label anton", d.label));
+        el.append(r.frame, h("div", "photo-credit", `Foto: ${d.credit}`));
+        return r;
+      },
+      update(r, d, lt, dur) {
+        // Ken Burns: aproximação lenta e leve deriva
+        const p = clamp(lt / dur);
+        r.img.style.transform = `scale(${(1.04 + 0.1 * p).toFixed(4)}) translate(${(-1.5 * p).toFixed(2)}%, ${(-1 * p).toFixed(2)}%)`;
+      },
+    },
+
     keyword: {
       build(el, d) {
         const r = {};
@@ -424,31 +446,186 @@
     },
   };
 
+  // ---------------------------------------------------------------- layouts
+  // coordenadas em px CSS do palco (1280x720 horizontal, 720x1280 vertical)
+  const LAYOUTS = {
+    horizontal: {
+      W: 1280, H: 720,
+      win: { x: 800, y: 96, w: 440, h: 528 },        // câmera em janela (camWindow)
+      pcArea: { x: 24, y: 40, w: 756, h: 640 },        // área do conteúdo ao lado da janela
+      card: { x: 44, y: 92, w: 560, h: 536 },          // gráfico em card (gfxCard)
+      photo: { x: 56, y: 70, w: 560, h: 560 },         // foto em quadro (photoCard)
+      side: { x: 0.66, y: 0.42, z: 1.3 },              // rosto deslocado quando há card ao lado
+      face: { x: 0.5, y: 0.42 },
+      faceInWin: 0.40,                                 // largura do rosto na janela (fração)
+    },
+    vertical: {
+      W: 720, H: 1280,
+      win: { x: 40, y: 70, w: 640, h: 600 },
+      pcArea: { x: 40, y: 700, w: 640, h: 540 },
+      card: { x: 30, y: 700, w: 660, h: 500 },
+      photo: { x: 60, y: 690, w: 600, h: 520 },
+      side: { x: 0.5, y: 0.28, z: 1.35 },
+      face: { x: 0.5, y: 0.4 },
+      faceInWin: 0.42,
+    },
+  };
+  let L = LAYOUTS.horizontal;
+  const SRC = { w: 1920, h: 1080 };
+  const lerp = (a, b, k) => a + (b - a) * k;
+  /** envelope de entrada/saída de um layout (0 → 1 → 0) */
+  const envelope = (lt, dur) => outCubic(prog(lt, 0, 0.38)) * (1 - inCubic(prog(lt, dur - 0.3, 0.3)));
+
+  const camWrap = h("div", "camwrap");
+  const camImg = h("img", "cam");
+  camWrap.appendChild(camImg);
+  stage.appendChild(camWrap);
+
+  function placeLayout(rec, k, lt, dur) {
+    const { el, item } = rec;
+    const pc = rec.pc;
+    if (item.layout === "full") {
+      // estilo tela cheia: só o gráfico, a câmera fica por trás (voz ao fundo)
+      el.style.opacity = String(clamp(k * 1.8));
+      el.style.transform = `scale(${(1.06 - 0.06 * k).toFixed(4)})`;
+      if (pc) {
+        const sc = Math.min(L.W / rec.pcW, L.H / 720);
+        pc.style.transform = `translate(${((L.W - rec.pcW * sc) / 2).toFixed(1)}px, ${((L.H - 720 * sc) / 2).toFixed(1)}px) scale(${sc.toFixed(4)})`;
+      }
+    } else if (item.layout === "camWindow") {
+      el.style.cssText = "";
+      el.style.zIndex = String(item.z || 0);
+      el.style.opacity = String(clamp(k * 1.4));
+      if (pc) {
+        const A = L.pcArea;
+        const sc = Math.min(A.w / rec.pcW, A.h / 720);
+        const x = A.x + (A.w - rec.pcW * sc) / 2;
+        const y = A.y + (A.h - 720 * sc) / 2;
+        pc.style.transform = `translate(${(x - 160 * (1 - k)).toFixed(1)}px, ${y.toFixed(1)}px) scale(${sc.toFixed(4)})`;
+        pc.style.opacity = String(k);
+      }
+    } else {
+      const box = item.layout === "photoCard" ? L.photo : L.card;
+      const e = k;
+      el.style.left = `${box.x}px`;
+      el.style.top = `${box.y}px`;
+      el.style.width = `${box.w}px`;
+      el.style.height = `${box.h}px`;
+      el.style.right = el.style.bottom = "auto";
+      el.style.opacity = String(clamp(e * 1.6));
+      const fromX = L.W > L.H ? -140 : 0;
+      const fromY = L.W > L.H ? 0 : 160;
+      el.style.transform = `translate(${(fromX * (1 - e)).toFixed(1)}px, ${(fromY * (1 - e)).toFixed(1)}px) rotate(${((1 - e) * -5 + (item.layout === "photoCard" ? -2 : 0)).toFixed(2)}deg) scale(${(0.92 + 0.08 * e).toFixed(3)})`;
+      if (pc) {
+        const sc = Math.min(box.w / rec.pcW, box.h / 720);
+        pc.style.transform = `translate(${((box.w - rec.pcW * sc) / 2).toFixed(1)}px, ${((box.h - 720 * sc) / 2).toFixed(1)}px) scale(${sc.toFixed(4)})`;
+      }
+    }
+  }
+
+  /**
+   * Câmera virtual: retângulo (tela cheia ↔ janela), zoom e enquadramento (original ↔ rosto no centro).
+   * cam = { z, c, sx, sy, face: {cx, cy, w} } (rosto normalizado na imagem original)
+   */
+  function placeCamera(cam, kWin, kSide) {
+    const full = { x: 0, y: 0, w: L.W, h: L.H };
+    const r = {
+      x: lerp(full.x, L.win.x, kWin),
+      y: lerp(full.y, L.win.y, kWin),
+      w: lerp(full.w, L.win.w, kWin),
+      h: lerp(full.h, L.win.h, kWin),
+    };
+    camWrap.style.left = `${r.x.toFixed(2)}px`;
+    camWrap.style.top = `${r.y.toFixed(2)}px`;
+    camWrap.style.width = `${r.w.toFixed(2)}px`;
+    camWrap.style.height = `${r.h.toFixed(2)}px`;
+    camWrap.style.zIndex = kWin > 0.001 ? "12" : "1";
+    camWrap.classList.toggle("framed", kWin > 0.001);
+    camWrap.style.setProperty("--k", kWin.toFixed(3));
+
+    const s0 = Math.max(r.w / SRC.w, r.h / SRC.h);
+    const face = cam.face || { cx: 0.5, cy: 0.42, w: 0.17 };
+    // na janela, o zoom garante o rosto bem enquadrado; com card ao lado, zoom mínimo para deslocar o rosto
+    const zWin = clamp((L.faceInWin * r.w) / (face.w * SRC.w * s0), 1, 2.4);
+    let z = lerp(cam.z, Math.max(cam.z, zWin), kWin);
+    z = lerp(z, Math.max(z, L.side.z), kSide * (1 - kWin));
+    const imgW = SRC.w * s0 * z;
+    const imgH = SRC.h * s0 * z;
+    const tx = lerp(L.face.x, L.side.x, kSide * (1 - kWin));
+    const ty = lerp(L.face.y, L.side.y, kSide * (1 - kWin));
+    // c: 0 = enquadramento original (zoom pelo centro da imagem), 1 = rosto centralizado;
+    // janela e card sempre enquadram o rosto
+    const c = Math.max(cam.c ?? 1, kWin, kSide);
+    const clampX = (v) => Math.min(0, Math.max(r.w - imgW, v));
+    const clampY = (v) => Math.min(0, Math.max(r.h - imgH, v));
+    let left = lerp((r.w - imgW) / 2, clampX(tx * r.w - face.cx * imgW), c) + (cam.sx || 0);
+    let top = lerp((r.h - imgH) / 2, clampY(ty * r.h - face.cy * imgH), c) + (cam.sy || 0);
+    left = clampX(left);
+    top = clampY(top);
+    camImg.style.width = `${imgW.toFixed(2)}px`;
+    camImg.style.height = `${imgH.toFixed(2)}px`;
+    camImg.style.transform = `translate(${left.toFixed(2)}px, ${top.toFixed(2)}px)`;
+  }
+
   // ---------------------------------------------------------------- API
-  function load(list) {
+  function load(list, opts) {
+    const format = (opts && opts.format) || "horizontal";
+    L = LAYOUTS[format];
+    document.body.className = `format-${format}`;
     items = list.slice().sort((a, b) => a.start - b.start || (a.z || 0) - (b.z || 0));
     for (const { el } of live.values()) el.remove();
     live.clear();
   }
 
-  function render(t) {
+  function setCam(src) {
+    if (camImg.getAttribute("src") === src) return Promise.resolve();
+    camImg.src = src;
+    return camImg.decode().catch(() => {});
+  }
+
+  function render(t, cam) {
     const active = new Set();
+    let kWin = 0;
+    let kSide = 0;
+    let shiftCaption = 0;
     for (const it of items) {
       if (t < it.start || t >= it.end) continue;
       active.add(it.id);
       let rec = live.get(it.id);
       if (!rec) {
-        const el = h("div", `item type-${it.type}`);
+        const el = h("div", `item type-${it.type}${it.layout ? ` layout-${it.layout}` : ""}`);
         el.style.zIndex = String(it.z || 0);
-        const refs = TYPES[it.type].build(el, it.data);
+        let target = el;
+        let pc = null;
+        let pcW = 1280;
+        // tela cheia no horizontal usa o quadro 1280 direto; no vertical, o conteúdo é reduzido para caber
+        if (it.layout && it.type !== "photo" && (it.layout !== "full" || L.W < L.H)) {
+          // quadro de conteúdo mais estreito nos cards/janelas: textos maiores
+          const narrow = it.layout === "gfxCard" || it.layout === "full";
+          pcW = narrow ? 900 : 1000;
+          pc = h("div", `pc${narrow ? " narrow" : ""}`);
+          pc.style.width = `${pcW}px`;
+          pc.__wrap = el;
+          el.appendChild(pc);
+          target = pc;
+        }
+        CANVAS_W = pcW;
+        const refs = TYPES[it.type].build(target, it.data);
+        CANVAS_W = 1280;
         stage.appendChild(el);
-        rec = { el, item: it, refs };
+        rec = { el, item: it, refs, pc, pcW };
         live.set(it.id, rec);
       }
       const lt = t - it.start;
       const dur = it.end - it.start;
+      if (it.layout) {
+        const k = envelope(lt, dur);
+        if (it.layout === "camWindow") kWin = Math.max(kWin, k);
+        else if (it.layout !== "full") kSide = Math.max(kSide, k);
+        placeLayout(rec, k, lt, dur);
+      }
+      if (it.type === "caption" && it.data.side) shiftCaption = 1;
       TYPES[it.type].update(rec.refs, it.data, lt, dur, t, rec.el);
-      // saída padrão das placas: corte seco (estilo das referências); demais tratam a própria saída
     }
     for (const [id, rec] of live) {
       if (!active.has(id)) {
@@ -456,8 +633,10 @@
         live.delete(id);
       }
     }
+    stage.classList.toggle("side-active", kSide > 0.5 && shiftCaption === 1);
+    if (cam) placeCamera(cam, kWin, kSide);
     return active.size;
   }
 
-  window.STAGE = { load, render, types: Object.keys(TYPES) };
+  window.STAGE = { load, render, setCam, types: Object.keys(TYPES) };
 })();

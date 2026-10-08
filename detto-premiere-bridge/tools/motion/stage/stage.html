@@ -8,7 +8,11 @@
   <body>
     <div id="stage"></div>
     <script>
-      window.STAGE_ASSETS = { flagsDir: "", flag: (code) => `${window.STAGE_ASSETS.flagsDir}/${code}.png` };
+      window.STAGE_ASSETS = {
+        flagsDir: "",
+        flag: (code) => `${window.STAGE_ASSETS.flagsDir}/${code}.png`,
+        file: (p) => (/^file:/.test(p) ? p : `file://${p}`),
+      };
     </script>
     <script src="stage.js"></script>
   </body>

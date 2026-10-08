@@ -166,21 +166,32 @@ node tools/render-preview.js EDIT_PLAN.json --video gravacao.mov --out previa.mp
 ### Edição dinâmica (estilo Reels/YouTube de futebol)
 
 ```bash
-node tools/render-dynamic.js EDIT_PLAN.json --video gravacao.mov --out edicao.mp4 \
-     --fonts ./fonts --work ./tmp-render --workers 4
+# 1. rastreia o rosto (para zooms e janelas centrados no rosto)
+python tools/motion/facetrack.py gravacao.mov face.json --model face_detection_yunet_2023mar.onnx
+
+# 2. edição horizontal Full HD
+node tools/render-dynamic.js EDIT_PLAN.json --video gravacao.mov --face face.json \
+     --fonts ./fonts --work ./tmp-render --out edicao.mp4
+
+# 3. corte vertical 9:16 sugerido no roteiro (1080x1920)
+node tools/render-dynamic.js EDIT_PLAN.json --video gravacao.mov --face face.json \
+     --fonts ./fonts --work ./tmp-render --cut 1 --out corte1_vertical.mp4
 ```
 
 | Etapa | O que faz |
 |---|---|
-| `motion/director.js` | Monta a timeline dinâmica a partir do plano: cartões de era no início dos blocos, placas de tela cheia nos trechos de narração (placar com bandeiras, número com contagem, lista, barras, texto, cartão vermelho), palavras-chave, chip de data e CTA sobre a facecam nos trechos de opinião, e legenda só com a facecam limpa. A facecam é reenquadrada a cada corte e frase (aberto, médio, fechado), com punch-ins nas deixas. |
-| `motion/stage/*` | Motor de motion graphics em HTML/CSS, determinístico (`STAGE.render(t)`). |
-| `motion/render-layer.js` | Captura no Chromium (Playwright) só os quadros com gráfico, em paralelo, e consolida tudo num vídeo RGBA (FFV1). |
-| `motion/sfx.js` | Sintetiza whoosh, hit, pop, tick, click, ding e riser nos tempos das animações. |
-| `motion/compose.js` | ffmpeg: jump cuts → reenquadramento → camada gráfica → voz + SFX (+ bip), com loudness em -14 LUFS. |
+| `motion/facetrack.py` | Rastreia o rosto (OpenCV YuNet, 5 amostras/s, trajetória suavizada). |
+| `motion/media-search.js` | Fotos de apoio com licença livre para uso comercial (CC0, domínio público, CC BY, CC BY-SA) via Openverse. A escolha leva em conta época, adversário, estádio e competição, evita repetir foto e gera `creditos.txt`. |
+| `motion/director.js` | Cada gráfico entra na palavra exata em que é falado (âncora na transcrição: placar "2x1", número, também por extenso, mês da data, nomes). Os gráficos alternam entre estilos: `full` (só o gráfico ou a foto em tela cheia, com a voz ao fundo), `camWindow` (você numa janela com moldura e o gráfico ao lado), `gfxCard` (gráfico num card sobre a câmera) e `photoCard` (foto num quadro com zoom lento). A base é o enquadramento original da gravação; o rosto só é centralizado na dinâmica: zoom seco a cada 3 jump cuts, aproximação lenta nos trechos de suspense (`SLOW_ZOOM`, `BREATH`, `SLOW_MOTION`, `FREEZE_FRAME`) e punch-ins nas deixas, com tremor amortecido de ~2 Hz nos impactos. |
+| `motion/stage/*` | Compositor HTML/CSS determinístico: câmera e gráficos no mesmo quadro. |
+| `motion/render-frames.js` | Extrai os quadros da gravação (com jump cuts) e compõe cada quadro no Chromium, em paralelo, a 1920x1080 (ou 1080x1920). |
+| `motion/sfx.js`, `motion/audio.js` | SFX sintetizados + voz sem deriva + bip opcional, em -14 LUFS. |
+
+Opções: `--format vertical`, `--cut N` (corte 9:16 do roteiro), `--from/--to` (trecho), `--no-images 1`,
+`--crf 18`, `--workers 4`.
 
 Para gerar o plano com legendas, use `--words` no `roteiro-to-plan.js` (`--srt` grava as legendas
-também em `.srt` para o Premiere). As bandeiras vêm do flagcdn.com (domínio público) e a fonte dos
-títulos é a Anton (OFL).
+também em `.srt` para o Premiere). Bandeiras: flagcdn.com (domínio público). Fonte dos títulos: Anton (OFL).
 
 `words.json` é uma lista `[{"w": "palavra", "s": 1.23, "e": 1.48}]`, por exemplo a saída do
 Whisper com `word_timestamps=True`. A prévia usa as fontes do roteiro (Anton para títulos) se a pasta
