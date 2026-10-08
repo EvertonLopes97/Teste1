@@ -228,10 +228,10 @@ function buildFilter(plan, opts) {
 /** Áudio: normaliza a voz e, se houver, aplica o bip opcional (type "bleep"). */
 function audioChain(plan, from, to) {
   const bleeps = (plan.audio || []).filter((x) => x.type === "bleep" && x.start < to && x.start + x.duration > from);
-  if (!bleeps.length) return [`[ca]aresample=48000,loudnorm=I=-16:TP=-1.5:LRA=11[aout]`];
+  if (!bleeps.length) return [`[ca]loudnorm=I=-16:TP=-1.5:LRA=11[aout]`];
   const on = bleeps.map((b) => between(b.start - from, b.start - from + b.duration)).join("+");
   return [
-    `[ca]aresample=48000,volume=0:enable='${on}',loudnorm=I=-16:TP=-1.5:LRA=11[voz]`,
+    `[ca]volume=0:enable='${on}',loudnorm=I=-16:TP=-1.5:LRA=11[voz]`,
     `sine=f=1000:sample_rate=48000:d=${(to - from).toFixed(3)},volume=0.18,volume=0:enable='not(${on})'[bip]`,
     `[voz][bip]amix=inputs=2:duration=first:normalize=0[aout]`,
   ];
@@ -260,19 +260,21 @@ function main() {
 
   // trechos da mídia em uma única passada (select/aselect): memória constante mesmo
   // com dezenas de jump cuts (trim+concat abriria um ramo de decodificação por corte)
-  const keepExpr = f.segs
-    .map((s) => {
-      const segStart = Math.max(s.at, from);
-      const segEnd = Math.min(s.at + (s.out - s.in), to);
-      const inP = s.in + (segStart - s.at);
-      return `between(t,${inP.toFixed(3)},${(inP + (segEnd - segStart) - 0.0005).toFixed(3)})`;
-    })
-    .join("+");
+  const ranges = f.segs.map((s) => {
+    const segStart = Math.max(s.at, from);
+    const segEnd = Math.min(s.at + (s.out - s.in), to);
+    const inP = s.in + (segStart - s.at);
+    return [inP, inP + (segEnd - segStart)];
+  });
+  // vídeo por índice de frame (contagem exata) e áudio em blocos de 64 amostras:
+  // sem isso o erro de cada corte se acumula e a sincronia labial escorrega no fim
+  const vExpr = ranges.map(([a, b]) => `between(n,${Math.round(a * fps)},${Math.round(b * fps) - 1})`).join("+");
+  const aExpr = ranges.map(([a, b]) => `between(t,${(Math.round(a * fps) / fps).toFixed(4)},${(Math.round(b * fps) / fps - 0.0001).toFixed(4)})`).join("+");
   const graph = [
-    `[0:v]select='${keepExpr}',setpts=N/FRAME_RATE/TB,fps=${fps},${f.chain.join(",")}`,
+    `[0:v]fps=${fps},select='${vExpr}',setpts=N/FRAME_RATE/TB,${f.chain.join(",")}`,
     ...f.pre.slice(0, 2),
     `${f.pre[2]},${f.post.join(",")}[vout]`,
-    `[0:a]aselect='${keepExpr}',asetpts=N/SR/TB[ca]`,
+    `[0:a]aresample=48000,asetnsamples=n=64:p=0,aselect='${aExpr}',asetpts=N/SR/TB,asetnsamples=n=1024:p=0[ca]`,
     ...audioChain(plan, from, to),
   ].join(";\n");
   const script = path.join(tmp, "filter.txt");
