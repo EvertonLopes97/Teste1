@@ -176,7 +176,16 @@ node tools/render-dynamic.js EDIT_PLAN.json --video gravacao.mov --face face.jso
 # 3. corte vertical 9:16 sugerido no roteiro (1080x1920)
 node tools/render-dynamic.js EDIT_PLAN.json --video gravacao.mov --face face.json \
      --fonts ./fonts --work ./tmp-render --cut 1 --out corte1_vertical.mp4
+
+# 4. entrega para redes sociais em Full HD 60 fps (padrão: o fps da gravação)
+node tools/render-dynamic.js EDIT_PLAN.json --video gravacao.mov --face face.json \
+     --fonts ./fonts --work ./tmp-render --fps 60 --out edicao_60fps.mp4
 ```
+
+Com `--fps 60`, gráficos, legendas, zooms e tremores são renderizados a 60 quadros reais; se a
+gravação for 30 fps, cada quadro da câmera aparece duas vezes (não há interpolação inventada).
+Para movimento 60 fps também na câmera, grave em 60. A saída é H.264 High, keyframe a cada 2 s,
+até 16 Mb/s (60 fps) ou 10 Mb/s (30 fps), AAC 48 kHz, com `faststart`.
 
 | Etapa | O que faz |
 |---|---|

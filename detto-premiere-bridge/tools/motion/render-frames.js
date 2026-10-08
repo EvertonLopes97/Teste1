@@ -52,12 +52,16 @@ function makeFaceAt(plan, face) {
 /**
  * @param {{plan: any, direction: any, camDir: string, outDir: string, face: any, fontsDir: string,
  *          flagsDir: string, format?: string, scale?: number, ranges: Array<[number, number]>,
- *          workers?: number, quality?: number, onProgress?: (done: number, total: number) => void}} o
+ *          fps?: number, workers?: number, quality?: number, onProgress?: (done: number, total: number) => void}} o
+ *   fps: quadros por segundo da saída (padrão: o da gravação). Em 60 com gravação a 30, gráficos e
+ *        movimentos de câmera saem a 60 reais e cada quadro da gravação é usado duas vezes.
  * @returns {Promise<number>} quadros gravados (outDir/000000.jpg …)
  */
 async function renderComposite(o) {
   const d = o.direction;
-  const fps = d.fps;
+  const camFps = d.fps; // quadros extraídos da gravação (cam/000000.jpg …)
+  const fps = o.fps || camFps;
+  const camCount = fs.readdirSync(o.camDir).filter((f) => f.endsWith(".jpg")).length;
   const faceAt = makeFaceAt(o.plan, o.face);
   fs.mkdirSync(o.outDir, { recursive: true });
   /** @type {Array<{out: number, f: number}>} */
@@ -81,10 +85,11 @@ async function renderComposite(o) {
         await stage.load(page, d.items);
         for (const j of mine) {
           const t = j.f / fps;
-          const cam = { src: pathToFileURL(path.join(o.camDir, `${String(j.f).padStart(6, "0")}.jpg`)).href, ...cameraAt(d, t), face: faceAt(t) };
+          const cf = Math.min(camCount - 1, Math.floor(t * camFps + 1e-6));
+          const cam = { src: pathToFileURL(path.join(o.camDir, `${String(cf).padStart(6, "0")}.jpg`)).href, ...cameraAt(d, t), face: faceAt(t) };
           await stage.composite(page, t, cam, file(j.out), o.quality || 92);
           done++;
-          if (o.onProgress && done % 600 === 0) o.onProgress(done, jobs.length);
+          if (o.onProgress && done % (fps * 20) === 0) o.onProgress(done, jobs.length);
         }
         await page.close();
       })
