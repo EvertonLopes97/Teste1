@@ -129,7 +129,7 @@ test/                        node:test com Premiere e filesystem simulados
 
 ```bash
 npm install
-npm test            # 94 testes
+npm test            # 105 testes
 npm run typecheck   # tsc --checkJs
 ```
 
@@ -162,6 +162,25 @@ node tools/render-preview.js EDIT_PLAN.json --video gravacao.mov --out previa.mp
 | SFX / MÚSICA | `audio[]` (fase 2) + markers de troca de trilha; bip opcional no palavrão |
 | blocos, linha do tempo, OBS, 9:16 | markers (azul, ciano, vermelho, roxo) |
 | errata | `meta.errata` (para a legenda) |
+
+### Edição dinâmica (estilo Reels/YouTube de futebol)
+
+```bash
+node tools/render-dynamic.js EDIT_PLAN.json --video gravacao.mov --out edicao.mp4 \
+     --fonts ./fonts --work ./tmp-render --workers 4
+```
+
+| Etapa | O que faz |
+|---|---|
+| `motion/director.js` | Monta a timeline dinâmica a partir do plano: cartões de era no início dos blocos, placas de tela cheia nos trechos de narração (placar com bandeiras, número com contagem, lista, barras, texto, cartão vermelho), palavras-chave, chip de data e CTA sobre a facecam nos trechos de opinião, e legenda só com a facecam limpa. A facecam é reenquadrada a cada corte e frase (aberto, médio, fechado), com punch-ins nas deixas. |
+| `motion/stage/*` | Motor de motion graphics em HTML/CSS, determinístico (`STAGE.render(t)`). |
+| `motion/render-layer.js` | Captura no Chromium (Playwright) só os quadros com gráfico, em paralelo, e consolida tudo num vídeo RGBA (FFV1). |
+| `motion/sfx.js` | Sintetiza whoosh, hit, pop, tick, click, ding e riser nos tempos das animações. |
+| `motion/compose.js` | ffmpeg: jump cuts → reenquadramento → camada gráfica → voz + SFX (+ bip), com loudness em -14 LUFS. |
+
+Para gerar o plano com legendas, use `--words` no `roteiro-to-plan.js` (`--srt` grava as legendas
+também em `.srt` para o Premiere). As bandeiras vêm do flagcdn.com (domínio público) e a fonte dos
+títulos é a Anton (OFL).
 
 `words.json` é uma lista `[{"w": "palavra", "s": 1.23, "e": 1.48}]`, por exemplo a saída do
 Whisper com `word_timestamps=True`. A prévia usa as fontes do roteiro (Anton para títulos) se a pasta

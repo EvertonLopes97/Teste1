@@ -181,6 +181,7 @@ function buildPlan(roteiro, opts) {
   /** @type {any[]} */ const graphics = [];
   /** @type {any[]} */ const vfx = [];
   /** @type {any[]} */ const audio = [];
+  /** @type {any[]} */ const segMeta = [];
 
   // com alinhamento (keep = trechos de fala), as pausas saem e os tempos são remapeados
   const keep = opts.keep || null;
@@ -226,6 +227,19 @@ function buildPlan(roteiro, opts) {
     const dur = Math.max(E - S, 1 / opts.fps);
     const id = `seg_${tc(seg.start)}`;
     if (!keep) cuts.push({ id, source: mediaId, start: seg.start, end: round(end), timeline: seg.start, track: "V1", audioTrack: "A1" });
+    const allText = [seg.fields.TELA, seg.fields.GRAFICO].filter(Boolean).join(" ");
+    segMeta.push({
+      id,
+      start: S,
+      end: E,
+      block: seg.block,
+      broll: !!seg.fields.VISUAL && !/^facecam/i.test(seg.fields.VISUAL.trim()),
+      mood: /derrota|perdid|expuls|vaiad|triste|elimina|desespero|adeus|zebra|no banco/i.test(allText)
+        ? "loss"
+        : /campe[ãa]o|t[íi]tulo|ouro|vit[óo]ria|virada|bicampe|recorde|confete/i.test(allText)
+          ? "win"
+          : "",
+    });
 
     if (seg.block !== lastBlock) {
       markers.push({ id: `block_${i}`, time: S, name: seg.block, color: "blue", comment: `Início: ${seg.block}` });
@@ -353,6 +367,7 @@ function buildPlan(roteiro, opts) {
       source: "roteiro",
       title: roteiro.title,
       blocks: roteiro.blocks,
+      segments: segMeta,
       errata: roteiro.errata,
       vertical_cuts: roteiro.verticalCuts,
       notes: keep

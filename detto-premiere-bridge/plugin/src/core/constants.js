@@ -107,6 +107,7 @@ const KNOWN_PLAN_KEYS = Object.freeze([
   "vfx",
   "effects",
   "audio",
+  "captions",
   "export",
   "meta",
 ]);

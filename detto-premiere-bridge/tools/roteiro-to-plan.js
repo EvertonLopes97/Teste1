@@ -6,7 +6,7 @@
  *
  *   node tools/roteiro-to-plan.js roteiro.txt --media "C:/videos/gravacao.mov" \
  *        [--fps 30] [--width 1920] [--height 1080] [--duration 523.4] [--job job-001] [--out EDIT_PLAN.json]
- *        [--words words.json [--gap 0.8] [--no-jumpcuts 1]]
+ *        [--words words.json [--gap 0.8] [--no-jumpcuts 1] [--srt legendas.srt]]
  *
  * --words: transcrição com tempo por palavra ([{w, s, e}], ex.: Whisper). Com ela, cada
  * trecho do roteiro é alinhado à fala real, as deixas ("saiu chorando") viram tempos
@@ -16,7 +16,8 @@
 const fs = require("fs");
 const { parseRoteiro } = require("./roteiro/parse");
 const { buildPlan } = require("./roteiro/build");
-const { alignRoteiro } = require("./roteiro/align");
+const { alignRoteiro, makeMapper } = require("./roteiro/align");
+const { buildCaptions, toSrt } = require("./roteiro/captions");
 const { analyzePlan, formatPreview } = require("../plugin/src/core/analyze");
 
 function args(argv) {
@@ -36,9 +37,11 @@ async function main() {
   }
   let roteiro = parseRoteiro(fs.readFileSync(a._[0], "utf-8"));
   let keep;
+  let words = null;
   if (a.words) {
     if (!a.duration) throw new Error("--words exige --duration (duração real da mídia em segundos)");
-    const aligned = alignRoteiro(roteiro, JSON.parse(fs.readFileSync(a.words, "utf-8")), {
+    words = JSON.parse(fs.readFileSync(a.words, "utf-8"));
+    const aligned = alignRoteiro(roteiro, words, {
       mediaDuration: Number(a.duration),
       gap: a.gap ? Number(a.gap) : undefined,
     });
@@ -56,6 +59,12 @@ async function main() {
     mediaDuration: a.duration ? Number(a.duration) : undefined,
     jobId: a.job,
   });
+  if (words) {
+    // legenda dinâmica: texto corrigido do roteiro + tempo de cada palavra falada
+    const toTimeline = keep ? makeMapper(keep) : (t) => t;
+    plan.captions = buildCaptions(roteiro, words, toTimeline);
+    if (a.srt) fs.writeFileSync(a.srt, toSrt(plan.captions));
+  }
   const json = JSON.stringify(plan, null, 2);
   if (a.out) fs.writeFileSync(a.out, json + "\n");
   else process.stdout.write(json + "\n");
