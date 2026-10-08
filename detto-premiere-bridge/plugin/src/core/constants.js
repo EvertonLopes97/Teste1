@@ -75,7 +75,21 @@ const MARKER_COLORS = Object.freeze({
 });
 
 /** Tipos de graphics aceitos no plano (por enquanto viram placeholders). */
-const GRAPHIC_TYPES = Object.freeze(["headline", "lower_third", "title", "caption", "logo", "overlay", "generic"]);
+const GRAPHIC_TYPES = Object.freeze([
+  "headline",
+  "lower_third",
+  "title",
+  "caption",
+  "logo",
+  "overlay",
+  "generic",
+  "date_stamp", // carimbo de data/local
+  "scoreboard", // placa de placar
+  "counter", // contador / cronômetro / relógio de jogo
+  "cta", // inscreva-se, comente, compartilhe
+  "timeline_bar", // linha do tempo no rodapé
+  "stat_card", // ficha / estante de troféus
+]);
 
 /** Cores padrão de placeholders. */
 const PLACEHOLDER_COLORS = Object.freeze({ graphics: "yellow", vfx: "purple" });

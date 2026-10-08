@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["types/**/*.d.ts", "plugin/src/core/**/*.js", "plugin/src/host/**/*.js"]
+  "include": ["types/**/*.d.ts", "tools/roteiro/**/*.js", "plugin/src/core/**/*.js", "plugin/src/host/**/*.js"]
 }

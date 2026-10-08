@@ -80,7 +80,7 @@
         "required": ["type", "start", "duration"],
         "properties": {
           "id": { "type": "string" },
-          "type": { "type": "string", "description": "headline | lower_third | title | caption | logo | overlay | generic" },
+          "type": { "type": "string", "description": "headline | lower_third | title | caption | logo | overlay | generic | date_stamp | scoreboard | counter | cta | timeline_bar | stat_card" },
           "start": { "type": "number", "minimum": 0 },
           "duration": { "type": "number", "exclusiveMinimum": 0 },
           "text": { "type": "string" }

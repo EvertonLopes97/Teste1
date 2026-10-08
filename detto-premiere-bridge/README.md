@@ -129,7 +129,7 @@ test/                        node:test com Premiere e filesystem simulados
 
 ```bash
 npm install
-npm test            # 87 testes
+npm test            # 94 testes
 npm run typecheck   # tsc --checkJs
 ```
 
@@ -138,6 +138,34 @@ existente, clip fora do intervalo (no plano e pela duração real detectada no P
 incompatível, arquivo duplicado (ids, caminhos, mídia já no projeto, reexecução sem duplicar clips e
 markers), fallbacks, backup, pausa, fila de jobs, e o adaptador Premiere contra um `premierepro` falso
 com as assinaturas oficiais.
+
+## Ferramentas: roteiro → EDIT_PLAN → prévia
+
+Para roteiros no formato DETTO (blocos com `[mm:ss – mm:ss]`, FALA/VISUAL/TELA/GRÁFICO/SFX/EFEITO/MÚSICA,
+cortes verticais e errata), há dois utilitários em Node (fora do plugin):
+
+```bash
+# 1. roteiro → EDIT_PLAN (com transcrição por palavra, alinha à fala real e tira pausas)
+node tools/roteiro-to-plan.js roteiro.txt --media "C:/videos/gravacao.mov" \
+     --duration 523.4 --words words.json --job messi-na-selecao --out EDIT_PLAN.json
+
+# 2. prévia renderizada com ffmpeg (textos, placas, carimbos, zooms, P&B, linha do tempo, bip)
+node tools/render-preview.js EDIT_PLAN.json --video gravacao.mov --out previa.mp4 --fonts ./fonts
+```
+
+| Roteiro | EDIT_PLAN |
+|---|---|
+| `[TC]` | cortes na V1 (com `--words`: começo real da FALA + jump cuts nas pausas > 0,8 s) |
+| TELA / GRÁFICO | `graphics` tipados: `headline`, `date_stamp`, `scoreboard`, `counter`, `cta`, `stat_card`, `timeline_bar`, `overlay` |
+| EFEITO | `vfx` (`ZOOM_PUNCH_IN` na palavra citada, `SLOW_MOTION`, `DESATURATE`, `SEPIA`, `LETTERBOX`...) |
+| VISUAL | marker laranja `B-ROLL: termo de busca` (V2) |
+| SFX / MÚSICA | `audio[]` (fase 2) + markers de troca de trilha; bip opcional no palavrão |
+| blocos, linha do tempo, OBS, 9:16 | markers (azul, ciano, vermelho, roxo) |
+| errata | `meta.errata` (para a legenda) |
+
+`words.json` é uma lista `[{"w": "palavra", "s": 1.23, "e": 1.48}]`, por exemplo a saída do
+Whisper com `word_timestamps=True`. A prévia usa as fontes do roteiro (Anton para títulos) se a pasta
+`--fonts` tiver `Anton-Regular.ttf`.
 
 ## Limitações conhecidas (fase 1)
 

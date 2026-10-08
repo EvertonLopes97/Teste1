@@ -1,0 +1,3236 @@
+{
+  "version": "1.0",
+  "job_id": "messi-na-selecao",
+  "project": {
+    "name": "messi-na-selecao-da-expulsao-a-redencao",
+    "fps": 30,
+    "width": 1920,
+    "height": 1080
+  },
+  "media": [
+    {
+      "id": "facecam_001",
+      "path": "C:/DETTO/messi-na-selecao/copy_1199F4BB-9C2C-4DEC-9990-6E27CAC89A56.mov",
+      "duration": 523.4
+    }
+  ],
+  "sequence": {
+    "name": "DETTO_MASTER",
+    "fps": 30,
+    "width": 1920,
+    "height": 1080
+  },
+  "cuts": [
+    {
+      "id": "cut_001",
+      "source": "facecam_001",
+      "start": 0,
+      "end": 3.3666666666666667,
+      "timeline": 0,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_002",
+      "source": "facecam_001",
+      "start": 3.3666666666666667,
+      "end": 4.266666666666667,
+      "timeline": 3.3666666666666667,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_003",
+      "source": "facecam_001",
+      "start": 4.666666666666667,
+      "end": 8.366666666666667,
+      "timeline": 4.266666666666667,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_004",
+      "source": "facecam_001",
+      "start": 8.366666666666667,
+      "end": 14.3,
+      "timeline": 7.966666666666667,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_005",
+      "source": "facecam_001",
+      "start": 14.3,
+      "end": 27.666666666666668,
+      "timeline": 13.9,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_006",
+      "source": "facecam_001",
+      "start": 27.666666666666668,
+      "end": 35.3,
+      "timeline": 27.266666666666666,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_007",
+      "source": "facecam_001",
+      "start": 35.86666666666667,
+      "end": 40.333333333333336,
+      "timeline": 34.9,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_008",
+      "source": "facecam_001",
+      "start": 40.7,
+      "end": 45.46666666666667,
+      "timeline": 39.36666666666667,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_009",
+      "source": "facecam_001",
+      "start": 45.96666666666667,
+      "end": 53.36666666666667,
+      "timeline": 44.13333333333333,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_010",
+      "source": "facecam_001",
+      "start": 53.36666666666667,
+      "end": 60.2,
+      "timeline": 51.53333333333333,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_011",
+      "source": "facecam_001",
+      "start": 60.2,
+      "end": 71.1,
+      "timeline": 58.36666666666667,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_012",
+      "source": "facecam_001",
+      "start": 71.1,
+      "end": 74,
+      "timeline": 69.26666666666667,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_013",
+      "source": "facecam_001",
+      "start": 74.56666666666666,
+      "end": 75.66666666666667,
+      "timeline": 72.16666666666667,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_014",
+      "source": "facecam_001",
+      "start": 75.66666666666667,
+      "end": 85.26666666666667,
+      "timeline": 73.26666666666667,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_015",
+      "source": "facecam_001",
+      "start": 85.26666666666667,
+      "end": 91.46666666666667,
+      "timeline": 82.86666666666666,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_016",
+      "source": "facecam_001",
+      "start": 91.46666666666667,
+      "end": 103.83333333333333,
+      "timeline": 89.06666666666666,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_017",
+      "source": "facecam_001",
+      "start": 103.83333333333333,
+      "end": 109.2,
+      "timeline": 101.43333333333334,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_018",
+      "source": "facecam_001",
+      "start": 109.66666666666667,
+      "end": 114.83333333333333,
+      "timeline": 106.8,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_019",
+      "source": "facecam_001",
+      "start": 114.83333333333333,
+      "end": 120.83333333333333,
+      "timeline": 111.96666666666667,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_020",
+      "source": "facecam_001",
+      "start": 121.2,
+      "end": 122.4,
+      "timeline": 117.96666666666667,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_021",
+      "source": "facecam_001",
+      "start": 122.4,
+      "end": 126.46666666666667,
+      "timeline": 119.16666666666667,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_022",
+      "source": "facecam_001",
+      "start": 127.1,
+      "end": 131.1,
+      "timeline": 123.23333333333333,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_023",
+      "source": "facecam_001",
+      "start": 131.1,
+      "end": 132.46666666666667,
+      "timeline": 127.23333333333333,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_024",
+      "source": "facecam_001",
+      "start": 132.76666666666668,
+      "end": 140.86666666666667,
+      "timeline": 128.6,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_025",
+      "source": "facecam_001",
+      "start": 141.23333333333332,
+      "end": 145.53333333333333,
+      "timeline": 136.7,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_026",
+      "source": "facecam_001",
+      "start": 145.53333333333333,
+      "end": 156.56666666666666,
+      "timeline": 141,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_027",
+      "source": "facecam_001",
+      "start": 156.56666666666666,
+      "end": 165,
+      "timeline": 152.03333333333333,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_028",
+      "source": "facecam_001",
+      "start": 165.33333333333334,
+      "end": 166.26666666666668,
+      "timeline": 160.46666666666667,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_029",
+      "source": "facecam_001",
+      "start": 166.66666666666666,
+      "end": 167.96666666666667,
+      "timeline": 161.4,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_030",
+      "source": "facecam_001",
+      "start": 168.3,
+      "end": 177.13333333333333,
+      "timeline": 162.7,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_031",
+      "source": "facecam_001",
+      "start": 177.13333333333333,
+      "end": 179.23333333333332,
+      "timeline": 171.53333333333333,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_032",
+      "source": "facecam_001",
+      "start": 179.6,
+      "end": 188.13333333333333,
+      "timeline": 173.63333333333333,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_033",
+      "source": "facecam_001",
+      "start": 188.13333333333333,
+      "end": 188.83333333333334,
+      "timeline": 182.16666666666666,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_034",
+      "source": "facecam_001",
+      "start": 189.33333333333334,
+      "end": 190.83333333333334,
+      "timeline": 182.86666666666667,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_035",
+      "source": "facecam_001",
+      "start": 191.16666666666666,
+      "end": 196.23333333333332,
+      "timeline": 184.36666666666667,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_036",
+      "source": "facecam_001",
+      "start": 196.63333333333333,
+      "end": 207.93333333333334,
+      "timeline": 189.43333333333334,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_037",
+      "source": "facecam_001",
+      "start": 208.3,
+      "end": 211.9,
+      "timeline": 200.73333333333332,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_038",
+      "source": "facecam_001",
+      "start": 211.9,
+      "end": 216.06666666666666,
+      "timeline": 204.33333333333334,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_039",
+      "source": "facecam_001",
+      "start": 216.06666666666666,
+      "end": 225.56666666666666,
+      "timeline": 208.5,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_040",
+      "source": "facecam_001",
+      "start": 225.56666666666666,
+      "end": 241.46666666666667,
+      "timeline": 218,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_041",
+      "source": "facecam_001",
+      "start": 241.46666666666667,
+      "end": 256.9,
+      "timeline": 233.9,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_042",
+      "source": "facecam_001",
+      "start": 256.9,
+      "end": 261.46666666666664,
+      "timeline": 249.33333333333334,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_043",
+      "source": "facecam_001",
+      "start": 261.8666666666667,
+      "end": 270.26666666666665,
+      "timeline": 253.9,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_044",
+      "source": "facecam_001",
+      "start": 270.26666666666665,
+      "end": 272.1666666666667,
+      "timeline": 262.3,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_045",
+      "source": "facecam_001",
+      "start": 272.46666666666664,
+      "end": 281.6666666666667,
+      "timeline": 264.2,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_046",
+      "source": "facecam_001",
+      "start": 281.6666666666667,
+      "end": 286.43333333333334,
+      "timeline": 273.4,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_047",
+      "source": "facecam_001",
+      "start": 286.76666666666665,
+      "end": 295.2,
+      "timeline": 278.1666666666667,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_048",
+      "source": "facecam_001",
+      "start": 295.2,
+      "end": 311.53333333333336,
+      "timeline": 286.6,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_049",
+      "source": "facecam_001",
+      "start": 311.53333333333336,
+      "end": 315.8333333333333,
+      "timeline": 302.93333333333334,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_050",
+      "source": "facecam_001",
+      "start": 316.3666666666667,
+      "end": 318.43333333333334,
+      "timeline": 307.23333333333335,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_051",
+      "source": "facecam_001",
+      "start": 318.73333333333335,
+      "end": 320.46666666666664,
+      "timeline": 309.3,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_052",
+      "source": "facecam_001",
+      "start": 320.46666666666664,
+      "end": 325.9,
+      "timeline": 311.03333333333336,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_053",
+      "source": "facecam_001",
+      "start": 325.9,
+      "end": 348.26666666666665,
+      "timeline": 316.46666666666664,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_054",
+      "source": "facecam_001",
+      "start": 348.26666666666665,
+      "end": 355.3333333333333,
+      "timeline": 338.8333333333333,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_055",
+      "source": "facecam_001",
+      "start": 355.76666666666665,
+      "end": 362.56666666666666,
+      "timeline": 345.9,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_056",
+      "source": "facecam_001",
+      "start": 362.56666666666666,
+      "end": 370.1333333333333,
+      "timeline": 352.7,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_057",
+      "source": "facecam_001",
+      "start": 370.1333333333333,
+      "end": 372.9,
+      "timeline": 360.26666666666665,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_058",
+      "source": "facecam_001",
+      "start": 373.3666666666667,
+      "end": 390.43333333333334,
+      "timeline": 363.03333333333336,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_059",
+      "source": "facecam_001",
+      "start": 390.73333333333335,
+      "end": 395.7,
+      "timeline": 380.1,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_060",
+      "source": "facecam_001",
+      "start": 396.06666666666666,
+      "end": 399.1333333333333,
+      "timeline": 385.06666666666666,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_061",
+      "source": "facecam_001",
+      "start": 399.1333333333333,
+      "end": 410.8,
+      "timeline": 388.1333333333333,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_062",
+      "source": "facecam_001",
+      "start": 410.8,
+      "end": 419.7,
+      "timeline": 399.8,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_063",
+      "source": "facecam_001",
+      "start": 420.4,
+      "end": 420.53333333333336,
+      "timeline": 408.7,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_064",
+      "source": "facecam_001",
+      "start": 420.53333333333336,
+      "end": 427.73333333333335,
+      "timeline": 408.8333333333333,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_065",
+      "source": "facecam_001",
+      "start": 428.1333333333333,
+      "end": 432.6333333333333,
+      "timeline": 416.03333333333336,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_066",
+      "source": "facecam_001",
+      "start": 432.6333333333333,
+      "end": 436.5,
+      "timeline": 420.53333333333336,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_067",
+      "source": "facecam_001",
+      "start": 437.03333333333336,
+      "end": 444.3666666666667,
+      "timeline": 424.4,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_068",
+      "source": "facecam_001",
+      "start": 444.8,
+      "end": 447.1333333333333,
+      "timeline": 431.73333333333335,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_069",
+      "source": "facecam_001",
+      "start": 447.53333333333336,
+      "end": 461.76666666666665,
+      "timeline": 434.06666666666666,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_070",
+      "source": "facecam_001",
+      "start": 461.76666666666665,
+      "end": 474.93333333333334,
+      "timeline": 448.3,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_071",
+      "source": "facecam_001",
+      "start": 475.3666666666667,
+      "end": 489.93333333333334,
+      "timeline": 461.46666666666664,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_072",
+      "source": "facecam_001",
+      "start": 489.93333333333334,
+      "end": 500.2,
+      "timeline": 476.03333333333336,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_073",
+      "source": "facecam_001",
+      "start": 500.56666666666666,
+      "end": 503.46666666666664,
+      "timeline": 486.3,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_074",
+      "source": "facecam_001",
+      "start": 503.46666666666664,
+      "end": 515.3333333333334,
+      "timeline": 489.2,
+      "track": "V1",
+      "audioTrack": "A1"
+    },
+    {
+      "id": "cut_075",
+      "source": "facecam_001",
+      "start": 515.3333333333334,
+      "end": 523.3333333333334,
+      "timeline": 501.06666666666666,
+      "track": "V1",
+      "audioTrack": "A1"
+    }
+  ],
+  "markers": [
+    {
+      "id": "block_0",
+      "time": 0,
+      "name": "ABERTURA / GANCHO",
+      "color": "blue",
+      "comment": "Início: ABERTURA / GANCHO"
+    },
+    {
+      "id": "seg_00m00s_broll",
+      "time": 0,
+      "duration": 3.3666666666666667,
+      "name": "B-ROLL: Monumental de Núñez lotado despedida Messi",
+      "color": "orange",
+      "comment": "V2 B-ROLL • vídeo aéreo do Monumental lotado à noite (\"Monumental de Núñez lotado despedida Messi\")"
+    },
+    {
+      "time": 0,
+      "name": "MÚSICA: entra trilha emotiva baixa (piano)",
+      "color": "green",
+      "comment": "entra trilha emotiva baixa (piano)"
+    },
+    {
+      "id": "seg_00m03s_broll",
+      "time": 3.3666666666666667,
+      "duration": 4.6,
+      "name": "B-ROLL: Messi despedida Benin entrada em campo",
+      "color": "orange",
+      "comment": "V2 B-ROLL • Messi entrando em campo contra Benin, de capitão (\"Messi despedida Benin entrada em campo\")"
+    },
+    {
+      "id": "seg_00m08s_broll",
+      "time": 7.966666666666667,
+      "duration": 5.933333333333334,
+      "name": "B-ROLL: corte rápido em 3 tempos: (1) pênalti do Messi, (2) passe pa",
+      "color": "orange",
+      "comment": "V2 B-ROLL • corte rápido em 3 tempos: (1) pênalti do Messi, (2) passe para o gol, (3) torcedor chorando na arquibancada"
+    },
+    {
+      "id": "seg_00m14s_broll",
+      "time": 13.9,
+      "duration": 13.366666666666665,
+      "name": "B-ROLL: montagem relâmpago em ordem: cartão vermelho → Messi cabisba",
+      "color": "orange",
+      "comment": "V2 B-ROLL • montagem relâmpago em ordem: cartão vermelho → Messi cabisbaixo em final → Messi com a taça da Copa 2022"
+    },
+    {
+      "time": 13.9,
+      "name": "MÚSICA: a trilha sobe",
+      "color": "green",
+      "comment": "a trilha sobe"
+    },
+    {
+      "id": "block_5",
+      "time": 34.9,
+      "name": "BLOCO 1 — A ESTREIA (2005)",
+      "color": "blue",
+      "comment": "Início: BLOCO 1 — A ESTREIA (2005)"
+    },
+    {
+      "id": "seg_00m36s_broll",
+      "time": 34.9,
+      "duration": 9.233333333333334,
+      "name": "B-ROLL: Messi estreia Argentina Hungria 2005",
+      "color": "orange",
+      "comment": "V2 B-ROLL • foto do jovem Messi na estreia (\"Messi estreia Argentina Hungria 2005\")"
+    },
+    {
+      "time": 34.9,
+      "name": "MÚSICA: troca para piano melancólico",
+      "color": "green",
+      "comment": "troca para piano melancólico"
+    },
+    {
+      "id": "vertical_1_0",
+      "time": 34.9,
+      "duration": 23.466666666666665,
+      "name": "9:16 #1: EXPULSO EM 2 MINUTOS",
+      "color": "purple",
+      "comment": "Gancho: O Messi foi EXPULSO na estreia pela seleção."
+    },
+    {
+      "id": "seg_00m46s_broll",
+      "time": 44.13333333333333,
+      "duration": 7.433333333333337,
+      "name": "B-ROLL: lance da expulsão (se não houver vídeo, sequência de fotos c",
+      "color": "orange",
+      "comment": "V2 B-ROLL • lance da expulsão (se não houver vídeo, sequência de fotos com efeito Ken Burns)"
+    },
+    {
+      "id": "seg_00m53s_broll",
+      "time": 51.56666666666667,
+      "duration": 6.799999999999997,
+      "name": "B-ROLL: Messi saindo de campo",
+      "color": "orange",
+      "comment": "V2 B-ROLL • Messi saindo de campo"
+    },
+    {
+      "id": "seg_01m00s_broll",
+      "time": 58.36666666666667,
+      "duration": 10.899999999999999,
+      "name": "B-ROLL: Messi campeão Mundial Sub-20 2005 Holanda",
+      "color": "orange",
+      "comment": "V2 B-ROLL • Messi com o troféu do Mundial Sub-20 (\"Messi campeão Mundial Sub-20 2005 Holanda\")"
+    },
+    {
+      "id": "block_10",
+      "time": 73.26666666666667,
+      "name": "BLOCO 2 — O MENINO QUE AINDA NÃO ERA O MESSI (2006–2008)",
+      "color": "blue",
+      "comment": "Início: BLOCO 2 — O MENINO QUE AINDA NÃO ERA O MESSI (2006–2008)"
+    },
+    {
+      "time": 73.26666666666667,
+      "name": "LINHA DO TEMPO → 2006",
+      "color": "cyan",
+      "comment": "LINHA DO TEMPO avança para 2006 (SFX \"tick\" + whoosh)"
+    },
+    {
+      "id": "seg_01m16s_broll",
+      "time": 73.26666666666667,
+      "duration": 9.599999999999994,
+      "name": "B-ROLL: Messi gol Sérvia e Montenegro 2006",
+      "color": "orange",
+      "comment": "V2 B-ROLL • gol do Messi contra Sérvia e Montenegro (\"Messi gol Sérvia e Montenegro 2006\")"
+    },
+    {
+      "id": "seg_01m25s_broll",
+      "time": 82.86666666666666,
+      "duration": 6.200000000000003,
+      "name": "B-ROLL: Messi banco Argentina Alemanha 2006",
+      "color": "orange",
+      "comment": "V2 B-ROLL • Messi no banco de reservas (\"Messi banco Argentina Alemanha 2006\")"
+    },
+    {
+      "id": "seg_01m31s_broll",
+      "time": 89.06666666666666,
+      "duration": 12.366666666666674,
+      "name": "B-ROLL: Copa América 2007 final Brasil Argentina",
+      "color": "orange",
+      "comment": "V2 B-ROLL • Brasil comemorando a Copa América 2007 (\"Copa América 2007 final Brasil Argentina\")"
+    },
+    {
+      "id": "seg_01m44s_broll",
+      "time": 101.43333333333334,
+      "duration": 10.5,
+      "name": "B-ROLL: Messi ouro olímpico Pequim 2008",
+      "color": "orange",
+      "comment": "V2 B-ROLL • Messi com a medalha de ouro (\"Messi ouro olímpico Pequim 2008\")"
+    },
+    {
+      "id": "block_14",
+      "time": 111.93333333333334,
+      "name": "BLOCO 3 — A ERA DAS FRUSTRAÇÕES (2010–2011)",
+      "color": "blue",
+      "comment": "Início: BLOCO 3 — A ERA DAS FRUSTRAÇÕES (2010–2011)"
+    },
+    {
+      "time": 111.93333333333334,
+      "name": "LINHA DO TEMPO → 2010",
+      "color": "cyan",
+      "comment": "LINHA DO TEMPO avança para 2010"
+    },
+    {
+      "id": "seg_01m55s_broll",
+      "time": 111.93333333333334,
+      "duration": 7.200000000000003,
+      "name": "B-ROLL: Maradona técnico Messi 2010",
+      "color": "orange",
+      "comment": "V2 B-ROLL • Maradona abraçando Messi (\"Maradona técnico Messi 2010\")"
+    },
+    {
+      "id": "seg_02m02s_broll",
+      "time": 119.13333333333334,
+      "duration": 8.099999999999994,
+      "name": "B-ROLL: Messi desolado; alemães comemorando",
+      "color": "orange",
+      "comment": "V2 B-ROLL • Messi desolado; alemães comemorando"
+    },
+    {
+      "id": "seg_02m11s_broll",
+      "time": 127.23333333333333,
+      "duration": 13.733333333333334,
+      "name": "B-ROLL: Copa América 2011 Argentina Uruguai",
+      "color": "orange",
+      "comment": "V2 B-ROLL • torcida argentina vaiando / Messi cabisbaixo (\"Copa América 2011 Argentina Uruguai\")"
+    },
+    {
+      "id": "block_17",
+      "time": 140.96666666666667,
+      "name": "BLOCO 4 — O MARACANÃ DE 2014",
+      "color": "blue",
+      "comment": "Início: BLOCO 4 — O MARACANÃ DE 2014"
+    },
+    {
+      "time": 140.96666666666667,
+      "name": "LINHA DO TEMPO → 2014",
+      "color": "cyan",
+      "comment": "LINHA DO TEMPO avança para 2014"
+    },
+    {
+      "time": 140.96666666666667,
+      "name": "MÚSICA: troca para cordas dramáticas",
+      "color": "green",
+      "comment": "MÚSICA: troca para cordas dramáticas"
+    },
+    {
+      "id": "seg_02m26s_broll",
+      "time": 140.96666666666667,
+      "duration": 11.066666666666663,
+      "name": "B-ROLL: gols do Messi na fase de grupos da Copa 2014 (montagem rápid",
+      "color": "orange",
+      "comment": "V2 B-ROLL • gols do Messi na fase de grupos da Copa 2014 (montagem rápida)"
+    },
+    {
+      "id": "seg_02m37s_broll",
+      "time": 152.03333333333333,
+      "duration": 10.699999999999989,
+      "name": "B-ROLL: final Copa 2014 Maracanã Alemanha Argentina",
+      "color": "orange",
+      "comment": "V2 B-ROLL • imagens da final no Maracanã (\"final Copa 2014 Maracanã Alemanha Argentina\")"
+    },
+    {
+      "id": "vertical_2_0",
+      "time": 152.03333333333333,
+      "duration": 19.533333333333335,
+      "name": "9:16 #2: A FOTO MAIS TRISTE",
+      "color": "purple",
+      "comment": "Gancho: A foto mais triste da carreira do Messi."
+    },
+    {
+      "id": "seg_02m48s_broll",
+      "time": 162.73333333333332,
+      "duration": 8.800000000000011,
+      "name": "B-ROLL: Messi olhando taça Copa 2014",
+      "color": "orange",
+      "comment": "V2 B-ROLL • A FOTO icônica do Messi olhando a taça (\"Messi olhando taça Copa 2014\")"
+    },
+    {
+      "time": 162.73333333333332,
+      "name": "MÚSICA: sobe para -10 dB neste respiro",
+      "color": "green",
+      "comment": "sobe para -10 dB neste respiro"
+    },
+    {
+      "id": "block_21",
+      "time": 182.16666666666666,
+      "name": "BLOCO 5 — AS FINAIS CONTRA O CHILE E O ADEUS (2015–2016)",
+      "color": "blue",
+      "comment": "Início: BLOCO 5 — AS FINAIS CONTRA O CHILE E O ADEUS (2015–2016)"
+    },
+    {
+      "time": 182.16666666666666,
+      "name": "LINHA DO TEMPO → 2015",
+      "color": "cyan",
+      "comment": "LINHA DO TEMPO avança para 2015"
+    },
+    {
+      "id": "seg_03m08s_broll",
+      "time": 182.16666666666666,
+      "duration": 7.26666666666668,
+      "name": "B-ROLL: Copa América 2015 final Chile campeão",
+      "color": "orange",
+      "comment": "V2 B-ROLL • Chile comemorando (\"Copa América 2015 final Chile campeão\")"
+    },
+    {
+      "id": "seg_03m17s_broll",
+      "time": 189.43333333333334,
+      "duration": 14.866666666666674,
+      "name": "B-ROLL: Messi pênalti perdido final Copa América 2016",
+      "color": "orange",
+      "comment": "V2 B-ROLL • Messi chutando o pênalti para fora (\"Messi pênalti perdido final Copa América 2016\")"
+    },
+    {
+      "id": "vertical_3_0",
+      "time": 189.43333333333334,
+      "duration": 19.033333333333335,
+      "name": "9:16 #3: O ESTÁDIO AMALDIÇOADO",
+      "color": "purple",
+      "comment": "Gancho: O estádio onde o Messi perdeu DUAS vezes."
+    },
+    {
+      "id": "seg_03m32s_broll",
+      "time": 204.3,
+      "duration": 4.166666666666657,
+      "name": "B-ROLL: MetLife Stadium aerial",
+      "color": "orange",
+      "comment": "V2 B-ROLL • foto aérea do MetLife Stadium (\"MetLife Stadium aerial\")"
+    },
+    {
+      "id": "seg_03m36s_broll",
+      "time": 208.46666666666667,
+      "duration": 9.5,
+      "name": "B-ROLL: Messi sentado sozinho no gramado / no vestiário",
+      "color": "orange",
+      "comment": "V2 B-ROLL • Messi sentado sozinho no gramado / no vestiário"
+    },
+    {
+      "id": "seg_03m46s_broll",
+      "time": 217.96666666666667,
+      "duration": 15.900000000000006,
+      "name": "B-ROLL: No te vayas, Leo",
+      "color": "orange",
+      "comment": "V2 B-ROLL • montagem de cartazes \"No te vayas, Leo\" e torcedores nas ruas (\"torcedores argentinos campanha Messi não vá 2016\")"
+    },
+    {
+      "id": "block_26",
+      "time": 233.86666666666667,
+      "name": "BLOCO 6 — ALTITUDE, RÚSSIA E MINEIRÃO (2017–2019)",
+      "color": "blue",
+      "comment": "Início: BLOCO 6 — ALTITUDE, RÚSSIA E MINEIRÃO (2017–2019)"
+    },
+    {
+      "time": 233.86666666666667,
+      "name": "LINHA DO TEMPO → 2017",
+      "color": "cyan",
+      "comment": "LINHA DO TEMPO avança para 2017"
+    },
+    {
+      "id": "seg_04m01s_broll",
+      "time": 233.86666666666667,
+      "duration": 15.433333333333337,
+      "name": "B-ROLL: Messi hat-trick Equador Quito 2017",
+      "color": "orange",
+      "comment": "V2 B-ROLL • hat-trick em Quito (\"Messi hat-trick Equador Quito 2017\")"
+    },
+    {
+      "id": "seg_04m17s_obs0",
+      "time": 249.3,
+      "duration": 12.96666666666664,
+      "name": "OBS: no áudio parece \"caiu nas oitavas do Zimbabwe\". O ",
+      "color": "red",
+      "comment": "OBS PARA O EDITOR: no áudio parece \"caiu nas oitavas do Zimbabwe\". O adversário certo é a FRANÇA (4 x 3). Se o áudio estiver estranho, cortar a palavra ou cobrir com a placa e a legenda \"PRA FRANÇA\"."
+    },
+    {
+      "id": "seg_04m17s_broll",
+      "time": 249.3,
+      "duration": 12.96666666666664,
+      "name": "B-ROLL: Messi Copa 2018 Islândia pênalti",
+      "color": "orange",
+      "comment": "V2 B-ROLL • montagem rápida dos 4 jogos (\"Messi Copa 2018 Islândia pênalti\", \"Argentina França 2018\")"
+    },
+    {
+      "id": "seg_04m30s_broll",
+      "time": 262.26666666666665,
+      "duration": 11.100000000000023,
+      "name": "B-ROLL: Mineirão semifinal Copa América 2019 Brasil Argentina",
+      "color": "orange",
+      "comment": "V2 B-ROLL • Mineirão por fora/aéreo (\"Mineirão semifinal Copa América 2019 Brasil Argentina\")"
+    },
+    {
+      "id": "vertical_4_0",
+      "time": 262.26666666666665,
+      "duration": 11.066666666666666,
+      "name": "9:16 #4: MESSI NO MINEIRÃO",
+      "color": "purple",
+      "comment": "Gancho: O dia que o Messi caiu no Mineirão."
+    },
+    {
+      "id": "block_29",
+      "time": 273.3666666666667,
+      "name": "BLOCO 7 — A VIRADA: MARACANÃ 2021",
+      "color": "blue",
+      "comment": "Início: BLOCO 7 — A VIRADA: MARACANÃ 2021"
+    },
+    {
+      "time": 273.3666666666667,
+      "name": "LINHA DO TEMPO → 2021",
+      "color": "cyan",
+      "comment": "LINHA DO TEMPO avança para 2021"
+    },
+    {
+      "time": 273.3666666666667,
+      "name": "MÚSICA: build-up épico com percussão",
+      "color": "green",
+      "comment": "MÚSICA: build-up épico com percussão"
+    },
+    {
+      "id": "seg_04m42s_broll",
+      "time": 273.3666666666667,
+      "duration": 13.166666666666686,
+      "name": "B-ROLL: Di María gol cobertura final Copa América 2021",
+      "color": "orange",
+      "comment": "V2 B-ROLL • gol de cobertura do Di María (\"Di María gol cobertura final Copa América 2021\")"
+    },
+    {
+      "id": "seg_04m55s_broll",
+      "time": 286.53333333333336,
+      "duration": 16.333333333333314,
+      "name": "B-ROLL: Messi ajoelhado Maracanã 2021",
+      "color": "orange",
+      "comment": "V2 B-ROLL • Messi ajoelhado + time correndo pra cima (\"Messi ajoelhado Maracanã 2021\")"
+    },
+    {
+      "time": 310.6333333333333,
+      "name": "PALAVRÃO",
+      "color": "red",
+      "comment": "PALAVRÃO: em [07:05] tem um \"pra caralho\". Decidir: manter, ou passar um bip de humor"
+    },
+    {
+      "id": "block_32",
+      "time": 310.96666666666664,
+      "name": "BLOCO 8 — O ANO PERFEITO: 2022",
+      "color": "blue",
+      "comment": "Início: BLOCO 8 — O ANO PERFEITO: 2022"
+    },
+    {
+      "time": 310.96666666666664,
+      "name": "LINHA DO TEMPO → 2022",
+      "color": "cyan",
+      "comment": "LINHA DO TEMPO avança para 2022"
+    },
+    {
+      "id": "seg_05m20s_broll",
+      "time": 310.96666666666664,
+      "duration": 5.433333333333337,
+      "name": "B-ROLL: Finalíssima 2022 Wembley Argentina Itália",
+      "color": "orange",
+      "comment": "V2 B-ROLL • Argentina campeã em Wembley (\"Finalíssima 2022 Wembley Argentina Itália\")"
+    },
+    {
+      "id": "seg_05m26s_broll",
+      "time": 316.4,
+      "duration": 22.366666666666674,
+      "name": "B-ROLL: montagem em ritmo crescente de todos os jogos",
+      "color": "orange",
+      "comment": "V2 B-ROLL • montagem em ritmo crescente de todos os jogos"
+    },
+    {
+      "id": "seg_05m48s_broll",
+      "time": 338.76666666666665,
+      "duration": 13.866666666666674,
+      "name": "B-ROLL: final Copa 2022 Argentina França",
+      "color": "orange",
+      "comment": "V2 B-ROLL • melhores momentos da final (\"final Copa 2022 Argentina França\")"
+    },
+    {
+      "id": "seg_06m03s_broll",
+      "time": 352.6333333333333,
+      "duration": 7.53333333333336,
+      "name": "B-ROLL: Messi levanta taça Copa 2022",
+      "color": "orange",
+      "comment": "V2 B-ROLL • Messi levantando a taça (\"Messi levanta taça Copa 2022\")"
+    },
+    {
+      "time": 352.6333333333333,
+      "name": "MÚSICA: pico épico",
+      "color": "green",
+      "comment": "pico épico"
+    },
+    {
+      "id": "block_37",
+      "time": 362.93333333333334,
+      "name": "BLOCO 9 — O BI DA AMÉRICA (2024)",
+      "color": "blue",
+      "comment": "Início: BLOCO 9 — O BI DA AMÉRICA (2024)"
+    },
+    {
+      "time": 362.93333333333334,
+      "name": "LINHA DO TEMPO → 2024",
+      "color": "cyan",
+      "comment": "LINHA DO TEMPO avança para 2024"
+    },
+    {
+      "id": "seg_06m13s_broll",
+      "time": 362.93333333333334,
+      "duration": 17.066666666666663,
+      "name": "B-ROLL: Messi chorando banco final Copa América 2024",
+      "color": "orange",
+      "comment": "V2 B-ROLL • Messi chorando no banco com o tornozelo inchado; gol do Lautaro (\"Messi chorando banco final Copa América 2024\", \"Lautaro gol final Copa América 2024\")"
+    },
+    {
+      "id": "block_38",
+      "time": 380,
+      "name": "BLOCO 10 — A ÚLTIMA COPA (2026)",
+      "color": "blue",
+      "comment": "Início: BLOCO 10 — A ÚLTIMA COPA (2026)"
+    },
+    {
+      "time": 380,
+      "name": "LINHA DO TEMPO → 2026",
+      "color": "cyan",
+      "comment": "LINHA DO TEMPO avança para 2026"
+    },
+    {
+      "time": 380,
+      "name": "MÚSICA: emotiva (piano + cordas)",
+      "color": "green",
+      "comment": "MÚSICA: emotiva (piano + cordas)"
+    },
+    {
+      "id": "seg_06m31s_broll",
+      "time": 380,
+      "duration": 8.03333333333336,
+      "name": "B-ROLL: Messi Copa 2026 Argentina",
+      "color": "orange",
+      "comment": "V2 B-ROLL • Messi na Copa 2026 (\"Messi Copa 2026 Argentina\")"
+    },
+    {
+      "id": "seg_06m39s_broll",
+      "time": 388.03333333333336,
+      "duration": 11.633333333333326,
+      "name": "B-ROLL: Argentina Inglaterra semifinal 2026 Messi assistência",
+      "color": "orange",
+      "comment": "V2 B-ROLL • lances das assistências (\"Argentina Inglaterra semifinal 2026 Messi assistência\")"
+    },
+    {
+      "id": "seg_06m51s_broll",
+      "time": 399.6666666666667,
+      "duration": 9.033333333333303,
+      "name": "B-ROLL: RETOMA a foto aérea do MetLife com o círculo vermelho do Blo",
+      "color": "orange",
+      "comment": "V2 B-ROLL • RETOMA a foto aérea do MetLife com o círculo vermelho do Bloco 5"
+    },
+    {
+      "id": "vertical_3_1",
+      "time": 399.6666666666667,
+      "duration": 20.733333333333334,
+      "name": "9:16 #3: O ESTÁDIO AMALDIÇOADO",
+      "color": "purple",
+      "comment": "Gancho: O estádio onde o Messi perdeu DUAS vezes."
+    },
+    {
+      "id": "seg_07m01s_obs0",
+      "time": 408.7,
+      "duration": 11.733333333333348,
+      "name": "OBS: no áudio saiu \"Ezo\", \"Debo\" e \"Fernando Antônes\". ",
+      "color": "red",
+      "comment": "OBS: no áudio saiu \"Ezo\", \"Debo\" e \"Fernando Antônes\". Legendar corretamente: ENZO FERNÁNDEZ, DIBU MARTÍNEZ, FERRAN TORRES."
+    },
+    {
+      "id": "seg_07m01s_broll",
+      "time": 408.7,
+      "duration": 11.733333333333348,
+      "name": "B-ROLL: final Copa 2026 Espanha Argentina",
+      "color": "orange",
+      "comment": "V2 B-ROLL • lances da final (\"final Copa 2026 Espanha Argentina\")"
+    },
+    {
+      "id": "seg_07m13s_broll",
+      "time": 420.43333333333334,
+      "duration": 3.8666666666666742,
+      "name": "B-ROLL: Messi com a medalha de prata",
+      "color": "orange",
+      "comment": "V2 B-ROLL • Messi com a medalha de prata"
+    },
+    {
+      "id": "block_43",
+      "time": 424.3,
+      "name": "BLOCO 11 — A NOITE DA DESPEDIDA (06/10/2026)",
+      "color": "blue",
+      "comment": "Início: BLOCO 11 — A NOITE DA DESPEDIDA (06/10/2026)"
+    },
+    {
+      "time": 424.3,
+      "name": "MÚSICA: épico emocional crescente até o fim",
+      "color": "green",
+      "comment": "MÚSICA: épico emocional crescente até o fim"
+    },
+    {
+      "id": "seg_07m17s_obs0",
+      "time": 424.3,
+      "duration": 9.666666666666629,
+      "name": "OBS: no áudio saiu \"Beninho\". Legendar \"BENIN\".",
+      "color": "red",
+      "comment": "OBS: no áudio saiu \"Beninho\". Legendar \"BENIN\"."
+    },
+    {
+      "id": "seg_07m17s_broll",
+      "time": 424.3,
+      "duration": 9.666666666666629,
+      "name": "B-ROLL: Messi despedida hino filhos Monumental",
+      "color": "orange",
+      "comment": "V2 B-ROLL • torcida no Monumental, mosaicos, Messi com os filhos no hino (\"Messi despedida hino filhos Monumental\")"
+    },
+    {
+      "id": "seg_07m28s_broll",
+      "time": 433.96666666666664,
+      "duration": 14.233333333333348,
+      "name": "B-ROLL: os três gols; o pênalti em slow motion; Messi comemorando",
+      "color": "orange",
+      "comment": "V2 B-ROLL • os três gols; o pênalti em slow motion; Messi comemorando"
+    },
+    {
+      "id": "vertical_5_0",
+      "time": 433.96666666666664,
+      "duration": 14.233333333333333,
+      "name": "9:16 #5: COMEÇOU COM VERMELHO, TERMINOU COM GOL",
+      "color": "purple",
+      "comment": "Gancho: O primeiro e o último jogo do Messi."
+    },
+    {
+      "id": "block_45",
+      "time": 448.2,
+      "name": "BLOCO 12 — OS NÚMEROS",
+      "color": "blue",
+      "comment": "Início: BLOCO 12 — OS NÚMEROS"
+    },
+    {
+      "id": "vertical_6_0",
+      "time": 448.2,
+      "duration": 27.733333333333334,
+      "name": "9:16 #6: OS NÚMEROS DO MESSI",
+      "color": "purple",
+      "comment": "OS NÚMEROS DO MESSI"
+    },
+    {
+      "id": "block_46",
+      "time": 475.93333333333334,
+      "name": "FECHAMENTO",
+      "color": "blue",
+      "comment": "Início: FECHAMENTO"
+    },
+    {
+      "id": "seg_08m10s_broll",
+      "time": 475.93333333333334,
+      "duration": 13.133333333333326,
+      "name": "B-ROLL: montagem em ordem cronológica, 1 imagem por fato, sincroniza",
+      "color": "orange",
+      "comment": "V2 B-ROLL • montagem em ordem cronológica, 1 imagem por fato, sincronizada com a fala: 🟥 2005 → 💔 finais → 😠 vaias 2011 → 👋 2016 → 🔙 volta → 🏆 2022 → 👏 Monumental 2026"
+    }
+  ],
+  "graphics": [
+    {
+      "id": "seg_00m00s_tela0",
+      "type": "headline",
+      "start": 0,
+      "duration": 3.3666666666666667,
+      "text": "ONTEM, ACABOU UMA ERA",
+      "description": "\"ONTEM, ACABOU UMA ERA\" (palavra por palavra, dourado)"
+    },
+    {
+      "id": "seg_00m03s_tela0",
+      "type": "headline",
+      "start": 3.3666666666666667,
+      "duration": 4.6,
+      "text": "ÚLTIMO JOGO • 06/10/2026",
+      "description": "\"ÚLTIMO JOGO • 06/10/2026\""
+    },
+    {
+      "id": "seg_00m08s_tela0",
+      "type": "headline",
+      "start": 10.433333333333334,
+      "duration": 3.466666666666667,
+      "text": "⚽ GOL → 🎯 ASSISTÊNCIA → 😭 ESTÁDIO CHORANDO",
+      "description": "ícones aparecendo sincronizados com a fala: \"⚽ GOL\" → \"🎯 ASSISTÊNCIA\" → \"😭 ESTÁDIO CHORANDO\""
+    },
+    {
+      "id": "seg_00m14s_tela0",
+      "type": "headline",
+      "start": 19.733333333333334,
+      "duration": 7.533333333333333,
+      "text": "🟥 EXPULSÃO → 💔 FINAIS PERDIDAS → 👋 APOSENTADORIA → 🏆 O MUNDO AOS PÉS",
+      "description": "\"🟥 EXPULSÃO\" → \"💔 FINAIS PERDIDAS\" → \"👋 APOSENTADORIA\" → \"🏆 O MUNDO AOS PÉS\""
+    },
+    {
+      "id": "seg_00m28s_tela0",
+      "type": "headline",
+      "start": 27.266666666666666,
+      "duration": 7.633333333333334,
+      "text": "MESSI x SELEÇÃO ARGENTINA • 2005–2026",
+      "description": "título do vídeo animado: \"MESSI x SELEÇÃO ARGENTINA • 2005–2026\""
+    },
+    {
+      "id": "seg_00m28s_tela1",
+      "type": "cta",
+      "start": 28.766666666666666,
+      "duration": 6.133333333333334,
+      "text": "INSCREVER-SE",
+      "description": "+ botão animado de \"INSCREVER-SE\" sendo clicado + ícone de like 👍"
+    },
+    {
+      "id": "seg_00m28s_gfx0",
+      "type": "timeline_bar",
+      "start": 27.766666666666666,
+      "duration": 7.133333333333334,
+      "text": "barra de rodapé 2005 ─────── 2026",
+      "description": "barra de rodapé 2005 ─────── 2026"
+    },
+    {
+      "id": "seg_00m36s_tela0",
+      "type": "date_stamp",
+      "start": 34.9,
+      "duration": 9.233333333333333,
+      "text": "17/08/2005 • BUDAPESTE",
+      "description": "carimbo \"17/08/2005 • BUDAPESTE\""
+    },
+    {
+      "id": "seg_00m36s_tela1",
+      "type": "headline",
+      "start": 40.2,
+      "duration": 3.933333333333333,
+      "text": "18 ANOS",
+      "description": "destaque \"18 ANOS\""
+    },
+    {
+      "id": "seg_00m36s_gfx0",
+      "type": "overlay",
+      "start": 35.4,
+      "duration": 8.733333333333333,
+      "text": "mapa da Europa com zoom até a Hungria e um pin em Budapeste",
+      "description": "mapa da Europa com zoom até a Hungria e um pin em Budapeste"
+    },
+    {
+      "id": "seg_00m46s_tela0",
+      "type": "headline",
+      "start": 44.13333333333333,
+      "duration": 7.433333333333334,
+      "text": "CARTÃO VERMELHO 3D",
+      "description": "um CARTÃO VERMELHO 3D gira e \"bate\" na tela"
+    },
+    {
+      "id": "seg_00m53s_tela0",
+      "type": "counter",
+      "start": 51.56666666666667,
+      "duration": 6.8,
+      "text": "MENOS DE 2 MINUTOS",
+      "description": "cronômetro digital correndo 00:00 → 01:5X e parando em vermelho: \"MENOS DE 2 MINUTOS\""
+    },
+    {
+      "id": "seg_00m53s_gfx0",
+      "type": "scoreboard",
+      "start": 52.06666666666667,
+      "duration": 6.3,
+      "text": "ARGENTINA 2 x 1 HUNGRIA • AMISTOSO • 2005",
+      "description": "PLACA DE PLACAR: ARGENTINA 2 x 1 HUNGRIA • AMISTOSO • 2005 (a placa aparece e \"desbota\" quando você diz \"ninguém lembra do placar\")"
+    },
+    {
+      "id": "seg_01m00s_tela0",
+      "type": "headline",
+      "start": 58.36666666666667,
+      "duration": 10.9,
+      "text": "🏆 CAMPEÃO MUNDIAL SUB-20 • 2005",
+      "description": "\"🏆 CAMPEÃO MUNDIAL SUB-20 • 2005\""
+    },
+    {
+      "id": "seg_01m00s_tela1",
+      "type": "headline",
+      "start": 59.86666666666667,
+      "duration": 9.4,
+      "text": "2 GOLS NA FINAL (PÊNALTIS)",
+      "description": "\"2 GOLS NA FINAL (PÊNALTIS)\""
+    },
+    {
+      "id": "seg_01m00s_tela2",
+      "type": "headline",
+      "start": 61.36666666666667,
+      "duration": 7.9,
+      "text": "MELHOR DO TORNEIO",
+      "description": "\"MELHOR DO TORNEIO\""
+    },
+    {
+      "id": "seg_01m00s_gfx0",
+      "type": "scoreboard",
+      "start": 58.86666666666667,
+      "duration": 10.4,
+      "text": "ARGENTINA 2 x 1 NIGÉRIA • FINAL SUB-20",
+      "description": "PLACA DE PLACAR: ARGENTINA 2 x 1 NIGÉRIA • FINAL SUB-20"
+    },
+    {
+      "id": "seg_01m11s_tela0",
+      "type": "headline",
+      "start": 69.26666666666667,
+      "duration": 4,
+      "text": "🤔 VOCÊ IMAGINAVA?",
+      "description": "\"🤔 VOCÊ IMAGINAVA?\" (para incentivar comentário)"
+    },
+    {
+      "id": "seg_01m16s_tela0",
+      "type": "date_stamp",
+      "start": 73.26666666666667,
+      "duration": 9.6,
+      "text": "COPA 2006 • ALEMANHA",
+      "description": "carimbo \"COPA 2006 • ALEMANHA\""
+    },
+    {
+      "id": "seg_01m16s_tela1",
+      "type": "headline",
+      "start": 74.76666666666667,
+      "duration": 8.1,
+      "text": "🥇 ARGENTINO MAIS JOVEM A MARCAR EM COPAS",
+      "description": "selo \"🥇 ARGENTINO MAIS JOVEM A MARCAR EM COPAS\""
+    },
+    {
+      "id": "seg_01m16s_gfx0",
+      "type": "scoreboard",
+      "start": 73.76666666666667,
+      "duration": 9.1,
+      "text": "ARGENTINA 6 x 0 SÉRVIA E MONTENEGRO",
+      "description": "PLACA DE PLACAR: ARGENTINA 6 x 0 SÉRVIA E MONTENEGRO"
+    },
+    {
+      "id": "seg_01m25s_tela0",
+      "type": "headline",
+      "start": 82.86666666666666,
+      "duration": 6.2,
+      "text": "🪑 NO BANCO, SEM ENTRAR",
+      "description": "\"🪑 NO BANCO, SEM ENTRAR\""
+    },
+    {
+      "id": "seg_01m25s_gfx0",
+      "type": "scoreboard",
+      "start": 83.36666666666666,
+      "duration": 5.7,
+      "text": "ALEMANHA 1 x 1 ARGENTINA (pênaltis: 4 x 2 Alemanha) • QUARTAS 2006",
+      "description": "PLACA: ALEMANHA 1 x 1 ARGENTINA (pênaltis: 4 x 2 Alemanha) • QUARTAS 2006"
+    },
+    {
+      "id": "seg_01m31s_tela0",
+      "type": "headline",
+      "start": 89.06666666666666,
+      "duration": 12.366666666666667,
+      "text": "NO BARÇA É GÊNIO... NA SELEÇÃO NÃO RESOLVE",
+      "description": "a frase em \"aspas de manchete de jornal\": \"NO BARÇA É GÊNIO... NA SELEÇÃO NÃO RESOLVE\" (efeito de jornal sendo jogado na tela)"
+    },
+    {
+      "id": "seg_01m31s_gfx0",
+      "type": "scoreboard",
+      "start": 89.56666666666666,
+      "duration": 11.866666666666667,
+      "text": "BRASIL 3 x 0 ARGENTINA • FINAL COPA AMÉRICA 2007",
+      "description": "PLACA: BRASIL 3 x 0 ARGENTINA • FINAL COPA AMÉRICA 2007"
+    },
+    {
+      "id": "seg_01m44s_tela0",
+      "type": "headline",
+      "start": 101.43333333333334,
+      "duration": 10.5,
+      "text": "🥇 OURO OLÍMPICO • PEQUIM 2008",
+      "description": "\"🥇 OURO OLÍMPICO • PEQUIM 2008\""
+    },
+    {
+      "id": "seg_01m44s_tela1",
+      "type": "headline",
+      "start": 109.26666666666667,
+      "duration": 2.6666666666666665,
+      "text": "*SUB-23",
+      "description": "um asterisco: \"*SUB-23\""
+    },
+    {
+      "id": "seg_01m44s_gfx0",
+      "type": "scoreboard",
+      "start": 101.93333333333334,
+      "duration": 10,
+      "text": "ARGENTINA 1 x 0 NIGÉRIA • FINAL OLÍMPICA 2008",
+      "description": "PLACA: ARGENTINA 1 x 0 NIGÉRIA • FINAL OLÍMPICA 2008"
+    },
+    {
+      "id": "seg_01m55s_tela0",
+      "type": "date_stamp",
+      "start": 111.93333333333334,
+      "duration": 7.2,
+      "text": "COPA 2010 • ÁFRICA DO SUL",
+      "description": "carimbo \"COPA 2010 • ÁFRICA DO SUL\""
+    },
+    {
+      "id": "seg_01m55s_tela1",
+      "type": "headline",
+      "start": 117.1,
+      "duration": 2.033333333333333,
+      "text": "🎬 ROTEIRO DE FILME?",
+      "description": "\"🎬 ROTEIRO DE FILME?\""
+    },
+    {
+      "id": "seg_02m02s_tela0",
+      "type": "counter",
+      "start": 119.13333333333334,
+      "duration": 8.1,
+      "text": "GOLS NA COPA: 0",
+      "description": "contador \"GOLS NA COPA: 0\" (em vermelho)"
+    },
+    {
+      "id": "seg_02m02s_gfx0",
+      "type": "scoreboard",
+      "start": 119.63333333333334,
+      "duration": 7.6,
+      "text": "ARGENTINA 0 x 4 ALEMANHA • QUARTAS 2010",
+      "description": "PLACA: ARGENTINA 0 x 4 ALEMANHA • QUARTAS 2010"
+    },
+    {
+      "id": "seg_02m11s_tela0",
+      "type": "headline",
+      "start": 127.23333333333333,
+      "duration": 13.733333333333333,
+      "text": "VAIADO EM CASA 😔",
+      "description": "\"VAIADO EM CASA 😔\""
+    },
+    {
+      "id": "seg_02m11s_tela1",
+      "type": "headline",
+      "start": 139.66666666666666,
+      "duration": 1.3,
+      "text": "TRISTE",
+      "description": "ao repetir \"triste\", a palavra \"TRISTE\" aparece 3 vezes,"
+    },
+    {
+      "id": "seg_02m11s_tela2",
+      "type": "generic",
+      "start": 130.23333333333332,
+      "duration": 10.733333333333333,
+      "text": "cada vez maior",
+      "description": "cada vez maior"
+    },
+    {
+      "id": "seg_02m11s_gfx0",
+      "type": "scoreboard",
+      "start": 127.73333333333333,
+      "duration": 13.233333333333333,
+      "text": "ARGENTINA 1 x 1 URUGUAI (pênaltis: 5 x 4 Uruguai) • QUARTAS 2011",
+      "description": "PLACA: ARGENTINA 1 x 1 URUGUAI (pênaltis: 5 x 4 Uruguai) • QUARTAS 2011"
+    },
+    {
+      "id": "seg_02m26s_tela0",
+      "type": "date_stamp",
+      "start": 140.96666666666667,
+      "duration": 11.066666666666666,
+      "text": "COPA 2014 • BRASIL 🇧🇷",
+      "description": "carimbo \"COPA 2014 • BRASIL 🇧🇷\""
+    },
+    {
+      "id": "seg_02m26s_tela1",
+      "type": "counter",
+      "start": 142.46666666666667,
+      "duration": 9.566666666666666,
+      "text": "GOLS NA FASE DE GRUPOS: 4",
+      "description": "contador \"GOLS NA FASE DE GRUPOS: 4\" (subindo 1, 2, 3, 4 com um \"pop\" cada)"
+    },
+    {
+      "id": "seg_02m26s_gfx0",
+      "type": "scoreboard",
+      "start": 141.46666666666667,
+      "duration": 10.566666666666666,
+      "text": "HOLANDA 0 x 0 ARGENTINA (pênaltis: 4 x 2 Argentina) • SEMIFINAL 2014",
+      "description": "PLACA: HOLANDA 0 x 0 ARGENTINA (pênaltis: 4 x 2 Argentina) • SEMIFINAL 2014"
+    },
+    {
+      "id": "seg_02m37s_tela0",
+      "type": "date_stamp",
+      "start": 152.03333333333333,
+      "duration": 10.7,
+      "text": "13/07/2014 • MARACANÃ",
+      "description": "carimbo \"13/07/2014 • MARACANÃ\""
+    },
+    {
+      "id": "seg_02m37s_tela1",
+      "type": "headline",
+      "start": 155.86666666666667,
+      "duration": 6.866666666666666,
+      "text": "CONTRA QUEM? 🇩🇪",
+      "description": "\"CONTRA QUEM? 🇩🇪\" (a bandeira alemã aparece pela"
+    },
+    {
+      "id": "seg_02m37s_tela2",
+      "type": "headline",
+      "start": 155.03333333333333,
+      "duration": 7.7,
+      "text": "DE NOVO?!",
+      "description": "3ª vez, com \"DE NOVO?!\" piscando)"
+    },
+    {
+      "id": "seg_02m37s_gfx0",
+      "type": "counter",
+      "start": 152.53333333333333,
+      "duration": 10.2,
+      "text": "113'",
+      "description": "relógio de jogo correndo até \"113'\""
+    },
+    {
+      "id": "seg_02m37s_gfx1",
+      "type": "scoreboard",
+      "start": 154.03333333333333,
+      "duration": 8.7,
+      "text": "ALEMANHA 1 x 0 ARGENTINA (PRORROGAÇÃO)",
+      "description": "PLACA: ALEMANHA 1 x 0 ARGENTINA (PRORROGAÇÃO)"
+    },
+    {
+      "id": "seg_02m48s_tela0",
+      "type": "headline",
+      "start": 163.23333333333332,
+      "duration": 8.3,
+      "text": "A FOTO MAIS TRISTE DA CARREIRA",
+      "description": "\"A FOTO MAIS TRISTE DA CARREIRA\""
+    },
+    {
+      "id": "seg_02m57s_tela0",
+      "type": "cta",
+      "start": 171.53333333333333,
+      "duration": 10.633333333333333,
+      "text": "💬 ONDE VOCÊ VIU A FINAL DE 2014?",
+      "description": "caixa de comentário animada: \"💬 ONDE VOCÊ VIU A FINAL DE 2014?\""
+    },
+    {
+      "id": "seg_02m57s_tela1",
+      "type": "cta",
+      "start": 173.03333333333333,
+      "duration": 9.133333333333333,
+      "text": "SEGUIR",
+      "description": "+ botão \"SEGUIR\" sendo clicado"
+    },
+    {
+      "id": "seg_03m08s_tela0",
+      "type": "counter",
+      "start": 182.16666666666666,
+      "duration": 7.266666666666667,
+      "text": "FINAIS PERDIDAS: 2",
+      "description": "contador de finais perdidas: \"FINAIS PERDIDAS: 2\" (2014 e 2015)"
+    },
+    {
+      "id": "seg_03m08s_gfx0",
+      "type": "scoreboard",
+      "start": 182.66666666666666,
+      "duration": 6.766666666666667,
+      "text": "CHILE 0 x 0 ARGENTINA (pênaltis: 4 x 1 Chile) • FINAL 2015",
+      "description": "PLACA: CHILE 0 x 0 ARGENTINA (pênaltis: 4 x 1 Chile) • FINAL 2015"
+    },
+    {
+      "id": "seg_03m17s_tela0",
+      "type": "date_stamp",
+      "start": 189.43333333333334,
+      "duration": 14.866666666666667,
+      "text": "26/06/2016 • EUA",
+      "description": "carimbo \"26/06/2016 • EUA\""
+    },
+    {
+      "id": "seg_03m17s_tela1",
+      "type": "headline",
+      "start": 195.26666666666668,
+      "duration": 9.033333333333333,
+      "text": "DE NOVO?!",
+      "description": "\"DE NOVO?!\""
+    },
+    {
+      "id": "seg_03m17s_gfx0",
+      "type": "scoreboard",
+      "start": 189.93333333333334,
+      "duration": 14.366666666666667,
+      "text": "ARGENTINA 0 x 0 CHILE (pênaltis: 2 x 4 Chile) • FINAL CENTENÁRIO 2016",
+      "description": "PLACA: ARGENTINA 0 x 0 CHILE (pênaltis: 2 x 4 Chile) • FINAL CENTENÁRIO 2016"
+    },
+    {
+      "id": "seg_03m32s_tela0",
+      "type": "headline",
+      "start": 204.43333333333334,
+      "duration": 4.033333333333333,
+      "text": "📌 GUARDA ESSE ESTÁDIO → METLIFE STADIUM • NOVA JERSEY",
+      "description": "um \"📌 GUARDA ESSE ESTÁDIO\" e um pin sobre a foto: \"METLIFE STADIUM • NOVA JERSEY\""
+    },
+    {
+      "id": "seg_03m36s_tela0",
+      "type": "headline",
+      "start": 208.46666666666667,
+      "duration": 9.5,
+      "text": "3 FINAIS SEGUIDAS PERDIDAS",
+      "description": "\"3 FINAIS SEGUIDAS PERDIDAS\""
+    },
+    {
+      "id": "seg_03m36s_tela1",
+      "type": "headline",
+      "start": 209.96666666666667,
+      "duration": 8,
+      "text": "MESSI ANUNCIA ADEUS À SELEÇÃO",
+      "description": "manchete: \"MESSI ANUNCIA ADEUS À SELEÇÃO\""
+    },
+    {
+      "id": "seg_03m36s_gfx0",
+      "type": "stat_card",
+      "start": 208.96666666666667,
+      "duration": 9,
+      "text": "três taças em silhueta (2014, 2015, 2016) aparecendo e \"quebrando\" uma a uma",
+      "description": "três taças em silhueta (2014, 2015, 2016) aparecendo e \"quebrando\" uma a uma"
+    },
+    {
+      "id": "seg_03m46s_tela0",
+      "type": "headline",
+      "start": 217.96666666666667,
+      "duration": 15.9,
+      "text": "😱 DESESPERO NACIONAL → 🔙 VOLTOU EM MENOS DE 2 MESES",
+      "description": "\"😱 DESESPERO NACIONAL\" → \"🔙 VOLTOU EM MENOS DE 2 MESES\""
+    },
+    {
+      "id": "seg_04m01s_tela0",
+      "type": "date_stamp",
+      "start": 233.86666666666667,
+      "duration": 15.433333333333334,
+      "text": "OUT/2017 • QUITO",
+      "description": "carimbo \"OUT/2017 • QUITO\""
+    },
+    {
+      "id": "seg_04m01s_tela1",
+      "type": "counter",
+      "start": 235.36666666666667,
+      "duration": 13.933333333333334,
+      "text": "medidor de altitude \"⛰️ 2.850 m\" subindo",
+      "description": "medidor de altitude \"⛰️ 2.850 m\" subindo"
+    },
+    {
+      "id": "seg_04m01s_tela2",
+      "type": "headline",
+      "start": 236.86666666666667,
+      "duration": 12.433333333333334,
+      "text": "⚽⚽⚽ HAT-TRICK",
+      "description": "\"⚽⚽⚽ HAT-TRICK\""
+    },
+    {
+      "id": "seg_04m01s_gfx0",
+      "type": "scoreboard",
+      "start": 234.36666666666667,
+      "duration": 14.933333333333334,
+      "text": "EQUADOR 1 x 3 ARGENTINA • ELIMINATÓRIAS",
+      "description": "PLACA: EQUADOR 1 x 3 ARGENTINA • ELIMINATÓRIAS"
+    },
+    {
+      "id": "seg_04m17s_tela0",
+      "type": "date_stamp",
+      "start": 249.3,
+      "duration": 12.966666666666667,
+      "text": "COPA 2018 • RÚSSIA",
+      "description": "carimbo \"COPA 2018 • RÚSSIA\""
+    },
+    {
+      "id": "seg_04m17s_gfx0",
+      "type": "scoreboard",
+      "start": 249.8,
+      "duration": 12.466666666666667,
+      "text": "ARGENTINA 1 x 1 ISLÂNDIA",
+      "description": "4 placas em sequência, estilo \"cartas\": ARGENTINA 1 x 1 ISLÂNDIA (pênalti perdido)"
+    },
+    {
+      "id": "seg_04m17s_gfx1",
+      "type": "scoreboard",
+      "start": 251.3,
+      "duration": 10.966666666666667,
+      "text": "ARGENTINA 0 x 3 CROÁCIA",
+      "description": "ARGENTINA 0 x 3 CROÁCIA"
+    },
+    {
+      "id": "seg_04m17s_gfx2",
+      "type": "scoreboard",
+      "start": 252.8,
+      "duration": 9.466666666666667,
+      "text": "NIGÉRIA 1 x 2 ARGENTINA",
+      "description": "NIGÉRIA 1 x 2 ARGENTINA"
+    },
+    {
+      "id": "seg_04m17s_gfx3",
+      "type": "scoreboard",
+      "start": 254.3,
+      "duration": 7.966666666666667,
+      "text": "FRANÇA 4 x 3 ARGENTINA • OITAVAS",
+      "description": "FRANÇA 4 x 3 ARGENTINA • OITAVAS"
+    },
+    {
+      "id": "seg_04m30s_tela0",
+      "type": "headline",
+      "start": 262.26666666666665,
+      "duration": 11.1,
+      "text": "📍 MINEIRÃO • BELO HORIZONTE",
+      "description": "\"📍 MINEIRÃO • BELO HORIZONTE\" (com o emoji de galo 🐓 piscando, piada interna)"
+    },
+    {
+      "id": "seg_04m30s_gfx0",
+      "type": "scoreboard",
+      "start": 262.76666666666665,
+      "duration": 10.6,
+      "text": "BRASIL 2 x 0 ARGENTINA • SEMIFINAL 2019",
+      "description": "PLACA: BRASIL 2 x 0 ARGENTINA • SEMIFINAL 2019"
+    },
+    {
+      "id": "seg_04m30s_gfx1",
+      "type": "overlay",
+      "start": 264.26666666666665,
+      "duration": 9.1,
+      "text": "EXPULSO NO 3º LUGAR",
+      "description": "cartão vermelho girando \"EXPULSO NO 3º LUGAR (x CHILE)\""
+    },
+    {
+      "id": "seg_04m42s_tela0",
+      "type": "headline",
+      "start": 273.3666666666667,
+      "duration": 13.166666666666666,
+      "text": "🔄 A VIRADA",
+      "description": "\"🔄 A VIRADA\" (entrando com glitch)"
+    },
+    {
+      "id": "seg_04m42s_tela1",
+      "type": "date_stamp",
+      "start": 274.8666666666667,
+      "duration": 11.666666666666666,
+      "text": "10/07/2021 • MARACANÃ",
+      "description": "carimbo \"10/07/2021 • MARACANÃ\""
+    },
+    {
+      "id": "seg_04m42s_gfx0",
+      "type": "scoreboard",
+      "start": 273.8666666666667,
+      "duration": 12.666666666666666,
+      "text": "BRASIL 0 x 1 ARGENTINA • FINAL COPA AMÉRICA 2021",
+      "description": "PLACA: BRASIL 0 x 1 ARGENTINA • FINAL COPA AMÉRICA 2021"
+    },
+    {
+      "id": "seg_04m55s_tela0",
+      "type": "headline",
+      "start": 286.53333333333336,
+      "duration": 16.333333333333332,
+      "text": "🏆 PRIMEIRO TÍTULO PRINCIPAL • 16 ANOS DEPOIS",
+      "description": "\"🏆 PRIMEIRO TÍTULO PRINCIPAL • 16 ANOS DEPOIS\""
+    },
+    {
+      "id": "seg_04m55s_tela1",
+      "type": "headline",
+      "start": 288.03333333333336,
+      "duration": 14.833333333333334,
+      "text": "MELHOR JOGADOR + ARTILHEIRO",
+      "description": "\"MELHOR JOGADOR + ARTILHEIRO\""
+    },
+    {
+      "id": "seg_04m55s_gfx0",
+      "type": "timeline_bar",
+      "start": 287.03333333333336,
+      "duration": 15.833333333333334,
+      "text": "linha do tempo mostrando 2005 (🟥) ─── 16 anos ─── 2021 (🏆)",
+      "description": "linha do tempo mostrando 2005 (🟥) ─── 16 anos ─── 2021 (🏆)"
+    },
+    {
+      "id": "seg_05m12s_tela0",
+      "type": "generic",
+      "start": 302.8666666666667,
+      "duration": 8.1,
+      "text": "\"🇧🇷😤 vs 🐐\"",
+      "description": "\"🇧🇷😤 vs 🐐\""
+    },
+    {
+      "id": "seg_05m20s_tela0",
+      "type": "date_stamp",
+      "start": 310.96666666666664,
+      "duration": 5.433333333333334,
+      "text": "01/06/2022 • WEMBLEY",
+      "description": "carimbo \"01/06/2022 • WEMBLEY\""
+    },
+    {
+      "id": "seg_05m20s_tela1",
+      "type": "headline",
+      "start": 314.76666666666665,
+      "duration": 1.6333333333333333,
+      "text": "🏆 FINALÍSSIMA",
+      "description": "\"🏆 FINALÍSSIMA\""
+    },
+    {
+      "id": "seg_05m20s_gfx0",
+      "type": "scoreboard",
+      "start": 311.46666666666664,
+      "duration": 4.933333333333334,
+      "text": "ITÁLIA 0 x 3 ARGENTINA • FINALÍSSIMA • WEMBLEY",
+      "description": "PLACA: ITÁLIA 0 x 3 ARGENTINA • FINALÍSSIMA • WEMBLEY"
+    },
+    {
+      "id": "seg_05m26s_tela0",
+      "type": "date_stamp",
+      "start": 316.4,
+      "duration": 22.366666666666667,
+      "text": "COPA 2022 • CATAR",
+      "description": "carimbo \"COPA 2022 • CATAR\""
+    },
+    {
+      "id": "seg_05m26s_tela1",
+      "type": "headline",
+      "start": 317.9,
+      "duration": 20.866666666666667,
+      "text": "😱 ZEBRA NA ESTREIA",
+      "description": "na Arábia: \"😱 ZEBRA NA ESTREIA\""
+    },
+    {
+      "id": "seg_05m26s_gfx0",
+      "type": "scoreboard",
+      "start": 316.9,
+      "duration": 21.866666666666667,
+      "text": "CHAVEAMENTO ANIMADO",
+      "description": "CHAVEAMENTO ANIMADO da Copa 2022 se acendendo jogo a jogo:"
+    },
+    {
+      "id": "seg_05m26s_gfx1",
+      "type": "scoreboard",
+      "start": 318.4,
+      "duration": 20.366666666666667,
+      "text": "❌ ARÁBIA SAUDITA 2 x 1 ARGENTINA",
+      "description": "❌ ARÁBIA SAUDITA 2 x 1 ARGENTINA (estreia)"
+    },
+    {
+      "id": "seg_05m26s_gfx2",
+      "type": "scoreboard",
+      "start": 319.9,
+      "duration": 18.866666666666667,
+      "text": "✅ ARGENTINA 2 x 0 MÉXICO",
+      "description": "✅ ARGENTINA 2 x 0 MÉXICO"
+    },
+    {
+      "id": "seg_05m26s_gfx3",
+      "type": "scoreboard",
+      "start": 321.4,
+      "duration": 17.366666666666667,
+      "text": "✅ POLÔNIA 0 x 2 ARGENTINA",
+      "description": "✅ POLÔNIA 0 x 2 ARGENTINA"
+    },
+    {
+      "id": "seg_05m26s_gfx4",
+      "type": "scoreboard",
+      "start": 322.9,
+      "duration": 15.866666666666667,
+      "text": "✅ ARGENTINA 2 x 1 AUSTRÁLIA (oitavas • 1000º jogo da carreira)",
+      "description": "✅ ARGENTINA 2 x 1 AUSTRÁLIA (oitavas • 1000º jogo da carreira)"
+    },
+    {
+      "id": "seg_05m26s_gfx5",
+      "type": "scoreboard",
+      "start": 324.4,
+      "duration": 14.366666666666667,
+      "text": "✅ HOLANDA 2 x 2 ARGENTINA (pênaltis: 3 x 4) • QUARTAS",
+      "description": "✅ HOLANDA 2 x 2 ARGENTINA (pênaltis: 3 x 4) • QUARTAS"
+    },
+    {
+      "id": "seg_05m26s_gfx6",
+      "type": "scoreboard",
+      "start": 325.9,
+      "duration": 12.866666666666667,
+      "text": "✅ ARGENTINA 3 x 0 CROÁCIA • SEMIFINAL",
+      "description": "✅ ARGENTINA 3 x 0 CROÁCIA • SEMIFINAL"
+    },
+    {
+      "id": "seg_05m48s_tela0",
+      "type": "date_stamp",
+      "start": 338.76666666666665,
+      "duration": 13.866666666666667,
+      "text": "18/12/2022 • LUSAIL",
+      "description": "carimbo \"18/12/2022 • LUSAIL\""
+    },
+    {
+      "id": "seg_05m48s_tela1",
+      "type": "headline",
+      "start": 340.26666666666665,
+      "duration": 12.366666666666667,
+      "text": "A MAIOR FINAL DA HISTÓRIA?",
+      "description": "\"A MAIOR FINAL DA HISTÓRIA?\""
+    },
+    {
+      "id": "seg_05m48s_gfx0",
+      "type": "overlay",
+      "start": 339.26666666666665,
+      "duration": 13.366666666666667,
+      "text": "MESSI ⚽⚽ x MBAPPÉ ⚽⚽⚽",
+      "description": "duelo lado a lado: MESSI ⚽⚽ x MBAPPÉ ⚽⚽⚽"
+    },
+    {
+      "id": "seg_05m48s_gfx1",
+      "type": "scoreboard",
+      "start": 340.76666666666665,
+      "duration": 11.866666666666667,
+      "text": "ARGENTINA 3 x 3 FRANÇA (pênaltis: 4 x 2 Argentina) • FINAL",
+      "description": "PLACA: ARGENTINA 3 x 3 FRANÇA (pênaltis: 4 x 2 Argentina) • FINAL"
+    },
+    {
+      "id": "seg_06m03s_tela0",
+      "type": "headline",
+      "start": 352.6333333333333,
+      "duration": 7.533333333333333,
+      "text": "🏆 CAMPEÃO DO MUNDO",
+      "description": "\"🏆 CAMPEÃO DO MUNDO\""
+    },
+    {
+      "id": "seg_06m03s_tela1",
+      "type": "stat_card",
+      "start": 354.1333333333333,
+      "duration": 6.033333333333333,
+      "text": "ÚNICO COM 2 BOLAS DE OURO EM COPAS (2014 e 2022)",
+      "description": "selo \"ÚNICO COM 2 BOLAS DE OURO EM COPAS (2014 e 2022)\""
+    },
+    {
+      "id": "seg_06m03s_gfx0",
+      "type": "stat_card",
+      "start": 353.1333333333333,
+      "duration": 7.033333333333333,
+      "text": "2014 → 2022",
+      "description": "duas Bolas de Ouro girando lado a lado com \"2014\" e \"2022\""
+    },
+    {
+      "id": "seg_06m10s_tela0",
+      "type": "cta",
+      "start": 360.1666666666667,
+      "duration": 2.7666666666666666,
+      "text": "📌 SALVA E MANDA PRO AMIGO HATER",
+      "description": "\"📌 SALVA E MANDA PRO AMIGO HATER\""
+    },
+    {
+      "id": "seg_06m13s_tela0",
+      "type": "date_stamp",
+      "start": 362.93333333333334,
+      "duration": 17.066666666666666,
+      "text": "14/07/2024 • MIAMI",
+      "description": "carimbo \"14/07/2024 • MIAMI\""
+    },
+    {
+      "id": "seg_06m13s_tela1",
+      "type": "headline",
+      "start": 367.96666666666664,
+      "duration": 12.033333333333333,
+      "text": "🩹 TORNOZELO",
+      "description": "\"🩹 TORNOZELO\""
+    },
+    {
+      "id": "seg_06m13s_tela2",
+      "type": "headline",
+      "start": 378.46666666666664,
+      "duration": 1.5333333333333334,
+      "text": "🏆🏆 BICAMPEÃ DA AMÉRICA",
+      "description": "\"🏆🏆 BICAMPEÃ DA AMÉRICA\""
+    },
+    {
+      "id": "seg_06m13s_gfx0",
+      "type": "counter",
+      "start": 363.43333333333334,
+      "duration": 16.566666666666666,
+      "text": "112'",
+      "description": "relógio até \"112'\""
+    },
+    {
+      "id": "seg_06m13s_gfx1",
+      "type": "scoreboard",
+      "start": 364.93333333333334,
+      "duration": 15.066666666666666,
+      "text": "ARGENTINA 1 x 0 COLÔMBIA (PRORROGAÇÃO)",
+      "description": "PLACA: ARGENTINA 1 x 0 COLÔMBIA (PRORROGAÇÃO)"
+    },
+    {
+      "id": "seg_06m31s_tela0",
+      "type": "date_stamp",
+      "start": 380,
+      "duration": 8.033333333333333,
+      "text": "COPA 2026 • EUA",
+      "description": "carimbo \"COPA 2026 • EUA\""
+    },
+    {
+      "id": "seg_06m31s_tela1",
+      "type": "headline",
+      "start": 381.5,
+      "duration": 6.533333333333333,
+      "text": "6ª COPA • 39 ANOS",
+      "description": "\"6ª COPA • 39 ANOS\""
+    },
+    {
+      "id": "seg_06m31s_gfx0",
+      "type": "counter",
+      "start": 380.5,
+      "duration": 7.533333333333333,
+      "text": "⚽ 8 GOLS → 🎯 4 ASSISTÊNCIAS",
+      "description": "contadores \"⚽ 8 GOLS\" e \"🎯 4 ASSISTÊNCIAS\" subindo"
+    },
+    {
+      "id": "seg_06m39s_tela0",
+      "type": "date_stamp",
+      "start": 388.03333333333336,
+      "duration": 11.633333333333333,
+      "text": "15/07/2026 • ATLANTA",
+      "description": "carimbo \"15/07/2026 • ATLANTA\""
+    },
+    {
+      "id": "seg_06m39s_gfx0",
+      "type": "scoreboard",
+      "start": 388.53333333333336,
+      "duration": 11.133333333333333,
+      "text": "INGLATERRA 1 x 0 → 1 x 1 (Enzo, 85') → 1 x 2",
+      "description": "placar animado: INGLATERRA 1 x 0 → 1 x 1 (Enzo, 85') → 1 x 2 (Lautaro, acréscimos)"
+    },
+    {
+      "id": "seg_06m39s_gfx1",
+      "type": "overlay",
+      "start": 390.03333333333336,
+      "duration": 9.633333333333333,
+      "text": "🎯 MESSI",
+      "description": "com setas \"🎯 MESSI\" em cada gol"
+    },
+    {
+      "id": "seg_06m51s_tela0",
+      "type": "headline",
+      "start": 399.6666666666667,
+      "duration": 9.033333333333333,
+      "text": "📌 LEMBRA DESSE ESTÁDIO?",
+      "description": "\"📌 LEMBRA DESSE ESTÁDIO?\""
+    },
+    {
+      "id": "seg_06m51s_tela1",
+      "type": "headline",
+      "start": 401.1666666666667,
+      "duration": 7.533333333333333,
+      "text": "split screen 2016 (P&B) | 2026",
+      "description": "split screen 2016 (P&B) | 2026 (cor)"
+    },
+    {
+      "id": "seg_07m01s_tela0",
+      "type": "headline",
+      "start": 408.7,
+      "duration": 11.733333333333333,
+      "text": "🟥 ENZO EXPULSO → 🧤 DIBU: 10 DEFESAS (RECORDE EM FINAIS)",
+      "description": "\"🟥 ENZO EXPULSO\" → \"🧤 DIBU: 10 DEFESAS (RECORDE EM FINAIS)\""
+    },
+    {
+      "id": "seg_07m01s_gfx0",
+      "type": "counter",
+      "start": 409.2,
+      "duration": 11.233333333333333,
+      "text": "106'",
+      "description": "relógio até \"106'\""
+    },
+    {
+      "id": "seg_07m01s_gfx1",
+      "type": "scoreboard",
+      "start": 410.7,
+      "duration": 9.733333333333333,
+      "text": "ESPANHA 1 x 0 ARGENTINA (PRORROGAÇÃO) • 19/07/2026",
+      "description": "PLACA: ESPANHA 1 x 0 ARGENTINA (PRORROGAÇÃO) • 19/07/2026"
+    },
+    {
+      "id": "seg_07m13s_tela0",
+      "type": "headline",
+      "start": 421.46666666666664,
+      "duration": 2.8333333333333335,
+      "text": "🥈 BOLA DE PRATA",
+      "description": "\"🥈 BOLA DE PRATA\""
+    },
+    {
+      "id": "seg_07m13s_tela1",
+      "type": "headline",
+      "start": 421.93333333333334,
+      "duration": 2.3666666666666667,
+      "text": "🌍 34 JOGOS EM COPAS: RECORDE",
+      "description": "\"🌍 34 JOGOS EM COPAS: RECORDE\""
+    },
+    {
+      "id": "seg_07m17s_tela0",
+      "type": "date_stamp",
+      "start": 424.3,
+      "duration": 9.666666666666666,
+      "text": "06/10/2026 • MONUMENTAL DE NÚÑEZ",
+      "description": "carimbo \"06/10/2026 • MONUMENTAL DE NÚÑEZ\""
+    },
+    {
+      "id": "seg_07m17s_tela1",
+      "type": "counter",
+      "start": 425.8,
+      "duration": 8.166666666666666,
+      "text": "👥 +85.000",
+      "description": "contador \"👥 +85.000\""
+    },
+    {
+      "id": "seg_07m28s_tela0",
+      "type": "headline",
+      "start": 433.96666666666664,
+      "duration": 14.233333333333333,
+      "text": "⚽ GOL Nº 126 • O ÚLTIMO",
+      "description": "\"⚽ GOL Nº 126 • O ÚLTIMO\""
+    },
+    {
+      "id": "seg_07m28s_gfx0",
+      "type": "scoreboard",
+      "start": 434.46666666666664,
+      "duration": 13.733333333333333,
+      "text": "1 x 0 → 2 x 0 → 3 x 0",
+      "description": "placar animado: 1 x 0 (Otamendi, 🎯 Messi) → 2 x 0 (Nico Paz, 🎯 Messi) → 3 x 0 (Messi, pênalti)"
+    },
+    {
+      "id": "seg_07m28s_gfx1",
+      "type": "scoreboard",
+      "start": 435.96666666666664,
+      "duration": 12.233333333333333,
+      "text": "ARGENTINA 3 x 0 BENIN • DESPEDIDA",
+      "description": "PLACA FINAL: ARGENTINA 3 x 0 BENIN • DESPEDIDA"
+    },
+    {
+      "id": "seg_07m42s_gfx0",
+      "type": "stat_card",
+      "start": 448.7,
+      "duration": 27.233333333333334,
+      "text": "FICHA DO ÍDOLO",
+      "description": "\"FICHA DO ÍDOLO\" em tela cheia, estilo carta de videogame (Messi em destaque),"
+    },
+    {
+      "id": "seg_07m42s_gfx1",
+      "type": "counter",
+      "start": 450.2,
+      "duration": 25.733333333333334,
+      "text": "👕 JOGOS: +200",
+      "description": "com contadores subindo um a um, no ritmo da fala: 👕 JOGOS: +200"
+    },
+    {
+      "id": "seg_07m42s_gfx2",
+      "type": "counter",
+      "start": 451.7,
+      "duration": 24.233333333333334,
+      "text": "GOLS: 126 MESSI 126 BATISTUTA 56",
+      "description": "⚽ GOLS: 126 (com a barra comparando: MESSI 126 | BATISTUTA 56)"
+    },
+    {
+      "id": "seg_07m42s_gfx3",
+      "type": "counter",
+      "start": 453.2,
+      "duration": 22.733333333333334,
+      "text": "ASSISTÊNCIAS: 70",
+      "description": "🎯 ASSISTÊNCIAS: 70"
+    },
+    {
+      "id": "seg_07m42s_gfx4",
+      "type": "counter",
+      "start": 454.7,
+      "duration": 21.233333333333334,
+      "text": "COPAS: 6",
+      "description": "🌍 COPAS: 6 (2006 • 2010 • 2014 • 2018 • 2022 • 2026, ícones acendendo)"
+    },
+    {
+      "id": "seg_07m42s_gfx5",
+      "type": "stat_card",
+      "start": 456.2,
+      "duration": 19.733333333333334,
+      "text": "ESTANTE DE TROFÉUS",
+      "description": "uma ESTANTE DE TROFÉUS com 6 taças aparecendo:"
+    },
+    {
+      "id": "seg_07m42s_gfx6",
+      "type": "overlay",
+      "start": 457.7,
+      "duration": 18.233333333333334,
+      "text": "🏆 Mundial Sub-20 2005  🥇 Ouro Olímpico 2008  🏆 Copa América 2021",
+      "description": "🏆 Mundial Sub-20 2005  🥇 Ouro Olímpico 2008  🏆 Copa América 2021"
+    },
+    {
+      "id": "seg_07m42s_gfx7",
+      "type": "overlay",
+      "start": 459.2,
+      "duration": 16.733333333333334,
+      "text": "🏆 Finalíssima 2022     🏆 Copa do Mundo 2022    🏆 Copa América 2024",
+      "description": "🏆 Finalíssima 2022     🏆 Copa do Mundo 2022    🏆 Copa América 2024"
+    },
+    {
+      "id": "seg_08m10s_tela0",
+      "type": "generic",
+      "start": 475.93333333333334,
+      "duration": 13.133333333333333,
+      "text": "cada fato aparece como palavra grande",
+      "description": "cada fato aparece como palavra grande"
+    },
+    {
+      "id": "seg_08m10s_tela1",
+      "type": "headline",
+      "start": 477.43333333333334,
+      "duration": 11.633333333333333,
+      "text": "A MAIOR REDENÇÃO DO FUTEBOL?",
+      "description": "ao final: \"A MAIOR REDENÇÃO DO FUTEBOL?\""
+    },
+    {
+      "id": "seg_08m23s_tela0",
+      "type": "cta",
+      "start": 489.06666666666666,
+      "duration": 11.9,
+      "text": "🐐 MAIOR DE TODOS? SIM ✅ / NÃO ❌ — COMENTA!",
+      "description": "enquete visual: \"🐐 MAIOR DE TODOS? SIM ✅ / NÃO ❌ — COMENTA!\""
+    },
+    {
+      "id": "seg_08m35s_tela0",
+      "type": "cta",
+      "start": 500.96666666666664,
+      "duration": 7.966666666666667,
+      "text": "👍 CURTE • 🔁 COMPARTILHA • 🔔 INSCREVE",
+      "description": "\"👍 CURTE • 🔁 COMPARTILHA • 🔔 INSCREVE\""
+    }
+  ],
+  "vfx": [
+    {
+      "id": "seg_00m00s_vfx",
+      "name": "SLOW_MOTION+FLASH",
+      "start": 0,
+      "duration": 3.3666666666666667,
+      "description": "começa em preto e o vídeo abre com flash branco; leve slow motion",
+      "approximate": false
+    },
+    {
+      "id": "seg_00m03s_vfx",
+      "name": "ZOOM_PUNCH_IN",
+      "start": 5.566666666666666,
+      "duration": 1.6,
+      "description": "punch-in 115% na palavra \"última\"",
+      "approximate": false
+    },
+    {
+      "id": "seg_00m08s_vfx",
+      "name": "RHYTHM_CUTS",
+      "start": 7.966666666666667,
+      "duration": 5.933333333333334,
+      "description": "cortes secos no ritmo da fala",
+      "approximate": false
+    },
+    {
+      "id": "seg_00m14s_vfx",
+      "name": "SEPIA",
+      "start": 13.9,
+      "duration": 13.366666666666667,
+      "description": "filtro sépia nas imagens antigas, cor normal na taça",
+      "approximate": false
+    },
+    {
+      "id": "seg_00m28s_vfx",
+      "name": "TIMELINE_BAR",
+      "start": 27.266666666666666,
+      "duration": 7.633333333333334,
+      "description": "logo depois, entra a LINHA DO TEMPO no rodapé, com o marcador em 2005",
+      "approximate": false
+    },
+    {
+      "id": "seg_00m36s_vfx",
+      "name": "FILM_GRAIN",
+      "start": 34.9,
+      "duration": 9.233333333333333,
+      "description": "filtro de foto antiga (grão de filme leve)",
+      "approximate": false
+    },
+    {
+      "id": "seg_00m46s_vfx",
+      "name": "FREEZE_FRAME+CAMERA_SHAKE",
+      "start": 44.13333333333333,
+      "duration": 7.433333333333334,
+      "description": "freeze frame no momento do cartão, com tela tremendo levemente (camera shake)",
+      "approximate": false
+    },
+    {
+      "id": "seg_00m53s_vfx",
+      "name": "ZOOM_PUNCH_IN",
+      "start": 54.2,
+      "duration": 1.6,
+      "description": "punch-in em \"saiu chorando\"",
+      "approximate": false
+    },
+    {
+      "id": "seg_01m00s_vfx",
+      "name": "GOLD_GLOW",
+      "start": 58.36666666666667,
+      "duration": 10.9,
+      "description": "brilho dourado (glow) passando pela tela",
+      "approximate": false
+    },
+    {
+      "id": "seg_01m11s_vfx",
+      "name": "SLOW_ZOOM",
+      "start": 69.26666666666667,
+      "duration": 4,
+      "description": "zoom lento na sua cara + meme de \"não\" se quiser humor",
+      "approximate": false
+    },
+    {
+      "id": "seg_01m25s_vfx",
+      "name": "DESATURATE",
+      "start": 82.86666666666666,
+      "duration": 6.2,
+      "description": "filtro levemente dessaturado",
+      "approximate": false
+    },
+    {
+      "id": "seg_01m31s_vfx",
+      "name": "DESATURATE+SPLIT_SCREEN",
+      "start": 89.06666666666666,
+      "duration": 12.366666666666667,
+      "description": "split screen, Messi no Barça (cor) | Messi na seleção (preto e branco)",
+      "approximate": false
+    },
+    {
+      "id": "seg_01m55s_vfx",
+      "name": "LETTERBOX",
+      "start": 111.93333333333334,
+      "duration": 7.2,
+      "description": "barras pretas de cinema (letterbox) entrando em cima e embaixo",
+      "approximate": false
+    },
+    {
+      "id": "seg_02m02s_vfx",
+      "name": "LETTERBOX",
+      "start": 119.13333333333334,
+      "duration": 8.1,
+      "description": "as barras de cinema \"rasgam\" e somem (fim do sonho)",
+      "approximate": false
+    },
+    {
+      "id": "seg_02m11s_vfx",
+      "name": "DESATURATE",
+      "start": 127.23333333333333,
+      "duration": 13.733333333333333,
+      "description": "dessaturação total, ficando quase preto e branco",
+      "approximate": false
+    },
+    {
+      "id": "seg_02m37s_vfx",
+      "name": "SLOW_MOTION",
+      "start": 152.03333333333333,
+      "duration": 10.7,
+      "description": "slow motion no chute do Götze",
+      "approximate": false
+    },
+    {
+      "id": "seg_02m48s_vfx",
+      "name": "SLOW_ZOOM+VIGNETTE+BREATH",
+      "start": 162.73333333333332,
+      "duration": 8.8,
+      "description": "zoom lento (Ken Burns) até o rosto do Messi e a taça; vinheta escura nas bordas; 5 segundos de respiro sem texto",
+      "approximate": false
+    },
+    {
+      "id": "seg_02m57s_vfx",
+      "name": "CTA_HIGHLIGHT",
+      "start": 171.53333333333333,
+      "duration": 10.633333333333333,
+      "description": "CTA 1 com borda dourada piscando",
+      "approximate": false
+    },
+    {
+      "id": "seg_03m17s_vfx",
+      "name": "SLOW_MOTION+FREEZE_FRAME",
+      "start": 189.43333333333334,
+      "duration": 14.866666666666667,
+      "description": "slow motion e freeze frame da bola indo por cima; contador \"FINAIS PERDIDAS: 3\"",
+      "approximate": false
+    },
+    {
+      "id": "seg_03m32s_vfx",
+      "name": "HAND_DRAWN_CIRCLE",
+      "start": 204.3,
+      "duration": 4.166666666666667,
+      "description": "círculo vermelho desenhado à mão em volta do estádio (marcador de foreshadowing)",
+      "approximate": false
+    },
+    {
+      "id": "seg_03m36s_vfx",
+      "name": "DESATURATE",
+      "start": 208.46666666666667,
+      "duration": 9.5,
+      "description": "tela em preto e branco",
+      "approximate": false
+    },
+    {
+      "id": "seg_03m46s_vfx",
+      "name": "COLOR_RESTORE+DESATURATE",
+      "start": 217.96666666666667,
+      "duration": 15.9,
+      "description": "a imagem volta a ter cor no \"voltou atrás\" (transição P&B → cor)",
+      "approximate": false
+    },
+    {
+      "id": "seg_04m01s_vfx",
+      "name": "ZOOM_PUNCH_IN+CAMERA_SHAKE",
+      "start": 233.86666666666667,
+      "duration": 15.433333333333334,
+      "description": "punch-in em \"Messi fez três gols\"; tremor de câmera em cada gol",
+      "approximate": false
+    },
+    {
+      "id": "seg_04m30s_vfx",
+      "name": "ZOOM_PUNCH_IN",
+      "start": 263.3666666666667,
+      "duration": 1.6,
+      "description": "facecam ganha destaque e você aponta \"aqui\"; zoom no seu rosto",
+      "approximate": false
+    },
+    {
+      "id": "seg_04m42s_vfx",
+      "name": "SLOW_MOTION",
+      "start": 273.3666666666667,
+      "duration": 13.166666666666666,
+      "description": "slow motion na bola por cima do goleiro",
+      "approximate": false
+    },
+    {
+      "id": "seg_04m55s_vfx",
+      "name": "SLOW_MOTION+GOLD_GLOW+BREATH",
+      "start": 286.53333333333336,
+      "duration": 16.333333333333332,
+      "description": "glow dourado; câmera lenta; respiro de 2 s com a trilha alta",
+      "approximate": false
+    },
+    {
+      "id": "seg_05m12s_vfx",
+      "name": "ZOOM_PUNCH_IN",
+      "start": 309.96666666666664,
+      "duration": 1,
+      "description": "zoom brusco no \"ele joga...\" (meme zoom)",
+      "approximate": false
+    },
+    {
+      "id": "seg_05m26s_vfx",
+      "name": "RHYTHM_CUTS",
+      "start": 316.4,
+      "duration": 22.366666666666667,
+      "description": "cortes cada vez mais rápidos (ritmo crescente)",
+      "approximate": false
+    },
+    {
+      "id": "seg_05m48s_vfx",
+      "name": "SLOW_MOTION",
+      "start": 338.76666666666665,
+      "duration": 13.866666666666667,
+      "description": "slow motion no último pênalti (Montiel)",
+      "approximate": false
+    },
+    {
+      "id": "seg_06m03s_vfx",
+      "name": "CONFETTI+BREATH",
+      "start": 352.6333333333333,
+      "duration": 7.533333333333333,
+      "description": "confetes dourados caindo na tela; respiro de 3 s com a trilha alta",
+      "approximate": false
+    },
+    {
+      "id": "seg_06m10s_vfx",
+      "name": "CTA_HIGHLIGHT",
+      "start": 360.1666666666667,
+      "duration": 2.7666666666666666,
+      "description": "CTA 2 com ícone de compartilhar animado",
+      "approximate": false
+    },
+    {
+      "id": "seg_06m13s_vfx",
+      "name": "SPLIT_SCREEN",
+      "start": 362.93333333333334,
+      "duration": 17.066666666666666,
+      "description": "split screen, Messi chorando no banco | Lautaro comemorando",
+      "approximate": false
+    },
+    {
+      "id": "seg_06m51s_vfx",
+      "name": "FLASHBACK_TRANSITION",
+      "start": 399.6666666666667,
+      "duration": 9.033333333333333,
+      "description": "transição de \"flashback\" (tremido/blur) entre 2016 e 2026",
+      "approximate": false
+    },
+    {
+      "id": "seg_07m01s_vfx",
+      "name": "DESATURATE",
+      "start": 408.7,
+      "duration": 11.733333333333333,
+      "description": "tela dessatura levemente após o gol",
+      "approximate": false
+    },
+    {
+      "id": "seg_07m13s_vfx",
+      "name": "BREATH",
+      "start": 420.43333333333334,
+      "duration": 3.8666666666666667,
+      "description": "respiro curto",
+      "approximate": false
+    },
+    {
+      "id": "seg_07m28s_vfx",
+      "name": "SPLIT_SCREEN",
+      "start": 433.96666666666664,
+      "duration": 14.233333333333333,
+      "description": "CALLBACK VISUAL: split screen com o cartão vermelho de 2005 | o gol 126 de 2026, e a legenda \"COMEÇOU ASSIM... TERMINOU ASSIM\"",
+      "approximate": false
+    },
+    {
+      "id": "seg_07m42s_vfx",
+      "name": "TIMELINE_BAR+BACKGROUND_PLATE",
+      "start": 448.2,
+      "duration": 27.733333333333334,
+      "description": "fundo azul-celeste com textura de listras da camisa; a linha do tempo do rodapé fica completa e brilha em dourado",
+      "approximate": false
+    },
+    {
+      "id": "seg_08m10s_vfx",
+      "name": "COLOR_RESTORE+DESATURATE",
+      "start": 475.93333333333334,
+      "duration": 13.133333333333333,
+      "description": "começa em P&B e vai ganhando cor até o dourado final",
+      "approximate": false
+    },
+    {
+      "id": "seg_08m35s_vfx",
+      "name": "FADE_TO_BLACK",
+      "start": 500.96666666666664,
+      "duration": 7.966666666666667,
+      "description": "fade to black com a última imagem do Messi aplaudindo a torcida",
+      "approximate": false
+    }
+  ],
+  "audio": [
+    {
+      "id": "seg_00m00s_sfx",
+      "type": "sfx",
+      "start": 0,
+      "duration": 3.3666666666666667,
+      "description": "estádio/torcida em fade-in + \"boom\" grave quando aparece \"ACABOU UMA ERA\""
+    },
+    {
+      "id": "seg_00m00s_music",
+      "type": "music",
+      "start": 0,
+      "duration": 3.3666666666666667,
+      "description": "entra trilha emotiva baixa (piano)"
+    },
+    {
+      "id": "seg_00m03s_sfx",
+      "type": "sfx",
+      "start": 3.3666666666666667,
+      "duration": 4.6,
+      "description": "carimbo na data"
+    },
+    {
+      "id": "seg_00m08s_sfx",
+      "type": "sfx",
+      "start": 7.966666666666667,
+      "duration": 5.933333333333334,
+      "description": "três \"pops\" sincronizados com cada ícone"
+    },
+    {
+      "id": "seg_00m14s_sfx",
+      "type": "sfx",
+      "start": 13.9,
+      "duration": 13.366666666666667,
+      "description": "\"rewind\" (fita voltando) no início da montagem; \"hit\" em cada palavra; ao final, \"reverse cymbal\" subindo"
+    },
+    {
+      "id": "seg_00m14s_music",
+      "type": "music",
+      "start": 13.9,
+      "duration": 13.366666666666667,
+      "description": "a trilha sobe"
+    },
+    {
+      "id": "seg_00m28s_sfx",
+      "type": "sfx",
+      "start": 27.266666666666666,
+      "duration": 7.633333333333334,
+      "description": "\"click\" no botão + \"ding\" de notificação"
+    },
+    {
+      "id": "seg_00m36s_sfx",
+      "type": "sfx",
+      "start": 34.9,
+      "duration": 9.233333333333333,
+      "description": "carimbo + \"whoosh\" no zoom do mapa"
+    },
+    {
+      "id": "seg_00m36s_music",
+      "type": "music",
+      "start": 34.9,
+      "duration": 9.233333333333333,
+      "description": "troca para piano melancólico"
+    },
+    {
+      "id": "seg_00m46s_sfx",
+      "type": "sfx",
+      "start": 44.13333333333333,
+      "duration": 7.433333333333334,
+      "description": "apito forte de árbitro + \"impacto\" grave quando o cartão bate"
+    },
+    {
+      "id": "seg_00m53s_sfx",
+      "type": "sfx",
+      "start": 51.56666666666667,
+      "duration": 6.8,
+      "description": "tique-taque de relógio durante o cronômetro + \"buzzer\" quando para"
+    },
+    {
+      "id": "seg_01m00s_sfx",
+      "type": "sfx",
+      "start": 58.36666666666667,
+      "duration": 10.9,
+      "description": "\"ding\" dourado + aplausos curtos"
+    },
+    {
+      "id": "seg_01m11s_sfx",
+      "type": "sfx",
+      "start": 69.26666666666667,
+      "duration": 4,
+      "description": "\"hmm\" pensativo ou \"boing\" leve"
+    },
+    {
+      "id": "seg_01m16s_sfx",
+      "type": "sfx",
+      "start": 73.26666666666667,
+      "duration": 9.6,
+      "description": "rede balançando + torcida + \"hit\" na placa"
+    },
+    {
+      "id": "seg_01m25s_sfx",
+      "type": "sfx",
+      "start": 82.86666666666666,
+      "duration": 6.2,
+      "description": "\"fail\" leve / trombone triste curto"
+    },
+    {
+      "id": "seg_01m31s_sfx",
+      "type": "sfx",
+      "start": 89.06666666666666,
+      "duration": 12.366666666666667,
+      "description": "torcida brasileira + \"papel/jornal\" + \"boom\" grave"
+    },
+    {
+      "id": "seg_01m44s_sfx",
+      "type": "sfx",
+      "start": 101.43333333333334,
+      "duration": 10.5,
+      "description": "\"ding\" de medalha; no \"não é principal\", SFX de \"record scratch\" (disco arranhando)"
+    },
+    {
+      "id": "seg_01m55s_sfx",
+      "type": "sfx",
+      "start": 111.93333333333334,
+      "duration": 7.2,
+      "description": "\"projetor de cinema\" rodando"
+    },
+    {
+      "id": "seg_02m02s_sfx",
+      "type": "sfx",
+      "start": 119.13333333333334,
+      "duration": 8.1,
+      "description": "\"vidro quebrando\" quando aparece o 4x0"
+    },
+    {
+      "id": "seg_02m11s_sfx",
+      "type": "sfx",
+      "start": 127.23333333333333,
+      "duration": 13.733333333333333,
+      "description": "vaia de estádio + violino triste curto (meme) no \"triste, triste, triste\""
+    },
+    {
+      "id": "seg_02m26s_sfx",
+      "type": "sfx",
+      "start": 140.96666666666667,
+      "duration": 11.066666666666666,
+      "description": "4 \"pops\" no contador + torcida"
+    },
+    {
+      "id": "seg_02m37s_sfx",
+      "type": "sfx",
+      "start": 152.03333333333333,
+      "duration": 10.7,
+      "description": "tensão (batida de coração) acelerando até 113' + silêncio total por 0,5 s + \"boom\""
+    },
+    {
+      "id": "seg_02m48s_sfx",
+      "type": "sfx",
+      "start": 162.73333333333332,
+      "duration": 8.8,
+      "description": "só a trilha (piano) em destaque, sem efeitos; som ambiente de estádio bem baixo"
+    },
+    {
+      "id": "seg_02m48s_music",
+      "type": "music",
+      "start": 162.73333333333332,
+      "duration": 8.8,
+      "description": "sobe para -10 dB neste respiro"
+    },
+    {
+      "id": "seg_02m57s_sfx",
+      "type": "sfx",
+      "start": 171.53333333333333,
+      "duration": 10.633333333333333,
+      "description": "\"pop\" de balão de comentário + \"click\""
+    },
+    {
+      "id": "seg_03m08s_sfx",
+      "type": "sfx",
+      "start": 182.16666666666666,
+      "duration": 7.266666666666667,
+      "description": "\"hit\" grave"
+    },
+    {
+      "id": "seg_03m17s_sfx",
+      "type": "sfx",
+      "start": 189.43333333333334,
+      "duration": 14.866666666666667,
+      "description": "batida de coração na corrida + \"whoosh\" da bola subindo + \"ohhh\" de torcida"
+    },
+    {
+      "id": "seg_03m32s_sfx",
+      "type": "sfx",
+      "start": 204.3,
+      "duration": 4.166666666666667,
+      "description": "\"pin/alfinete\" + \"ding\" de suspense"
+    },
+    {
+      "id": "seg_03m36s_sfx",
+      "type": "sfx",
+      "start": 208.46666666666667,
+      "duration": 9.5,
+      "description": "três \"vidros quebrando\" + \"breaking news\" (vinheta de plantão)"
+    },
+    {
+      "id": "seg_03m46s_sfx",
+      "type": "sfx",
+      "start": 217.96666666666667,
+      "duration": 15.9,
+      "description": "multidão protestando; no \"voltou atrás\", SFX de \"rewind\" + \"yes!\" de torcida"
+    },
+    {
+      "id": "seg_04m01s_sfx",
+      "type": "sfx",
+      "start": 233.86666666666667,
+      "duration": 15.433333333333334,
+      "description": "vento de montanha + 3 \"hits\" (um por gol) + \"explosão de torcida\""
+    },
+    {
+      "id": "seg_04m17s_sfx",
+      "type": "sfx",
+      "start": 249.3,
+      "duration": 12.966666666666667,
+      "description": "um \"card flip\" para cada placa; \"buzzer\" na França"
+    },
+    {
+      "id": "seg_04m30s_sfx",
+      "type": "sfx",
+      "start": 262.26666666666665,
+      "duration": 11.1,
+      "description": "\"ding\" no \"aqui em BH\" + apito e impacto no cartão"
+    },
+    {
+      "id": "seg_04m42s_sfx",
+      "type": "sfx",
+      "start": 273.3666666666667,
+      "duration": 13.166666666666666,
+      "description": "\"riser\" subindo até o gol + \"explosão\" no gol"
+    },
+    {
+      "id": "seg_04m55s_sfx",
+      "type": "sfx",
+      "start": 286.53333333333336,
+      "duration": 16.333333333333332,
+      "description": "apito final + torcida + \"ding\" dourado"
+    },
+    {
+      "id": "seg_05m12s_sfx",
+      "type": "sfx",
+      "start": 302.8666666666667,
+      "duration": 8.1,
+      "description": "bip (opcional) + risada curta"
+    },
+    {
+      "id": "seg_05m20s_sfx",
+      "type": "sfx",
+      "start": 310.96666666666664,
+      "duration": 5.433333333333334,
+      "description": "\"hit\" + \"ding\""
+    },
+    {
+      "id": "seg_05m26s_sfx",
+      "type": "sfx",
+      "start": 316.4,
+      "duration": 22.366666666666667,
+      "description": "\"buzzer\" na derrota; depois um \"tick\" para cada vitória, acelerando"
+    },
+    {
+      "id": "seg_05m48s_sfx",
+      "type": "sfx",
+      "start": 338.76666666666665,
+      "duration": 13.866666666666667,
+      "description": "batida de coração nos pênaltis + silêncio + explosão no pênalti decisivo"
+    },
+    {
+      "id": "seg_06m03s_sfx",
+      "type": "sfx",
+      "start": 352.6333333333333,
+      "duration": 7.533333333333333,
+      "description": "fogos de artifício + coro de torcida + \"ding\" dourado"
+    },
+    {
+      "id": "seg_06m03s_music",
+      "type": "music",
+      "start": 352.6333333333333,
+      "duration": 7.533333333333333,
+      "description": "pico épico"
+    },
+    {
+      "id": "seg_06m10s_sfx",
+      "type": "sfx",
+      "start": 360.1666666666667,
+      "duration": 2.7666666666666666,
+      "description": "\"whoosh\" + \"pop\""
+    },
+    {
+      "id": "seg_06m13s_sfx",
+      "type": "sfx",
+      "start": 362.93333333333334,
+      "duration": 17.066666666666666,
+      "description": "batida de coração + explosão no gol"
+    },
+    {
+      "id": "seg_06m31s_sfx",
+      "type": "sfx",
+      "start": 380,
+      "duration": 8.033333333333333,
+      "description": "\"pop\" em cada número"
+    },
+    {
+      "id": "seg_06m39s_sfx",
+      "type": "sfx",
+      "start": 388.03333333333336,
+      "duration": 11.633333333333333,
+      "description": "\"riser\" + duas explosões de torcida"
+    },
+    {
+      "id": "seg_06m51s_sfx",
+      "type": "sfx",
+      "start": 399.6666666666667,
+      "duration": 9.033333333333333,
+      "description": "o mesmo \"ding\" de suspense do Bloco 5 (callback) + \"whoosh\""
+    },
+    {
+      "id": "seg_07m01s_sfx",
+      "type": "sfx",
+      "start": 408.7,
+      "duration": 11.733333333333333,
+      "description": "apito + cartão; 10 \"tums\" rápidos para as defesas; silêncio + \"boom\" no gol"
+    },
+    {
+      "id": "seg_07m13s_sfx",
+      "type": "sfx",
+      "start": 420.43333333333334,
+      "duration": 3.8666666666666667,
+      "description": "\"ding\" prateado"
+    },
+    {
+      "id": "seg_07m17s_sfx",
+      "type": "sfx",
+      "start": 424.3,
+      "duration": 9.666666666666666,
+      "description": "estádio inteiro cantando (ambiente, sem música com letra)"
+    },
+    {
+      "id": "seg_07m28s_sfx",
+      "type": "sfx",
+      "start": 433.96666666666664,
+      "duration": 14.233333333333333,
+      "description": "batida de coração no pênalti, silêncio total, depois explosão de torcida"
+    },
+    {
+      "id": "seg_07m42s_sfx",
+      "type": "sfx",
+      "start": 448.2,
+      "duration": 27.733333333333334,
+      "description": "\"counter tick\" (números subindo) + \"ding\" para cada taça"
+    },
+    {
+      "id": "seg_08m10s_sfx",
+      "type": "sfx",
+      "start": 475.93333333333334,
+      "duration": 13.133333333333333,
+      "description": "\"whoosh\" a cada imagem, acelerando; \"boom\" na pergunta final"
+    },
+    {
+      "id": "seg_08m23s_sfx",
+      "type": "sfx",
+      "start": 489.06666666666666,
+      "duration": 11.9,
+      "description": "\"pop\" de enquete + piano suave na foto de 2014"
+    },
+    {
+      "id": "seg_08m35s_sfx",
+      "type": "sfx",
+      "start": 500.96666666666664,
+      "duration": 7.966666666666667,
+      "description": "\"click\" + \"ding\" de notificação + vinheta de encerramento do canal"
+    },
+    {
+      "id": "bleep_palavrao",
+      "type": "bleep",
+      "start": 310.6333333333333,
+      "duration": 0.26666666666666666,
+      "description": "bip sobre \"caralho.\" (opcional)"
+    }
+  ],
+  "meta": {
+    "source": "roteiro",
+    "title": "MESSI NA SELEÇÃO: DA EXPULSÃO À REDENÇÃO",
+    "blocks": [
+      "ABERTURA / GANCHO",
+      "BLOCO 1 — A ESTREIA (2005)",
+      "BLOCO 2 — O MENINO QUE AINDA NÃO ERA O MESSI (2006–2008)",
+      "BLOCO 3 — A ERA DAS FRUSTRAÇÕES (2010–2011)",
+      "BLOCO 4 — O MARACANÃ DE 2014",
+      "BLOCO 5 — AS FINAIS CONTRA O CHILE E O ADEUS (2015–2016)",
+      "BLOCO 6 — ALTITUDE, RÚSSIA E MINEIRÃO (2017–2019)",
+      "BLOCO 7 — A VIRADA: MARACANÃ 2021",
+      "BLOCO 8 — O ANO PERFEITO: 2022",
+      "BLOCO 9 — O BI DA AMÉRICA (2024)",
+      "BLOCO 10 — A ÚLTIMA COPA (2026)",
+      "BLOCO 11 — A NOITE DA DESPEDIDA (06/10/2026)",
+      "BLOCO 12 — OS NÚMEROS",
+      "FECHAMENTO"
+    ],
+    "errata": [
+      {
+        "heard": "Jhonel Messi",
+        "correct": "LIONEL MESSI"
+      },
+      {
+        "heard": "os dois de penas",
+        "correct": "os dois de PÊNALTI"
+      },
+      {
+        "heard": "landainha",
+        "correct": "LADAINHA"
+      },
+      {
+        "heard": "um além",
+        "correct": "UM ALÍVIO"
+      },
+      {
+        "heard": "vai ao mestre",
+        "correct": "VAIOU O MESSI"
+      },
+      {
+        "heard": "contra a Wanda",
+        "correct": "contra a HOLANDA"
+      },
+      {
+        "heard": "Götz",
+        "correct": "GÖTZE"
+      },
+      {
+        "heard": "Match Life / Midlife",
+        "correct": "METLIFE (Stadium)"
+      },
+      {
+        "heard": "voltou o salvando",
+        "correct": "VOLTOU SALVANDO"
+      },
+      {
+        "heard": "caiu nas oitavas do Zimbabwe",
+        "correct": "caiu nas oitavas PRA FRANÇA (4 x 3)"
+      },
+      {
+        "heard": "Gol de Maria",
+        "correct": "gol do DI MARÍA"
+      },
+      {
+        "heard": "por mestre",
+        "correct": "PELO MESSI"
+      },
+      {
+        "heard": "Enzo Fernandes / Ezo",
+        "correct": "ENZO FERNÁNDEZ"
+      },
+      {
+        "heard": "Debo Martínez",
+        "correct": "DIBU MARTÍNEZ"
+      },
+      {
+        "heard": "Fernando Antônes",
+        "correct": "FERRAN TORRES"
+      },
+      {
+        "heard": "Beninho",
+        "correct": "BENIN"
+      },
+      {
+        "heard": "Finalíssimo",
+        "correct": "FINALÍSSIMA"
+      }
+    ],
+    "vertical_cuts": [
+      {
+        "index": 1,
+        "title": "EXPULSO EM 2 MINUTOS",
+        "ranges": [
+          {
+            "start": 55,
+            "end": 90
+          }
+        ],
+        "hook": "O Messi foi EXPULSO na estreia pela seleção."
+      },
+      {
+        "index": 2,
+        "title": "A FOTO MAIS TRISTE",
+        "ranges": [
+          {
+            "start": 225,
+            "end": 255
+          }
+        ],
+        "hook": "A foto mais triste da carreira do Messi."
+      },
+      {
+        "index": 3,
+        "title": "O ESTÁDIO AMALDIÇOADO",
+        "ranges": [
+          {
+            "start": 280,
+            "end": 305
+          },
+          {
+            "start": 555,
+            "end": 585
+          }
+        ],
+        "hook": "O estádio onde o Messi perdeu DUAS vezes."
+      },
+      {
+        "index": 4,
+        "title": "MESSI NO MINEIRÃO",
+        "ranges": [
+          {
+            "start": 380,
+            "end": 398
+          }
+        ],
+        "hook": "O dia que o Messi caiu no Mineirão."
+      },
+      {
+        "index": 5,
+        "title": "COMEÇOU COM VERMELHO, TERMINOU COM GOL",
+        "ranges": [
+          {
+            "start": 605,
+            "end": 620
+          }
+        ],
+        "hook": "O primeiro e o último jogo do Messi."
+      },
+      {
+        "index": 6,
+        "title": "OS NÚMEROS DO MESSI",
+        "ranges": [
+          {
+            "start": 620,
+            "end": 650
+          }
+        ],
+        "hook": ""
+      }
+    ],
+    "notes": "Tempos alinhados à fala pela transcrição; pausas longas removidas (jump cuts). Graphics/VFX são placeholders (fase 1)."
+  }
+}
