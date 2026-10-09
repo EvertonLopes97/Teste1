@@ -14,7 +14,7 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
 - Saídas: `horizontal.mp4` (YouTube), `vertical_completo.mp4` (o vídeo inteiro em 9:16, gráficos refeitos
   para o vertical) e `vertical_N.mp4` (um short por tema, com o gancho).
 - Vídeo JÁ editado em 16:9 (sem o plano): `python tools\vertical916.py edicao.mp4 [saida.mp4] [--partes 60]`
-  → 9:16 com recorte no rosto (fundo desfocado) e tela dividida quando há gráfico/foto.
+  → 9:16 com recorte no rosto (fundo desfocado); gráfico/foto grande com você pequeno no canto (`--grafico pip`, padrão), só o gráfico (`tela`) ou metade/metade (`dividido`).
 - Câmera estática por padrão (zoom sempre no mesmo ponto). `--seguir-rosto 1` no render-dynamic volta a seguir.
 - "COMENTA AÍ / SEGUIR" nunca fica no rosto (vai abaixo do queixo ou acima da cabeça).
 - Voz tratada por padrão (RNNoise, EQ, de-esser, compressor, -14 LUFS). `--voz 0` desliga.
