@@ -173,22 +173,31 @@ def detectar(c):
         rx, ry, vy = c.rx[lado], c.ry[lado], c.vy[lado]
         casa = np.sign(np.nanmedian(rx))       # lado da tela onde essa mão descansa
         base = float(np.nanmedian(ry))          # altura de descanso (quadril)
-        # BATE: mão acima do ombro e depois desce até o peito/cintura, na frente do corpo
+        # BATE: rajada de socos — a mão sobe acima do ombro e CADA descida rápida é um soco
+        # (3 socos seguidos contam 3; o que desce até o quadril costuma ser o mais forte)
         k = 0
         while k < len(T) - 1:
             if ry[k] < 0.05:
-                topo = k
-                while topo + 1 < len(T) and ry[topo + 1] <= ry[topo] + 0.02 and T[topo + 1] - T[k] < 0.5:
-                    topo += 1
-                j = topo
-                while j + 1 < len(T) and ry[j] < 0.15 and T[j] - T[topo] < 0.6:
-                    j += 1
-                if ry[j] >= 0.15 and abs(rx[j]) < 0.75:
-                    a, b = max(0, topo - 2), min(len(T), j + int(0.15 * f))
-                    pico = float(np.nanmax(vy[a:b]))
-                    ev.append(["bate", float(T[j]), float(T[j]), lado, "forte" if pico >= 10 else "fraco"])
-                    k = j + int(0.35 * f)
-                    continue
+                fim = k  # a rajada acaba quando a mão volta ao quadril (ou em 1,5 s)
+                while fim + 1 < len(T) and T[fim] - T[k] < 1.5 and not (ry[fim] > base - 0.2 and T[fim] - T[k] > 0.1):
+                    fim += 1
+                i, socos = k, []
+                while i < fim:
+                    if vy[i] > 4.5 and vy[i] >= np.nanmax(vy[max(0, i - 2):i + 3]):
+                        j = i
+                        while j + 1 <= fim and vy[j + 1] > 0.5:
+                            j += 1
+                        # contato: onde a mão para de descer; se desceu até o quadril, no meio da descida
+                        cont = i + 1 if ry[j] > base - 0.2 else j
+                        if abs(rx[cont]) < 0.75 and ry[cont] > -0.3:
+                            socos.append((cont, float(vy[i])))
+                        i = j + 1
+                        continue
+                    i += 1
+                for cont, pico in socos:
+                    ev.append(["bate", float(T[cont]), float(T[cont]), lado, "forte" if pico >= 10 else "fraco"])
+                k = fim + 1 if socos else k + 1
+                continue
             k += 1
         # JOGA: braço esticado para fora e cruza o corpo até o outro lado
         # PUXA: a mão cruza o corpo na altura da cintura (foi buscar) e volta
@@ -366,7 +375,8 @@ def trajetoria(jog, c, W, H, hjog, dur, fps=30):
         elif a[0] in ("bate", "carinho"):
             alvo = float(np.clip(mao_x(a), *lim))
             if contatos:  # já está no lugar: só um ajuste pequeno, perto de onde a mão bate
-                alvo = x_cur + float(np.clip(alvo - x_cur, -0.06 * W, 0.06 * W))
+                rapido = a[0] == "bate" and t_cur > a[1] - 0.65
+                alvo = x_cur if rapido else x_cur + float(np.clip(alvo - x_cur, -0.06 * W, 0.06 * W))
             tb = max(t_cur + 0.05, a[1] - 0.12)
             if contatos:  # parado até perto da batida, então um ajuste curto
                 trechos.append((max(t_cur, tb - 0.4), tb, x_cur, alvo, "suave"))
@@ -407,6 +417,7 @@ def trajetoria(jog, c, W, H, hjog, dur, fps=30):
         x = float(base[k])
         dy = rot = 0.0
         dy_mao = None
+        bate_dy = 0.0
         visivel = True
         for n, a in enumerate(ac):
             if a[0] == "passa" and t > fim_passa(a):
@@ -432,20 +443,26 @@ def trajetoria(jog, c, W, H, hjog, dur, fps=30):
                 dy_mao = d0 * (1 - ease(d / 0.35)) - 0.08 * hjog * math.sin(min(1.0, d / 0.35) * math.pi)
             if a[0] == "bate":
                 d = t - a[1]
-                prof = 0.86 if a[2] == "forte" else 0.5
-                if 0 <= d < 0.09:
-                    dy = prof * hjog * ease(d / 0.09)
-                elif 0.09 <= d < 0.3:
-                    dy = prof * hjog
-                elif 0.3 <= d < 0.7:
-                    u = (d - 0.3) / 0.4
-                    dy = prof * hjog * (1 - ease(u)) - 0.04 * hjog * math.sin(math.pi * u)
-                if 0 <= d < 0.25:
+                prof = 0.86 if a[2] == "forte" else 0.45
+                prox_b = next((b2[1] for b2 in ac[n + 1:] if b2[0] == "bate"), None)
+                segura = 0.22 if prox_b is None else min(0.22, max(0.0, prox_b - a[1]))
+                env = 0.0
+                if 0 <= d < 0.08:
+                    env = prof * ease(d / 0.08)
+                elif 0.08 <= d < 0.08 + segura:
+                    env = prof
+                elif d >= 0.08 + segura and d < 0.48 + segura:
+                    u = (d - 0.08 - segura) / 0.4
+                    env = prof * (1 - ease(u)) - 0.04 * math.sin(math.pi * u)
+                bate_dy = max(bate_dy, env * hjog)
+                if 0 <= d < 0.18:  # tranco de cada soco, mesmo já estando lá embaixo
+                    bate_dy += 0.06 * hjog * math.sin(d / 0.18 * math.pi)
                     x += 4 * math.sin(d * 70) * math.exp(-d * 12)
             if a[0] == "carinho":
                 d = t - a[1]
                 if 0 <= d < 0.5:
                     dy += 0.06 * hjog * math.sin(d * 22) * math.exp(-d * 6)
+        dy += bate_dy
         if dy_mao is not None:
             dy = dy_mao
         xs.append(x)
