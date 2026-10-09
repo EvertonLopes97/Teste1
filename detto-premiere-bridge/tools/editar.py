@@ -9,7 +9,8 @@ Passos (cada um é pulado se o arquivo já existir na pasta do job, então dá p
   3. roteiro de edição pelo Gemini (GEMINI_API_KEY)                                 → roteiro.txt
      (se preferir, escreva/edite o roteiro.txt você mesmo ou peça ao Claude e rode de novo)
   4. plano de edição (corte conservador: só pausas > 0,8 s)                         → EDIT_PLAN.json
-  5. vídeo horizontal + um vertical por corte sugerido, com voz tratada e seus efeitos sonoros
+  5. vídeo horizontal (YouTube) + o mesmo vídeo inteiro em 9:16 (TikTok/Reels) + um vertical por
+     corte sugerido, com voz tratada e seus efeitos sonoros
 --teste: só o primeiro minuto.
 """
 import argparse
@@ -46,7 +47,7 @@ def main():
     if not (job / "face.json").exists():
         modelo = PONTE / "yunet.onnx"
         if not modelo.exists():
-            roda(["curl", "-sSfL", "-o", modelo, "https://github.com/opencv/opencv_zoo/raw/main/models/"
+            roda(["curl", "-sSfL", "-o", modelo, "https://media.githubusercontent.com/media/opencv/opencv_zoo/main/models/"
                   "face_detection_yunet/face_detection_yunet_2023mar.onnx"])
         roda([py, T / "motion" / "facetrack.py", video, job / "face.json", "--model", modelo])
     if not (job / "roteiro.txt").exists():
@@ -57,6 +58,8 @@ def main():
             "--fonts", PONTE / "fonts", "--work", job / "tmp"]
     trecho = ["--from", "0", "--to", "60"] if a.teste else []
     roda(base + trecho + ["--out", job / "horizontal.mp4"])
+    # o vídeo inteiro também em 9:16 (TikTok / Reels), com gráficos e legendas refeitos para o vertical
+    roda(base + trecho + ["--format", "vertical", "--out", job / "vertical_completo.mp4"])
     if not a.sem_verticais and not a.teste:
         txt = (job / "roteiro.txt").read_text(encoding="utf-8")
         sec = txt.split("CORTES VERTICAIS", 1)[1] if "CORTES VERTICAIS" in txt else ""
