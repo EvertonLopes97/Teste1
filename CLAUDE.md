@@ -76,3 +76,11 @@ entrando e saindo ao lado dele. Sem trilha (ele coloca a música no app).
    Escudos: `tools\galo\banco\escudos\<time>.png`.
 3. `python tools\galo\galo.py <pasta>\jogo.json`
 4. O script imprime os tempos usados; para ajustar, cole em `"tempos"` e rode de novo.
+
+### Modo gestos (jogadores reagem às mãos do Everton) — padrão para os reels do Galo
+
+`python tools\galo\gestos.py <pasta>\jogo.json` (mesmo jogo.json; `pip install mediapipe==0.10.14` na 1ª vez).
+- Rastreia o corpo (`rastrear.py`, salva `<video>.movimento.json`), acha PANCADA / TAPA / CARINHO / EMPURRÃO / PUXÃO,
+  divide o vídeo entre os jogadores, põe cada um onde a mão bate, com som em cada gesto. Placar fica acima da cabeça.
+- Sem foto no banco → baixa o recorte oficial do TheSportsDB (fotos do Atlético iguais às do reel).
+- Imprime a lista de gestos; para corrigir, cole em `"gestos": [[t, "tipo"], ...]` no jogo.json e rode de novo.
