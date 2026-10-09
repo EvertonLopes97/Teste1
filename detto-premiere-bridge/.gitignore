@@ -1,2 +1,4 @@
 node_modules/
 *.log
+tools/galo/banco/recortes/
+**/galo_tmp/

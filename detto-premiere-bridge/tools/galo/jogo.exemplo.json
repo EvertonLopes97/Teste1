@@ -1,0 +1,18 @@
+{
+  "video": "C:/Users/guebe/Videos/edicao ia/gravacao.mp4",
+  "saida": "C:/Users/guebe/Videos/edicao ia/galo_final.mp4",
+  "placar": {
+    "competicao": "Brasileirão Série A", "quando": "Hoje", "status": "Encerrado",
+    "casa": "Atlético-MG", "fora": "Remo", "gols_casa": 3, "gols_fora": 3,
+    "escudo_casa": "banco/escudos/atletico-mg.png", "escudo_fora": "banco/escudos/remo.png"
+  },
+  "jogadores": [
+    {"nome": "Sampaoli"},
+    {"nome": "Hulk"},
+    {"nome": "Scarpa", "foto": "C:/Users/guebe/Downloads/scarpa.jpg"}
+  ],
+  "tempos": [],
+  "lado": "alternado",
+  "som": true,
+  "audio_original": true
+}
