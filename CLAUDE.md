@@ -102,3 +102,14 @@ entrando e saindo ao lado dele. Sem trilha (ele coloca a música no app).
 - Fotos: `tools\galo\banco\elenco` (site oficial, sem fundo). Atualizar: `python tools\galo\elenco_site.py`.
 - Sem placar (padrão; `"com_placar": true` liga). Corta do 1º jogador entrando até o último sair.
 - Gestos lidos ficam em `<video>.roteiro.json`; corrija ali e rode de novo. Áudio da gravação sem tratamento.
+
+## DETTO REAGE — vídeos de react
+
+`python tools\react\react.py <pasta>\react.json` (exemplo em `tools\react\react.exemplo.json`).
+Entradas: `camera` (gravação dele), `tela` (gravação da tela com as pausas), `original` (vídeo reagido bruto).
+- Sincroniza câmera↔tela pelo áudio (palma no começo ajuda; senão `offset_camera`).
+- Pausa = imagem parada > 0,7 s que volta de onde parou; cada trecho tocado é achado no original (qualidade cheia).
+- Tocando: layout DETTO REAGE (vídeo na moldura, câmera no quadro, faixa com `titulo`, painel @detto.galo,
+  `mascote`/`patrocinio` opcionais). Pausa: zoom de 0,35 s para a câmera em tela cheia; volta no play.
+- Áudio: original abaixa quando ele fala + voz tratada, -14 LUFS. `formato`: horizontal ou vertical.
+- O que foi lido fica em `<camera>.react.json`; corrija e rode de novo (`"refazer": true` relê tudo).
