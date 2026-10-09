@@ -370,7 +370,8 @@ def trajetoria(jog, c, W, H, hjog, dur, fps=30):
             trechos.append((t_cur, fim_passa(a), x_cur, fora_esq, "olhar"))
             t_cur, x_cur, contatos = fim_passa(a), fora_esq, 0
         elif a[0] == "puxa":
-            trechos.append((a[1], a[2], None, None, ("mao", a[3])))
+            # puxão: se ele já tinha saído, vem de FORA da imagem para dentro, no ritmo da sua mão
+            trechos.append((a[1], a[2], x_cur, None, ("puxa_fora" if x_cur <= fora_esq + 1 else "mao", a[3])))
             t_cur, x_cur, contatos = a[2], float(np.clip(c.mao(a[3], a[2])[0], *lim)), 1  # fica onde soltou
         elif a[0] in ("bate", "carinho"):
             alvo = float(np.clip(mao_x(a), *lim))
@@ -399,8 +400,19 @@ def trajetoria(jog, c, W, H, hjog, dur, fps=30):
         elif modo == "suave":
             u = np.clip((ts[m] - ta) / max(1e-3, tb - ta), 0, 1)
             base[m] = xa + (xb - xa) * u * u * (3 - 2 * u)
-        elif modo[0] == "mao":
-            base[m] = [c.mao(modo[1], t)[0] for t in ts[m]]
+        elif modo[0] == "puxa_fora":
+            tt = ts[m]
+            hx = np.array([c.mao(modo[1], t)[0] for t in tt])
+            g = int(np.argmin(hx))                  # momento em que a mão alcança lá fora (agarra)
+            solta = hx[-1]
+            u = np.clip((hx - hx[g]) / max(1.0, solta - hx[g]), 0, 1)
+            u[:g] = 0
+            u = np.maximum.accumulate(u)            # só vem para dentro
+            base[m] = xa + (solta - xa) * u
+        elif modo[0] == "mao":  # já estava na tela: vai até a mão sem pular
+            k = np.clip((ts[m] - ta) / 0.25, 0, 1)
+            k = k * k * (3 - 2 * k)
+            base[m] = [xa + (c.mao(modo[1], t)[0] - xa) * q for t, q in zip(ts[m], k)]
         elif modo[0] == "agarra":
             u = np.clip((ts[m] - ta) / 0.2, 0, 1)
             u = 1 - (1 - u) ** 3
