@@ -12,8 +12,27 @@ const { spawnSync } = require("child_process");
 const f3 = (n) => Number(n).toFixed(3);
 
 /**
+ * Tratamento de voz (padrão ligado): tira grave de vento/ar-condicionado, remove ruído (RNNoise;
+ * sem o modelo usa o redutor do FFmpeg), tira o "embolado", dá presença, controla o chiado do S
+ * e nivela (compressor). O volume final (-14 LUFS) é feito depois da mistura.
+ */
+function cadeiaVoz() {
+  const modelo = path.join(__dirname, "rnnoise_sh.rnnn");
+  if (!fs.existsSync(modelo)) {
+    spawnSync("curl", ["-sSfL", "-m", "30", "-o", modelo,
+      "https://raw.githubusercontent.com/GregorR/rnnoise-models/master/somnolent-hogwash-2018-09-01/sh.rnnn"]);
+  }
+  const ruido = fs.existsSync(modelo) && fs.statSync(modelo).size > 1000
+    ? `arnndn=m='${modelo.replace(/\\/g, "/").replace(/:/g, "\\:")}':mix=0.85`
+    : "afftdn=nf=-25";
+  return ["highpass=f=75", ruido, "equalizer=f=250:width_type=o:width=1:g=-2",
+    "equalizer=f=3500:width_type=o:width=1.5:g=3", "deesser=i=0.4",
+    "acompressor=threshold=-20dB:ratio=3:attack=5:release=120:makeup=2"].join(",");
+}
+
+/**
  * @param {{plan: any, duration: number, video: string, sfxWav: string, out: string, tmpDir: string,
- *          ranges?: Array<[number, number]>, sfxGain?: number}} o
+ *          ranges?: Array<[number, number]>, sfxGain?: number, tratarVoz?: boolean}} o
  */
 function buildAudio(o) {
   const fps = o.plan.sequence.fps;
@@ -29,7 +48,7 @@ function buildAudio(o) {
   const bleeps = (o.plan.audio || []).filter((x) => x.type === "bleep");
   const on = bleeps.map((b) => `between(t,${f3(b.start)},${f3(b.start + b.duration)})`).join("+");
   const parts = [
-    `[0:a]aresample=48000,asetnsamples=n=64:p=0,aselect='${aSel}',asetpts=N/SR/TB,asetnsamples=n=1024:p=0${on ? `,volume=0:enable='${on}'` : ""}[voz]`,
+    `[0:a]aresample=48000,asetnsamples=n=64:p=0,aselect='${aSel}',asetpts=N/SR/TB,asetnsamples=n=1024:p=0${o.tratarVoz === false ? "" : `,${cadeiaVoz()}`}${on ? `,volume=0:enable='${on}'` : ""}[voz]`,
     `[1:a]aresample=48000,volume=${o.sfxGain ?? 0.55}[fx]`,
   ];
   const ins = ["[voz]", "[fx]"];

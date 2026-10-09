@@ -6,6 +6,18 @@ After Effects 2020. Disco com pouco espaço livre: apague pastas `tmp`/`galo_tmp
 
 Código em `detto-premiere-bridge/`. Rode os comandos a partir dessa pasta.
 
+## Jeito mais barato (sem gastar o Claude)
+
+`python tools\editar.py "<video>"` faz tudo sozinho: transcrição (faster-whisper, local), rosto, roteiro
+pelo Gemini (`GEMINI_API_KEY`, quase de graça), plano, horizontal e verticais. `--teste` = só 1 minuto.
+Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
+- Câmera estática por padrão (zoom sempre no mesmo ponto). `--seguir-rosto 1` no render-dynamic volta a seguir.
+- "COMENTA AÍ / SEGUIR" nunca fica no rosto (vai abaixo do queixo ou acima da cabeça).
+- Voz tratada por padrão (RNNoise, EQ, de-esser, compressor, -14 LUFS). `--voz 0` desliga.
+- Efeitos sonoros: os da pasta do Everton. Catalogar uma vez:
+  `python tools\biblioteca_sons.py "E:\edição\efeitos de video\PACK DE EDIÇÃO 2.0"` → `sons.json`.
+  Categoria sem arquivo usa Mixkit (soco, tapa, chicote, whoosh) ou o sintetizado.
+
 ## Pedido "edita este vídeo" (sem roteiro) — fluxo completo
 
 Quando o Everton passar só a gravação (ex.: `C:\Users\guebe\Videos\edição ia\gravação.mp4`):
@@ -77,10 +89,12 @@ entrando e saindo ao lado dele. Sem trilha (ele coloca a música no app).
 3. `python tools\galo\galo.py <pasta>\jogo.json`
 4. O script imprime os tempos usados; para ajustar, cole em `"tempos"` e rode de novo.
 
-### Modo gestos (jogadores reagem às mãos do Everton) — padrão para os reels do Galo
+### Elenco passando (reels dos jogos) — padrão para o Galo
 
-`python tools\galo\gestos.py <pasta>\jogo.json` (mesmo jogo.json; `pip install mediapipe==0.10.14` na 1ª vez).
-- Rastreia o corpo (`rastrear.py`, salva `<video>.movimento.json`), acha PANCADA / TAPA / CARINHO / EMPURRÃO / PUXÃO,
-  divide o vídeo entre os jogadores, põe cada um onde a mão bate, com som em cada gesto. Placar fica acima da cabeça.
-- Sem foto no banco → baixa o recorte oficial do TheSportsDB (fotos do Atlético iguais às do reel).
-- Imprime a lista de gestos; para corrigir, cole em `"gestos": [[t, "tipo"], ...]` no jogo.json e rode de novo.
+`python tools\galo\passagem.py <pasta>\jogo.json` com `{"video": "...", "jogo": "Athletico Atletico Mineiro", "time": "Atlético Mineiro"}`.
+- Lê seus gestos e o seu olhar: entra pela direita, passa deslizando no ritmo do rosto, puxão traz de volta
+  e ele FICA onde você soltou, batida fraca = meio corpo, forte = só a cabecinha, agarrar e jogar = sai voando.
+- Notas do SofaScore: quem apanha mais e por último = pior nota; quem passa ou ganha carinho = melhores.
+- Fotos: `tools\galo\banco\elenco` (site oficial, sem fundo). Atualizar: `python tools\galo\elenco_site.py`.
+- Sem placar (padrão; `"com_placar": true` liga). Corta do 1º jogador entrando até o último sair.
+- Gestos lidos ficam em `<video>.roteiro.json`; corrija ali e rode de novo. Áudio da gravação sem tratamento.

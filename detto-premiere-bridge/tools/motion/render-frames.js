@@ -33,7 +33,13 @@ function extractCamFrames(plan, video, dir, fps) {
 }
 
 /** Posição do rosto no tempo da timeline (interpola o rastreamento feito na gravação). */
-function makeFaceAt(plan, face) {
+function makeFaceAt(plan, face, seguir) {
+  if (!seguir && face && face.points && face.points.length) {
+    // câmera estática: zoom sempre no mesmo ponto (rosto médio), sem andar de lado
+    const med = (k) => face.points.map((p) => p[k]).sort((a, b) => a - b)[Math.floor(face.points.length / 2)];
+    const fixo = { cx: med("cx"), cy: med("cy"), w: med("w") };
+    return () => fixo;
+  }
   const cuts = plan.cuts.slice().sort((a, b) => a.timeline - b.timeline);
   const pts = (face && face.points) || [];
   const step = face && face.fps ? 1 / face.fps : 0.2;
@@ -62,7 +68,7 @@ async function renderComposite(o) {
   const camFps = d.fps; // quadros extraídos da gravação (cam/000000.jpg …)
   const fps = o.fps || camFps;
   const camCount = fs.readdirSync(o.camDir).filter((f) => f.endsWith(".jpg")).length;
-  const faceAt = makeFaceAt(o.plan, o.face);
+  const faceAt = makeFaceAt(o.plan, o.face, o.seguirRosto);
   fs.mkdirSync(o.outDir, { recursive: true });
   /** @type {Array<{out: number, f: number}>} */
   const jobs = [];

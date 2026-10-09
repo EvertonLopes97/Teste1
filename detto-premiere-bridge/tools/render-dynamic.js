@@ -98,7 +98,7 @@ async function main() {
   extractCamFrames(plan, a.video, camDir, d.fps);
   log("quadros da gravação extraídos");
   // quadros já compostos são reaproveitados só se direção, formato e trechos forem os mesmos
-  const key = crypto.createHash("sha1").update(JSON.stringify([d, format, ranges, a.scale || 1.5, outFps])).digest("hex").slice(0, 10);
+  const key = crypto.createHash("sha1").update(JSON.stringify([d, format, ranges, a.scale || 1.5, outFps, a["seguir-rosto"] || "0", 2])).digest("hex").slice(0, 10);
   const framesDir = path.join(work, `frames_${format}${a.cut ? `_cut${a.cut}` : ""}_${outFps}fps_${key}`);
   const n = await renderComposite({
     plan,
@@ -106,6 +106,7 @@ async function main() {
     camDir,
     outDir: framesDir,
     face,
+    seguirRosto: a["seguir-rosto"] === "1",
     fontsDir: a.fonts,
     flagsDir,
     format,
@@ -119,7 +120,7 @@ async function main() {
 
   // 5. áudio
   const sfxWav = writeSfxTrack(d.sfx, d.duration, path.join(work, "sfx.wav"));
-  const audio = buildAudio({ plan, duration: d.duration, video: a.video, sfxWav, out: path.join(work, `audio_${format}${a.cut ? `_cut${a.cut}` : ""}.wav`), tmpDir: work, ranges });
+  const audio = buildAudio({ plan, duration: d.duration, video: a.video, sfxWav, out: path.join(work, `audio_${format}${a.cut ? `_cut${a.cut}` : ""}.wav`), tmpDir: work, ranges, tratarVoz: a.voz !== "0" });
   log("áudio pronto");
 
   // 6. vídeo final

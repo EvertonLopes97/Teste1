@@ -354,6 +354,15 @@
         const x = exitP(lt, dur, 0.2);
         r.w.style.transform = `scale(${(p * (1 - 0.2 * x)).toFixed(3)})`;
         r.w.style.opacity = String(1 - x);
+        // nunca na frente do rosto: abaixo do queixo ou, sem espaço, acima da cabeça
+        const f = window.__rosto;
+        if (f) {
+          const alt = r.w.offsetHeight || 200;
+          const abaixo = f.y + f.w * 1.25;
+          const topo = abaixo + alt < f.H - 30 ? abaixo : Math.max(20, f.y - f.w * 1.35 - alt);
+          r.w.style.top = `${topo.toFixed(1)}px`;
+          r.w.style.bottom = "auto";
+        }
         const hm = outCubic(prog(lt, 0.45, 0.5));
         r.hand.style.left = `${(900 - 260 * hm).toFixed(1)}px`;
         r.hand.style.top = `${(240 - 120 * hm).toFixed(1)}px`;
@@ -565,6 +574,8 @@
     camImg.style.width = `${imgW.toFixed(2)}px`;
     camImg.style.height = `${imgH.toFixed(2)}px`;
     camImg.style.transform = `translate(${left.toFixed(2)}px, ${top.toFixed(2)}px)`;
+    // onde o rosto está na tela (para gráficos não taparem o rosto)
+    window.__rosto = { x: r.x + left + face.cx * imgW, y: r.y + top + face.cy * imgH, w: face.w * SRC.w * s0 * z, H: L.H };
   }
 
   // ---------------------------------------------------------------- API

@@ -6,6 +6,8 @@
  */
 
 const fs = require("fs");
+const path = require("path");
+const { spawnSync } = require("child_process");
 
 const SR = 48000;
 
@@ -134,6 +136,30 @@ const GAIN = { whoosh: 0.55, whoosh_short: 0.4, hit: 0.8, pop: 0.6, tick: 0.45, 
  * @param {number} duration
  * @param {string} file
  */
+/** Efeitos da pasta do Everton (sons.json, feito por tools/biblioteca_sons.py) no lugar dos sintetizados. */
+const CATEGORIA = { hit: "soco", whoosh: "whoosh", whoosh_short: "whoosh", pop: "pop", click: "click", ding: "ding", riser: "riser", tick: "tick" };
+let LIB = null;
+function daBiblioteca(kind, n) {
+  if (LIB === null) {
+    try {
+      LIB = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "..", "sons.json"), "utf-8"));
+    } catch (_) {
+      LIB = {};
+    }
+  }
+  const lista = (LIB[CATEGORIA[kind]] || []).filter((p) => fs.existsSync(p));
+  if (!lista.length) return null;
+  const dur = kind === "riser" ? 1.0 : kind === "whoosh_short" ? 0.5 : 1.0;
+  const r = spawnSync("ffmpeg", ["-v", "error", "-i", lista[n % lista.length], "-af",
+    `silenceremove=start_periods=1:start_threshold=-45dB,atrim=0:${dur},afade=t=out:st=${(dur * 0.75).toFixed(2)}:d=${(dur * 0.25).toFixed(2)}`,
+    "-ac", "1", "-ar", String(SR), "-f", "f32le", "-"], { maxBuffer: 64 * 1024 * 1024 });
+  if (r.status !== 0 || !r.stdout.length) return null;
+  const a = new Float32Array(r.stdout.buffer.slice(r.stdout.byteOffset, r.stdout.byteOffset + r.stdout.length));
+  let m = 1e-4;
+  for (const v of a) m = Math.max(m, Math.abs(v));
+  return a.map((v) => (v / m) * 0.9);
+}
+
 function writeSfxTrack(events, duration, file) {
   const total = Math.ceil(duration * SR);
   const mix = new Float32Array(total);
@@ -141,8 +167,8 @@ function writeSfxTrack(events, duration, file) {
   events.forEach((e, n) => {
     const synth = SYNTH[e.kind];
     if (!synth) return;
-    const key = `${e.kind}:${n % 4}`; // pequenas variações de ruído
-    if (!cache.has(key)) cache.set(key, synth(17 + (n % 4) * 31));
+    const key = `${e.kind}:${n % 4}`; // pequenas variações (ou arquivos diferentes da biblioteca)
+    if (!cache.has(key)) cache.set(key, daBiblioteca(e.kind, n % 4) || synth(17 + (n % 4) * 31));
     const buf = cache.get(key);
     const g = GAIN[e.kind] ?? 0.5;
     const start = Math.round(e.t * SR);
