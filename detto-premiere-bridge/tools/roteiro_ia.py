@@ -13,6 +13,7 @@ import json
 import os
 import re
 import sys
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -83,17 +84,53 @@ def falas(words, pausa=0.6):
     return "\n".join(linhas)
 
 
+API = "https://generativelanguage.googleapis.com/v1beta"
+
+
+def _chamar(url, corpo=None):
+    req = urllib.request.Request(url, data=corpo, headers={"Content-Type": "application/json",
+                                                           "x-goog-api-key": os.environ["GEMINI_API_KEY"]})
+    try:
+        return json.loads(urllib.request.urlopen(req, timeout=300).read())
+    except urllib.error.HTTPError as e:
+        detalhe = e.read().decode("utf-8", "ignore")[:400]
+        raise RuntimeError(f"Gemini respondeu {e.code}: {detalhe}") from None
+
+
+def modelos_disponiveis():
+    """Modelos que a sua chave pode usar (os 'flash' primeiro: rápidos e baratos)."""
+    r = _chamar(f"{API}/models?pageSize=200")
+    nomes = [m["name"].split("/", 1)[1] for m in r.get("models", [])
+             if "generateContent" in m.get("supportedGenerationMethods", [])]
+    flash = [n for n in nomes if "flash" in n and "lite" not in n and "image" not in n and "tts" not in n]
+    return sorted(flash, reverse=True) + [n for n in nomes if n not in flash]
+
+
 def gemini(prompt):
-    chave = os.environ.get("GEMINI_API_KEY")
-    if not chave:
+    if not os.environ.get("GEMINI_API_KEY"):
         raise SystemExit("Falta a chave GEMINI_API_KEY (veja o topo deste arquivo).")
-    modelo = os.environ.get("GEMINI_MODEL", "gemini-2.5-flash")
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent?key={chave}"
     corpo = json.dumps({"contents": [{"parts": [{"text": prompt}]}],
                         "generationConfig": {"temperature": 0.4}}).encode()
-    req = urllib.request.Request(url, data=corpo, headers={"Content-Type": "application/json"})
-    r = json.loads(urllib.request.urlopen(req, timeout=300).read())
-    return r["candidates"][0]["content"]["parts"][0]["text"]
+    preferido = os.environ.get("GEMINI_MODEL", "gemini-flash-latest")
+    tentativas = [preferido, "gemini-2.5-flash"]
+    for modelo in tentativas + ["__lista__"]:
+        if modelo == "__lista__":  # nome antigo/novo: pergunta ao Google quais existem
+            disp = modelos_disponiveis()
+            if not disp:
+                raise SystemExit("A chave não tem acesso a nenhum modelo Gemini. Gere outra em aistudio.google.com/apikey")
+            modelo = disp[0]
+        try:
+            r = _chamar(f"{API}/models/{modelo}:generateContent", corpo)
+            print(f"Roteiro feito pelo modelo {modelo}")
+            return r["candidates"][0]["content"]["parts"][0]["text"]
+        except RuntimeError as e:
+            if " 404" in str(e) and modelo in tentativas:
+                continue
+            if " 400" in str(e) or " 403" in str(e):
+                raise SystemExit(f"{e}\nA chave foi recusada: gere outra em https://aistudio.google.com/apikey "
+                                 f"(começa com AIza) e rode setx GEMINI_API_KEY de novo.")
+            raise SystemExit(str(e))
+    raise SystemExit("Nenhum modelo Gemini respondeu.")
 
 
 def main():

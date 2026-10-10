@@ -2,6 +2,7 @@
 """DETTO REAGE — edição automática de vídeos de react.
 
     python tools/react/react.py react.json
+    python tools/react/react.py eu.mp4 tela.mp4 original.mp4 "titulo" [vertical]      (sem json)
 
 Você entrega 3 arquivos:
   "camera":  sua gravação (webcam/câmera, com o seu microfone)
@@ -341,7 +342,20 @@ def compor(base, L, frame_video, frame_cam, k_pausa, foco_cam):
 # ================================================================== principal
 
 def main():
-    cfg = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8-sig"))
+    if sys.argv[1].lower().endswith(".json"):
+        cfg = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8-sig"))
+    else:  # direto: react.py camera tela original "titulo" [vertical]
+        cfg = {"camera": sys.argv[1], "tela": sys.argv[2], "original": sys.argv[3],
+               "titulo": sys.argv[4] if len(sys.argv) > 4 else "",
+               "formato": sys.argv[5] if len(sys.argv) > 5 else "horizontal"}
+        marca = PONTE.parent / "marca"
+        for k, n in (("mascote", "caricatura.png"), ("patrocinio", "patrocinio.png")):
+            for pasta in (Path("E:/DETTO/marca"), marca):
+                if (pasta / n).exists():
+                    cfg[k] = str(pasta / n)
+        if cfg["formato"] == "vertical":
+            cam = Path(cfg["camera"])
+            cfg["saida"] = str(cam.with_name(cam.stem + "_react_vertical.mp4"))
     cam, tela, orig = Path(cfg["camera"]), Path(cfg["tela"]), Path(cfg["original"])
     arq = cam.with_suffix(cam.suffix + ".react.json")
     if arq.exists() and not cfg.get("refazer"):

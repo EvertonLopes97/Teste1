@@ -2,6 +2,7 @@
 """ALA GALO — "o elenco passando" (v4: roteiro de gestos + rastreio da mão e do rosto).
 
     python tools/galo/passagem.py jogo.json
+    python tools/galo/passagem.py "E:/DETTO/galo/IMG_1900.MOV" "Atletico Mineiro Cruzeiro"   (sem json)
 
 1. Rastreia seu corpo (rastrear.py) e escreve <video>.roteiro.json com o que você fez:
      entra   → rosto olha para a direita: o jogador chega pela direita
@@ -496,7 +497,12 @@ def altura_jogador(jog, c, H):
 # ================================================================== principal
 
 def main():
-    cfg = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8-sig"))
+    if sys.argv[1].lower().endswith(".json"):
+        cfg = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8-sig"))
+    else:  # direto: passagem.py "video.MOV" "Atletico Mineiro Cruzeiro"
+        cfg = {"video": sys.argv[1], "time": "Atlético Mineiro"}
+        if len(sys.argv) > 2:
+            cfg["jogo"] = sys.argv[2]
     video = Path(cfg["video"])
     mov = G.carregar_movimento(video)
     W, H = mov["w"], mov["h"]

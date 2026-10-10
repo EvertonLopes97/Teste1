@@ -1,0 +1,142 @@
+﻿=====================================================================
+  DETTO - COMANDOS PRONTOS (copiar e colar no PowerShell)
+=====================================================================
+Como usar: troque SÓ o que está entre aspas na linha $video (ou $camera...)
+pelo caminho do seu arquivo e cole o bloco inteiro no PowerShell.
+Dica: no Explorador, botão direito no vídeo > "Copiar como caminho"
+(já vem com as aspas).
+
+
+---------------------------------------------------------------------
+0) ATUALIZAR O SISTEMA  (rode sempre antes de editar)
+---------------------------------------------------------------------
+cd C:\Users\guebe\Teste1
+git pull
+cd detto-premiere-bridge
+
+
+---------------------------------------------------------------------
+1) VÍDEO FALADO - TESTE (só o 1º minuto, para conferir o estilo)
+   Sai em: <pasta do vídeo>\<nome>_job\horizontal.mp4 e vertical_completo.mp4
+---------------------------------------------------------------------
+$video = "E:\DETTO\videos\NOME DO VIDEO.MOV"
+cd C:\Users\guebe\Teste1\detto-premiere-bridge
+python tools\editar.py $video --teste
+
+
+---------------------------------------------------------------------
+2) VÍDEO FALADO - COMPLETO
+   YouTube (horizontal) + vídeo inteiro em 9:16 + um short por tema
+   Sai em: <pasta do vídeo>\<nome>_job\
+---------------------------------------------------------------------
+$video = "E:\DETTO\videos\NOME DO VIDEO.MOV"
+cd C:\Users\guebe\Teste1\detto-premiere-bridge
+python tools\editar.py $video
+
+
+---------------------------------------------------------------------
+3) VÍDEO FALADO - REFAZER SÓ O ROTEIRO
+   (apaga o roteiro e pede outro ao Gemini; a transcrição é aproveitada)
+---------------------------------------------------------------------
+$video = "E:\DETTO\videos\NOME DO VIDEO.MOV"
+cd C:\Users\guebe\Teste1\detto-premiere-bridge
+$job = Join-Path (Split-Path $video) ((Get-Item $video).BaseName + "_job")
+Remove-Item "$job\roteiro.txt"
+python tools\editar.py $video
+
+
+---------------------------------------------------------------------
+4) VÍDEO FALADO - AJUSTAR COM O CLAUDE
+   (ele mexe no roteiro.txt; depois rode o bloco 2 de novo)
+---------------------------------------------------------------------
+cd C:\Users\guebe\Teste1
+claude
+   -> escreva, por exemplo:
+      "no job E:\DETTO\videos\NOME DO VIDEO_job tira o gráfico do minuto 2 e
+       coloca mais zoom no gancho, depois roda o editar.py"
+
+
+---------------------------------------------------------------------
+5) GALO - JOGADORES PASSANDO (notas do SofaScore, fotos oficiais)
+   Troque o vídeo e os dois times do jogo (sem acento).
+   Sai em: <pasta do vídeo>\<nome>_galo.mp4
+---------------------------------------------------------------------
+$video = "E:\DETTO\galo\IMG_0000.MOV"
+$jogo  = "Atletico Mineiro Cruzeiro"
+cd C:\Users\guebe\Teste1\detto-premiere-bridge
+python tools\galo\passagem.py $video $jogo
+
+
+---------------------------------------------------------------------
+6) REACT - HORIZONTAL (YouTube)
+   camera = sua gravação | tela = gravação da tela com as pausas |
+   original = o vídeo que você reagiu
+   Caricatura/logo: deixe em E:\DETTO\marca\caricatura.png e patrocinio.png
+   Sai em: <pasta da camera>\<nome>_react.mp4
+---------------------------------------------------------------------
+$camera   = "E:\DETTO\react\eu.mp4"
+$tela     = "E:\DETTO\react\tela.mp4"
+$original = "E:\DETTO\react\original.mp4"
+$titulo   = "TITULO QUE APARECE NA FAIXA"
+cd C:\Users\guebe\Teste1\detto-premiere-bridge
+python tools\react\react.py $camera $tela $original $titulo
+
+
+---------------------------------------------------------------------
+7) REACT - VERTICAL (TikTok / Reels)
+   Sai em: <pasta da camera>\<nome>_react_vertical.mp4
+---------------------------------------------------------------------
+$camera   = "E:\DETTO\react\eu.mp4"
+$tela     = "E:\DETTO\react\tela.mp4"
+$original = "E:\DETTO\react\original.mp4"
+$titulo   = "TITULO QUE APARECE NA FAIXA"
+cd C:\Users\guebe\Teste1\detto-premiere-bridge
+python tools\react\react.py $camera $tela $original $titulo vertical
+
+
+---------------------------------------------------------------------
+8) VÍDEO JÁ EDITADO EM 16:9 -> 9:16 (TikTok / Reels)
+   Gráfico grande com você pequeno no canto. Troque "pip" por
+   "tela" (só o gráfico) ou "dividido" (metade/metade).
+   Sai em: <pasta do vídeo>\<nome>_9x16.mp4  (+ partes de 60 s)
+---------------------------------------------------------------------
+$video = "E:\DETTO\videos\NOME DO VIDEO.mp4"
+cd C:\Users\guebe\Teste1\detto-premiere-bridge
+python tools\vertical916.py $video --grafico pip --partes 60
+
+
+---------------------------------------------------------------------
+9) EFEITOS SONOROS - CATALOGAR DE NOVO
+   (rode quando colocar efeitos novos na pasta)
+---------------------------------------------------------------------
+cd C:\Users\guebe\Teste1\detto-premiere-bridge
+python tools\biblioteca_sons.py "E:\edição\efeitos de video"
+
+
+---------------------------------------------------------------------
+10) ELENCO DO GALO - ATUALIZAR FOTOS (jogador novo no site do clube)
+    Acrescente o jogador em tools\galo\elenco.json antes.
+---------------------------------------------------------------------
+cd C:\Users\guebe\Teste1\detto-premiere-bridge
+python tools\galo\elenco_site.py
+
+
+---------------------------------------------------------------------
+11) LIMPAR ARQUIVOS TEMPORÁRIOS (libera espaço no disco)
+    Apaga só as pastas de trabalho; os vídeos prontos ficam.
+---------------------------------------------------------------------
+Get-ChildItem E:\DETTO -Recurse -Directory -ErrorAction SilentlyContinue |
+  Where-Object { $_.Name -in @("tmp","galo_tmp") -or $_.Name -like "*_react_tmp" } |
+  Remove-Item -Recurse -Force
+
+
+---------------------------------------------------------------------
+12) CHAVE DO GEMINI (só se trocar a chave) - depois feche e abra o PowerShell
+---------------------------------------------------------------------
+setx GEMINI_API_KEY "COLE_A_CHAVE_AQUI"
+
+
+---------------------------------------------------------------------
+13) TRANSCRIÇÃO MAIS RÁPIDA NA PLACA DE VÍDEO (opcional, uma vez só)
+---------------------------------------------------------------------
+pip install nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*"
