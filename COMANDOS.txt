@@ -13,6 +13,7 @@ Dica: no Explorador, botão direito no vídeo > "Copiar como caminho"
 cd C:\Users\guebe\Teste1
 git pull
 cd detto-premiere-bridge
+npm install
 
 
 ---------------------------------------------------------------------
