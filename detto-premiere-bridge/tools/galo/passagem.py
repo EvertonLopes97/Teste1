@@ -55,9 +55,17 @@ SR = 48000
 # ================================================================== internet
 
 def get_json(url):
-    r = subprocess.run(["curl", "-sS", "-m", "25", "-A", UA, url], capture_output=True, text=True)
+    # curl_cffi (pip install curl_cffi) se passa pelo Chrome: o SofaScore não bloqueia (403)
     try:
-        return json.loads(r.stdout or "{}")
+        from curl_cffi import requests as cr
+        r = cr.get(url, impersonate="chrome", timeout=25, headers={"Referer": "https://www.sofascore.com/"})
+        if r.status_code == 200:
+            return r.json()
+    except Exception:  # noqa: BLE001 — sem curl_cffi ou falhou: tenta o curl
+        pass
+    r = subprocess.run(["curl", "-sS", "-m", "25", "-A", UA, "-H", "Referer: https://www.sofascore.com/", url], capture_output=True)
+    try:
+        return json.loads(r.stdout.decode("utf-8", "replace") or "{}")
     except json.JSONDecodeError:
         return {}
 

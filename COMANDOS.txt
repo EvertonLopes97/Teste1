@@ -153,6 +153,12 @@ setx GEMINI_API_KEY "COLE_A_CHAVE_AQUI"
 
 
 ---------------------------------------------------------------------
+13A) FOTOS DOS JOGADORES - SE O SOFASCORE BLOQUEAR (403) (uma vez só)
+---------------------------------------------------------------------
+pip install curl_cffi
+
+
+---------------------------------------------------------------------
 13) TRANSCRIÇÃO MAIS RÁPIDA NA PLACA DE VÍDEO (opcional, uma vez só)
 ---------------------------------------------------------------------
 pip install nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*"

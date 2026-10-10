@@ -42,6 +42,17 @@ AVISOS = set()
 
 
 def get_json(url):
+    # com o curl_cffi instalado (pip install curl_cffi) a conexão parece a do Chrome e o SofaScore não bloqueia
+    try:
+        from curl_cffi import requests as cr
+        r = cr.get(url, impersonate="chrome", timeout=25, headers={"Referer": "https://www.sofascore.com/"})
+        if r.status_code == 200:
+            return r.json()
+        AVISOS.add(f"SofaScore respondeu {r.status_code} em {url.split('/api/v1/')[-1].split('?')[0]}")
+    except ImportError:
+        pass
+    except Exception as e:  # noqa: BLE001
+        AVISOS.add(f"curl_cffi: {e}")
     # bytes → UTF-8 (no Windows o texto do subprocess viria em cp1252 e estragaria os acentos)
     r = subprocess.run(["curl", "-sS", "-m", "25", "-A", UA, *HEAD, "-w", "\n%{http_code}", url], capture_output=True)
     corpo, _, cod = r.stdout.decode("utf-8", "replace").rpartition("\n")
@@ -75,6 +86,10 @@ def elenco(team_id):
     if lst:
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text(json.dumps(lst, ensure_ascii=False), encoding="utf-8")
+        return lst
+    # SofaScore bloqueou (403): usa o elenco guardado no projeto (vem no git pull), mesmo antigo
+    if f.exists():
+        return json.loads(f.read_text(encoding="utf-8"))
     return lst
 
 
