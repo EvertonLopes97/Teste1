@@ -52,7 +52,8 @@ function corDaGravacao(video) {
   }
   if (hdr && tm !== "0") {
     // HLG/PQ → linear → BT.709 com tone mapping, sem tirar saturação (desat=0)
-    filtro = `zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=${tm}:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p`;
+    // reduz para Full HD ANTES (o tone mapping em 4K é 4x mais lento e o palco é 1920 de qualquer jeito)
+    filtro = `scale='min(1920,iw)':-2:flags=bicubic,zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=${tm}:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p`;
   } else if (/bt2020/.test(primaries)) {
     filtro = "zscale=p=bt709:t=bt709:m=bt709:r=tv,format=yuv420p";
   }

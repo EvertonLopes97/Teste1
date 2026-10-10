@@ -52,6 +52,9 @@ async function main() {
     roteiro = aligned.roteiro;
     if (!a["no-jumpcuts"]) keep = aligned.keep;
     console.error(`alinhamento: ${aligned.report.matched} trechos encontrados na fala, ${aligned.report.estimated} estimados`);
+    const mmss = (/** @type {number} */ t) => `${Math.floor(t / 60)}:${String(Math.round(t % 60)).padStart(2, "0")}`;
+    const est = aligned.report.details.filter((d) => d.at === null).map((d) => mmss(d.tc));
+    if (est.length) console.error(`  (estimados = sem fala casada; vinheta sem FALA é normal): ${est.join(", ")}`);
     if (a.report) fs.writeFileSync(a.report, JSON.stringify(aligned.report, null, 2));
   }
   const plan = buildPlan(roteiro, {

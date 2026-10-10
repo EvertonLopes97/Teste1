@@ -156,3 +156,11 @@ setx GEMINI_API_KEY "COLE_A_CHAVE_AQUI"
 13) TRANSCRIÇÃO MAIS RÁPIDA NA PLACA DE VÍDEO (opcional, uma vez só)
 ---------------------------------------------------------------------
 pip install nvidia-cublas-cu12 "nvidia-cudnn-cu12==9.*"
+
+
+---------------------------------------------------------------------
+14) REACT AO VIVO - REFAZER O TEMPLATE DO OBS (com caricatura/patrocínio)
+    Guia completo em C:\Users\guebe\Teste1\obs\LEIA-ME.txt
+---------------------------------------------------------------------
+cd C:\Users\guebe\Teste1\detto-premiere-bridge
+python tools\react\obs_template.py

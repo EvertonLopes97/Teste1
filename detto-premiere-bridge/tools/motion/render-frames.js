@@ -116,7 +116,33 @@ async function renderComposite(o) {
   }
   const file = (n) => path.join(o.outDir, `${String(n).padStart(6, "0")}.jpg`);
   const todo = jobs.filter((j) => !fs.existsSync(file(j.out))); // retomável
-  const stage = await openStage({ fontsDir: o.fontsDir, flagsDir: o.flagsDir, format: o.format, scale: o.scale || 1.5 });
+  const opts = { fontsDir: o.fontsDir, flagsDir: o.flagsDir, format: o.format, scale: o.scale || 1.5 };
+  let stage = await openStage(opts);
+  let reabrindo = null;
+  /** página nova; se o Chromium caiu, abre outro (vídeo longo no Windows às vezes derruba) */
+  const novaPagina = async () => {
+    for (let k = 0; k < 3; k++) {
+      try {
+        const page = await stage.newPage();
+        await stage.load(page, d.items);
+        return page;
+      } catch (e) {
+        if (!reabrindo) {
+          reabrindo = (async () => {
+            try {
+              await stage.close();
+            } catch (_) {
+              /* já fechado */
+            }
+            stage = await openStage(opts);
+          })().finally(() => (reabrindo = null));
+        }
+        await reabrindo;
+      }
+    }
+    throw new Error("o Chromium não abriu de novo");
+  };
+  const RECICLA = 1500; // página nova a cada N quadros: memória do Chromium não cresce
   let done = jobs.length - todo.length;
   try {
     const workers = Math.max(1, Math.min(o.workers || 4, todo.length || 1));
@@ -125,21 +151,37 @@ async function renderComposite(o) {
       Array.from({ length: workers }, async (_, w) => {
         const mine = todo.slice(w * chunk, (w + 1) * chunk);
         if (!mine.length) return;
-        const page = await stage.newPage();
-        await stage.load(page, d.items);
+        let page = await novaPagina();
+        let feitos = 0;
         for (const j of mine) {
           const t = j.f / fps;
           const cf = Math.min(camTotal - 1, Math.floor(t * camFps + 1e-6));
           const cam = { src: pathToFileURL(path.join(o.camDir, `${String(cf).padStart(6, "0")}.jpg`)).href, ...cameraAt(d, t), face: faceAt(t) };
-          await stage.composite(page, t, cam, file(j.out), o.quality || 92);
+          for (let tent = 0; ; tent++) {
+            try {
+              if (feitos > 0 && feitos % RECICLA === 0 && tent === 0) throw new Error("reciclar");
+              await stage.composite(page, t, cam, file(j.out), o.quality || 92);
+              break;
+            } catch (e) {
+              if (tent >= 3) throw e;
+              if (String(e.message) !== "reciclar") console.error(`quadro ${j.out}: ${String(e.message).split("\n")[0]} — tentando de novo`);
+              try {
+                await page.close();
+              } catch (_) {
+                /* página já caiu */
+              }
+              page = await novaPagina();
+            }
+          }
+          feitos++;
           done++;
           if (o.onProgress && done % (fps * 20) === 0) o.onProgress(done, jobs.length);
         }
-        await page.close();
+        await page.close().catch(() => {});
       })
     );
   } finally {
-    await stage.close();
+    await stage.close().catch(() => {});
   }
   return jobs.length;
 }

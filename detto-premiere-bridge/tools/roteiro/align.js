@@ -25,9 +25,19 @@ function norm(s) {
     .trim();
 }
 
+/** números por extenso → algarismos (o Whisper às vezes escreve "dez", às vezes "10") */
+/** @type {Record<string, string>} */
+const NUM = {
+  dois: "2", duas: "2", tres: "3", quatro: "4", cinco: "5", seis: "6", sete: "7", oito: "8", nove: "9", dez: "10",
+  onze: "11", doze: "12", treze: "13", quatorze: "14", catorze: "14", quinze: "15", vinte: "20", trinta: "30",
+};
+
 /** @param {string} s */
 function tokens(s) {
-  return norm(s).split(" ").filter(Boolean);
+  return norm(s)
+    .split(" ")
+    .filter(Boolean)
+    .map((t) => NUM[t] || t);
 }
 
 /** Distância de edição limitada (para "Götze" ≈ "gotz", "Lusail" ≈ "luzail"). */
@@ -167,8 +177,10 @@ function globalAlign(segs, wt) {
   hits.forEach((h, s) => {
     if (!h.length) return;
     const score = h.length / Math.max(1, count[s]);
-    // poucas palavras casadas num trecho longo = provavelmente casou por acaso
-    if (h.length < Math.min(3, count[s]) || score < 0.2) return;
+    // poucas palavras casadas num trecho longo = provavelmente casou por acaso; mas 2+ palavras de
+    // conteúdo (nomes, "goleiro", "Sofascore") na ordem certa já bastam quando a fala mudou muito
+    const fortes = strong[s].length;
+    if (!(fortes >= 2 || (h.length >= Math.min(3, count[s]) && score >= 0.2))) return;
     const st = strong[s].length ? strong[s] : h;
     res[s] = { first: Math.min(...st), last: Math.max(...h), score, lead: lead[s] };
   });

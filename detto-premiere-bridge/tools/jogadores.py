@@ -37,10 +37,18 @@ def slug(s):
     return norm(s).replace(" ", "-")
 
 
+HEAD = ["-H", "Referer: https://www.sofascore.com/", "-H", "Origin: https://www.sofascore.com", "-H", "Accept: application/json"]
+AVISOS = set()
+
+
 def get_json(url):
-    r = subprocess.run(["curl", "-sS", "-m", "25", "-A", UA, url], capture_output=True, text=True)
+    # bytes → UTF-8 (no Windows o texto do subprocess viria em cp1252 e estragaria os acentos)
+    r = subprocess.run(["curl", "-sS", "-m", "25", "-A", UA, *HEAD, "-w", "\n%{http_code}", url], capture_output=True)
+    corpo, _, cod = r.stdout.decode("utf-8", "replace").rpartition("\n")
+    if cod.strip() != "200":
+        AVISOS.add(f"SofaScore respondeu {cod.strip() or r.returncode} em {url.split('/api/v1/')[-1].split('?')[0]}")
     try:
-        return json.loads(r.stdout or "{}")
+        return json.loads(corpo or "{}")
     except json.JSONDecodeError:
         return {}
 
@@ -56,13 +64,32 @@ def elenco(team_id):
     f = BANCO / "elencos" / f"{team_id}.json"
     if f.exists() and time.time() - f.stat().st_mtime < 3 * 86400:
         return json.loads(f.read_text(encoding="utf-8"))
-    d = get_json(f"{API}/team/{team_id}/players")
+    # dois endereços do SofaScore (site e app): se um bloquear, tenta o outro
+    d = {}
+    for base in (API, IMG):
+        d = get_json(f"{base}/team/{team_id}/players")
+        if d.get("players"):
+            break
     lst = [{"id": p["player"]["id"], "name": p["player"].get("name", ""), "short": p["player"].get("shortName", ""),
             "pos": p["player"].get("position", "")} for p in d.get("players", []) if p.get("player")]
     if lst:
         f.parent.mkdir(parents=True, exist_ok=True)
         f.write_text(json.dumps(lst, ensure_ascii=False), encoding="utf-8")
     return lst
+
+
+def pela_busca(nome, team_id):
+    """Plano B (quando o elenco não vem): busca do SofaScore, só aceita jogador DESSE time."""
+    import urllib.parse
+    d = {}
+    for base in (API, IMG):
+        d = get_json(f"{base}/search/all?q=" + urllib.parse.quote(nome))
+        if d.get("results"):
+            break
+    lst = [{"id": e["id"], "name": e.get("name", ""), "short": e.get("shortName", ""), "pos": e.get("position", "")}
+           for x in d.get("results", []) if x.get("type") == "player"
+           for e in [x.get("entity") or {}] if (e.get("team") or {}).get("id") == team_id]
+    return casar(nome, lst)
 
 
 def casar(nome, lista):
@@ -178,7 +205,10 @@ def main():
             if f:
                 out["players"][nome] = {"photo": str(f), "fonte": "site do Atlético"}
                 continue
-        j = casar(nome, elenco(t["sofa"]))
+        lista = elenco(t["sofa"])
+        j = casar(nome, lista) if lista else None
+        if not j:
+            j = pela_busca(nome, t["sofa"])
         if not j:
             out["sem_foto"].append(f"{nome} ({t['nome']}: não achei no elenco, ou há dois com esse nome)")
             continue
@@ -200,6 +230,8 @@ def main():
     print(f"Fotos conferidas: {len(out['players'])}/{n} jogadores, {sum(1 for x in out['teams'].values() if x['crest'])}/{len(out['teams'])} escudos")
     for s in out["sem_foto"]:
         print(f"  sem foto: {s}")
+    for a in sorted(AVISOS)[:5]:
+        print(f"  aviso: {a}")
     print(f"→ {saida}")
 
 
