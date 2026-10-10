@@ -1,0 +1,665 @@
+/* DETTO motion graphics — 1280x720, fundo transparente (camada sobre a facecam). */
+:root {
+  --neon: #e9ff3b;
+  --gold: #d4af37;
+  --celeste: #75aadb;
+  --red: #c8102e;
+  --navy: #0b1426;
+  --ink: #050a14;
+  --white: #ffffff;
+}
+
+html,
+body {
+  margin: 0;
+  width: 1280px;
+  height: 720px;
+  overflow: hidden;
+  background: transparent;
+}
+
+#stage {
+  position: relative;
+  width: 1280px;
+  height: 720px;
+  overflow: hidden;
+  font-family: "Inter", "DejaVu Sans", sans-serif;
+  color: var(--white);
+}
+
+.item {
+  position: absolute;
+  inset: 0;
+  will-change: transform, opacity;
+}
+
+.anton {
+  font-family: "Anton", "Impact", sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.5px;
+}
+
+/* ---------- placas de tela cheia ---------- */
+.plate {
+  background: radial-gradient(ellipse at 50% 40%, #13254a 0%, #0a1426 55%, #04080f 100%);
+}
+.plate.win {
+  background:
+    linear-gradient(180deg, rgba(4, 10, 22, 0.55), rgba(4, 10, 22, 0.8)),
+    repeating-linear-gradient(90deg, var(--celeste) 0 160px, #eaf3fb 160px 320px);
+}
+.plate.loss {
+  background: radial-gradient(ellipse at 50% 40%, #2a0d16 0%, #12060b 60%, #050205 100%);
+}
+.streaks {
+  position: absolute;
+  inset: -200px;
+  background: repeating-linear-gradient(115deg, transparent 0 140px, rgba(255, 255, 255, 0.05) 140px 142px, transparent 142px 300px);
+}
+.plate .baseline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 6px;
+  background: var(--neon);
+  transform-origin: left center;
+}
+
+/* cartão de era */
+.era-year {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 120px;
+  text-align: center;
+  font-size: 300px;
+  line-height: 1;
+  color: var(--neon);
+  text-shadow: 0 0 30px rgba(233, 255, 59, 0.55), 0 0 90px rgba(233, 255, 59, 0.25);
+}
+.era-title {
+  position: absolute;
+  left: 80px;
+  right: 80px;
+  top: 455px;
+  text-align: center;
+  font-size: 40px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+.tl {
+  position: absolute;
+  left: 160px;
+  right: 160px;
+  bottom: 70px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.25);
+}
+.tl .fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: var(--gold);
+}
+.tl .dot {
+  position: absolute;
+  top: -9px;
+  width: 22px;
+  height: 22px;
+  margin-left: -11px;
+  border-radius: 50%;
+  background: var(--neon);
+  box-shadow: 0 0 18px var(--neon);
+}
+.tl .lbl {
+  position: absolute;
+  top: 18px;
+  font-size: 22px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+/* placa de placar */
+.score-comp {
+  position: absolute;
+  top: 70px;
+  left: 0;
+  right: 0;
+  text-align: center;
+}
+.pill {
+  display: inline-block;
+  padding: 10px 26px;
+  border-radius: 999px;
+  background: var(--neon);
+  color: var(--ink);
+  font-weight: 900;
+  font-size: 26px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+.pill.gold {
+  background: var(--gold);
+}
+.pill.dark {
+  background: rgba(5, 10, 20, 0.8);
+  color: #fff;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+}
+.team {
+  position: absolute;
+  top: 190px;
+  width: 360px;
+  text-align: center;
+}
+.team .flag {
+  width: 190px;
+  height: 190px;
+  border-radius: 50%;
+  margin: 0 auto 22px;
+  background-size: cover;
+  background-position: center;
+  border: 6px solid #fff;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+}
+.team .name {
+  font-size: 44px;
+  text-transform: uppercase;
+  line-height: 1.05;
+}
+.score-num {
+  position: absolute;
+  top: 215px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 200px;
+  line-height: 1;
+  color: var(--neon);
+  text-shadow: 0 0 30px rgba(233, 255, 59, 0.5);
+}
+.score-num .x {
+  font-size: 110px;
+  color: #fff;
+  margin: 0 18px;
+  vertical-align: 30px;
+}
+.score-sub {
+  position: absolute;
+  top: 470px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-size: 30px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.85);
+  text-transform: uppercase;
+}
+.score-date {
+  position: absolute;
+  bottom: 60px;
+  left: 0;
+  right: 0;
+  text-align: center;
+}
+
+/* número gigante */
+.big-num {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 95px;
+  text-align: center;
+  font-size: 330px;
+  line-height: 1;
+  color: var(--neon);
+  text-shadow: 0 0 34px rgba(233, 255, 59, 0.55), 0 0 100px rgba(233, 255, 59, 0.25);
+}
+.big-num.red {
+  color: #ff3b4e;
+  text-shadow: 0 0 34px rgba(255, 59, 78, 0.55);
+}
+.big-label {
+  position: absolute;
+  left: 60px;
+  right: 60px;
+  top: 470px;
+  text-align: center;
+  font-size: 64px;
+  text-transform: uppercase;
+  line-height: 1.05;
+}
+
+/* placa de texto (estilo "NENHUM JOGADOR NA HISTÓRIA") */
+.headline-plate {
+  position: absolute;
+  left: 90px;
+  right: 90px;
+  top: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  text-align: center;
+}
+.hl-line {
+  font-size: 92px;
+  line-height: 1.02;
+  text-transform: uppercase;
+}
+.hl-line.box {
+  background: var(--neon);
+  color: var(--ink);
+  padding: 4px 26px 8px;
+  transform: rotate(-2deg);
+}
+
+/* lista */
+.list-title {
+  position: absolute;
+  left: 110px;
+  top: 60px;
+  font-size: 58px;
+  text-transform: uppercase;
+}
+.list-title::after {
+  content: "";
+  display: block;
+  width: 120px;
+  height: 7px;
+  margin-top: 8px;
+  background: var(--neon);
+}
+.row {
+  position: absolute;
+  left: 110px;
+  right: 110px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 24px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-left: 8px solid var(--neon);
+  border-radius: 10px;
+}
+.row.loss {
+  border-left-color: #ff3b4e;
+}
+.row .mini {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background-size: cover;
+  background-position: center;
+  border: 3px solid #fff;
+  flex: none;
+}
+.row .txt {
+  font-size: 40px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.row .note {
+  margin-left: auto;
+  font-size: 20px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* barras */
+.bars {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 120px;
+  height: 420px;
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: 120px;
+}
+.bar {
+  width: 200px;
+  position: relative;
+  border-radius: 10px 10px 0 0;
+  background: linear-gradient(180deg, var(--celeste), #3c78b3);
+}
+.bar.gray {
+  background: linear-gradient(180deg, #8a93a6, #4b5263);
+}
+.bar .v {
+  position: absolute;
+  top: -110px;
+  left: -40px;
+  right: -40px;
+  text-align: center;
+  font-size: 96px;
+  color: var(--neon);
+}
+.bar .n {
+  position: absolute;
+  bottom: -64px;
+  left: -60px;
+  right: -60px;
+  text-align: center;
+  font-size: 40px;
+  text-transform: uppercase;
+}
+
+/* ---------- sobre a facecam ---------- */
+.keyword {
+  position: absolute;
+  left: 40px;
+  right: 40px;
+  bottom: 120px;
+  text-align: center;
+  line-height: 0.95;
+  text-transform: uppercase;
+  color: var(--gold);
+  -webkit-text-stroke: 10px #000;
+  paint-order: stroke fill;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.6));
+}
+.keyword.red {
+  color: #ff2d43;
+}
+.keyword.celeste {
+  color: #8fc5f5;
+}
+.keyword.white {
+  color: #fff;
+}
+
+.chip {
+  position: absolute;
+  top: 34px;
+  left: 34px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 22px 10px 12px;
+  border-radius: 999px;
+  background: rgba(5, 10, 20, 0.82);
+  border: 2px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+.chip .ico {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--neon);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink);
+  font-weight: 900;
+  font-size: 18px;
+}
+.chip .t {
+  font-size: 30px;
+  text-transform: uppercase;
+}
+
+.cta {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 150px;
+  text-align: center;
+}
+.cta .lbl {
+  font-size: 50px;
+  text-transform: uppercase;
+  -webkit-text-stroke: 8px #000;
+  paint-order: stroke fill;
+  margin-bottom: 18px;
+}
+.cta .btn {
+  display: inline-block;
+  padding: 18px 54px;
+  border-radius: 999px;
+  background: var(--red);
+  font-weight: 900;
+  font-size: 34px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+.cta .btn.done {
+  background: #2a2f3a;
+}
+.cta .hand {
+  position: absolute;
+  width: 70px;
+  height: 70px;
+}
+
+.caption {
+  position: absolute;
+  left: 60px;
+  right: 60px;
+  bottom: 46px;
+  text-align: center;
+  font-weight: 900;
+  font-size: 46px;
+  line-height: 1.1;
+  text-transform: uppercase;
+  -webkit-text-stroke: 7px #000;
+  paint-order: stroke fill;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.55));
+}
+.caption span {
+  display: inline-block;
+  margin: 0 0.12em;
+  transform-origin: center bottom;
+}
+.caption .hl {
+  color: var(--gold);
+}
+.caption .on {
+  color: var(--neon);
+}
+
+.flash {
+  background: #fff;
+}
+.letterbox .b {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 84px;
+  background: #000;
+}
+.confetti i {
+  position: absolute;
+  width: 12px;
+  height: 20px;
+  border-radius: 2px;
+}
+
+/* cartão vermelho */
+.redcard {
+  position: absolute;
+  left: 50%;
+  top: 70px;
+  width: 260px;
+  height: 370px;
+  margin-left: -130px;
+  border-radius: 18px;
+  background: linear-gradient(160deg, #ff3348, #b30c22);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 0 0 6px rgba(255, 255, 255, 0.15);
+}
+.redcard-label {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 490px;
+  text-align: center;
+  font-size: 86px;
+  color: #ff3b4e;
+  text-shadow: 0 0 30px rgba(255, 59, 78, 0.5);
+}
+
+/* ---------- câmera virtual e layouts ---------- */
+#stage {
+  background: #000;
+}
+.camwrap {
+  position: absolute;
+  overflow: hidden;
+  z-index: 1;
+}
+.camwrap .cam {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
+.camwrap.framed {
+  border-radius: calc(28px * var(--k));
+  box-shadow: 0 0 0 calc(5px * var(--k)) #fff, 0 0 calc(40px * var(--k)) rgba(233, 255, 59, calc(0.35 * var(--k))), 0 24px 60px rgba(0, 0, 0, calc(0.55 * var(--k)));
+}
+.pc {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1280px;
+  height: 720px;
+  transform-origin: 0 0;
+}
+.layout-gfxCard,
+.layout-photoCard {
+  border-radius: 26px;
+  overflow: hidden;
+  box-shadow: 0 0 0 5px #fff, 0 0 40px rgba(233, 255, 59, 0.3), 0 30px 70px rgba(0, 0, 0, 0.6);
+}
+.layout-photoCard {
+  background: #fff;
+  border-radius: 18px;
+}
+.photo-frame {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  right: 12px;
+  bottom: 46px;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #111;
+}
+.photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform-origin: 50% 40%;
+}
+.photo-label {
+  position: absolute;
+  left: 14px;
+  top: 14px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(5, 10, 20, 0.85);
+  color: #fff;
+  font-size: 24px;
+  text-transform: uppercase;
+}
+.photo-credit {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#stage.side-active .caption {
+  left: 560px;
+  right: 30px;
+}
+
+/* ---------- formato vertical (9:16) ---------- */
+body.format-vertical,
+body.format-vertical #stage {
+  width: 720px;
+  height: 1280px;
+}
+body.format-vertical .caption {
+  bottom: 330px;
+  font-size: 50px;
+}
+body.format-vertical #stage.side-active .caption {
+  left: 30px;
+  right: 30px;
+  bottom: 610px;
+}
+body.format-vertical .keyword {
+  bottom: 520px;
+}
+body.format-vertical .cta {
+  bottom: 420px;
+}
+
+/* conteúdo em card estreito */
+.narrow .team {
+  width: 290px;
+  top: 200px;
+}
+.narrow .team .flag {
+  width: 160px;
+  height: 160px;
+}
+.narrow .team .name {
+  font-size: 40px;
+}
+.narrow .score-num {
+  top: 240px;
+  font-size: 170px;
+}
+.narrow .score-num .x {
+  font-size: 90px;
+  margin: 0 10px;
+  vertical-align: 24px;
+}
+.narrow .row {
+  left: 50px;
+  right: 50px;
+}
+.narrow .list-title {
+  left: 50px;
+}
+
+/* ---------- foto em tela cheia (estilo "só o motion com a voz ao fundo") ---------- */
+.layout-full.type-photo {
+  background: #000;
+}
+.layout-full .photo-frame {
+  inset: 0;
+  border-radius: 0;
+}
+.layout-full .photo-label {
+  left: 40px;
+  top: 40px;
+  font-size: 30px;
+}
+.layout-full .photo-credit {
+  left: auto;
+  right: 24px;
+  bottom: 18px;
+  width: auto;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.75);
+  text-shadow: 0 1px 3px #000;
+}

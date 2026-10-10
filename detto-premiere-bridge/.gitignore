@@ -1,0 +1,11 @@
+node_modules/
+*.log
+tools/galo/banco/recortes/
+**/galo_tmp/
+tools/galo/sons/
+tools/galo/__pycache__/
+tools/galo/*.task
+sons.json
+tools/motion/rnnoise_sh.rnnn
+tools/galo/banco/recortes/
+**/__pycache__/

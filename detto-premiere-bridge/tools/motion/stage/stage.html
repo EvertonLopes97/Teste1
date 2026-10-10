@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="stage.css" />
+    <style id="fonts"></style>
+  </head>
+  <body>
+    <div id="stage"></div>
+    <script>
+      window.STAGE_ASSETS = {
+        flagsDir: "",
+        flag: (code) => `${window.STAGE_ASSETS.flagsDir}/${code}.png`,
+        file: (p) => (/^file:/.test(p) ? p : `file://${p}`),
+      };
+    </script>
+    <script src="stage.js"></script>
+  </body>
+</html>
