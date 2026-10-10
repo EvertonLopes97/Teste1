@@ -2,7 +2,7 @@
   "name": "detto-premiere-bridge",
   "version": "0.1.0",
   "private": true,
-  "description": "DETTO VIDEO ENGINE — Premiere Bridge: plugin UXP que executa EDIT_PLAN.json no Adobe Premiere Pro",
+  "description": "DETTO VIDEO ENGINE \u2014 Premiere Bridge: plugin UXP que executa EDIT_PLAN.json no Adobe Premiere Pro",
   "license": "UNLICENSED",
   "scripts": {
     "test": "node --test test/*.test.js",
@@ -11,7 +11,8 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "playwright": "^1.63.0"
   },
   "engines": {
     "node": ">=20"
