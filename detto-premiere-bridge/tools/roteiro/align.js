@@ -65,6 +65,117 @@ function findPhrase(wt, target, from, to) {
 }
 
 /**
+ * Alinha todas as FALAs do roteiro (em ordem) com a transcrição inteira.
+ * Retorna, por trecho, o índice da 1ª e da última palavra transcrita casada (ou null).
+ * @param {Array<{fields: Record<string, string>}>} segs @param {string[]} wt
+ * @returns {Array<{first: number, last: number, score: number, lead: number}|null>}
+ */
+function globalAlign(segs, wt) {
+  /** @type {Array<{t: string, seg: number, k: number}>} */
+  const R = [];
+  segs.forEach((seg, i) => {
+    tokens((seg.fields.FALA || "").replace(/"/g, "")).forEach((t, k) => R.push({ t, seg: i, k }));
+  });
+  const n = R.length;
+  const m = wt.length;
+  /** @type {Array<{first: number, last: number, score: number, lead: number}|null>} */
+  const res = segs.map(() => null);
+  if (!n || !m) return res;
+  // ids de palavras e cache de close() (o mesmo par se repete muito)
+  /** @type {Map<string, number>} */
+  const ids = new Map();
+  const id = (/** @type {string} */ w) => {
+    let v = ids.get(w);
+    if (v === undefined) ids.set(w, (v = ids.size));
+    return v;
+  };
+  const ri = R.map((r) => id(r.t));
+  const ti = wt.map((t) => id(t));
+  const words = [...ids.keys()];
+  /** @type {Map<number, number>} */
+  const memo = new Map();
+  const K = ids.size;
+  const sim = (/** @type {number} */ a, /** @type {number} */ b) => {
+    // palavras curtas ("o", "e", "pra") casam em qualquer lugar: valem pouco
+    if (a === b) return words[a].length >= 5 ? 3 : words[a].length >= 4 ? 2 : 0.8;
+    const key = a * K + b;
+    let v = memo.get(key);
+    if (v === undefined) {
+      v = words[a] && words[b] && close(words[a], words[b]) ? 2 : -1;
+      memo.set(key, v);
+    }
+    return v;
+  };
+  const GAP_R = -0.6; // palavra do roteiro que não foi dita
+  const GAP_T = -0.35; // palavra dita fora do roteiro (improviso, muleta)
+  const bt = new Uint8Array((n + 1) * (m + 1));
+  let prev = new Float32Array(m + 1);
+  let cur = new Float32Array(m + 1);
+  for (let j = 1; j <= m; j++) {
+    prev[j] = prev[j - 1] + GAP_T;
+    bt[j] = 2;
+  }
+  for (let i = 1; i <= n; i++) {
+    cur[0] = prev[0] + GAP_R;
+    bt[i * (m + 1)] = 1;
+    const a = ri[i - 1];
+    for (let j = 1; j <= m; j++) {
+      const diag = prev[j - 1] + sim(a, ti[j - 1]);
+      const up = prev[j] + GAP_R;
+      const left = cur[j - 1] + GAP_T;
+      let v = diag;
+      let d = 0;
+      if (up > v) {
+        v = up;
+        d = 1;
+      }
+      if (left > v) {
+        v = left;
+        d = 2;
+      }
+      cur[j] = v;
+      bt[i * (m + 1) + j] = d;
+    }
+    [prev, cur] = [cur, prev];
+  }
+  /** @type {Array<number[]>} */
+  const hits = segs.map(() => []);
+  /** posição (no trecho) da 1ª palavra do roteiro casada: palavras antes dela foram ditas de outro jeito */
+  const lead = segs.map(() => 0);
+  /** @type {Array<number[]>} */
+  const strong = segs.map(() => []);
+  let i = n;
+  let j = m;
+  while (i > 0 && j > 0) {
+    const d = bt[i * (m + 1) + j];
+    if (d === 0) {
+      if (sim(ri[i - 1], ti[j - 1]) > 0) {
+        hits[R[i - 1].seg].push(j - 1);
+        // o começo do trecho é marcado por palavra de conteúdo (4+ letras), não por "e"/"o"
+        if (R[i - 1].t.length >= 4 || !strong[R[i - 1].seg].length) {
+          if (R[i - 1].t.length >= 4) strong[R[i - 1].seg].push(j - 1);
+          lead[R[i - 1].seg] = R[i - 1].k;
+        }
+      }
+      i--;
+      j--;
+    } else if (d === 1) i--;
+    else j--;
+  }
+  const count = segs.map(() => 0);
+  for (const r of R) count[r.seg]++;
+  hits.forEach((h, s) => {
+    if (!h.length) return;
+    const score = h.length / Math.max(1, count[s]);
+    // poucas palavras casadas num trecho longo = provavelmente casou por acaso
+    if (h.length < Math.min(3, count[s]) || score < 0.2) return;
+    const st = strong[s].length ? strong[s] : h;
+    res[s] = { first: Math.min(...st), last: Math.max(...h), score, lead: lead[s] };
+  });
+  return res;
+}
+
+/**
  * @param {import("./parse").Roteiro} roteiro
  * @param {Word[]} words
  * @param {{mediaDuration: number, gap?: number, pad?: number}} opts
@@ -75,41 +186,65 @@ function alignRoteiro(roteiro, words, opts) {
   const segs = roteiro.segments.map((s) => ({ ...s, tc: s.start, tcEnd: s.end, fields: { ...s.fields }, cues: /** @type {Record<string, number>} */ ({}) }));
   const scriptEnd = segs.length ? segs[segs.length - 1].end : 1;
 
-  // 1) início de cada trecho = onde a FALA começa
-  let cursor = 0;
-  /** @type {number[]} */
-  const startIdx = [];
+  // 1) alinhamento global roteiro × fala (programação dinâmica). Tolera fala mudada:
+  //    palavras trocadas, cortadas, acrescentadas e trechos de improviso inteiros.
+  const startIdx = globalAlign(segs, wt);
   segs.forEach((seg, i) => {
-    const target = tokens((seg.fields.FALA || "").replace(/"/g, ""));
-    // janela de busca proporcional ao tempo estimado (tolerante a erro grande do roteiro)
-    const expected = Math.round((seg.start / scriptEnd) * words.length);
-    const from = cursor;
-    const to = Math.max(cursor + 60, expected + Math.round(words.length * 0.15));
-    const hit = findPhrase(wt, target, from, to);
-    if (hit.index >= 0 && hit.score >= 0.45) {
-      startIdx[i] = hit.index;
-      cursor = hit.index + 1;
+    const hit = startIdx[i];
+    if (hit) {
       report.matched++;
-      report.details.push({ tc: seg.start, at: words[hit.index].s, score: Number(hit.score.toFixed(2)) });
+      report.details.push({ tc: seg.start, at: words[hit.first].s, score: Number(hit.score.toFixed(2)) });
     } else {
-      startIdx[i] = -1;
       report.estimated++;
-      report.details.push({ tc: seg.start, at: null, score: Number(hit.score.toFixed(2)) });
+      report.details.push({ tc: seg.start, at: null, score: 0 });
     }
   });
-
-  // trechos não encontrados: interpola entre vizinhos
+  // começo do trecho: na maior pausa logo antes da 1ª palavra casada (recuando só o número de
+  // palavras do começo da FALA que foram ditas de outro jeito; o improviso antes fica no trecho anterior)
+  /** @type {number[]} */
+  const starts = segs.map(() => NaN);
+  let prevLast = -1;
   segs.forEach((seg, i) => {
-    if (startIdx[i] >= 0) {
-      seg.start = Math.max(0, words[startIdx[i]].s - 0.12);
-      return;
+    const hit = startIdx[i];
+    if (!hit) return;
+    let best = hit.first;
+    let bestGap = -1;
+    for (let j = Math.max(prevLast + 1, 1, hit.first - hit.lead - 2); j <= hit.first; j++) {
+      const g = words[j].s - words[j - 1].e;
+      if (g > bestGap) {
+        bestGap = g;
+        best = j;
+      }
     }
-    const prev = segs.slice(0, i).reverse().find((_, k) => startIdx[i - 1 - k] >= 0);
-    const prevT = prev ? prev.start : 0;
-    seg.start = prevT + 0.5;
+    if (prevLast < 0 && hit.first > 0) {
+      // primeiro trecho: começa na primeira fala, salvo se a 1ª palavra casada vem logo depois
+      best = words[hit.first].s - words[0].s < 6 ? 0 : best;
+    }
+    starts[i] = Math.max(0, words[best].s - 0.12);
+    prevLast = hit.last;
   });
+  // trechos sem fala casada (vinhetas, telas sem FALA): proporcional ao tempo do roteiro entre vizinhos
   for (let i = 0; i < segs.length; i++) {
-    if (i > 0 && segs[i].start <= segs[i - 1].start) segs[i].start = segs[i - 1].start + 0.5;
+    if (!Number.isNaN(starts[i])) continue;
+    let p = i - 1;
+    while (p >= 0 && Number.isNaN(starts[p])) p--;
+    let n = i + 1;
+    while (n < segs.length && Number.isNaN(starts[n])) n++;
+    const pt = p >= 0 ? starts[p] : 0;
+    const ptc = p >= 0 ? segs[p].tc : 0;
+    const nt = n < segs.length ? starts[n] : opts.mediaDuration;
+    const ntc = n < segs.length ? segs[n].tc : scriptEnd;
+    if (!segs[i].fields.FALA && n < segs.length && !Number.isNaN(starts[n])) {
+      // vinheta sem fala: logo antes do trecho seguinte, com a duração prevista no roteiro
+      const len = Math.min(segs[i].tcEnd - segs[i].tc, 2.5);
+      starts[i] = Math.max(pt + 0.5, nt - len);
+    } else {
+      starts[i] = pt + ((segs[i].tc - ptc) / Math.max(1e-6, ntc - ptc)) * (nt - pt);
+    }
+  }
+  segs.forEach((seg, i) => (seg.start = starts[i]));
+  for (let i = 1; i < segs.length; i++) {
+    if (segs[i].start <= segs[i - 1].start) segs[i].start = segs[i - 1].start + 0.5;
   }
   segs[0].start = 0;
   segs.forEach((seg, i) => {
@@ -182,4 +317,4 @@ function makeMapper(keep) {
   };
 }
 
-module.exports = { alignRoteiro, makeMapper, tokens, norm, close, findPhrase };
+module.exports = { globalAlign, alignRoteiro, makeMapper, tokens, norm, close, findPhrase };

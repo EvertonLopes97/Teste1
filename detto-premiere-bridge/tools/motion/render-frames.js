@@ -10,26 +10,63 @@
 const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
-const { filtroV } = require("./ffopts");
+const { filtroV, corDaGravacao } = require("./ffopts");
 const { pathToFileURL } = require("url");
 const { openStage } = require("./stage-browser");
 const { cameraAt } = require("./director");
 
-/** Extrai os quadros mantidos (timeline) da gravação: cam/000000.jpg … */
-function extractCamFrames(plan, video, dir, fps) {
+/**
+ * Extrai os quadros mantidos (timeline) da gravação: cam/000000.jpg …
+ * Com `ranges` (trechos da timeline, ex.: --from/--to ou um corte vertical), só os quadros
+ * desses trechos. A cor HDR do iPhone é convertida para SDR (ver corDaGravacao).
+ * @param {Array<[number, number]>} [ranges]
+ */
+function extractCamFrames(plan, video, dir, fps, ranges) {
   const total = Math.round(plan.cuts.reduce((m, c) => Math.max(m, c.timeline + (c.end - c.start)), 0) * fps);
+  // quadros de uma extração com outra cor (ex.: antes da correção do HDR) não servem
+  const cor = corDaGravacao(video);
+  const marca = path.join(dir, "cor.txt");
+  if (fs.existsSync(dir) && (!fs.existsSync(marca) || fs.readFileSync(marca, "utf-8") !== cor.filtro)) fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
-  const have = fs.readdirSync(dir).filter((f) => f.endsWith(".jpg")).length;
-  if (have >= total) return total;
-  const sel = plan.cuts
-    .slice()
-    .sort((a, b) => a.timeline - b.timeline)
-    .map((c) => `between(n,${Math.round(c.start * fps)},${Math.round(c.end * fps) - 1})`)
-    .join("+");
+  fs.writeFileSync(marca, cor.filtro);
+  const want = (ranges && ranges.length ? ranges : [[0, total / fps]]).map(([a, b]) => [Math.round(a * fps), Math.min(total, Math.round(b * fps))]);
+  const name = (n) => path.join(dir, `${String(n).padStart(6, "0")}.jpg`);
+  // timeline → quadro da gravação, só onde falta
+  /** @type {Array<[number, number]>} */
+  const pairs = [];
+  for (const c of plan.cuts.slice().sort((a, b) => a.timeline - b.timeline)) {
+    const t0 = Math.round(c.timeline * fps);
+    const n = Math.round(c.end * fps) - Math.round(c.start * fps);
+    for (let k = 0; k < n; k++) {
+      const f = t0 + k;
+      if (f >= total || !want.some(([a, b]) => f >= a && f < b) || fs.existsSync(name(f))) continue;
+      pairs.push([f, Math.round(c.start * fps) + k]);
+    }
+  }
+  if (!pairs.length) return total;
+  // trechos contínuos da gravação
+  /** @type {Array<[number, number]>} */
+  const spans = [];
+  for (const [, s] of pairs) {
+    const l = spans[spans.length - 1];
+    if (l && s === l[1] + 1) l[1] = s;
+    else spans.push([s, s]);
+  }
+  if (cor.hdr) console.error(`cor da gravação: HDR (${cor.transfer}, ${cor.primaries}) → convertendo para SDR BT.709`);
+  const sel = spans.map(([a, b]) => `between(n,${a},${b})`).join("+");
   const script = path.join(dir, "..", "camselect.filter");
-  fs.writeFileSync(script, `fps=${fps},select='${sel}',setpts=N/FRAME_RATE/TB`);
-  const r = spawnSync("ffmpeg", ["-y", "-v", "error", "-i", video, ...filtroV(script), "-an", "-q:v", "2", "-start_number", "0", "-frames:v", String(total), path.join(dir, "%06d.jpg")], { stdio: "inherit" });
+  fs.writeFileSync(script, `fps=${fps},select='${sel}',setpts=N/FRAME_RATE/TB${cor.filtro ? `,${cor.filtro}` : ""}`);
+  const tmp = path.join(dir, "_novo");
+  fs.rmSync(tmp, { recursive: true, force: true });
+  fs.mkdirSync(tmp);
+  const r = spawnSync("ffmpeg", ["-y", "-v", "error", "-i", video, ...filtroV(script), "-an", "-q:v", "2", "-start_number", "0", "-frames:v", String(pairs.length), path.join(tmp, "%06d.jpg")], { stdio: "inherit" });
   if (r.status !== 0) throw new Error("falha ao extrair quadros da gravação");
+  // os quadros saem na ordem da gravação = ordem da timeline (os cortes não se cruzam)
+  pairs.forEach(([f], i) => {
+    const src = path.join(tmp, `${String(i).padStart(6, "0")}.jpg`);
+    if (fs.existsSync(src)) fs.renameSync(src, name(f));
+  });
+  fs.rmSync(tmp, { recursive: true, force: true });
   return total;
 }
 
@@ -68,7 +105,7 @@ async function renderComposite(o) {
   const d = o.direction;
   const camFps = d.fps; // quadros extraídos da gravação (cam/000000.jpg …)
   const fps = o.fps || camFps;
-  const camCount = fs.readdirSync(o.camDir).filter((f) => f.endsWith(".jpg")).length;
+  const camTotal = Math.round(o.plan.cuts.reduce((m, c) => Math.max(m, c.timeline + (c.end - c.start)), 0) * camFps);
   const faceAt = makeFaceAt(o.plan, o.face, o.seguirRosto);
   fs.mkdirSync(o.outDir, { recursive: true });
   /** @type {Array<{out: number, f: number}>} */
@@ -92,7 +129,7 @@ async function renderComposite(o) {
         await stage.load(page, d.items);
         for (const j of mine) {
           const t = j.f / fps;
-          const cf = Math.min(camCount - 1, Math.floor(t * camFps + 1e-6));
+          const cf = Math.min(camTotal - 1, Math.floor(t * camFps + 1e-6));
           const cam = { src: pathToFileURL(path.join(o.camDir, `${String(cf).padStart(6, "0")}.jpg`)).href, ...cameraAt(d, t), face: faceAt(t) };
           await stage.composite(page, t, cam, file(j.out), o.quality || 92);
           done++;

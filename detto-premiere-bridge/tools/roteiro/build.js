@@ -2,6 +2,7 @@
 "use strict";
 
 const { makeMapper } = require("./align");
+const { roteiroComponents } = require("./componentes");
 
 /**
  * Converte um roteiro já parseado (parse.js) em EDIT_PLAN para o Bridge.
@@ -191,7 +192,14 @@ function buildPlan(roteiro, opts) {
     const a = segments.find((s) => /** @type {any} */ (s).tc === t);
     if (a) return a.start;
     const b = segments.find((s) => /** @type {any} */ (s).tcEnd === t);
-    return b ? b.end : t;
+    if (b) return b.end;
+    // entre trechos: proporcional ao tempo do roteiro
+    const S = /** @type {any[]} */ (segments).filter((s) => typeof s.tc === "number");
+    const k = S.findIndex((s) => s.tc > t);
+    if (k <= 0) return k === 0 ? S[0].start : S.length ? S[S.length - 1].end : t;
+    const p = S[k - 1];
+    const n = S[k];
+    return p.start + ((t - p.tc) / Math.max(1e-6, n.tc - p.tc)) * (n.start - p.start);
   };
   /** primeira deixa citada no texto que foi encontrada na fala */
   const cueIn = (/** @type {any} */ seg, /** @type {string} */ text) => {
@@ -219,6 +227,10 @@ function buildPlan(roteiro, opts) {
     }
   }
 
+  // roteiro com MODO (CAM / CAM+MG / MG+VO / LANCE+VO): componentes estruturados (cards, campinho...)
+  const modos = segments.some((s) => s.fields.MODO);
+  const comp = modos ? roteiroComponents({ ...roteiro, segments }) : null;
+
   let lastBlock = "";
   segments.forEach((seg, i) => {
     const end = Math.min(seg.end, limit);
@@ -239,6 +251,9 @@ function buildPlan(roteiro, opts) {
         : /campe[ãa]o|t[íi]tulo|ouro|vit[óo]ria|virada|bicampe|recorde|confete/i.test(allText)
           ? "win"
           : "",
+      ...(comp
+        ? { modo: comp.segments[i].modo, lance: comp.segments[i].lance, comps: comp.segments[i].comps, sub: /** @type {any} */ (seg).sub || "", fala: seg.fields.FALA || "" }
+        : {}),
     });
 
     if (seg.block !== lastBlock) {
@@ -269,7 +284,7 @@ function buildPlan(roteiro, opts) {
     }
 
     for (const field of /** @type {const} */ (["TELA", "GRAFICO"])) {
-      const value = seg.fields[field];
+      const value = modos ? "" : seg.fields[field]; // com MODO, os componentes substituem os gráficos genéricos
       if (!value) continue;
       const parts = splitParts(value);
       const step = Math.min(1.5, dur / Math.max(parts.length, 1));
@@ -365,6 +380,7 @@ function buildPlan(roteiro, opts) {
     audio,
     meta: {
       source: "roteiro",
+      ...(comp ? { mode: "modos", people: comp.people } : {}),
       title: roteiro.title,
       blocks: roteiro.blocks,
       segments: segMeta,

@@ -1,0 +1,25 @@
+{
+  "_info": "Clubes conhecidos: nome na tela, sigla, apelidos (como aparecem no roteiro/fala) e id do SofaScore (elenco e escudo). Para um clube novo, acrescente aqui.",
+  "times": [
+    { "nome": "Atlético-MG", "sigla": "CAM", "sofa": 1977, "cor": "#111111", "apelidos": ["atletico mineiro", "atletico-mg", "atletico mg", "galo", "cam"] },
+    { "nome": "Athletico-PR", "sigla": "CAP", "sofa": 1967, "cor": "#c8102e", "apelidos": ["athletico", "athletico-pr", "athletico paranaense", "furacao", "cap"] },
+    { "nome": "Bahia", "sigla": "BAH", "sofa": 1955, "cor": "#0057a8", "apelidos": ["bahia", "bah"] },
+    { "nome": "Botafogo", "sigla": "BOT", "sofa": 1958, "cor": "#111111", "apelidos": ["botafogo", "bota", "bot"] },
+    { "nome": "Bragantino", "sigla": "RBB", "sofa": 1999, "cor": "#d50032", "apelidos": ["bragantino", "red bull bragantino", "massa bruta", "rbb", "bra"] },
+    { "nome": "Chapecoense", "sigla": "CHA", "sofa": 21845, "cor": "#00843d", "apelidos": ["chapecoense", "chape", "cha"] },
+    { "nome": "Corinthians", "sigla": "COR", "sofa": 1957, "cor": "#111111", "apelidos": ["corinthians", "timao", "cor"] },
+    { "nome": "Coritiba", "sigla": "CFC", "sofa": 1982, "cor": "#00703c", "apelidos": ["coritiba", "coxa", "cfc"] },
+    { "nome": "Cruzeiro", "sigla": "CRU", "sofa": 1954, "cor": "#0033a0", "apelidos": ["cruzeiro", "cru"] },
+    { "nome": "Flamengo", "sigla": "FLA", "sofa": 5981, "cor": "#c8102e", "apelidos": ["flamengo", "mengao", "fla"] },
+    { "nome": "Fluminense", "sigla": "FLU", "sofa": 1961, "cor": "#7a0026", "apelidos": ["fluminense", "flu"] },
+    { "nome": "Grêmio", "sigla": "GRE", "sofa": 5926, "cor": "#0d80bf", "apelidos": ["gremio", "gre"] },
+    { "nome": "Internacional", "sigla": "INT", "sofa": 1966, "cor": "#c8102e", "apelidos": ["internacional", "inter", "colorado", "int"] },
+    { "nome": "Mirassol", "sigla": "MIR", "sofa": 21982, "cor": "#f2c200", "apelidos": ["mirassol", "mir"] },
+    { "nome": "Palmeiras", "sigla": "PAL", "sofa": 1963, "cor": "#006437", "apelidos": ["palmeiras", "verdao", "pal"] },
+    { "nome": "Remo", "sigla": "REM", "sofa": 2012, "cor": "#0b2b5c", "apelidos": ["remo", "clube do remo", "rem", "cdr"] },
+    { "nome": "Santos", "sigla": "SAN", "sofa": 1968, "cor": "#111111", "apelidos": ["santos", "peixe", "san"] },
+    { "nome": "São Paulo", "sigla": "SAO", "sofa": 1981, "cor": "#c8102e", "apelidos": ["sao paulo", "tricolor paulista", "sao", "spa", "spfc"] },
+    { "nome": "Vasco", "sigla": "VAS", "sofa": 1974, "cor": "#111111", "apelidos": ["vasco", "vasco da gama", "vas"] },
+    { "nome": "Vitória", "sigla": "VIT", "sofa": 1962, "cor": "#c8102e", "apelidos": ["vitoria", "vit"] }
+  ]
+}

@@ -48,14 +48,16 @@ async function openStage(opts) {
     const page = await browser.newPage({ viewport, deviceScaleFactor: scale });
     await page.goto(pathToFileURL(path.join(__dirname, "stage", "stage.html")).href);
     const anton = path.join(opts.fontsDir, "Anton-Regular.ttf");
+    const inter = path.join(opts.fontsDir, "Inter-ExtraBold.otf");
     await page.evaluate(
-      ({ anton, flagsDir }) => {
-        document.getElementById("fonts").textContent = `@font-face { font-family: "Anton"; src: url("${anton}"); }`;
+      ({ anton, inter, flagsDir }) => {
+        document.getElementById("fonts").textContent =
+          `@font-face { font-family: "Anton"; src: url("${anton}"); }` + (inter ? `@font-face { font-family: "Inter"; font-weight: 800 900; src: url("${inter}"); }` : "");
         window.STAGE_ASSETS.flagsDir = flagsDir;
       },
-      { anton: pathToFileURL(anton).href, flagsDir: pathToFileURL(opts.flagsDir).href }
+      { anton: pathToFileURL(anton).href, inter: fs.existsSync(inter) ? pathToFileURL(inter).href : "", flagsDir: pathToFileURL(opts.flagsDir).href }
     );
-    await page.evaluate(() => document.fonts.load('100px "Anton"'));
+    await page.evaluate(() => Promise.all([document.fonts.load('100px "Anton"'), document.fonts.load('800 20px "Inter"').catch(() => null)]));
     return page;
   }
 

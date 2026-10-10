@@ -455,6 +455,16 @@
     },
   };
 
+  // componentes extras (stage/modos.js): desenhados numa caixa do tamanho certo, sem reescala
+  const FIT = new Set();
+  for (const plug of window.STAGE_PLUGINS || []) {
+    const extra = plug({ h, prog, outCubic, outBack, outExpo, clamp, inCubic, exitP, seeded });
+    for (const k of Object.keys(extra)) {
+      TYPES[k] = extra[k];
+      if (extra[k].fit) FIT.add(k);
+    }
+  }
+
   // ---------------------------------------------------------------- layouts
   // coordenadas em px CSS do palco (1280x720 horizontal, 720x1280 vertical)
   const LAYOUTS = {
@@ -465,6 +475,8 @@
       card: { x: 44, y: 92, w: 560, h: 536 },          // gráfico em card (gfxCard)
       photo: { x: 56, y: 70, w: 560, h: 560 },         // foto em quadro (photoCard)
       side: { x: 0.66, y: 0.42, z: 1.3 },              // rosto deslocado quando há card ao lado
+      pip: { x: 942, y: 392, w: 310, h: 300 },          // câmera pequena (CAM+MG), canto inferior direito
+      pipArea: { x: 0, y: 0, w: 930, h: 720 },          // área do gráfico ao lado da câmera pequena
       face: { x: 0.5, y: 0.42 },
       faceInWin: 0.40,                                 // largura do rosto na janela (fração)
     },
@@ -475,6 +487,8 @@
       card: { x: 30, y: 700, w: 660, h: 500 },
       photo: { x: 60, y: 690, w: 600, h: 520 },
       side: { x: 0.5, y: 0.28, z: 1.35 },
+      pip: { x: 400, y: 968, w: 290, h: 280 },
+      pipArea: { x: 0, y: 0, w: 720, h: 950 },
       face: { x: 0.5, y: 0.4 },
       faceInWin: 0.42,
     },
@@ -493,6 +507,12 @@
   function placeLayout(rec, k, lt, dur) {
     const { el, item } = rec;
     const pc = rec.pc;
+    if (rec.fit) {
+      // tela cheia (MG+VO) ou gráfico com a câmera pequena (CAM+MG): entra e sai com fade e leve escala
+      el.style.opacity = String(clamp(k * 1.8));
+      rec.box.style.transform = `scale(${(1.05 - 0.05 * k).toFixed(4)})`;
+      return;
+    }
     if (item.layout === "full") {
       // estilo tela cheia: só o gráfico, a câmera fica por trás (voz ao fundo)
       el.style.opacity = String(clamp(k * 1.8));
@@ -536,20 +556,24 @@
    * Câmera virtual: retângulo (tela cheia ↔ janela), zoom e enquadramento (original ↔ rosto no centro).
    * cam = { z, c, sx, sy, face: {cx, cy, w} } (rosto normalizado na imagem original)
    */
-  function placeCamera(cam, kWin, kSide) {
+  function placeCamera(cam, kWin, kSide, kPip) {
     const full = { x: 0, y: 0, w: L.W, h: L.H };
+    const usePip = (kPip || 0) > kWin;
+    const W = usePip ? L.pip : L.win;
+    if (usePip) kWin = kPip;
     const r = {
-      x: lerp(full.x, L.win.x, kWin),
-      y: lerp(full.y, L.win.y, kWin),
-      w: lerp(full.w, L.win.w, kWin),
-      h: lerp(full.h, L.win.h, kWin),
+      x: lerp(full.x, W.x, kWin),
+      y: lerp(full.y, W.y, kWin),
+      w: lerp(full.w, W.w, kWin),
+      h: lerp(full.h, W.h, kWin),
     };
+    camWrap.classList.toggle("pip", usePip && kWin > 0.001);
     camWrap.style.left = `${r.x.toFixed(2)}px`;
     camWrap.style.top = `${r.y.toFixed(2)}px`;
     camWrap.style.width = `${r.w.toFixed(2)}px`;
     camWrap.style.height = `${r.h.toFixed(2)}px`;
     camWrap.style.zIndex = kWin > 0.001 ? "12" : "1";
-    camWrap.classList.toggle("framed", kWin > 0.001);
+    camWrap.classList.toggle("framed", kWin > 0.001 && !usePip);
     camWrap.style.setProperty("--k", kWin.toFixed(3));
 
     const s0 = Math.max(r.w / SRC.w, r.h / SRC.h);
@@ -598,11 +622,30 @@
     const active = new Set();
     let kWin = 0;
     let kSide = 0;
+    let kPip = 0;
     let shiftCaption = 0;
     for (const it of items) {
       if (t < it.start || t >= it.end) continue;
       active.add(it.id);
       let rec = live.get(it.id);
+      if (!rec && FIT.has(it.type)) {
+        const el = h("div", `item type-${it.type}${it.layout ? ` layout-${it.layout}` : ""}`);
+        el.style.zIndex = String(it.z || 0);
+        {
+          const A = it.layout === "camPip" ? L.pipArea : { x: 0, y: 0, w: L.W, h: L.H };
+          const box = h("div", "fitbox");
+          box.style.left = `${A.x}px`;
+          box.style.top = `${A.y}px`;
+          box.style.width = `${A.w}px`;
+          box.style.height = `${A.h}px`;
+          box.__wrap = el;
+          el.appendChild(box);
+          const refs = TYPES[it.type].build(box, it.data, { w: A.w, h: A.h });
+          stage.appendChild(el);
+          rec = { el, item: it, refs, fit: true, box };
+          live.set(it.id, rec);
+        }
+      }
       if (!rec) {
         const el = h("div", `item type-${it.type}${it.layout ? ` layout-${it.layout}` : ""}`);
         el.style.zIndex = String(it.z || 0);
@@ -632,6 +675,7 @@
       if (it.layout) {
         const k = envelope(lt, dur);
         if (it.layout === "camWindow") kWin = Math.max(kWin, k);
+        else if (it.layout === "camPip") kPip = Math.max(kPip, k);
         else if (it.layout !== "full") kSide = Math.max(kSide, k);
         placeLayout(rec, k, lt, dur);
       }
@@ -645,7 +689,7 @@
       }
     }
     stage.classList.toggle("side-active", kSide > 0.5 && shiftCaption === 1);
-    if (cam) placeCamera(cam, kWin, kSide);
+    if (cam) placeCamera(cam, kWin, kSide, kPip);
     return active.size;
   }
 

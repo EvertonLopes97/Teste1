@@ -35,7 +35,11 @@ async function main() {
     console.error("uso: roteiro-to-plan.js <roteiro.txt> --media <arquivo> [--fps 30] [--width 1920] [--height 1080] [--duration s] [--job id] [--out plano.json]");
     process.exit(2);
   }
-  let roteiro = parseRoteiro(fs.readFileSync(a._[0], "utf-8"));
+  // roteiro salvo no Bloco de Notas antigo (ANSI/Windows-1252) também vale
+  const buf = fs.readFileSync(a._[0]);
+  let txt = buf.toString("utf-8");
+  if (txt.includes("\uFFFD")) txt = buf.toString("latin1");
+  let roteiro = parseRoteiro(txt);
   let keep;
   let words = null;
   if (a.words) {

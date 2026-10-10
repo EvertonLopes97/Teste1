@@ -45,6 +45,7 @@ AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
 sys.path.insert(0, str(AQUI.parent))
 import galo  # noqa: E402
+from cor import sdr_se_preciso  # noqa: E402
 import gestos as G  # noqa: E402
 
 UA = "Mozilla/5.0"
@@ -603,7 +604,8 @@ def main():
     # corta: começa quando o 1º jogador aparece na tela e termina quando o último sai
     t0 = 0.0 if cfg.get("sem_corte") else max(0.0, min(tr["t"][0] for tr in trajs if len(tr["t"])) + 0.15)
     t1 = dur if cfg.get("sem_corte") else min(dur, max(tr["t"][-1] for tr in trajs if len(tr["t"])) + 0.1)
-    cap = cv2.VideoCapture(str(video))
+    # iPhone em HDR: lê os quadros de uma cópia com a cor convertida certo
+    cap = cv2.VideoCapture(str(sdr_se_preciso(video, trab)))
     fps_in = cap.get(cv2.CAP_PROP_FPS) or 30
     passo = max(1, round(fps_in / 30))
     ff = subprocess.Popen(

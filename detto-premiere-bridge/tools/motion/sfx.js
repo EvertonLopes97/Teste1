@@ -129,7 +129,7 @@ const SYNTH = {
 };
 
 /** Volume relativo de cada efeito na mixagem. */
-const GAIN = { whoosh: 0.55, whoosh_short: 0.4, hit: 0.8, pop: 0.6, tick: 0.45, click: 0.6, ding: 0.5, riser: 0.45 };
+const GAIN = { whoosh: 0.55, whoosh_short: 0.4, hit: 0.8, pop: 0.6, tick: 0.45, click: 0.6, ding: 0.5, riser: 0.45, boom: 0.85, glitch: 0.5 };
 
 /**
  * @param {Array<{t: number, kind: string}>} events
@@ -137,7 +137,7 @@ const GAIN = { whoosh: 0.55, whoosh_short: 0.4, hit: 0.8, pop: 0.6, tick: 0.45, 
  * @param {string} file
  */
 /** Efeitos da pasta do Everton (sons.json, feito por tools/biblioteca_sons.py) no lugar dos sintetizados. */
-const CATEGORIA = { hit: "soco", whoosh: "whoosh", whoosh_short: "whoosh", pop: "pop", click: "click", ding: "ding", riser: "riser", tick: "tick" };
+const CATEGORIA = { hit: "soco", whoosh: "whoosh", whoosh_short: "whoosh", pop: "pop", click: "click", ding: "ding", riser: "riser", tick: "tick", boom: "boom", glitch: "glitch" };
 let LIB = null;
 function daBiblioteca(kind, n) {
   if (LIB === null) {
@@ -165,7 +165,8 @@ function writeSfxTrack(events, duration, file) {
   const mix = new Float32Array(total);
   const cache = new Map();
   events.forEach((e, n) => {
-    const synth = SYNTH[e.kind];
+    // boom/glitch sem arquivo na biblioteca: usa o impacto / o clique sintetizados
+    const synth = SYNTH[e.kind] || (e.kind === "boom" ? SYNTH.hit : e.kind === "glitch" ? SYNTH.click : null);
     if (!synth) return;
     const key = `${e.kind}:${n % 4}`; // pequenas variações (ou arquivos diferentes da biblioteca)
     if (!cache.has(key)) cache.set(key, daBiblioteca(e.kind, n % 4) || synth(17 + (n % 4) * 31));

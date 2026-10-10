@@ -4,9 +4,10 @@
 /**
  * Legendas dinâmicas palavra por palavra.
  *
- * O texto vem da FALA do roteiro (já com os nomes corrigidos: "Götze", "Di María",
- * "Ferran Torres"), e o tempo de cada palavra vem da transcrição (Whisper). As duas
- * sequências são alinhadas por programação dinâmica dentro de cada trecho.
+ * O texto é o que foi FALADO de verdade (transcrição): se a fala mudou em relação ao
+ * roteiro, a legenda acompanha a fala. O roteiro só corrige a grafia das palavras
+ * parecidas (nomes: "Götze", "Di María", "Matheuzinho", números) e a ERRATA troca
+ * nomes que o Whisper errou. As duas sequências são alinhadas dentro de cada trecho.
  */
 
 const { tokens, close } = require("./align");
@@ -86,6 +87,70 @@ function isHighlight(w, index) {
 }
 
 /**
+ * Para cada palavra ouvida, o índice da palavra do roteiro parecida com ela (ou -1).
+ * @param {string[]} display @param {Word[]} heard
+ */
+function mapHeard(display, heard) {
+  const a = display.map((d) => tokens(d).join(""));
+  const b = heard.map((h) => tokens(h.w).join(""));
+  const n = a.length;
+  const m = b.length;
+  const dp = Array.from({ length: n + 1 }, () => new Float64Array(m + 1));
+  const bt = Array.from({ length: n + 1 }, () => new Uint8Array(m + 1));
+  for (let i = 1; i <= n; i++) bt[i][0] = 1;
+  for (let j = 1; j <= m; j++) bt[0][j] = 2;
+  for (let i = 1; i <= n; i++) {
+    for (let j = 1; j <= m; j++) {
+      const diag = dp[i - 1][j - 1] + (a[i - 1] && b[j - 1] && close(a[i - 1], b[j - 1]) ? 2 : -1);
+      const up = dp[i - 1][j] - 0.5;
+      const left = dp[i][j - 1] - 0.5;
+      if (diag >= up && diag >= left) {
+        dp[i][j] = diag;
+        bt[i][j] = 0;
+      } else if (up >= left) {
+        dp[i][j] = up;
+        bt[i][j] = 1;
+      } else {
+        dp[i][j] = left;
+        bt[i][j] = 2;
+      }
+    }
+  }
+  const out = new Array(m).fill(-1);
+  let i = n;
+  let j = m;
+  while (i > 0 && j > 0) {
+    if (bt[i][j] === 0) {
+      if (a[i - 1] && b[j - 1] && close(a[i - 1], b[j - 1])) out[j - 1] = i - 1;
+      i--;
+      j--;
+    } else if (bt[i][j] === 1) i--;
+    else j--;
+  }
+  return out;
+}
+
+/**
+ * Corrige a grafia com a ERRATA ("Rúlque" → HULK); vale para 1 a 3 palavras seguidas.
+ * @param {CaptionWord[]} list @param {Array<{heard: string, correct: string}>} errata
+ */
+function applyErrata(list, errata) {
+  for (const e of errata || []) {
+    const h = tokens(e.heard);
+    if (!h.length) continue;
+    const fix = e.correct.toLowerCase().replace(/(^|[\s-])(\p{L})/gu, (x) => x.toUpperCase());
+    for (let k = 0; k + h.length <= list.length; k++) {
+      if (!h.every((t, n) => close(tokens(list[k + n].w).join(""), t))) continue;
+      const punct = (list[k + h.length - 1].w.match(/[.,!?:;]+$/) || [""])[0];
+      list[k].w = fix + punct;
+      list[k].e = list[k + h.length - 1].e;
+      list[k].hl = true;
+      list.splice(k + 1, h.length - 1);
+    }
+  }
+}
+
+/**
  * Gera legendas na timeline final.
  * @param {import("./parse").Roteiro} roteiro  roteiro já alinhado (tempos na mídia)
  * @param {Word[]} words                       transcrição (tempos na mídia)
@@ -98,19 +163,28 @@ function buildCaptions(roteiro, words, toTimeline, opts = {}) {
   const maxChars = opts.maxChars ?? 20;
   /** @type {CaptionWord[]} */
   const all = [];
+  const done = new Set();
   for (const seg of roteiro.segments) {
     const fala = (seg.fields.FALA || "").replace(/^"|"$/g, "").replace(/"/g, "");
     const display = fala.split(/\s+/).filter(Boolean);
-    const heard = words.filter((w) => w.s >= seg.start - 0.05 && w.s < seg.end);
-    if (!display.length || !heard.length) continue;
-    const times = alignWords(display, heard);
-    display.forEach((w, k) => {
-      const t = times[k];
-      if (!t) return;
-      all.push({ w, s: toTimeline(t.s), e: toTimeline(Math.max(t.e, t.s + 0.05)), hl: isHighlight(w, k) });
+    const idx = words.map((w, i) => i).filter((i) => !done.has(i) && words[i].s >= seg.start - 0.05 && words[i].s < seg.end);
+    const heard = idx.map((i) => words[i]);
+    const map = display.length ? mapHeard(display, heard) : heard.map(() => -1);
+    heard.forEach((h, j) => {
+      done.add(idx[j]);
+      const k = map[j];
+      // palavra parecida com a do roteiro: grafia do roteiro (acentos, nome, maiúscula); senão, o que foi dito
+      let w = k >= 0 ? display[k] : h.w.trim();
+      if (k >= 0 && tokens(display[k]).join("") !== tokens(h.w).join("") && !/^\p{Lu}|\d/u.test(display[k])) w = h.w.trim();
+      all.push({ w, s: toTimeline(h.s), e: toTimeline(Math.max(h.e, h.s + 0.05)), hl: isHighlight(w, k >= 0 ? k : 1) });
     });
   }
+  // fala fora de qualquer trecho do roteiro
+  words.forEach((h, i) => {
+    if (!done.has(i)) all.push({ w: h.w.trim(), s: toTimeline(h.s), e: toTimeline(Math.max(h.e, h.s + 0.05)), hl: isHighlight(h.w.trim(), 1) });
+  });
   all.sort((x, y) => x.s - y.s);
+  applyErrata(all, roteiro.errata);
 
   /** @type {Caption[]} */
   const caps = [];
@@ -153,4 +227,4 @@ function toSrt(caps) {
   return caps.map((c, i) => `${i + 1}\n${srtTime(c.start)} --> ${srtTime(c.end)}\n${c.text}\n`).join("\n");
 }
 
-module.exports = { buildCaptions, alignWords, toSrt, isHighlight };
+module.exports = { buildCaptions, alignWords, mapHeard, toSrt, isHighlight };

@@ -30,6 +30,7 @@ const { findImages, creditsText } = require("./motion/media-search");
 const { writeSfxTrack } = require("./motion/sfx");
 const { renderComposite, extractCamFrames } = require("./motion/render-frames");
 const { buildAudio } = require("./motion/audio");
+const { corDaGravacao } = require("./motion/ffopts");
 
 function args(argv) {
   const out = { _: [] };
@@ -64,9 +65,13 @@ async function main() {
   const face = a.face ? JSON.parse(fs.readFileSync(a.face, "utf-8")) : null;
   if (!face) log("aviso: sem --face, zooms usam o centro da imagem");
 
+  // fotos dos jogadores e escudos (tools/jogadores.py → jogadores.json ao lado do plano)
+  const assetsFile = a.assets || path.join(path.dirname(path.resolve(a._[0])), "jogadores.json");
+  const assets = fs.existsSync(assetsFile) ? JSON.parse(fs.readFileSync(assetsFile, "utf-8")) : null;
+
   // 1. fotos de apoio (b-roll) com licença livre
   let images = {};
-  if (!a["no-images"]) {
+  if (!a["no-images"] && !(plan.meta && plan.meta.mode === "modos")) {
     const needs = ((plan.meta && plan.meta.segments) || [])
       .filter((s) => s.broll)
       .map((s) => {
@@ -79,7 +84,7 @@ async function main() {
   }
 
   // 2. diretor
-  const d = direct(plan, { images });
+  const d = direct(plan, { images, assets });
   fs.writeFileSync(path.join(work, "direction.json"), JSON.stringify(d, null, 1));
   log(`diretor: ${JSON.stringify(d.stats)}`);
 
@@ -95,10 +100,10 @@ async function main() {
 
   // 4. quadros da gravação (com jump cuts) e composição
   const camDir = path.join(work, "cam");
-  extractCamFrames(plan, a.video, camDir, d.fps);
+  extractCamFrames(plan, a.video, camDir, d.fps, ranges);
   log("quadros da gravação extraídos");
   // quadros já compostos são reaproveitados só se direção, formato e trechos forem os mesmos
-  const key = crypto.createHash("sha1").update(JSON.stringify([d, format, ranges, a.scale || 1.5, outFps, a["seguir-rosto"] || "0", 2])).digest("hex").slice(0, 10);
+  const key = crypto.createHash("sha1").update(JSON.stringify([d, format, ranges, a.scale || 1.5, outFps, a["seguir-rosto"] || "0", corDaGravacao(a.video).filtro, 3])).digest("hex").slice(0, 10);
   const framesDir = path.join(work, `frames_${format}${a.cut ? `_cut${a.cut}` : ""}_${outFps}fps_${key}`);
   const n = await renderComposite({
     plan,

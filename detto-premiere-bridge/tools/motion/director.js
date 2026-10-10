@@ -191,6 +191,8 @@ function keywordColor(text, mood) {
  * @param {{images?: Record<string, any>, faceAt?: (t: number) => {cx: number, cy: number, w: number}, facecamColorFx?: boolean}} [opts]
  */
 function direct(plan, opts = {}) {
+  // roteiro com MODO (CAM / CAM+MG / MG+VO): cards, campinho, placares... (director-modos.js)
+  if (plan.meta && plan.meta.mode === "modos") return require("./director-modos").directModes(plan, opts);
   const fps = plan.sequence.fps;
   const last = plan.cuts.reduce((m, c) => Math.max(m, c.timeline + (c.end - c.start)), 0);
   const duration = Math.round(last * fps) / fps;

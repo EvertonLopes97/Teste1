@@ -393,7 +393,10 @@ def main():
     trab.mkdir(exist_ok=True)
     montar_audio(cfg, trechos, off_cam, dur, trab / "audio.wav")
     saida = cfg.get("saida") or str(cam.with_name(cam.stem + "_react.mp4"))
-    vo, vc = cv2.VideoCapture(str(orig)), cv2.VideoCapture(str(cam))
+    # câmera do iPhone em HDR: cópia com a cor convertida certo
+    sys.path.insert(0, str(PONTE / "tools"))
+    from cor import sdr_se_preciso
+    vo, vc = cv2.VideoCapture(str(sdr_se_preciso(orig, trab))), cv2.VideoCapture(str(sdr_se_preciso(cam, trab)))
     fps_o = vo.get(cv2.CAP_PROP_FPS) or 30
     leitor_o, leitor_c = Leitor(vo, fps_o), Leitor(vc, fps_c)
     ff = subprocess.Popen(["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "bgr24",

@@ -17,6 +17,21 @@ npm install
 
 
 ---------------------------------------------------------------------
+1A) VÍDEO FALADO COM O SEU ROTEIRO  (o mais usado)
+    O sistema bate o roteiro com o que você FALOU (pode mudar as falas)
+    e faz os cards, campinho, placares, VAR, enquete... do MG/VFX/TELA.
+    Dica: salve o roteiro com o MESMO NOME do vídeo na mesma pasta
+    ("rodada 30.txt" ao lado de "rodada 30.MOV") e nem precisa do $roteiro.
+    No fim ele confere a cor/fotos/volume: abra conferencia.jpg no _job.
+    Teste rápido (1 minuto): acrescente  --teste  no fim.
+---------------------------------------------------------------------
+$video   = "E:\DETTO\videos\NOME DO VIDEO.MOV"
+$roteiro = "E:\DETTO\videos\NOME DO ROTEIRO.txt"
+cd C:\Users\guebe\Teste1\detto-premiere-bridge
+python tools\editar.py $video --roteiro $roteiro
+
+
+---------------------------------------------------------------------
 1) VÍDEO FALADO - TESTE (só o 1º minuto, para conferir o estilo)
    Sai em: <pasta do vídeo>\<nome>_job\horizontal.mp4 e vertical_completo.mp4
 ---------------------------------------------------------------------

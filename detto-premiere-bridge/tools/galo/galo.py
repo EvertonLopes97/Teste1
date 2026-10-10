@@ -222,6 +222,12 @@ def main():
 
     entradas, filtros = ["-i", str(video)], []
     atual = "[0:v]"
+    sys.path.insert(0, str(AQUI.parent))
+    from cor import filtro_cor
+    fc = filtro_cor(video)  # iPhone em HDR → SDR com a cor certa
+    if fc:
+        filtros.append(f"[0:v]{fc}[v0]")
+        atual = "[v0]"
     if cfg.get("placar"):
         placar_png(cfg["placar"], W).save(trab / "placar.png")
         entradas += ["-loop", "1", "-i", str(trab / "placar.png")]

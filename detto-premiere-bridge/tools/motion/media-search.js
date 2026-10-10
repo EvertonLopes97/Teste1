@@ -6,7 +6,8 @@
  * CC BY-SA, e registra autor/licença/fonte para os créditos.
  *
  * Fluxo: termos do roteiro → consultas (poucas, com cache) → pool de imagens →
- * melhor imagem por trecho (ano, adversário, estádio, competição) sem repetir.
+ * melhor imagem por trecho (pessoa citada no título, ano, time, estádio) sem repetir.
+ * Na dúvida, o trecho fica SEM foto (melhor nada do que a foto de outra pessoa).
  */
 
 const fs = require("fs");
@@ -36,7 +37,7 @@ const CONTEXT = [
   [/medalha/i, "medal"],
 ];
 
-const TEAMS = ["Hungria", "Hungary", "Alemanha", "Germany", "Brasil", "Brazil", "Uruguai", "Uruguay", "Chile", "Holanda", "Netherlands", "França", "France", "Croácia", "Croatia", "Islândia", "Iceland", "Nigéria", "Nigeria", "Equador", "Ecuador", "Itália", "Italy", "Colômbia", "Colombia", "Espanha", "Spain", "Inglaterra", "England", "Benin", "Egito", "Egypt"];
+const TEAMS = ["Argentina", "Hungria", "Hungary", "Alemanha", "Germany", "Brasil", "Brazil", "Uruguai", "Uruguay", "Chile", "Holanda", "Netherlands", "França", "France", "Croácia", "Croatia", "Islândia", "Iceland", "Nigéria", "Nigeria", "Equador", "Ecuador", "Itália", "Italy", "Colômbia", "Colombia", "Espanha", "Spain", "Inglaterra", "England", "Benin", "Egito", "Egypt"];
 
 function sleep(ms) {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
@@ -70,42 +71,62 @@ function search(query, cacheDir) {
   return data;
 }
 
-/** Palavras-chave de um trecho (texto do VISUAL + bloco). */
+const CLUBS = require("../roteiro/times.json").times;
+const NOT_PERSON = new Set(["Copa", "Mundial", "Final", "Estádio", "Estadio", "Seleção", "Selecao", "World", "Cup", "Brasileirão", "Libertadores", "Champions", "League", "Foto", "Vídeo", "Video", "Jogo"]);
+const strip = (s) => String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+/**
+ * Palavras-chave de um trecho (texto do VISUAL + bloco): ano, contexto, seleções/clubes e
+ * a PESSOA principal (primeiro nome próprio que não é time nem lugar).
+ */
 function segmentKeys(text) {
   const year = (text.match(/\b(19|20)\d{2}\b/) || [])[0] || "";
   const ctx = CONTEXT.filter(([re]) => re.test(text)).map(([, k]) => k);
   const teams = TEAMS.filter((t) => new RegExp(`\\b${t}\\b`, "i").test(text));
-  return { year, ctx, teams };
+  const clubs = CLUBS.filter((c) => c.apelidos.some((a) => a.length > 3 && new RegExp(`\\b${a}\\b`).test(strip(text)))).map((c) => c.nome);
+  // termos entre aspas são a busca pedida no roteiro; senão o texto todo
+  const q = (text.match(/"([^"]+)"/) || [])[1] || text;
+  const isTeamWord = (w) =>
+    w.length < 3 || TEAMS.some((t) => strip(t) === strip(w)) || CLUBS.some((c) => strip(c.nome) === strip(w) || c.apelidos.some((ap) => ap.split(/[\s-]/).includes(strip(w))));
+  const person = [];
+  for (const w of q.split(/[\s,.;:()\-–—]+/)) {
+    if (/^\p{Lu}[\p{L}']+$/u.test(w) && !NOT_PERSON.has(w) && !isTeamWord(w) && !CONTEXT.some(([re]) => re.test(w))) person.push(w);
+    else if (person.length) break;
+  }
+  return { year, ctx, teams, clubs, person: person.slice(0, 3) };
 }
 
 /** Consultas para um trecho, da mais específica para a mais geral. */
 function queriesFor(keys) {
   const q = [];
-  if (keys.ctx.length) q.push(`Messi ${keys.ctx[0]} ${keys.year}`.trim());
-  if (keys.year) q.push(`Messi Argentina ${keys.year}`);
+  const who = keys.person.join(" ");
+  const where = keys.clubs[0] || keys.teams[0] || "";
+  if (who && where) q.push(`${who} ${where} ${keys.year}`.trim());
+  if (who && keys.ctx.length) q.push(`${who} ${keys.ctx[0]} ${keys.year}`.trim());
+  if (who) q.push(`${who} football`);
   for (const c of keys.ctx.filter((c) => /Stadium|Maracana|Mineirao|Monumental|Wembley|Lusail|Quito/.test(c))) q.push(c);
-  if (keys.ctx.includes("Maradona")) q.push("Maradona Messi");
-  return q;
+  return [...new Set(q)];
 }
 
 const STADIUMS = /stadium|estadio|maracan|mineir|monumental|wembley|lusail|metlife/i;
 
 function score(img, keys) {
-  const hay = `${img.title} ${(img.tags || []).map((t) => t.name).join(" ")}`.toLowerCase();
-  const title = String(img.title || "").toLowerCase();
-  // título precisa citar o Messi (tags sozinhas trazem ruído: cachorro "Murfy", outdoor etc.)
-  const hasMessi = /messi/.test(title);
-  if (/version|toy|figur|doll|cartoon|caricat|graffiti|mural|wax|lego|billboard|ballack|kaka|statue|estatua/.test(title)) return -99;
+  const hay = strip(`${img.title} ${(img.tags || []).map((t) => t.name).join(" ")}`);
+  const title = strip(img.title);
+  // o TÍTULO precisa citar a pessoa pedida (tags sozinhas trazem ruído: cachorro "Murfy", outdoor etc.)
+  const hasPerson = keys.person.length > 0 && keys.person.every((p) => new RegExp(`\\b${strip(p)}\\b`).test(title));
+  if (/version|toy|figur|doll|cartoon|caricat|graffiti|mural|wax|lego|billboard|statue|estatua|sticker|panini/.test(title)) return -99;
   const wantsStadium = keys.ctx.some((c) => STADIUMS.test(c));
   const stadiumHit = keys.ctx.some((c) => STADIUMS.test(c) && hay.includes(c.toLowerCase().split(" ").pop()));
-  // precisa ser do Messi ou do estádio pedido; o resto é ruído da busca
-  if (!hasMessi && !(wantsStadium && stadiumHit)) return -99;
-  let s = hasMessi ? 3 : 0;
+  // precisa ser da pessoa ou do estádio pedido; sem pessoa nem estádio, não arrisca
+  if (!hasPerson && !(wantsStadium && stadiumHit)) return -99;
+  let s = hasPerson ? 3 : 0;
   if (stadiumHit) s += 5;
   for (const c of keys.ctx) if (!STADIUMS.test(c) && hay.includes(c.toLowerCase().split(" ")[0])) s += 2;
-  for (const t of keys.teams) if (hay.includes(t.toLowerCase())) s += 2;
-  if (/argentin/.test(hay)) s += 2;
-  if (/barcelona|barça|inter miami|psg|paris saint|revolution/i.test(hay) && !/argentin/.test(hay)) s -= 4; // clube ≠ seleção
+  for (const t of keys.teams) if (hay.includes(strip(t))) s += 2;
+  for (const c of keys.clubs) if (hay.includes(strip(c).split(/[-\s]/)[0])) s += 3;
+  // outro clube no título (foto de outra época/time)
+  if (keys.clubs.length && CLUBS.some((c) => !keys.clubs.includes(c.nome) && c.apelidos.some((a) => a.length > 4 && title.includes(a)))) s -= 4;
   // época: ano igual vale muito; ano distante pesa contra (2026 numa cena de 2005)
   const years = (hay.match(/\b(19|20)\d{2}\b/g) || []).map(Number);
   if (keys.year) {
@@ -158,9 +179,7 @@ function findImages(needs, opts) {
   const add = (results) => {
     for (const r of results) if (!pool.has(r.id) && r.url && !/\.(svg|gif)$/i.test(r.url)) pool.set(r.id, r);
   };
-  // pool base + consultas específicas (deduplicadas)
-  add(search("Lionel Messi Argentina", opts.cacheDir));
-  add(search("Lionel Messi", opts.cacheDir));
+  // só consultas do próprio roteiro (deduplicadas); nada fixo
   const asked = new Set();
   const keysById = new Map();
   for (const n of needs) {
@@ -172,7 +191,7 @@ function findImages(needs, opts) {
       add(search(q, opts.cacheDir));
     }
   }
-  log(`imagens: ${asked.size + 2} consultas, ${pool.size} candidatas com licença livre`);
+  log(`imagens: ${asked.size} consultas, ${pool.size} candidatas com licença livre`);
 
   /** @type {Record<string, any>} */
   const out = {};
