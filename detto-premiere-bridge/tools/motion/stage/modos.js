@@ -564,7 +564,7 @@
         r.big.style.opacity = String(Math.floor(lt * 3.2) % 2 === 0 ? 1 : 0.35);
         const dots = ".".repeat(1 + (Math.floor(lt * 4) % 3));
         if (/CHECKING/.test(d.label || "")) r.sub.textContent = `CHECKING${dots}`;
-        r.m.style.filter = Math.floor(lt * 30) % 9 === 0 ? "hue-rotate(40deg) contrast(1.4)" : "none";
+        r.m.style.filter = Math.floor(lt * 30) % 13 === 5 ? "contrast(1.5) brightness(1.25)" : "none";
       },
     };
 
