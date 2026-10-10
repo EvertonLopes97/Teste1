@@ -37,6 +37,11 @@ def main():
     p.add_argument("--titulo", default="")
     a = p.parse_args()
     video = Path(a.video).resolve()
+    if not video.exists():
+        perto = sorted(video.parent.glob("*")) if video.parent.exists() else []
+        raise SystemExit(f"Não achei o vídeo: {video}\n"
+                         + (("Arquivos nessa pasta:\n  " + "\n  ".join(p.name for p in perto[:30])) if perto else
+                            "Essa pasta não existe. Confira o caminho (no Explorador: botão direito no vídeo > Copiar como caminho)."))
     job = video.with_name(video.stem + "_job")
     job.mkdir(exist_ok=True)
     dur = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0",
