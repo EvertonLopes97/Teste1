@@ -10,6 +10,7 @@ arquivo com a palavra da categoria (ex.: "soco forte.mp3") ou edite o sons.json 
 Categoria sem arquivo usa os efeitos "famosos" da Mixkit (licença livre), baixados na hora.
 """
 import json
+import re
 import subprocess
 import sys
 import unicodedata
@@ -21,26 +22,39 @@ CACHE = RAIZ / "tools" / "galo" / "sons"
 AUDIO = {".mp3", ".wav", ".ogg", ".m4a", ".aac", ".flac", ".wma"}
 PULAR = ("musica", "music", "trilha", "song")  # pastas de música não são efeito
 
+# palavras inteiras do nome do arquivo; "*" no fim = começo de palavra (transi* pega transição/transition)
 CATEGORIAS = {
-    "soco": ["soco", "punch", "murro", "pancada", "porrada", "impact", "impacto", "hit", "golpe", "kick",
-             "chute", "smack", "bater", "batida", "luta", "fight"],
-    "tapa": ["tapa", "slap", "tapinha", "clap", "palma"],
-    "chicote": ["chicote", "whip", "chua", "swish", "swing", "lash"],
-    "whoosh": ["whoosh", "woosh", "swoosh", "swoosh", "transi", "transition", "swipe", "vento", "wind",
-               "passagem", "zoom", "fast"],
-    "boom": ["boom", "vine", "bass", "explos", "drop"],
-    "pop": ["pop", "bubble", "bolha", "plop"],
-    "click": ["click", "clique", "mouse", "tecla", "keyboard"],
-    "ding": ["ding", "bell", "sino", "notif", "plim", "correct", "certo", "acerto"],
-    "riser": ["riser", "rise", "subida", "suspense", "build", "tensao", "tension"],
-    "tick": ["tick", "tic tac", "tictac", "relogio", "clock"],
-    "glitch": ["glitch", "estatica", "static", "erro", "error"],
-    "fail": ["fail", "bruh", "trombone", "sad", "triste", "errou", "wrong", "buzzer"],
-    "risada": ["risada", "laugh", "rindo", "haha", "kkk"],
-    "dinheiro": ["cash", "dinheiro", "money", "caixa", "coin", "moeda"],
-    "scratch": ["scratch", "disco", "record", "arranh"],
+    "soco": ["soco*", "punch*", "murro", "pancada", "porrada", "impact*", "hit", "hits", "golpe", "kick",
+             "chute", "smack", "luta", "fight*"],
+    "tapa": ["tapa", "tapas", "slap*", "tapinha", "clap*", "palma*"],
+    "chicote": ["chicote*", "whip*", "chua", "swish", "lash"],
+    "risada": ["risada*", "laugh*", "rindo", "haha*", "kkk*", "risadinha"],
+    "whoosh": ["whoosh*", "woosh*", "swoosh*", "transi*", "swipe*", "vento", "wind", "passagem", "zoom", "fast"],
+    "boom": ["boom*", "vine", "bass", "explos*", "drop"],
+    "pop": ["pop", "pops", "bubble*", "bolha*", "plop"],
+    "click": ["click*", "clique*", "mouse", "tecla*", "keyboard"],
+    "ding": ["ding*", "bell*", "sino", "notif*", "plim", "correct", "certo", "acerto"],
+    "riser": ["riser*", "subida", "suspense", "build*", "tensao", "tension"],
+    "tick": ["tick", "ticks", "tictac", "relogio", "clock*"],
+    "glitch": ["glitch*", "estatica", "static"],
+    "fail": ["fail*", "bruh", "trombone", "sad", "triste", "errou", "wrong", "buzzer", "erro", "error"],
+    "dinheiro": ["cash", "dinheiro", "money", "caixa", "coin*", "moeda*"],
+    "scratch": ["scratch*", "arranh*"],
     "camera": ["camera", "shutter", "foto", "flash"],
 }
+
+
+def categoria(texto):
+    palavras = re.findall(r"[a-z0-9]+", norm(texto))
+    for cat, chaves in CATEGORIAS.items():
+        for ch in chaves:
+            if ch.endswith("*"):
+                if any(w.startswith(ch[:-1]) for w in palavras):
+                    return cat
+            elif ch in palavras:
+                return cat
+    return None
+
 
 # "famosos" de uso livre (Mixkit) quando a pasta não tiver a categoria
 MIXKIT = {"soco": 2155, "tapa": 2167, "chicote": 2050, "whoosh": 1492}
@@ -57,15 +71,11 @@ def catalogar(pastas):
         for f in sorted(Path(pasta).rglob("*")):
             if f.suffix.lower() not in AUDIO:
                 continue
-            caminho = norm(str(f.relative_to(pasta)))
             if any(p in norm(str(f.parent)) for p in PULAR):
                 continue
-            for cat, chaves in CATEGORIAS.items():
-                if any(ch in caminho for ch in chaves):
-                    lib[cat].append(str(f))
-                    break
-            else:
-                lib.setdefault("outros", []).append(str(f))
+            # primeiro pelo nome do arquivo; se não disser nada, pelo nome da pasta
+            cat = categoria(f.stem) or categoria(str(f.parent.relative_to(pasta))) or "outros"
+            lib.setdefault(cat, []).append(str(f))
     ARQ.write_text(json.dumps(lib, ensure_ascii=False, indent=1), encoding="utf-8")
     return lib
 
