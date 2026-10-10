@@ -10,6 +10,7 @@
 const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const { filtroV } = require("./ffopts");
 const { pathToFileURL } = require("url");
 const { openStage } = require("./stage-browser");
 const { cameraAt } = require("./director");
@@ -27,7 +28,7 @@ function extractCamFrames(plan, video, dir, fps) {
     .join("+");
   const script = path.join(dir, "..", "camselect.filter");
   fs.writeFileSync(script, `fps=${fps},select='${sel}',setpts=N/FRAME_RATE/TB`);
-  const r = spawnSync("ffmpeg", ["-y", "-v", "error", "-i", video, "-filter_script:v", script, "-an", "-q:v", "2", "-start_number", "0", "-frames:v", String(total), path.join(dir, "%06d.jpg")], { stdio: "inherit" });
+  const r = spawnSync("ffmpeg", ["-y", "-v", "error", "-i", video, ...filtroV(script), "-an", "-q:v", "2", "-start_number", "0", "-frames:v", String(total), path.join(dir, "%06d.jpg")], { stdio: "inherit" });
   if (r.status !== 0) throw new Error("falha ao extrair quadros da gravação");
   return total;
 }

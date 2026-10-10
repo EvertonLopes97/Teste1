@@ -205,6 +205,14 @@ def whoosh(destino, dur):
                     str(destino)], check=True)
 
 
+def filtro_complexo(arq):
+    """FFmpeg 7+ trocou -filter_complex_script por -/filter_complex."""
+    import re as _re
+    r = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True)
+    m = _re.search(r"ffmpeg version n?(\d+)", r.stdout or "")
+    return ["-/filter_complex", str(arq)] if (int(m.group(1)) if m else 7) >= 7 else ["-filter_complex_script", str(arq)]
+
+
 def main():
     cfg = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8-sig"))
     video = Path(cfg["video"])
@@ -264,7 +272,7 @@ def main():
     script = trab / "filtro.txt"
     script.write_text(";\n".join(filtros), encoding="utf-8")
     saida = cfg.get("saida") or str(video.with_name("galo_final.mp4"))
-    cmd = ["ffmpeg", "-y", "-v", "error", "-stats", *entradas, "-filter_complex_script", str(script),
+    cmd = ["ffmpeg", "-y", "-v", "error", "-stats", *entradas, *filtro_complexo(script),
            "-map", atual, *audio, "-t", f"{dur:.3f}", "-c:v", "libx264", "-preset", "medium", "-crf", "18",
            "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", saida]
     subprocess.run(cmd, check=True)

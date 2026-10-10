@@ -8,6 +8,7 @@
 const fs = require("fs");
 const path = require("path");
 const { spawnSync } = require("child_process");
+const { filtroComplexo } = require("./ffopts");
 
 const f3 = (n) => Number(n).toFixed(3);
 
@@ -68,7 +69,7 @@ function buildAudio(o) {
   fs.mkdirSync(o.tmpDir, { recursive: true });
   const script = path.join(o.tmpDir, "audio.filter");
   fs.writeFileSync(script, parts.join(";\n"));
-  const r = spawnSync("ffmpeg", ["-y", "-v", "error", "-i", o.video, "-i", o.sfxWav, "-filter_complex_script", script, "-map", "[aout]", "-c:a", "pcm_s16le", o.out], { stdio: "inherit" });
+  const r = spawnSync("ffmpeg", ["-y", "-v", "error", "-i", o.video, "-i", o.sfxWav, ...filtroComplexo(script), "-map", "[aout]", "-c:a", "pcm_s16le", o.out], { stdio: "inherit" });
   if (r.status !== 0) throw new Error(`falha no áudio (filtro em ${script})`);
   return o.out;
 }

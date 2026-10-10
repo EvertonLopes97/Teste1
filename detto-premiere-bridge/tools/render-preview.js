@@ -18,6 +18,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const { spawnSync } = require("child_process");
+const { filtroComplexo } = require("./motion/ffopts");
 
 const COLORS = { gold: "0xD4AF37", celeste: "0x75AADB", red: "0xC8102E", navy: "0x0B1D3A" };
 
@@ -283,7 +284,7 @@ function main() {
   const ff = [
     "-y", "-hide_banner", "-loglevel", "error", "-nostats",
     "-i", a.video,
-    "-filter_complex_script", script,
+    ...filtroComplexo(script),
     "-map", "[vout]", "-map", "[aout]",
     "-t", (f.segs.reduce((n, sg) => n + Math.max(0, Math.min(sg.at + (sg.out - sg.in), to) - Math.max(sg.at, from)), 0)).toFixed(3),
     "-c:v", "libx264", "-preset", a.preset || "veryfast", "-crf", String(a.crf || 28), "-pix_fmt", "yuv420p",
