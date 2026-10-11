@@ -48,6 +48,13 @@ def main():
     p.add_argument("--roteiro", help="seu roteiro (.txt); senão procura <nome do vídeo>.txt na pasta do vídeo")
     a = p.parse_args()
     video = Path(a.video).resolve()
+    if not video.exists() and video.parent.exists():
+        # nome digitado com espaço/ponto/maiúscula diferente ("times. mp4" × "times .mp4"): acha o parecido
+        chave = lambda p: re.sub(r"[^a-z0-9]", "", p.name.lower())  # noqa: E731
+        iguais = [p for p in video.parent.iterdir() if p.is_file() and chave(p) == chave(video)]
+        if len(iguais) == 1:
+            print(f"Usando o vídeo: {iguais[0].name}")
+            video = iguais[0]
     if not video.exists():
         perto = sorted(video.parent.glob("*")) if video.parent.exists() else []
         raise SystemExit(f"Não achei o vídeo: {video}\n"
