@@ -58,6 +58,7 @@ O Everton grava lendo um roteiro, mas muda as falas. `python tools\editar.py "<v
   da camisa. Descarta: outra marca, outro clube parecido (`"nao"` em times.json: Inter Miami, Atlético Madrid),
   goleiro/treino/polo, concept/vazamento/arte/PES, e foto cuja COR não bate com o roteiro (camisa vinho ≠ foto branca).
   Mesmo time no vídeo = mesma imagem (a da descrição mais completa). Sem foto na rodada rápida = escudo no lugar.
+  Busca: 3 imagens por vez, 45 s cada, no máximo ~6 min (mostra [n/total]); Ctrl+C pula e segue com o que achou.
   `<job>\imagens_conferir.jpg`: folha com todas as imagens escolhidas (vermelho = não achou) — confira antes do render.
   Garantido: foto na pasta `imagens\` (do vídeo ou do job) com o nome do time.
 - `editar.py` SEMPRE roda `jogadores.py` (antes só com jogador no roteiro → vídeo das camisas saiu sem imagem).

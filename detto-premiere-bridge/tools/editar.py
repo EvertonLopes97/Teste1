@@ -100,6 +100,9 @@ def main():
         roda([py, T / "jogadores.py", job / "EDIT_PLAN.json"])
     except subprocess.CalledProcessError:
         print("Aviso: não consegui buscar as fotos/imagens (sem internet?). Camisa sem foto sai com o escudo.")
+    except KeyboardInterrupt:
+        # Ctrl+C na busca: segue a edição com o que já achou
+        print("\nBusca de imagens pulada (Ctrl+C). Seguindo a edição com o que já foi achado.")
     if (job / "imagens_conferir.jpg").exists():
         print(f"Imagens escolhidas: {job / 'imagens_conferir.jpg'}")
     base = ["node", T / "render-dynamic.js", job / "EDIT_PLAN.json", "--video", video, "--face", job / "face.json",

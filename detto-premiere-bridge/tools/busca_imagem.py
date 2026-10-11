@@ -29,16 +29,21 @@ def norm(s):
     return re.sub(r"[^a-z0-9]+", " ", s).strip()
 
 
-def pegar(url, binario=False, ref=""):
-    """GET com cara de navegador (curl_cffi se instalado; senão curl)."""
+def pegar(url, binario=False, ref="", tempo=12):
+    """GET com cara de navegador (curl_cffi se instalado; senão curl). Desiste rápido (12 s): site lento não trava a busca."""
     try:
         from curl_cffi import requests as cr
-        r = cr.get(url, impersonate="chrome", timeout=25, headers={"Referer": ref} if ref else None)
-        if r.status_code == 200:
-            return r.content if binario else r.text
-    except Exception:  # noqa: BLE001
-        pass
-    cmd = ["curl", "-sSL", "-m", "25", "-A", UA, "-H", "Accept-Language: pt-BR,pt;q=0.9,en;q=0.8"]
+    except ImportError:
+        cr = None
+    if cr is not None:
+        try:
+            r = cr.get(url, impersonate="chrome", timeout=tempo, headers={"Referer": ref} if ref else None)
+            if r.status_code == 200:
+                return r.content if binario else r.text
+        except Exception:  # noqa: BLE001
+            pass
+        return b"" if binario else ""
+    cmd = ["curl", "-sSL", "-m", str(tempo), "-A", UA, "-H", "Accept-Language: pt-BR,pt;q=0.9,en;q=0.8"]
     if ref:
         cmd += ["-H", f"Referer: {ref}"]
     r = subprocess.run(cmd + [url], capture_output=True)
@@ -65,9 +70,9 @@ def bing(q):
 def duckduckgo(q):
     import time
     res = []
-    for tentativa in range(3):  # o DuckDuckGo às vezes recusa quando são muitas buscas seguidas: espera e tenta de novo
+    for tentativa in range(2):  # o DuckDuckGo às vezes recusa quando são muitas buscas seguidas: espera e tenta de novo
         if tentativa:
-            time.sleep(3 * tentativa)
+            time.sleep(2)
         h = pegar("https://duckduckgo.com/?iax=images&ia=images&q=" + urllib.parse.quote(q))
         m = re.search(r'vqd=["\']?([\d-]+)', h or "")
         if not m:
@@ -110,6 +115,21 @@ def openverse(q):
 
 
 FONTES = [bing, duckduckgo, commons, openverse]
+# fonte que não devolve nada 6 vezes seguidas (bloqueada nesse PC/rede) é pulada no resto da busca
+FALHAS = {}
+# buscas em paralelo: cada site recebe no máximo uma busca a cada ~1,5 s (senão o DuckDuckGo bloqueia)
+import threading
+_TRAVA = {}
+_ULTIMA = {}
+
+
+def _na_vez(nome, intervalo=1.5):
+    import time
+    with _TRAVA.setdefault(nome, threading.Lock()):
+        espera = _ULTIMA.get(nome, 0) + intervalo - time.time()
+        if espera > 0:
+            time.sleep(espera)
+        _ULTIMA[nome] = time.time()
 
 
 def um_rosto(img):
@@ -228,7 +248,7 @@ NAO_KIT = re.compile(r"goleiro|goalkeeper|\bgk\b|treino|training|entrenamiento|p
 
 
 def buscar(q, exige=(), rosto=False, destino=None, minimo=300, log=print, alternativas=(), prefere=(), kit=False, evita=(),
-           ano=None, tema=(), nao=(), extras=(), marca=""):
+           ano=None, tema=(), nao=(), extras=(), marca="", prazo=60):
     """Devolve {file, fonte, titulo, pagina} ou None. Junta candidatos das fontes, só aceita os que
     citam TODAS as palavras exigidas (e pelo menos uma de cada grupo de alternativas), e baixa na
     ordem de pontuação (site de camisas, ano/marca/cor citados; "concept"/"fan made" fica de fora)."""
@@ -287,14 +307,23 @@ def buscar(q, exige=(), rosto=False, destino=None, minimo=300, log=print, altern
         return not RUIM.search(c["titulo"] or "") and not (kit and FALSO.search(f"{c['titulo']} {c['pagina']}"))
 
     # junta os candidatos de TODAS as buscas (nome da camisa, ano, "terceiro uniforme", inglês) e fica com o melhor
+    import time
+    limite = time.time() + prazo  # cada imagem tem um prazo: não achou a tempo, segue (sai o escudo)
     cands, vistos = [], set()
     for busca in buscas:
+        if len(cands) >= 12 or time.time() > limite:
+            break
         for fonte in FONTES:
+            if FALHAS.get(fonte.__name__, 0) >= 6 or time.time() > limite:
+                continue
             try:
-                achados = [c for c in fonte(busca)[:100] if c["url"] not in vistos and passa(c)]
+                _na_vez(fonte.__name__)
+                brutos = fonte(busca)
             except Exception as e:  # noqa: BLE001
                 log(f"  {fonte.__name__}: {e}")
-                continue
+                brutos = []
+            FALHAS[fonte.__name__] = 0 if brutos else FALHAS.get(fonte.__name__, 0) + 1
+            achados = [c for c in brutos[:100] if c["url"] not in vistos and passa(c)]
             vistos.update(c["url"] for c in achados)
             cands += achados
             if len(cands) >= 12:
@@ -302,8 +331,10 @@ def buscar(q, exige=(), rosto=False, destino=None, minimo=300, log=print, altern
     pref = [*prefere, *[f for f in frases if f not in prefere]]
     cands.sort(key=lambda c: -(pontua(c, pref, kit, evita) + sum(3 for f in frases if re.search(rf"\b{re.escape(f)}", norm(f"{c['titulo']} {c['pagina']}")))
                                + (3 if ano and int(ano) in anos_no(f"{c['titulo']} {c['pagina']} {c['url']}") else 0)))
-    for c in cands[:20]:
-        dado = pegar(c["url"], binario=True, ref=c.get("pagina", ""))
+    for c in cands[:12]:
+        if time.time() > limite + 20:
+            break
+        dado = pegar(c["url"], binario=True, ref=c.get("pagina", ""), tempo=10)
         if not dado or len(dado) < 5000:
             continue
         img = cv2.imdecode(np.frombuffer(dado, np.uint8), cv2.IMREAD_COLOR)

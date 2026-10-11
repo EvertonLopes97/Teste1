@@ -328,43 +328,65 @@ def main():
 
     # fotos pedidas no roteiro (camisas, VISUAL): procura na internet até achar
     out["imagens"] = {}
-    ja = {}
-    falhou = set()
+    # 1) junta as imagens pedidas (uma por busca: o mesmo time usa a mesma); a SUA imagem (pasta imagens\) vale primeiro
+    pedidos = {}
     for s in (plan.get("meta") or {}).get("segments") or []:
         for c in s.get("comps") or []:
-            if c.get("type") != "fotos":
+            if c.get("type") not in ("fotos", "varal"):
                 continue
             for it in c["data"].get("items", []):
                 q = it.get("query", "")
-                if not q or q in out["imagens"] or q in falhou:
-                    continue
-                # 1) a SUA imagem: pasta "imagens" do job ou do vídeo, arquivo com o nome do time/assunto
-                r = imagem_local(plano, it)
-                # o mesmo time no vídeo = a mesma camisa (a da busca mais detalhada, que vem primeiro)
-                mesma = (it.get("sigla"), it.get("label"))
-                if not r and mesma[0] and mesma in ja:
-                    r = ja[mesma]
-                # 2) até achar na internet: a busca do roteiro, sem o ano, em inglês (sites de camisas)
-                q2 = it.get("query2") or q
-                ingles = q2.replace("terceira camisa", "third kit").replace("segunda camisa", "away kit").replace("camisa", "home kit")
-                alt = it.get("alternativas") or []
-                # com o nome/inspiração da camisa, depois com o ano, depois em inglês; o ano do vídeo vale sempre
-                uniforme = q2.replace("terceira camisa", "terceiro uniforme").replace("segunda camisa", "segundo uniforme")
-                # todas as buscas juntas; fica a imagem que mais bate (nome da camisa, ano, site de camisas)
-                if not r:
-                    print(f"  procurando: {it.get('label') or q}", flush=True)
-                    r = buscar(q, it.get("exige") or [], log=lambda m: None, alternativas=alt[:2],
-                               prefere=it.get("prefere") or [], kit=bool(it.get("kit")), evita=it.get("evita") or [],
-                               ano=it.get("ano") if it.get("kit") else None, tema=it.get("tema") or [], nao=it.get("nao") or [],
-                               extras=[q2, uniforme, ingles] if it.get("kit") else [], marca=it.get("marca") or "")
-                if r:
-                    if not ja.get(mesma):
-                        print(f"    ok: {(r.get('pagina') or r.get('file') or '')[:70]}", flush=True)
-                    out["imagens"][q] = r
-                    ja.setdefault(mesma, r)
-                else:
-                    falhou.add(q)
-                    out["sem_foto"].append(f"imagem: {it.get('label') or q} (não achei; ponha a foto em imagens\\ com o nome do time)")
+                if q and q not in pedidos and q not in out["imagens"]:
+                    r = imagem_local(plano, it)
+                    if r:
+                        out["imagens"][q] = r
+                    else:
+                        pedidos[q] = it
+
+    def procura(q, it):
+        q2 = it.get("query2") or q
+        ingles = q2.replace("terceira camisa", "third kit").replace("segunda camisa", "away kit").replace("camisa", "home kit")
+        uniforme = q2.replace("terceira camisa", "terceiro uniforme").replace("segunda camisa", "segundo uniforme")
+        alt = it.get("alternativas") or []
+        # todas as buscas juntas; fica a imagem que mais bate (nome da camisa, ano, site de camisas)
+        return buscar(q, it.get("exige") or [], log=lambda m: None, alternativas=alt[:2],
+                      prefere=it.get("prefere") or [], kit=bool(it.get("kit")), evita=it.get("evita") or [],
+                      ano=it.get("ano") if it.get("kit") else None, tema=it.get("tema") or [], nao=it.get("nao") or [],
+                      extras=[q2, uniforme, ingles] if it.get("kit") else [], marca=it.get("marca") or "", prazo=45)
+
+    # 2) na internet, 3 de cada vez, no máximo ~6 min no total (o que não achar sai com o escudo)
+    if pedidos:
+        from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
+        print(f"Procurando {len(pedidos)} imagens na internet (até ~6 min; Ctrl+C pula e segue com o que achou)...", flush=True)
+        pool = ThreadPoolExecutor(max_workers=3)
+        tarefas = {pool.submit(procura, q, it): q for q, it in pedidos.items()}
+        feitos = 0
+        fim = time.time() + 360
+        pendentes = set(tarefas)
+        try:
+            while pendentes:
+                if time.time() > fim:
+                    raise TimeoutError
+                # espera de 1 em 1 s (assim o Ctrl+C funciona no Windows)
+                prontos, pendentes = wait(pendentes, timeout=1, return_when=FIRST_COMPLETED)
+                for fut in prontos:
+                    q = tarefas[fut]
+                    it = pedidos[q]
+                    feitos += 1
+                    try:
+                        r = fut.result()
+                    except Exception:  # noqa: BLE001
+                        r = None
+                    if r:
+                        out["imagens"][q] = r
+                    print(f"  [{feitos}/{len(pedidos)}] {'ok ' if r else 'não achei'} {(it.get('label') or q)[:60]}"
+                          + (f"  ({re.sub(r'^https?://(www[.])?', '', r.get('pagina') or '').split('/')[0]})" if r else ""), flush=True)
+        except (KeyboardInterrupt, TimeoutError):
+            print("  busca encerrada: segue com as imagens que já achou (as outras saem com o escudo).", flush=True)
+        pool.shutdown(wait=False, cancel_futures=True)
+        for q, it in pedidos.items():
+            if q not in out["imagens"]:
+                out["sem_foto"].append(f"imagem: {it.get('label') or q} (não achei; ponha a foto em imagens\\ com o nome do time)")
     saida.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
     folha = folha_imagens(plan, out, plano.parent / "imagens_conferir.jpg")
     n = len(pessoas)
@@ -381,3 +403,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+    # buscas que ainda estavam no ar (Ctrl+C / prazo) não seguram o programa
+    sys.stdout.flush()
+    import os
+    os._exit(0)
