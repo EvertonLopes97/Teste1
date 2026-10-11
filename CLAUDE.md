@@ -17,7 +17,9 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   → 9:16 com recorte no rosto (fundo desfocado); gráfico/foto grande com você pequeno no canto (`--grafico pip`, padrão), só o gráfico (`tela`) ou metade/metade (`dividido`).
 - Câmera estática por padrão (zoom sempre no mesmo ponto). `--seguir-rosto 1` no render-dynamic volta a seguir.
 - "COMENTA AÍ / SEGUIR" nunca fica no rosto (vai abaixo do queixo ou acima da cabeça).
-- Voz tratada por padrão (RNNoise, EQ, de-esser, compressor, -14 LUFS). `--voz 0` desliga.
+- Voz tratada por padrão (RNNoise, EQ, de-esser, compressor) e nivelada sozinha (-16 LUFS); efeitos sonoros
+  bem abaixo e abaixam enquanto ele fala (sidechain); final -14 LUFS. `--voz 0` desliga o tratamento;
+  `--sfx 0.3` = volume dos efeitos (padrão 0.3; ele achou alto o antigo 0.55).
 - Efeitos sonoros: os da pasta do Everton. Catalogar uma vez:
   `python tools\biblioteca_sons.py "E:\edição\efeitos de video\PACK DE EDIÇÃO 2.0"` → `sons.json`.
   Categoria sem arquivo usa Mixkit (soco, tapa, chicote, whoosh) ou o sintetizado.
@@ -37,6 +39,9 @@ O Everton grava lendo um roteiro, mas muda as falas. `python tools\editar.py "<v
   duelo (`FLA 61 x PAL 60`), vinheta, aspas, selos, tela de VAR (toda POLÊMICA abre com ela), números caindo,
   enquete (TELA), CTA. Cada card/placar entra na hora em que o nome/placar é falado.
 - Times conhecidos em `tools/roteiro/times.json` (sigla, apelidos, id SofaScore). Time novo → acrescente lá.
+- Banco PRONTO (vem no git pull): `tools/banco/jogadores/<id>.webp` (todos os jogadores dos 20 times, sem fundo),
+  `tools/banco/elencos/*.json`, `tools/banco/escudos/*.png`. Atualizar (transferências): `python tools\banco_fotos.py`
+  (o SofaScore dá 403 no PC do Everton: atualize aqui no Claude e faça push).
 - Fotos: `tools\jogadores.py <job>\EDIT_PLAN.json` → `jogadores.json`. Procura no ELENCO atual do time
   (SofaScore); só usa quando o nome bate com UM jogador; senão fica sem foto (iniciais) e aparece no relatório.
   Galo usa as fotos do site (`tools/galo/banco/elenco`). Fotos de apoio (Openverse) só com a pessoa no título.

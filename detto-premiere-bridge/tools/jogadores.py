@@ -133,7 +133,7 @@ def casar(nome, lista):
     return c[0] if len(c) == 1 else None
 
 
-def sem_fundo(src, dst, lado=320):
+def sem_fundo(src, dst, lado=256):
     """Foto do SofaScore (fundo branco) → PNG com o fundo transparente (recorte simples pelas bordas)."""
     try:
         import cv2
@@ -154,10 +154,22 @@ def sem_fundo(src, dst, lado=320):
     alpha = cv2.GaussianBlur(alpha, (3, 3), 0)
     rgba = cv2.cvtColor(im, cv2.COLOR_BGR2BGRA)
     rgba[:, :, 3] = alpha
-    ok, buf = cv2.imencode(".png", rgba)
+    ext = Path(dst).suffix.lower() or ".png"
+    ok, buf = cv2.imencode(ext, rgba, [cv2.IMWRITE_WEBP_QUALITY, 85] if ext == ".webp" else [])
     if ok:
         Path(dst).write_bytes(buf.tobytes())
     return ok
+
+
+def baixar_foto(pid, dst):
+    """Foto do jogador no SofaScore → sem o fundo branco → dst (.webp)."""
+    tmp = Path(dst).with_suffix(".orig")
+    if baixar(f"{IMG}/player/{pid}/image", tmp):
+        if not sem_fundo(tmp, dst):
+            tmp.replace(dst)
+    if tmp.exists():
+        tmp.unlink()
+    return Path(dst).exists()
 
 
 def foto_galo(nome):
@@ -227,14 +239,12 @@ def main():
         if not j:
             out["sem_foto"].append(f"{nome} ({t['nome']}: não achei no elenco, ou há dois com esse nome)")
             continue
-        dst = BANCO / "jogadores" / f"{j['id']}.png"
+        # banco pronto (vem no git pull): tools/banco/jogadores/<id>.webp — sem internet
+        dst = BANCO / "jogadores" / f"{j['id']}.webp"
+        if not dst.exists() and dst.with_suffix(".png").exists():
+            dst = dst.with_suffix(".png")
         if not dst.exists():
-            tmp = BANCO / "jogadores" / f"{j['id']}.webp"
-            if baixar(f"{IMG}/player/{j['id']}/image", tmp):
-                if not sem_fundo(tmp, dst):
-                    tmp.rename(dst)
-                elif tmp.exists():
-                    tmp.unlink()
+            baixar_foto(j["id"], dst)
         if dst.exists():
             out["players"][nome] = {"photo": str(dst), "fonte": f"SofaScore: {j['name']} ({t['nome']})"}
         else:

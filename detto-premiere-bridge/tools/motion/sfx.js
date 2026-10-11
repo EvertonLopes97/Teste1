@@ -129,7 +129,7 @@ const SYNTH = {
 };
 
 /** Volume relativo de cada efeito na mixagem. */
-const GAIN = { whoosh: 0.55, whoosh_short: 0.4, hit: 0.8, pop: 0.6, tick: 0.45, click: 0.6, ding: 0.5, riser: 0.45, boom: 0.85, glitch: 0.5 };
+const GAIN = { whoosh: 0.45, whoosh_short: 0.3, hit: 0.6, pop: 0.45, tick: 0.3, click: 0.45, ding: 0.4, riser: 0.35, boom: 0.6, glitch: 0.35 };
 
 /**
  * @param {Array<{t: number, kind: string}>} events

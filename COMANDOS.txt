@@ -29,6 +29,7 @@ $video   = "E:\DETTO\videos\NOME DO VIDEO.MOV"
 $roteiro = "E:\DETTO\videos\NOME DO ROTEIRO.txt"
 cd C:\Users\guebe\Teste1\detto-premiere-bridge
 python tools\editar.py $video --roteiro $roteiro
+   -> efeitos sonoros mais baixos/altos: acrescente  --sfx 0.15  (ou 0.5; padrão 0.3)
 
 
 ---------------------------------------------------------------------
@@ -153,9 +154,13 @@ setx GEMINI_API_KEY "COLE_A_CHAVE_AQUI"
 
 
 ---------------------------------------------------------------------
-13A) FOTOS DOS JOGADORES - SE O SOFASCORE BLOQUEAR (403) (uma vez só)
+13A) FOTOS DOS JOGADORES - ATUALIZAR O BANCO (janela de transferências)
+     O banco já vem pronto no git pull. Se o SofaScore bloquear (403),
+     instale o curl_cffi uma vez ou peça ao Claude para atualizar.
 ---------------------------------------------------------------------
 pip install curl_cffi
+cd C:\Users\guebe\Teste1\detto-premiere-bridge
+python tools\banco_fotos.py
 
 
 ---------------------------------------------------------------------

@@ -125,7 +125,7 @@ async function main() {
 
   // 5. áudio
   const sfxWav = writeSfxTrack(d.sfx, d.duration, path.join(work, "sfx.wav"));
-  const audio = buildAudio({ plan, duration: d.duration, video: a.video, sfxWav, out: path.join(work, `audio_${format}${a.cut ? `_cut${a.cut}` : ""}.wav`), tmpDir: work, ranges, tratarVoz: a.voz !== "0" });
+  const audio = buildAudio({ plan, duration: d.duration, video: a.video, sfxWav, out: path.join(work, `audio_${format}${a.cut ? `_cut${a.cut}` : ""}.wav`), tmpDir: work, ranges, tratarVoz: a.voz !== "0", sfxGain: a.sfx !== undefined ? Number(a.sfx) : undefined });
   log("áudio pronto");
 
   // 6. vídeo final

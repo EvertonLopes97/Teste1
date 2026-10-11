@@ -44,6 +44,7 @@ def main():
     p.add_argument("--teste", action="store_true")
     p.add_argument("--sem-verticais", action="store_true")
     p.add_argument("--titulo", default="")
+    p.add_argument("--sfx", help="volume dos efeitos sonoros (padrão 0.3; 0.15 = mais baixo, 0.5 = mais alto, 0 = sem efeitos)")
     p.add_argument("--roteiro", help="seu roteiro (.txt); senão procura <nome do vídeo>.txt na pasta do vídeo")
     a = p.parse_args()
     video = Path(a.video).resolve()
@@ -93,7 +94,7 @@ def main():
         except subprocess.CalledProcessError:
             print("Aviso: não consegui buscar as fotos dos jogadores (sem internet?). Os cards saem com as iniciais.")
     base = ["node", T / "render-dynamic.js", job / "EDIT_PLAN.json", "--video", video, "--face", job / "face.json",
-            "--fonts", PONTE / "fonts", "--work", job / "tmp"]
+            "--fonts", PONTE / "fonts", "--work", job / "tmp"] + (["--sfx", a.sfx] if a.sfx else [])
     trecho = ["--from", "0", "--to", "60"] if a.teste else []
     roda(base + trecho + ["--out", job / "horizontal.mp4"])
     # conferência antes de entregar: cor × gravação (HDR do iPhone), fotos, volume

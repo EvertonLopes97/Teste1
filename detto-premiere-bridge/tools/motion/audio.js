@@ -48,16 +48,19 @@ function buildAudio(o) {
     .join("+");
   const bleeps = (o.plan.audio || []).filter((x) => x.type === "bleep");
   const on = bleeps.map((b) => `between(t,${f3(b.start)},${f3(b.start + b.duration)})`).join("+");
+  // voz: tratada e nivelada SOZINHA primeiro (-16 LUFS); os efeitos entram bem abaixo dela e
+  // ainda "abaixam" sozinhos enquanto você fala (sidechain), para nunca brigar com a voz
   const parts = [
-    `[0:a]aresample=48000,asetnsamples=n=64:p=0,aselect='${aSel}',asetpts=N/SR/TB,asetnsamples=n=1024:p=0${o.tratarVoz === false ? "" : `,${cadeiaVoz()}`}${on ? `,volume=0:enable='${on}'` : ""}[voz]`,
-    `[1:a]aresample=48000,volume=${o.sfxGain ?? 0.55}[fx]`,
+    `[0:a]aresample=48000,asetnsamples=n=64:p=0,aselect='${aSel}',asetpts=N/SR/TB,asetnsamples=n=1024:p=0${o.tratarVoz === false ? "" : `,${cadeiaVoz()}`},loudnorm=I=-16:TP=-2:LRA=11,aresample=48000${on ? `,volume=0:enable='${on}'` : ""},asplit=2[voz][vsc]`,
+    `[1:a]aresample=48000,volume=${o.sfxGain ?? 0.3}[fx0]`,
+    `[fx0][vsc]sidechaincompress=threshold=0.015:ratio=6:attack=8:release=280:makeup=1[fx]`,
   ];
   const ins = ["[voz]", "[fx]"];
   if (on) {
     parts.push(`sine=f=1000:sample_rate=48000:d=${f3(o.duration)},volume=0.16,volume=0:enable='not(${on})'[bip]`);
     ins.push("[bip]");
   }
-  parts.push(`${ins.join("")}amix=inputs=${ins.length}:duration=first:normalize=0,loudnorm=I=-14:TP=-1.0:LRA=9,aresample=48000,asetpts=N/SR/TB[mix]`);
+  parts.push(`${ins.join("")}amix=inputs=${ins.length}:duration=first:normalize=0,loudnorm=I=-14:TP=-1.0:LRA=11,aresample=48000,asetpts=N/SR/TB[mix]`);
   const ranges = o.ranges || [[0, o.duration]];
   ranges.forEach(([a, b], i) => parts.push(`${i === 0 && ranges.length === 1 ? "[mix]" : `[m${i}]`}atrim=${f3(a)}:${f3(b)},asetpts=N/SR/TB[r${i}]`));
   if (ranges.length > 1) {
