@@ -715,7 +715,7 @@
         const n = d.count || 1;
         const size = Math.min(box.h * (d.overlay ? 0.3 : 0.42), (box.w * 0.85) / (n * 1.1));
         for (let i = 0; i < n; i++) {
-          const e = h("div", `bnum anton${d.color === "blue" ? " blue" : ""}${d.fire ? " fire" : ""}`, d.text);
+          const e = h("div", `bnum anton${d.color ? ` ${d.color}` : ""}${d.fire ? " fire" : ""}`, d.text);
           e.style.fontSize = `${size}px`;
           // sobre a câmera: "batem no chão" nos lados e embaixo, longe do rosto
           const xs = n === 3 ? [0.16, 0.5, 0.84] : n === 2 ? [0.18, 0.82] : null;
@@ -743,25 +743,36 @@
     T.fotos = {
       fit: true,
       build(el, d, box) {
-        bg(el);
-        const r = { items: [] };
-        const n = d.items.length;
+        bg(el, "vitrine");
+        const r = { items: [], seq: !!d.seq };
         const portrait = box.h > box.w * 1.1;
-        const cols = portrait ? 1 : n;
-        const rows = portrait ? n : 1;
-        const gap = 30;
         const labelH = 64;
-        const fw = Math.min((box.w - 80 - (cols - 1) * gap) / cols, portrait ? box.w - 120 : 760);
-        const fh = Math.min((box.h - 90 - rows * labelH - (rows - 1) * gap) / rows, fw * (n === 1 ? (portrait ? 1.15 : 0.8) : 1.15));
-        const x0 = (box.w - (cols * fw + (cols - 1) * gap)) / 2;
-        const y0 = (box.h - (rows * (fh + labelH) + (rows - 1) * gap)) / 2;
+        const fichaW = d.ficha && !d.seq && d.items.length === 1 ? (portrait ? 0 : box.w * 0.34) : 0;
+        const fichaH = d.ficha && !d.seq && d.items.length === 1 && portrait ? 330 : 0;
+        // sequência (rodada rápida): uma camisa grande por vez; senão todas lado a lado
+        const n = d.seq ? 1 : d.items.length;
+        const cols = portrait ? (n > 3 ? 2 : 1) : n;
+        const rows = Math.ceil(n / cols);
+        const gap = 26;
+        const areaW = box.w - fichaW;
+        const areaH = box.h - fichaH;
+        const fw = Math.min((areaW - 70 - (cols - 1) * gap) / cols, portrait ? box.w - 100 : 760);
+        const fh = Math.min((areaH - 90 - rows * labelH - (rows - 1) * gap) / rows, fw * (n === 1 ? (portrait ? 1.15 : 0.82) : 1.2));
+        const x0 = (areaW - (cols * fw + (cols - 1) * gap)) / 2;
+        const y0 = (areaH - (rows * (fh + labelH) + (rows - 1) * gap)) / 2 + 10;
         d.items.forEach((it, i) => {
-          const cx = x0 + (portrait ? 0 : i * (fw + gap));
-          const cy = y0 + (portrait ? i * (fh + labelH + gap) : 0);
-          const f = h("div", "foto-frame");
+          const k = d.seq ? 0 : i;
+          const cx = x0 + (k % cols) * (fw + gap);
+          const cy = y0 + Math.floor(k / cols) * (fh + labelH + gap);
+          const f = h("div", `foto-frame${d.kenburns ? " kb" : ""}${it.file ? "" : " sem-foto"}`);
           Object.assign(f.style, { left: `${cx}px`, top: `${cy}px`, width: `${fw}px`, height: `${fh}px` });
+          if (it.file) {
+            const fundo = h("img", "fundo");
+            fundo.src = file(it.file);
+            f.appendChild(fundo);
+          }
           const img = h("img");
-          img.src = file(it.file);
+          img.src = file(it.file || it.crest);
           f.appendChild(img);
           el.appendChild(f);
           let lb = null;
@@ -769,25 +780,159 @@
             lb = h("div", "foto-label anton");
             if (it.crest || it.sigla) lb.appendChild(crest({ crest: it.crest, sigla: it.sigla }, labelH * 0.7));
             lb.appendChild(h("span", "", it.label));
-            Object.assign(lb.style, { left: `${cx}px`, top: `${cy + fh + 10}px`, width: `${fw}px`, fontSize: `${Math.min(30, (fw * 1.6) / Math.max(10, it.label.length))}px` });
+            Object.assign(lb.style, { left: `${cx - 40}px`, top: `${cy + fh + 10}px`, width: `${fw + 80}px`, fontSize: `${Math.min(32, ((fw + 80) * 1.7) / Math.max(10, it.label.length))}px` });
             el.appendChild(lb);
           }
           r.items.push({ f, img, lb, it });
         });
+        if (fichaW || fichaH) {
+          const fc = h("div", "ficha");
+          if (portrait) Object.assign(fc.style, { left: "40px", right: "40px", top: `${box.h - fichaH - 10}px`, height: `${fichaH}px` });
+          else Object.assign(fc.style, { left: `${areaW}px`, width: `${fichaW - 50}px`, top: `${box.h * 0.2}px` });
+          const nomes = ["CLUBE", "FORNECEDORA", "LANÇAMENTO", "INSPIRAÇÃO"];
+          r.ficha = d.ficha.map((t, i) => {
+            const l = h("div", "fl");
+            l.append(h("span", "fk", nomes[i] || ""), h("span", "fv anton", t));
+            fc.appendChild(l);
+            return l;
+          });
+          el.appendChild(fc);
+        }
         return r;
       },
       update(r, d, lt, dur) {
+        let atual = 0;
+        if (r.seq) r.items.forEach((x, i) => { if (lt >= (x.it.at ?? i * 4) - 0.05) atual = i; });
         r.items.forEach((x, i) => {
           const at = x.it.at != null ? x.it.at : 0.2 + i * 0.4;
-          const q = outBack(prog(lt, at, 0.45), 1.7);
-          x.f.style.opacity = String(fade(lt, at, 0.12));
-          x.f.style.transform = `translateY(${(90 * (1 - q)).toFixed(1)}px) rotate(${((i % 2 ? 1.5 : -1.5) * q).toFixed(2)}deg) scale(${(0.85 + 0.15 * q).toFixed(3)})`;
-          x.img.style.transform = `scale(${(1 + 0.05 * clamp((lt - at) / Math.max(1, dur))).toFixed(4)})`;
-          if (x.lb) {
-            x.lb.style.opacity = String(fade(lt, at + 0.25, 0.2));
-            x.lb.style.transform = `translateY(${(20 * (1 - outCubic(prog(lt, at + 0.25, 0.3)))).toFixed(1)}px)`;
+          if (r.seq) {
+            // "arara": a camisa da vez entra pela direita e a anterior sai pela esquerda
+            const on = i === atual;
+            const q = outCubic(prog(lt, at, 0.35));
+            const next = r.items[i + 1];
+            const sai = next && i < atual ? outCubic(prog(lt, next.it.at ?? 0, 0.35)) : 0;
+            x.f.style.opacity = String(on || sai < 1 ? Math.min(q, 1 - sai) : 0);
+            x.f.style.transform = `translateX(${(500 * (1 - q) - 600 * sai).toFixed(1)}px) perspective(900px) rotateY(${(-25 * (1 - q) + 25 * sai).toFixed(1)}deg)`;
+            if (x.lb) {
+              x.lb.style.opacity = String(on ? fade(lt, at + 0.2, 0.15) : 0);
+              x.lb.style.transform = `translateY(${(14 * (1 - outCubic(prog(lt, at + 0.2, 0.25)))).toFixed(1)}px)`;
+            }
+          } else {
+            // cabide: entra de cima balançando
+            const q = outBack(prog(lt, at, 0.5), 1.6);
+            const ang = Math.sin((lt - at) * 5) * 6 * Math.exp(-(lt - at) * 2.2) * (lt > at ? 1 : 0);
+            x.f.style.opacity = String(fade(lt, at, 0.12));
+            x.f.style.transformOrigin = "50% -40px";
+            x.f.style.transform = `translateY(${(-160 * (1 - q)).toFixed(1)}px) rotate(${ang.toFixed(2)}deg)`;
+            if (x.lb) {
+              x.lb.style.opacity = String(fade(lt, at + 0.25, 0.2));
+              x.lb.style.transform = `translateY(${(20 * (1 - outCubic(prog(lt, at + 0.25, 0.3)))).toFixed(1)}px)`;
+            }
           }
+          // zoom lento (Ken Burns)
+          const kb = d.kenburns ? 0.12 : 0.05;
+          x.img.style.transform = `scale(${(1 + kb * clamp((lt - at) / Math.max(1, dur))).toFixed(4)})`;
         });
+        if (r.ficha) r.ficha.forEach((l, i) => {
+          const q = outCubic(prog(lt, 0.5 + i * 0.45, 0.35));
+          l.style.opacity = String(q);
+          l.style.transform = `translateX(${(60 * (1 - q)).toFixed(1)}px)`;
+        });
+      },
+    };
+
+    // ---------------------------------------------------------------- placa de nota (jurado de TV)
+    T.nota = {
+      fit: true,
+      build(el, d, box) {
+        bg(el);
+        const r = {};
+        const s = Math.min(box.w, box.h) * 0.55;
+        r.p = h("div", "nota-placa");
+        Object.assign(r.p.style, { width: `${s * 0.8}px`, height: `${s}px`, left: `${(box.w - s * 0.8) / 2}px`, top: `${(box.h - s) / 2}px` });
+        r.lb = h("div", "nota-lb anton", d.label || "NOTA");
+        r.lb.style.fontSize = `${s * 0.09}px`;
+        r.v = h("div", "nota-v anton", d.value);
+        r.v.style.fontSize = `${s * (String(d.value).length > 2 ? 0.42 : 0.56)}px`;
+        r.p.append(r.lb, r.v);
+        el.appendChild(r.p);
+        return r;
+      },
+      update(r, d, lt) {
+        // gira e mostra o número
+        const q = outCubic(prog(lt, 0, 0.7));
+        r.p.style.transform = `perspective(900px) rotateY(${(540 * (1 - q)).toFixed(1)}deg) scale(${(0.6 + 0.4 * outBack(prog(lt, 0, 0.5), 1.6)).toFixed(3)})`;
+        r.p.style.opacity = String(fade(lt, 0, 0.1));
+        r.v.style.opacity = String(fade(lt, 0.55, 0.15));
+      },
+    };
+
+    // ---------------------------------------------------------------- corrida de barras (enquete)
+    T.barras = {
+      fit: true,
+      build(el, d, box) {
+        bg(el);
+        const r = { rows: [] };
+        const rows = d.rows.slice(0, 10);
+        const max = Math.max(...rows.map((x) => x.value));
+        // abaixo da marca d'água (e da coroa); no vertical as linhas ocupam a altura toda
+        const portrait = box.h > box.w * 1.1;
+        const livre = box.h - 120 - (d.fonte ? 80 : 40);
+        const rh = Math.min(portrait ? 135 : 78, livre / rows.length);
+        const top = 120 + Math.max(0, (livre - rh * rows.length) / 2);
+        // 9:16: nome e valor em cima, barra larga embaixo (a tela é estreita)
+        const lw = portrait ? box.w * 0.6 : box.w * 0.24;
+        const vf = portrait ? Math.min(rh * 0.3, 40) : Math.min(rh * 0.5, 40); // fonte do valor
+        const vw = vf * 3.4; // "29,4%"
+        const bw = portrait ? box.w - 80 - rh * 0.5 : box.w - lw - 80 - 32 - vw;
+        rows.forEach((x, i) => {
+          const row = h("div", `bar-row${portrait ? " empilhada" : ""}`);
+          Object.assign(row.style, { top: `${top + i * rh}px`, height: `${rh - 10}px`, left: "40px", right: "40px" });
+          const lb = h("div", "bar-lb anton", x.label);
+          Object.assign(lb.style, { width: `${lw}px`, flexShrink: "0" });
+          lb.style.fontSize = `${Math.min(rh * (portrait ? 0.3 : 0.5), (lw * 1.7) / Math.max(6, x.label.length))}px`;
+          const tr = h("div", "bar-tr");
+          Object.assign(tr.style, { width: `${bw}px`, flexShrink: "0" });
+          if (portrait) Object.assign(tr.style, { order: "3", height: `${rh * 0.36}px` });
+          const fill = h("i");
+          tr.appendChild(fill);
+          const cr = crest({ crest: x.crest, sigla: x.sigla }, rh * (portrait ? 0.5 : 0.8));
+          cr.classList.add("bar-cr");
+          tr.appendChild(cr);
+          const v = h("div", "bar-v anton", "0");
+          Object.assign(v.style, { fontSize: `${vf}px`, minWidth: `${vw}px` });
+          row.append(lb, tr, v);
+          el.appendChild(row);
+          r.rows.push({ row, tr, fill, cr, v, x, w: (x.value / max) * (bw - rh * (portrait ? 0.55 : 0.9)) });
+        });
+        if (d.fonte) {
+          const f = h("div", "bar-fonte", d.fonte);
+          el.appendChild(f);
+        }
+        if (d.coroa && r.rows[0]) {
+          r.coroa = h("div", "bar-coroa", "👑");
+          r.rows[0].tr.appendChild(r.coroa);
+        }
+        return r;
+      },
+      update(r, d, lt, dur) {
+        const tempo = Math.min(3.5, dur * 0.6);
+        r.rows.forEach((x, i) => {
+          const at = x.x.at != null ? x.x.at : 0.2 + i * 0.15;
+          const q = outCubic(prog(lt, at, tempo));
+          x.row.style.opacity = String(fade(lt, at, 0.2));
+          x.fill.style.width = `${(x.w * q).toFixed(1)}px`;
+          x.cr.style.left = `${(x.w * q).toFixed(1)}px`;
+          x.v.textContent = `${(x.x.value * q).toFixed(1).replace(".", ",")}%`;
+          const pisca = x.x.destaque && lt > at + tempo ? 0.6 + 0.4 * Math.abs(Math.sin(lt * 6)) : 1;
+          x.fill.style.opacity = String(pisca);
+        });
+        if (r.coroa) {
+          const q = outBack(prog(lt, tempo + 0.4, 0.4), 2);
+          r.coroa.style.opacity = String(fade(lt, tempo + 0.4, 0.1));
+          r.coroa.style.transform = `translateY(${(-40 * (1 - q)).toFixed(1)}px) scale(${q.toFixed(3)})`;
+          r.coroa.style.left = r.rows[0].cr.style.left;
+        }
       },
     };
 

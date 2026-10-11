@@ -66,14 +66,16 @@ const FIELD_KEYS = {
   TRILHA: "TRILHA",
   NOTA: "NOTA",
   "NOTA PRO EDITOR": "NOTA",
+  IMG: "IMG",
+  "COR DO BLOCO": "COR",
 };
 
 const RANGE_RE = /\[(\d{1,2}):(\d{2})(?:\.(\d+))?\s*[–—-]\s*(\d{1,2}):(\d{2})(?:\.(\d+))?\]/;
 /** intervalo entre parênteses no cabeçalho do bloco: "GANCHO (0:00 – 0:40)" */
 const HEAD_RANGE_RE = /\((\d{1,2}):(\d{2})\s*[–—-]\s*(\d{1,2}):(\d{2})\)/;
-const FIELD_RE = /^(FALA|VISUAL|TELA|GR[ÁA]FICO(?: PRINCIPAL)?|SFX|EFEITO|M[ÚU]SICA|MODO|MG|VFX|LANCE|TELESTRATOR|TRANSI[ÇC][ÃA]O|TRILHA|NOTA(?: PRO EDITOR)?)\s*(?:\([^)]*\))?\s*:\s*(.*)$/;
+const FIELD_RE = /^(FALA|VISUAL|TELA|GR[ÁA]FICO(?: PRINCIPAL)?|SFX|EFEITO|M[ÚU]SICA|MODO|MG|VFX|LANCE|TELESTRATOR|TRANSI[ÇC][ÃA]O|TRILHA|NOTA(?: PRO EDITOR)?|IMG|COR DO BLOCO)\s*(?:\([^)]*\))?\s*:\s*(.*)$/;
 /** campos que só ajustam o bloco (não pedem nada na tela) */
-const BLOCK_ONLY = new Set(["MODO", "TRILHA", "MUSICA", "NOTA"]);
+const BLOCK_ONLY = new Set(["MODO", "TRILHA", "MUSICA", "NOTA", "COR"]);
 /** campos que viram lista (uma linha = um item) */
 const LIST_FIELDS = new Set(["TELA", "GRAFICO", "MG"]);
 
@@ -311,6 +313,11 @@ function parseRoteiro(raw) {
     const d = /** @type {any} */ (s).defaults || {};
     if (!s.fields.MODO && d.MODO) s.fields.MODO = d.MODO;
     delete (/** @type {any} */ (s).defaults);
+    // "FALA → GRÁFICO:" (frase entre aspas → placa): as frases são a fala do trecho
+    if (!s.fields.FALA) {
+      const pares = [...`${s.fields.MG || ""}\n${s.fields.GRAFICO || ""}`.matchAll(/"([^"]{10,})"\s*\n?\s*→/g)].map((m) => m[1].trim());
+      if (pares.length) s.fields.FALA = pares.join(" ");
+    }
   }
   out.segments.sort((a, b) => a.start - b.start);
   return out;

@@ -49,6 +49,8 @@ def pegar(url, binario=False, ref=""):
 
 def bing(q):
     h = pegar("https://www.bing.com/images/search?form=HDRSC2&first=1&q=" + urllib.parse.quote(q))
+    if 'murl' not in (h or ""):
+        h = pegar("https://www.bing.com/images/async?first=0&count=35&mmasync=1&q=" + urllib.parse.quote(q))
     out = []
     for m in re.finditer(r'\bm="(\{[^"]+\})"', h or ""):
         try:
@@ -61,16 +63,23 @@ def bing(q):
 
 
 def duckduckgo(q):
-    h = pegar("https://duckduckgo.com/?iax=images&ia=images&q=" + urllib.parse.quote(q))
-    m = re.search(r'vqd=["\']?([\d-]+)', h or "")
-    if not m:
-        return []
-    j = pegar(f"https://duckduckgo.com/i.js?l=br-pt&o=json&f=,,,,,&p=1&vqd={m.group(1)}&q=" + urllib.parse.quote(q),
-              ref="https://duckduckgo.com/")
-    try:
-        res = json.loads(j).get("results", [])
-    except (json.JSONDecodeError, AttributeError):
-        return []
+    import time
+    res = []
+    for tentativa in range(3):  # o DuckDuckGo às vezes recusa quando são muitas buscas seguidas: espera e tenta de novo
+        if tentativa:
+            time.sleep(3 * tentativa)
+        h = pegar("https://duckduckgo.com/?iax=images&ia=images&q=" + urllib.parse.quote(q))
+        m = re.search(r'vqd=["\']?([\d-]+)', h or "")
+        if not m:
+            continue
+        j = pegar(f"https://duckduckgo.com/i.js?l=br-pt&o=json&f=,,,,,&p=1&vqd={m.group(1)}&q=" + urllib.parse.quote(q),
+                  ref="https://duckduckgo.com/")
+        try:
+            res = json.loads(j).get("results", [])
+        except (json.JSONDecodeError, AttributeError):
+            continue
+        if res:
+            break
     return [{"url": r.get("image", ""), "titulo": r.get("title", ""), "pagina": r.get("url", ""), "fonte": "DuckDuckGo",
              "w": r.get("width", 0), "h": r.get("height", 0)} for r in res if r.get("image")]
 
@@ -126,7 +135,8 @@ def um_rosto(img):
 
 KIT_SITES = re.compile(r"footballkitarchive|todosobrecamisetas|mantosdofutebol|maquinadoesporte|footyheadlines|netshoes|centauro|"
                        r"lojavirtual|loja|store|shop|adidas|nike|puma|umbro|newbalance|kappa|volt|diadora|joma", re.I)
-FALSO = re.compile(r"concept|conceito|fan ?made|vazad|vazament|\bvaza\b|leak|rumor|suposta|esbo[cç]o|revelad|mockup|retro|replica antiga|"
+FALSO = re.compile(r"concept|conceito|fan ?made|\bvaza\w*|vazament|leak|fifakitcreator|kitdls|rumor|suposta|poss[ií]vel|esbo[cç]o|revelad|mockup|retro|replica antiga|"
+                   r"\barte\b|vetor|vector|estampa|kit creator|pesmaster|brech[oó]|usad[ao]|f[oó]rum|enjoei|mercado ?livre|olx|"
                    r"pes ?20|fifa ?2\d|dream league|dls", re.I)
 OUTRO_MODELO = re.compile(r"feminin|infantil|kids|women|torcedor? pro|regata|polo|treino|training|goleiro|goalkeeper", re.I)
 
@@ -147,7 +157,78 @@ def pontua(c, prefere, kit, evita=()):
     return s
 
 
-def buscar(q, exige=(), rosto=False, destino=None, minimo=300, log=print, alternativas=(), prefere=(), kit=False, evita=()):
+# faixas HSV (OpenCV: H 0-180) da cor principal da camisa citada no roteiro
+FAIXAS = {
+    "laranja": [((5, 120, 120), (22, 255, 255))],
+    "amarel": [((20, 90, 110), (35, 255, 255))],
+    "dourad": [((15, 60, 90), (35, 255, 255))],
+    "verde": [((36, 60, 40), (90, 255, 255))],
+    "azul": [((88, 70, 50), (130, 255, 255))],
+    "celeste": [((85, 40, 90), (115, 255, 255))],
+    "vermelh": [((0, 110, 70), (8, 255, 255)), ((165, 110, 70), (180, 255, 255))],
+    "vinho": [((0, 70, 25), (10, 255, 150)), ((158, 70, 25), (180, 255, 150))],
+    "grena": [((0, 70, 25), (10, 255, 150)), ((158, 70, 25), (180, 255, 150))],
+    "rox": [((130, 60, 40), (158, 255, 255))],
+    "ros": [((150, 40, 120), (175, 255, 255))],
+    "pret": [((0, 0, 0), (180, 255, 60))],
+    "branc": [((0, 0, 170), (180, 45, 255))],
+    "off white": [((0, 0, 160), (180, 60, 255))],
+    "creme": [((0, 0, 160), (180, 70, 255))],
+    "bege": [((5, 20, 120), (30, 110, 255))],
+    "cinza": [((0, 0, 70), (180, 35, 185))],
+}
+
+
+def cor_principal(tema):
+    """Primeira cor citada (a da camisa no roteiro), como chave de FAIXAS."""
+    for t in tema:
+        t = norm(t)
+        for k in FAIXAS:
+            if t.startswith(k) or (k == "celeste" and "celeste" in t):
+                return "celeste" if "celeste" in t else k
+    return None
+
+
+def tem_cor(img, cor, minimo=0.10):
+    """A camisa tem a cor do roteiro? Fração de pixels da cor no miolo da imagem (onde fica a camisa)."""
+    import cv2
+    import numpy as np
+    h, w = img.shape[:2]
+    miolo = img[int(h * 0.15):int(h * 0.85), int(w * 0.2):int(w * 0.8)]
+    # fundo de foto de loja (branco/cinza liso) não conta: tira os pixels da cor da borda
+    borda = np.concatenate([img[:4].reshape(-1, 3), img[-4:].reshape(-1, 3), img[:, :4].reshape(-1, 3), img[:, -4:].reshape(-1, 3)])
+    fundo = np.median(borda, axis=0)
+    liso = float(np.mean(np.abs(borda.astype(int) - fundo).sum(1) < 40)) > 0.6
+    util = np.ones(miolo.shape[:2], bool)
+    if liso:
+        util = np.abs(miolo.astype(int) - fundo).sum(2) > 40
+    if util.mean() < 0.05:
+        return False
+    hsv = cv2.cvtColor(miolo, cv2.COLOR_BGR2HSV)
+    m = np.zeros(hsv.shape[:2], np.uint8)
+    for lo, hi in FAIXAS[cor]:
+        m |= cv2.inRange(hsv, np.array(lo, np.uint8), np.array(hi, np.uint8))
+    return float((m > 0)[util].mean()) >= minimo
+
+
+def anos_no(texto):
+    """Anos citados: 2026, 2025/26, 2025-2026, 25/26, 25-26, 22/23 (temporada com dois dígitos)."""
+    anos = {int(y) for y in re.findall(r"(?<!\d)(20\d\d)(?!\d)", texto)}
+    for a, b in re.findall(r"(?<![\d/.-])(\d\d)\s?[/-]\s?(\d\d)(?![\d/.-])", texto):
+        a, b = int(a), int(b)
+        if 10 <= a <= 40 and b == (a + 1) % 100:
+            anos |= {2000 + a, 2000 + b}
+    return anos
+
+
+MARCAS = re.compile(r"\b(adidas|nike|puma|umbro|new balance|kappa|volt|diadora|joma|reebok|le coq|penalty|lupo|topper|mizuno|under armour|hummel|castore|macron)\b", re.I)
+CORES = re.compile(r"^(azul celeste|azul|celeste|laranja|pret[ao]|verde esmeralda|verde|vermelh[ao]|amarel[ao]|branc[ao]|vinho|dourad[ao]|off white|bege|ros[ao]|rox[ao]|cinza|grena|prata|creme|marrom)$")
+NAO_KIT = re.compile(r"goleiro|goalkeeper|\bgk\b|treino|training|entrenamiento|pre ?jogo|pre ?match|pre ?partida|pre ?game|aquecimento|warm ?up|"
+                     r"\bpolo\b|regata|jaqueta|agasalho|moletom|bermuda|calcao|shorts|meiao|chuteira|bola", re.I)
+
+
+def buscar(q, exige=(), rosto=False, destino=None, minimo=300, log=print, alternativas=(), prefere=(), kit=False, evita=(),
+           ano=None, tema=(), nao=(), extras=(), marca=""):
     """Devolve {file, fonte, titulo, pagina} ou None. Junta candidatos das fontes, só aceita os que
     citam TODAS as palavras exigidas (e pelo menos uma de cada grupo de alternativas), e baixa na
     ordem de pontuação (site de camisas, ano/marca/cor citados; "concept"/"fan made" fica de fora)."""
@@ -157,7 +238,12 @@ def buscar(q, exige=(), rosto=False, destino=None, minimo=300, log=print, altern
     alternativas = [[norm(x) for x in g if norm(x)] for g in alternativas if g]
     prefere = [norm(p) for p in prefere if norm(p)]
     evita = [norm(e) for e in evita if norm(e)]
-    chave = hashlib.sha1(f"{q}|{','.join(exige)}|{alternativas}|{rosto}|{kit}|{evita}".encode()).hexdigest()[:16]
+    tema = [norm(t) for t in tema if norm(t)]
+    nao = [norm(x) for x in nao if norm(x)]
+    frases = [t for t in tema if not CORES.match(t) and not re.fullmatch(r"\d+", t)]
+    cor = cor_principal(tema) if kit else None
+    buscas = list(dict.fromkeys([q, *extras]))
+    chave = hashlib.sha1(f"{buscas}|{','.join(exige)}|{alternativas}|{rosto}|{kit}|{evita}|{ano}|{tema}|{nao}|{marca}".encode()).hexdigest()[:16]
     CACHE.mkdir(parents=True, exist_ok=True)
     meta = CACHE / f"{chave}.json"
     if meta.exists():
@@ -171,19 +257,51 @@ def buscar(q, exige=(), rosto=False, destino=None, minimo=300, log=print, altern
             return False
         if any(not any(re.search(rf"\b{re.escape(x)}", texto) for x in g) for g in alternativas):
             return False
+        if any(re.search(rf"\b{re.escape(x)}\b", texto) for x in nao):
+            return False  # outro clube (Inter Miami, Atlético Madrid...)
+        if kit and not re.search(r"\b(camis|uniform|kit|jersey|shirt|manto|maglia|trikot|third|iii)", texto):
+            return False  # notícia de jogo ("terceira fase da Copinha") não é camisa
+        if kit and re.search(r"\b(selecao|copinha|sub ?\d\d|futebol internacional|feminino)\b", texto):
+            return False
+        if kit and NAO_KIT.search(norm(f"{c['titulo']} {c['pagina']}")):
+            return False  # camisa de goleiro/treino/polo: não é a camisa 3 de jogo
+        if ano:
+            # SÓ a camisa do ano pedido: título/endereço com outro ano (2025, 2024/25, notícia de 2025) fica fora
+            anos = anos_no(f"{c['titulo']} {c['pagina']} {c['url']}")
+            permitidos = {int(ano), int(ano) + 1} | anos_no(" ".join(tema))  # "MUNDIAL 2006" é tema, não temporada
+            if anos and (anos - permitidos):
+                return False
+            # sem ano nenhum no título/endereço: só vale se citar o nome/inspiração da camisa (ou, sem nome
+            # no roteiro, a marca + a cor); "Camisa adidas Fluminense III Verde" sem ano pode ser de 2018
+            if not anos:
+                if frases:
+                    if not any(re.search(rf"\b{re.escape(t)}", texto) for t in frases):
+                        return False
+                elif not (marca and re.search(rf"\b{re.escape(norm(marca))}", texto) and any(re.search(rf"\b{re.escape(t)}", texto) for t in tema)):
+                    return False
+        if kit and marca:
+            # outra fornecedora no título = outra camisa (o roteiro diz Puma, o anúncio diz adidas)
+            outras = {m.lower() for m in MARCAS.findall(norm(f"{c['titulo']} {c['pagina']}"))} - {norm(marca)}
+            if outras and not re.search(rf"\b{re.escape(norm(marca))}", texto):
+                return False
         return not RUIM.search(c["titulo"] or "") and not (kit and FALSO.search(f"{c['titulo']} {c['pagina']}"))
 
-    cands = []
-    for fonte in FONTES:
-        try:
-            achados = [c for c in fonte(q)[:30] if passa(c)]
-        except Exception as e:  # noqa: BLE001
-            log(f"  {fonte.__name__}: {e}")
-            continue
-        cands += achados
-        if len(cands) >= 6:
-            break
-    cands.sort(key=lambda c: -pontua(c, prefere, kit, evita))
+    # junta os candidatos de TODAS as buscas (nome da camisa, ano, "terceiro uniforme", inglês) e fica com o melhor
+    cands, vistos = [], set()
+    for busca in buscas:
+        for fonte in FONTES:
+            try:
+                achados = [c for c in fonte(busca)[:100] if c["url"] not in vistos and passa(c)]
+            except Exception as e:  # noqa: BLE001
+                log(f"  {fonte.__name__}: {e}")
+                continue
+            vistos.update(c["url"] for c in achados)
+            cands += achados
+            if len(cands) >= 12:
+                break
+    pref = [*prefere, *[f for f in frases if f not in prefere]]
+    cands.sort(key=lambda c: -(pontua(c, pref, kit, evita) + sum(3 for f in frases if re.search(rf"\b{re.escape(f)}", norm(f"{c['titulo']} {c['pagina']}")))
+                               + (3 if ano and int(ano) in anos_no(f"{c['titulo']} {c['pagina']} {c['url']}") else 0)))
     for c in cands[:20]:
         dado = pegar(c["url"], binario=True, ref=c.get("pagina", ""))
         if not dado or len(dado) < 5000:
@@ -191,6 +309,9 @@ def buscar(q, exige=(), rosto=False, destino=None, minimo=300, log=print, altern
         img = cv2.imdecode(np.frombuffer(dado, np.uint8), cv2.IMREAD_COLOR)
         if img is None or min(img.shape[:2]) < minimo:
             continue
+        if kit and cor and not tem_cor(img, cor):
+            log(f"  cor não bate ({cor}): {c['titulo'][:60]}")
+            continue  # o roteiro diz camisa vinho; a foto é de uma camisa branca = outra camisa
         if rosto:
             img = um_rosto(img)
             if img is None or min(img.shape[:2]) < 120:
@@ -204,7 +325,7 @@ def buscar(q, exige=(), rosto=False, destino=None, minimo=300, log=print, altern
         if not ok:
             continue
         out.write_bytes(buf.tobytes())
-        m = {"file": str(out), "fonte": c["fonte"], "titulo": c["titulo"], "pagina": c["pagina"], "busca": q}
+        m = {"file": str(out), "fonte": c["fonte"], "titulo": c["titulo"], "pagina": c["pagina"], "busca": q, "url": c["url"]}
         meta.write_text(json.dumps(m, ensure_ascii=False), encoding="utf-8")
         return m
     return None

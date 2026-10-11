@@ -211,6 +211,52 @@ def escudo(t):
     return str(dst) if dst.exists() else ""
 
 
+def folha_imagens(plan, out, destino):
+    """Folha de conferência: cada imagem escolhida com o rótulo do roteiro e o site de onde veio
+    (as que faltam aparecem em vermelho). Para conferir ANTES do render."""
+    try:
+        import cv2
+        import numpy as np
+    except ImportError:
+        return None
+    itens, vistos = [], set()
+    for s in (plan.get("meta") or {}).get("segments") or []:
+        for c in s.get("comps") or []:
+            if c.get("type") != "fotos":
+                continue
+            for it in c["data"].get("items", []):
+                q = it.get("query", "")
+                chave = (it.get("sigla"), it.get("label")) if it.get("kit") else q
+                if not q or chave in vistos:
+                    continue
+                vistos.add(chave)
+                itens.append((it.get("label") or q, out["imagens"].get(q)))
+    if not itens:
+        return None
+    W, H, cols = 360, 400, 5
+    linhas = (len(itens) + cols - 1) // cols
+    folha = np.full((linhas * H, cols * W, 3), 24, np.uint8)
+    for n, (rot, r) in enumerate(itens):
+        x, y = (n % cols) * W, (n // cols) * H
+        img = cv2.imread(r["file"]) if r and r.get("file") else None
+        if img is not None:
+            k = min((W - 16) / img.shape[1], (H - 86) / img.shape[0])
+            im = cv2.resize(img, (max(1, int(img.shape[1] * k)), max(1, int(img.shape[0] * k))))
+            ox, oy = x + (W - im.shape[1]) // 2, y + 8
+            folha[oy:oy + im.shape[0], ox:ox + im.shape[1]] = im
+            site = re.sub(r"^https?://(www\.)?", "", r.get("pagina") or r.get("fonte") or "local").split("/")[0][:40]
+        else:
+            cv2.rectangle(folha, (x + 8, y + 8), (x + W - 8, y + H - 86), (40, 40, 160), -1)
+            cv2.putText(folha, "SEM IMAGEM", (x + 90, y + H // 2 - 30), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)
+            site = "ponha em imagens\\"
+        txt = unicodedata.normalize("NFD", rot).encode("ascii", "ignore").decode()
+        cv2.putText(folha, txt[:30], (x + 10, y + H - 52), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.putText(folha, txt[30:60], (x + 10, y + H - 32), cv2.FONT_HERSHEY_SIMPLEX, 0.55, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.putText(folha, site, (x + 10, y + H - 12), cv2.FONT_HERSHEY_SIMPLEX, 0.45, (120, 200, 255), 1, cv2.LINE_AA)
+    cv2.imwrite(str(destino), folha, [cv2.IMWRITE_JPEG_QUALITY, 85])
+    return destino
+
+
 def main():
     if len(sys.argv) < 2:
         raise SystemExit("uso: python tools/jogadores.py <EDIT_PLAN.json> [saida.json]")
@@ -223,7 +269,7 @@ def main():
     for s in (plan.get("meta") or {}).get("segments") or []:
         for c in s.get("comps") or []:
             d = c.get("data") or {}
-            for it in d.get("items") or []:
+            for it in (d.get("items") or []) + (d.get("rows") or []):
                 siglas.add(it.get("sigla"))
             for g in d.get("groups") or []:
                 for m in g.get("games") or []:
@@ -283,13 +329,14 @@ def main():
     # fotos pedidas no roteiro (camisas, VISUAL): procura na internet até achar
     out["imagens"] = {}
     ja = {}
+    falhou = set()
     for s in (plan.get("meta") or {}).get("segments") or []:
         for c in s.get("comps") or []:
             if c.get("type") != "fotos":
                 continue
             for it in c["data"].get("items", []):
                 q = it.get("query", "")
-                if not q or q in out["imagens"]:
+                if not q or q in out["imagens"] or q in falhou:
                     continue
                 # 1) a SUA imagem: pasta "imagens" do job ou do vídeo, arquivo com o nome do time/assunto
                 r = imagem_local(plano, it)
@@ -298,22 +345,25 @@ def main():
                 if not r and mesma[0] and mesma in ja:
                     r = ja[mesma]
                 # 2) até achar na internet: a busca do roteiro, sem o ano, em inglês (sites de camisas)
-                ingles = q.replace("terceira camisa", "third kit").replace("segunda camisa", "away kit").replace("camisa", "home kit")
-                sem_ano = lambda x: re.sub(r"\s*\b20\d\d(\s*[/-]\s*\d+)?\b", "", x).strip()  # noqa: E731
-                tentativas = [(v, it.get("alternativas") or []) for v in dict.fromkeys([q, ingles])]
-                # por último sem exigir o ano (temporada nova pode ainda não ter o ano no título)
-                tentativas += [(v, (it.get("alternativas") or [])[:1]) for v in dict.fromkeys([sem_ano(q), sem_ano(ingles)])]
-                for v, alt in tentativas:
-                    if r:
-                        break
-                    r = buscar(v, it.get("exige") or [], log=lambda m: None, alternativas=alt,
-                               prefere=it.get("prefere") or [], kit=bool(it.get("kit")), evita=it.get("evita") or [])
+                q2 = it.get("query2") or q
+                ingles = q2.replace("terceira camisa", "third kit").replace("segunda camisa", "away kit").replace("camisa", "home kit")
+                alt = it.get("alternativas") or []
+                # com o nome/inspiração da camisa, depois com o ano, depois em inglês; o ano do vídeo vale sempre
+                uniforme = q2.replace("terceira camisa", "terceiro uniforme").replace("segunda camisa", "segundo uniforme")
+                # todas as buscas juntas; fica a imagem que mais bate (nome da camisa, ano, site de camisas)
+                if not r:
+                    r = buscar(q, it.get("exige") or [], log=lambda m: None, alternativas=alt[:2],
+                               prefere=it.get("prefere") or [], kit=bool(it.get("kit")), evita=it.get("evita") or [],
+                               ano=it.get("ano") if it.get("kit") else None, tema=it.get("tema") or [], nao=it.get("nao") or [],
+                               extras=[q2, uniforme, ingles] if it.get("kit") else [], marca=it.get("marca") or "")
                 if r:
                     out["imagens"][q] = r
                     ja.setdefault(mesma, r)
                 else:
-                    out["sem_foto"].append(f"imagem: {q} (não achei)")
+                    falhou.add(q)
+                    out["sem_foto"].append(f"imagem: {it.get('label') or q} (não achei; ponha a foto em imagens\\ com o nome do time)")
     saida.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
+    folha = folha_imagens(plan, out, plano.parent / "imagens_conferir.jpg")
     n = len(pessoas)
     print(f"Fotos conferidas: {len(out['players'])}/{n} jogadores, {sum(1 for x in out['teams'].values() if x['crest'])}/{len(out['teams'])} escudos"
           + (f", {len(out['imagens'])} imagens da internet" if out["imagens"] else ""))
@@ -321,6 +371,8 @@ def main():
         print(f"  sem foto: {s}")
     for a in sorted(AVISOS)[:5]:
         print(f"  aviso: {a}")
+    if folha:
+        print(f"Confira as imagens: {folha}  (errada? ponha a certa em imagens\\ com o nome do time e rode de novo)")
     print(f"→ {saida}")
 
 

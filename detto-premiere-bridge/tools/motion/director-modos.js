@@ -197,13 +197,24 @@ function directModes(plan, opts = {}) {
         // imagens achadas na internet (jogadores.py → jogadores.json "imagens"); sem imagem, sem placa
         d.items = d.items
           .map((it) => ({ ...it, file: (assets.imagens && assets.imagens[it.query] && assets.imagens[it.query].file) || "", crest: crestOf(it.sigla), at: rel(it.anchor ? nameTime(it.anchor, start - 0.3, end) ?? anchorT(it.anchor, start - 0.3, end) : null) }))
-          .filter((it) => it.file);
+          // rodada rápida: a camisa sem foto entra com o escudo (a arara não fica vazia)
+          .filter((it) => it.file || (d.seq && it.crest));
         if (!d.items.length) return;
         let prev = 0.2;
         for (const it of d.items) {
           if (it.at === undefined || it.at < prev - 0.05) it.at = prev;
-          prev = it.at + 0.4;
-          sfx.push({ t: start + it.at, kind: "pop" });
+          prev = it.at + (d.seq ? 1.6 : 0.4); // rodada rápida: cada camisa fica pelo menos ~1,6 s
+          sfx.push({ t: start + it.at, kind: d.seq ? "whoosh_short" : "pop" });
+        }
+      } else if (c.type === "nota") {
+        sfx.push({ t: start + 0.6, kind: "ding" });
+      } else if (c.type === "barras") {
+        for (const r of d.rows) {
+          r.crest = crestOf(r.sigla);
+          const t = r.anchor ? nameTime(r.anchor, start - 0.3, end) : null;
+          r.at = t === null ? undefined : Math.max(0, t - start - 0.2);
+          r.destaque = r.sigla === "CAM"; // "o meu Galo"
+          sfx.push({ t: start + (r.at ?? 0.2), kind: "tick" });
         }
       }
       if (c.type !== "var") sfx.push({ t: start, kind: "whoosh" });

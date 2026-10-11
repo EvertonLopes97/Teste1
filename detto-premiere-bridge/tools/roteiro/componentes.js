@@ -37,7 +37,7 @@ const words = (s) => norm(s).replace(/[^a-z0-9]+/g, " ").trim().split(" ").filte
 /** @param {string} s */
 function stripEmoji(s) {
   return String(s || "")
-    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}\u{2B00}-\u{2BFF}\u{E0000}-\u{E007F}\u{2190}-\u{21FF}]/gu, "")
+    .replace(/[\u{1F000}-\u{1FAFF}\u{2600}-\u{27BF}\u{FE0F}\u{200D}\u{2B00}-\u{2BFF}\u{E0000}-\u{E007F}\u{2190}\u{2191}\u{2193}-\u{21FF}]/gu, "")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -51,8 +51,10 @@ function titleCase(s) {
  * maiúscula (na FALA, "a vitória do Palmeiras" não é o Vitória).
  * @param {string} text @param {{cap?: boolean, sigla?: boolean}} [o]
  */
+// "Atlético" sozinho = o Galo; "Atlético Nacional/Madrid/Goianiense/Paranaense" não
+const OUTRO_ATLETICO = /^[\s-]+(nacional|de madrid|madrid|goianiense|go\b|pr\b|paranaense|junior|tucum|clube goian|de bilbao)/i;
 function findTeam(text, o = {}) {
-  const t = ` ${words(text).join(" ")} `;
+  const t = ` ${words(text).join(" ")} `.replace(/ atletico (nacional|de madrid|madrid|goianiense|go|junior) /g, " outro $1 ");
   let best = null;
   for (const team of TEAMS) {
     for (const ap of team.apelidos) {
@@ -85,6 +87,7 @@ function findTeams(text, o = {}) {
       const re = new RegExp(`(^|[^\\p{L}])(${ap.replace(/[-\s]+/g, "[-\\s]+")})(?![\\p{L}])`, "giu");
       for (const m of plain.matchAll(re)) {
         if (o.cap && !/^\p{Lu}/u.test(m[2])) continue;
+        if (ap === "atletico" && OUTRO_ATLETICO.test(plain.slice((m.index || 0) + m[0].length, (m.index || 0) + m[0].length + 14))) continue;
         best = Math.min(best, (m.index || 0) + m[1].length);
       }
     }
@@ -215,6 +218,8 @@ function mentions(text, roster) {
     while (parts.length && NOT_NAME.has(parts[0].replace(/\.$/, "")) && !/^[A-ZÀ-Ý]\.$/.test(parts[0])) parts.shift();
     name = parts.join(" ");
     if (!name || name.replace(/[^A-ZÀ-Ý]/g, "").length < 3) continue;
+    // "PALMEIRAS 7,4%" (barra de enquete) é time, não jogador
+    if (/^\s*%/.test(String(text).slice((m.index || 0) + m[0].length)) || findTeams(name).length) continue;
     const team = m[2] ? findTeam(m[2], { sigla: true }) : null;
     const r = rating(m[3]);
     const p = roster.get(name, { team, rating: r });
@@ -505,86 +510,148 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
     if (items.length) add("stamps", { items }, items[0].text, comps.length ? "plate" : modo === "CAM" ? "overlay" : "plate");
   }
 
-  // enquete
-  if (/ENQUETE/.test(tela.toUpperCase())) {
-    const quoted = [...tela.matchAll(/"([^"]+)"/g)].map((m) => m[1])[0];
-    // sem pergunta escrita: a pergunta da fala ("quem foi o craque da rodada? Savarino, Matheuzinho ou Erick?")
-    const pieces = String(F.FALA || "").replace(/["“”]/g, "").split(/(?<=\?)/);
+  // enquete (a palavra ENQUETE fora das aspas; "Fonte: enquete ge" no rodapé não é enquete)
+  if (/ENQUETE/.test(tela.replace(/"[^"]*"/g, "").toUpperCase())) {
+    const quoted = [...tela.matchAll(/"([^"]+)"/g)].map((m) => m[1]).find((x) => /\?|✅|❌|\sx\s/i.test(x));
+    // sem pergunta escrita: a pergunta da fala ("quem foi o craque? Savarino, Matheuzinho ou Erick?")
+    const pieces = String(F.FALA || "").replace(/["“”]/g, "").split(/(?<=\?)|(?<=:)/);
     let fq = "";
     let fo = /** @type {string[]} */ ([]);
     pieces.forEach((pc, k) => {
-      const ps = roster.inText(pc).filter((p) => alone(pc, p));
-      if (ps.length >= 2) {
-        fo = ps.map((p) => p.name.toUpperCase());
+      const ps = roster.inText(pc).filter((p) => alone(pc, p)).map((p) => p.name.toUpperCase());
+      const ts = findTeams(pc, { cap: true }).map((t) => t.nome.toUpperCase());
+      const op = ps.length >= 2 ? ps : ts;
+      if (op.length >= 2) {
+        fo = op;
         const own = pc.replace(/^.*[:,]\s*/, "").trim();
-        fq = own.split(/\s+/).length >= 4 && !ps.some((p) => norm(own).includes(norm(p.name))) ? own : (pieces[k - 1] || "").split(/[:,.]\s*/).pop() || "";
+        fq = /\?/.test(own) && own.split(/\s+/).length >= 4 && !op.some((o) => norm(own).includes(norm(o))) ? own : (pieces.slice(0, k).reverse().find((x) => /\?/.test(x)) || "").split(/[:,.]\s*/).pop() || "";
       }
     });
-    const q = quoted || `${fq} ${fo.join(" / ")}`;
-    const question = stripEmoji((q.match(/^[^?]+\?/) || [q.split(/[—✅❌]/)[0]])[0]).trim();
-    let options = q.replace(/^[^?]+\?/, "").split(/\/|\sx\s|—/).map((o) => stripEmoji(o).trim()).filter((o) => o && !/COMENTA/i.test(o));
-    if (options.filter((o) => o.length >= 2).length < 2) {
-      // opções só com emoji: times ou jogadores citados na fala
-      const teams = [];
-      for (const w of String(F.FALA || "").split(/[\s,.?!]+/)) {
-        const t = findTeam(w, { cap: true });
-        if (t && !teams.includes(t)) teams.push(t);
-      }
-      options = fo.length >= 2 ? fo.slice(0, 3) : teams.slice(0, 3).map((t) => t.nome.toUpperCase());
+    let question = "";
+    let options = /** @type {string[]} */ ([]);
+    if (quoted) {
+      question = stripEmoji((quoted.match(/^[^?]+\?/) || [quoted.split(/[—✅❌]/)[0]])[0]).trim();
+      options = /✅/.test(quoted) && /❌/.test(quoted) && !/[A-Za-zÀ-ú]{2,}\s*\/|\/\s*[A-Za-zÀ-ú]{2,}/.test(stripEmoji(quoted.replace(/^[^?]+\?/, ""))) ? ["SIM", "NÃO"]
+        : quoted.replace(/^[^?]+\?/, "").split(/\/|\sx\s|—/).map((o) => stripEmoji(o).trim()).filter((o) => o.length >= 2 && !/COMENTA/i.test(o));
     }
-    if (options.length >= 2) add("poll", { question: question.toUpperCase(), options: options.slice(0, 3) }, "", "overlay");
+    if (!question) question = stripEmoji(fq).trim();
+    if (options.length < 2) options = fo;
+    if (options.length >= 2 && question) add("poll", { question: question.toUpperCase(), options: options.slice(0, 5) }, "", "overlay");
   }
 
-  // fotos da internet: camisas/uniformes dos times citados, ou o que o VISUAL pedir
+  // fotos da internet (camisas, IMG, VISUAL) — sempre a camisa EXATA do vídeo (tema + ano do roteiro)
+  const ctx = seg.ctx || {};
   const visual = F.VISUAL && !/^facecam/i.test(F.VISUAL.trim()) ? F.VISUAL : "";
-  const pedeFoto = /camisa|uniforme|manto|foto|imagem/i.test(mg) || visual;
-  if (pedeFoto && !comps.some((c) => ["cards", "pitch", "scoregrid", "fotos"].includes(c.type))) {
-    const base = `${mg} ${visual}`;
-    const ano = (base.match(/\b20\d\d\b/) || (F.FALA || "").match(/\b20\d\d\b/) || [String(new Date().getFullYear())])[0];
-    // o tema do vídeo vale para todos os trechos ("CAMISAS 3 DOS TIMES" → terceira camisa)
-    const tema = `${base} ${F.FALA || ""} ${titulo}`;
-    const qual = /camisas?\s*(3|tr[êe]s)\b|terceir|third/i.test(tema) ? "terceira camisa" : /camisas?\s*(2|dois)\b|segund|reserva|away/i.test(tema) ? "segunda camisa" : "camisa";
-    let teams = findTeams(base);
-    if (!teams.length) teams = findTeams(F.FALA || "", { cap: true });
-    /** @type {any[]} */
-    let items = [];
-    if (/camisa|uniforme|manto/i.test(base) && teams.length) {
-      // a camisa EXATA do roteiro: descrição perto do nome do time (marca, temporada, cores, nome da coleção)
-      const fontes = `${mg}\n${visual}\n${seg.fields.FALA || ""}`;
-      items = teams.slice(0, 3).map((t) => {
-        const ap = t.apelidos.filter((x) => x.length > 3).concat(norm(t.nome));
-        const frase = fontes.split(/\n|[.;]\s|→/).find((l) => ap.some((x) => norm(l).includes(x))) || "";
-        const marca = (frase.match(/\b(adidas|nike|puma|umbro|new balance|kappa|volt|diadora|joma|reebok|le coq|penalty|lupo|topper|mizuno|under armour|hummel|castore|macron)\b/i) || [])[1] || "";
-        const temporada = (frase.match(/\b(20\d\d(?:\s*[/-]\s*(?:20)?\d\d)?|\d\d\/\d\d)\b/) || [ano])[0];
-        const cores = (frase.match(/\b(azul|celeste|branc[ao]|pret[ao]|verde|vermelh[ao]|amarel[ao]|dourad[ao]|ros[ao]|rox[ao]|laranja|cinza|bege|grená|vinho|marrom|creme|prata)\b/gi) || []).map((c) => c.toLowerCase());
-        const colecao = (frase.match(/"([^"]{3,40})"/) || [])[1] || "";
-        // formas do ano no título: "2026", "2025/26", "25/26"
-        const fim = Number((temporada.match(/(\d\d)$/) || [])[1]) + 2000;
-        const so = /^20\d\d$/.test(temporada); // "2025" pode ser a 2025 ou a 2025/26
-        // "2025" sozinho = a camisa lançada em 2025 (2025 ou 2025/26), não a 2024/25
-        const anos = so
-          ? [temporada, `${fim} ${String(fim + 1).slice(2)}`, `${String(fim).slice(2)} ${String(fim + 1).slice(2)}`]
-          : [...new Set([temporada, ...(temporada.match(/20\d\d/g) || []), `${fim}`, `${fim - 1} ${String(fim).slice(2)}`, `${String(fim - 1).slice(2)} ${String(fim).slice(2)}`])];
-        const evita = so ? [String(fim - 1), `${String(fim - 1).slice(2)} ${String(fim).slice(2)}`] : [];
-        const tn = t.nome.split(/[-\s]/)[0];
-        return {
-          query: `${qual} ${t.nome} ${temporada} ${marca}`.replace(/\s+/g, " ").trim(),
-          exige: [tn],
-          alternativas: [qual === "terceira camisa" ? ["terceira", "third", "3rd", "iii", "camisa 3", "uniforme 3", "kit 3"] : qual === "segunda camisa" ? ["segunda", "away", "2", "ii", "reserva"] : ["camisa", "kit", "jersey", "shirt", "uniforme", "home"], anos],
-          prefere: [marca, ...cores, colecao, ...anos],
-          evita,
-          kit: true,
-          label: `${t.nome.toUpperCase()} • ${qual.toUpperCase()}`,
-          anchor: t.nome,
-          sigla: t.sigla,
+  const img = F.IMG || "";
+  const tema = `${mg} ${img} ${F.FALA || ""} ${titulo}`;
+  const qual = /camisas?\s*(3|tr[êe]s)\b|terceir|third/i.test(tema) ? "terceira camisa" : /camisas?\s*(2|dois)\b|segund|reserva|away/i.test(tema) ? "segunda camisa" : "camisa";
+  const ano = ctx.ano || String(new Date().getFullYear());
+  const kit = (/** @type {any} */ t, /** @type {string} */ frase, /** @type {string} */ label, /** @type {any} */ temaItem) => {
+    // tema: o do bloco quando a camisa é a do bloco; o da linha quando é da rodada rápida
+    const tm = temaItem || (ctx.timeBloco && ctx.timeBloco === t ? ctx.tema : null) || { marca: "", cores: [], frases: [] };
+    const marca = tm.marca || (frase.match(/\b(adidas|nike|puma|umbro|new balance|kappa|volt|diadora|joma|reebok|le coq|penalty|lupo|topper|mizuno|under armour|hummel|castore|macron)\b/i) || [])[1] || "";
+    const cores = [...new Set([...(tm.cores || []), ...(frase.match(/\b(azul|celeste|branc[ao]|pret[ao]|verde|vermelh[ao]|amarel[ao]|dourad[ao]|ros[ao]|rox[ao]|laranja|cinza|bege|grená|vinho|marrom|creme|prata|off-white)\b/gi) || []).map((c) => c.toLowerCase())])].slice(0, 3);
+    const frases = (tm.frases || []).slice(0, 2);
+    const fim = Number(ano);
+    const anos = [ano, `${fim} ${String(fim + 1).slice(2)}`, `${String(fim).slice(2)} ${String(fim + 1).slice(2)}`];
+    return {
+      // a busca leva o nome/inspiração da camisa ("Rua de Fogo", "Para Sempre Lembrados") e a cor
+      query: `${qual === "terceira camisa" ? "camisa 3" : qual} ${t.nome.split("-")[0]} ${marca} ${frases[0] || ""} ${cores[0] || ""}`.replace(/\s+/g, " ").trim(),
+      query2: `${qual} ${t.nome} ${ano} ${marca}`.replace(/\s+/g, " ").trim(),
+      ano,
+      exige: [],
+      // o título cita o time (qualquer nome dele), a camisa 3 e o ano
+      alternativas: [[...new Set([t.nome, t.nome.split(/[-\s]/)[0], ...t.apelidos.filter((x) => x.length > 3)])],
+        qual === "terceira camisa" ? ["terceir", "third", "3rd", "iii", "camisa 3", "uniforme 3", "kit 3", "3o uniforme", "manto 3"] : qual === "segunda camisa" ? ["segunda", "away", "ii", "reserva"] : ["camisa", "kit", "jersey", "shirt", "uniforme"], anos],
+      prefere: [marca, ...cores, ...frases, ano, "iii", "third", "terceira"],
+      tema: [...frases, ...cores],
+      evita: [String(fim - 1), String(fim - 2)].filter((y) => !anos.some((x) => x.includes(y))),
+      nao: t.nao || [], // outro clube com nome parecido (Inter Miami, Atlético Madrid)
+      marca: marca.toLowerCase(),
+      kit: true,
+      label: label || `${t.nome.toUpperCase()} • ${qual.toUpperCase()}`,
+      anchor: t.nome,
+      sigla: t.sigla,
+    };
+  };
+  const ficha = (mg.match(/FICHA(?: DA CAMISA)?\s*:\s*([^\n;]+)/i) || [])[1];
+  /** @type {any[]} */
+  let fotos = [];
+  let emSequencia = false;
+  // a) rodada rápida: "fala" → TIME • COR • FRASE (uma camisa por vez, na hora em que o time é falado)
+  const pares = [...`${mg}\n${F.GRAFICO || ""}`.matchAll(/"([^"]{10,})"\s*\n?\s*→\s*([^\n]+)/g)];
+  if (pares.length >= 2) {
+    for (const p of pares) {
+      const t = findTeams(p[2])[0] || findTeams(p[1], { cap: true })[0];
+      if (t) {
+        const lab = stripEmoji(p[2].replace(/\([^)]*\)/g, "").replace(/\s*\+.*$/, "").replace(/\s+/g, " ")).trim();
+        const temaLinha = {
+          marca: (p[1].match(/\b(adidas|nike|puma|umbro|new balance|kappa|volt|diadora|joma|reebok)\b/i) || [])[1] || "",
+          cores: (p[1].match(/\b(azul|celeste|branc[ao]|pret[ao]|verde|vermelh[ao]|amarel[ao]|vinho|off-white|laranja|dourad[ao])\b/gi) || []).map((c) => c.toLowerCase()).slice(0, 2),
+          frases: [...(p[1].match(/'([^']{4,40})'/) || []).slice(1), ...lab.split(/\s*•\s*/).slice(1).map((x) => x.split("+")[0].replace(/["“”]/g, "").trim()).filter((x) => x && !/LUPA|^\d{1,2}$/i.test(x) && !/^(azul|amarelo|vinho|verde|vermelho|branco|preto|off-white)$/i.test(x))].slice(0, 2),
         };
-      });
-    } else {
-      const q = (base.match(/"([^"]{4,})"/) || [])[1] || stripEmoji(visual || mg).replace(/\(.*?\)/g, "").slice(0, 80);
-      const pessoa = roster.inText(q)[0];
-      items = [{ query: q.trim(), exige: pessoa ? [pessoa.key[pessoa.key.length - 1]] : teams.slice(0, 1).map((t) => t.nome.split(/[-\s]/)[0]), label: stripEmoji(quotedCaps(base)[0] || ""), anchor: pessoa ? pessoa.name : teams[0] ? teams[0].nome : "" }];
+        fotos.push({ ...kit(t, `${p[1]} ${p[2]}`, lab.toUpperCase().slice(0, 48), temaLinha), anchorFala: p[1] });
+      }
     }
-    if (items.length && items[0].query) add("fotos", { items }, items[0].anchor, "plate");
+    emSequencia = true;
+  } else if (!/vazio|ainda não|sem camisa/i.test(mg)) {
+    const temCamisa = /cabide|camisa|uniforme|manto|miniatura|vitrine|arara/i.test(`${mg} ${img}`) || /foto oficial|divulga[çc][ãa]o/i.test(img) || (modo === "IMG+VO" && !img);
+    // times citados no MG fora de placar ("placar BAHIA 2 x 1 REMO" não pede a camisa do Remo)
+    const timesMG = findTeams(mg.replace(/placar\s+"[^"]*"/gi, "").replace(/"[^"]*\d+\s*x\s*\d+[^"]*"/g, ""));
+    if (temCamisa && timesMG.length >= 2) {
+      // várias camisas lado a lado (miniaturas, vitrine)
+      fotos = timesMG.slice(0, 5).map((t) => kit(t, mg.split(/→|\n|;/).find((l) => findTeams(l).includes(t)) || ""));
+    } else if (temCamisa && /cabides|lado a lado|vitrine|alinhados/i.test(mg) && findTeams(F.FALA || "", { cap: true }).length >= 2) {
+      fotos = findTeams(F.FALA || "", { cap: true }).slice(0, 5).map((t) => kit(t, ""));
+    } else if (temCamisa && (timesMG[0] || ctx.timeBloco)) {
+      const t = timesMG[0] || ctx.timeBloco;
+      fotos = [kit(t, `${mg} ${img} ${ficha || ""}`)];
+    } else if (img && !/camisa/i.test(img)) {
+      // foto de apoio pedida no IMG (torcida, arquivo, estádio): busca pelo que está escrito + o time do bloco
+      const q = stripEmoji(img.replace(/\([^)]*\)/g, " ").replace(/^(v[íi]deo\/foto|fotos?( de arquivo)?|imagem)\s+(d[aoe]s?\s+)?/i, "").split(/[;.]/)[0]).replace(/\s+/g, " ").trim();
+      const t = ctx.timeBloco || findTeams(img)[0];
+      if (q.length >= 6) fotos = [{ query: `${q} ${t && !norm(q).includes(norm(t.nome).split(" ")[0]) ? t.nome : ""}`.trim(), exige: t ? [norm(t.nome).split(" ")[0].slice(0, 6)] : [], label: "", anchor: "", foto: true }];
+    } else if (visual) {
+      const q = (visual.match(/"([^"]{4,})"/) || [])[1] || stripEmoji(visual).replace(/\(.*?\)/g, "").slice(0, 80);
+      const pessoa = roster.inText(q)[0];
+      const t = findTeams(q)[0];
+      fotos = [{ query: q.trim(), exige: pessoa ? [pessoa.key[pessoa.key.length - 1]] : t ? [t.nome.split(/[-\s]/)[0]] : [], label: "", anchor: pessoa ? pessoa.name : t ? t.nome : "" }];
+    }
+  }
+  // a corrida de barras já mostra os times: sem fotos junto
+  const temBarras = [...`${mg}\n${F.GRAFICO || ""}`.matchAll(/^\s*[A-ZÀ-Ý][A-ZÀ-Ý .'-]{2,}\s+\d{1,3}(?:,\d+)?\s*%/gm)].length >= 3;
+  if (emSequencia) for (let k = comps.length - 1; k >= 0; k--) if (comps[k].type === "stamps" || comps[k].type === "cards") comps.splice(k, 1);
+  if (fotos.length && !temBarras && !comps.some((c) => ["cards", "pitch", "scoregrid"].includes(c.type))) {
+    const linhas = ficha ? ficha.split(/\s*•\s*/).map((x) => stripEmoji(x).replace(/\.$/, "").trim()).filter(Boolean) : [];
+    add("fotos", { items: fotos, seq: emSequencia, ficha: linhas.length >= 2 ? linhas.slice(0, 4) : null, kenburns: modo === "IMG+VO" }, fotos[0].anchor || "", "plate");
+  }
+
+  // número do ranking: NÚMERO "5" carimbando
+  const rk = mg.match(/N[ÚU]MERO\s+"(\d{1,2})"/i);
+  if (rk) comps.unshift({ type: "bignum", data: { text: rk[1], count: 1, color: "gold", fade: /fade|sem carimbo/i.test(mg) }, anchor: "", place: "plate", short: true });
+
+  // placa de nota (a nota é a que ele FALOU: "minha nota: 8")
+  if (/PLACA DE NOTA/i.test(mg)) {
+    const m = norm(seg.spoken || "").match(/\bnota\s*(?:e\s*)?(10|\d(?:[ ,.]\d)?)\b/) || norm(seg.spoken || "").match(/\bnota\s+(dez|nove|oito|sete|seis|cinco|quatro|tres|dois|zero)\b/);
+    const ext = { dez: "10", nove: "9", oito: "8", sete: "7", seis: "6", cinco: "5", quatro: "4", tres: "3", dois: "2", zero: "0" };
+    if (m) add("nota", { value: (ext[m[1]] || m[1]).replace(/\s/, ","), label: "MINHA NOTA" }, "nota", "plate");
+  }
+
+  // placar citado no MG: placar "ATLÉTICO 2 x 1 CRUZEIRO • COPA DO BRASIL"
+  const pl = mg.match(/placar\s+"([^"]*\d+\s*x\s*\d+[^"]*)"/i);
+  if (pl && !comps.some((c) => c.type === "scoreseq")) {
+    const m = pl[1].match(/^(.+?)\s+(\d+)\s*x\s*(\d+)\s+([^•]+?)(?:\s*•\s*(.+))?$/i);
+    const A = m && findTeams(m[1])[0];
+    const B = m && findTeams(m[4])[0];
+    if (A && B) add("scoreseq", { a: A.nome, b: B.nome, siglaA: A.sigla, siglaB: B.sigla, steps: [[Number(m[2]), Number(m[3])]], comp: stripEmoji(m[5] || "") }, A.nome, "plate");
+  }
+
+  // corrida de barras: "VASCO 29,4%" uma linha por time
+  const barras = [...mg.matchAll(/^\s*([A-ZÀ-Ý][A-ZÀ-Ý .'-]{2,})\s+(\d{1,3}(?:,\d+)?)\s*%/gm)]
+    .map((m) => ({ nome: m[1].trim(), valor: Number(m[2].replace(",", ".")), time: findTeams(m[1])[0] }))
+    .filter((b, i, all) => b.valor > 0 && all.findIndex((x) => x.nome === b.nome) === i);
+  if (barras.length >= 3) {
+    add("barras", { rows: barras.map((b) => ({ label: b.nome, value: b.valor, sigla: b.time ? b.time.sigla : "", anchor: b.time ? b.time.nome : b.nome })), coroa: /coroa/i.test(mg + (F.GRAFICO || "")), fonte: (tela.match(/"(Fonte:[^"]+)"/i) || [])[1] || "" }, barras[0].nome, "plate");
   }
 
   // textos de tela (CAM): batidas de palavra e chamadas
@@ -606,7 +673,32 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
 function roteiroComponents(roteiro) {
   const roster = buildRoster(roteiro);
   const games = roteiro.segments.flatMap((s) => gamesInFala(s.fields.FALA || "").flatMap((g) => g.games));
-  const per = roteiro.segments.map((s) => segmentComponents(s, roster, games, roteiro.title || ""));
+  // ano do vídeo: o do título, senão o mais recente citado nas falas (camisas 2026 = só 2026)
+  const anos = `${roteiro.title} ${roteiro.segments.map((s) => s.fields.FALA || "").join(" ")}`.match(/\b20\d\d\b/g) || [];
+  const tituloAno = (String(roteiro.title).match(/\b20\d\d\b/) || [])[0];
+  const agora = new Date().getFullYear();
+  const ano = tituloAno || String(Math.max(...anos.map(Number).filter((y) => y <= agora + 1), 0) || agora);
+  // tema de cada bloco (para achar a camisa EXATA): marca, cores, nome/inspiração e frases entre aspas
+  /** @type {Record<string, any>} */
+  const temas = {};
+  for (const s of roteiro.segments) {
+    const t = (temas[s.block] = temas[s.block] || { texto: "" });
+    t.texto += `\n${s.fields.FALA || ""}\n${s.fields.MG || ""}\n${s.fields.TELA || ""}`;
+  }
+  for (const k of Object.keys(temas)) {
+    const txt = temas[k].texto;
+    const ficha = ((txt.match(/FICHA(?: DA CAMISA)?\s*:\s*([^\n;]+)/i) || [])[1] || "").split(/\.\s|["“]/)[0];
+    const partes = ficha.split(/\s*•\s*/).map((x) => x.replace(/\.$/, "").trim());
+    temas[k] = {
+      marca: (txt.match(/\b(adidas|nike|puma|umbro|new balance|kappa|volt|diadora|joma|reebok|le coq|penalty|lupo|topper|mizuno|under armour|hummel|castore|macron)\b/i) || [])[1] || "",
+      cores: [...new Set((txt.match(/\b(azul-celeste|azul|celeste|laranja|preta|preto|verde esmeralda|verde|vermelha|vermelho|amarela|amarelo|branca|branco|vinho|dourad[ao]|off-white|bege|rosa|roxa|cinza)\b/gi) || []).map((c) => c.toLowerCase()))].slice(0, 3),
+      frases: [...new Set([...(partes[3] && !/^\d/.test(partes[3]) ? [partes[3]] : []), ...txt.split("\n").flatMap((l) => [...l.matchAll(/["“]([^"“”\n]*)["”]/g)].map((m) => m[1].trim())).filter((f) => f.length >= 4 && f.length <= 30 && /^\p{Lu}/u.test(f) && /\p{L}{3}/u.test(f) && !/\d\s*x\s*\d/.test(f) && !/^(número|pop|whoosh|ding|click|boing|hit)/i.test(f))])].slice(0, 3),
+    };
+  }
+  const per = roteiro.segments.map((s) => {
+    /** @type {any} */ (s).ctx = { ano, timeBloco: findTeams(s.block)[0] || null, tema: temas[s.block] || null };
+    return segmentComponents(s, roster, games, roteiro.title || "");
+  });
   // campinho contínuo no bloco
   per.forEach((p, i) => {
     const pitch = p.comps.find((c) => c.type === "pitch");
@@ -632,6 +724,18 @@ function roteiroComponents(roteiro) {
       per[i].comps.unshift({ type: "var", data: { label: (/** @type {any} */ (s).sub || "").replace(/:.*/, "").toUpperCase() }, anchor: "", place: "plate", short: true });
     }
   });
+  // mesmo time = mesma camisa: a busca de cada time usa a descrição mais completa do vídeo
+  // (a abertura e o resumo final citam só o time; o bloco dele tem marca, nome e cores)
+  /** @type {Record<string, any>} */
+  const melhor = {};
+  const peso = (/** @type {any} */ i) => (i.tema || []).length * 2 + (i.prefere || []).filter(Boolean).length;
+  for (const p of per) for (const c of p.comps) if (c.type === "fotos") for (const i of c.data.items || []) {
+    if (i.kit && i.sigla && (!melhor[i.sigla] || peso(i) > peso(melhor[i.sigla]))) melhor[i.sigla] = i;
+  }
+  for (const p of per) for (const c of p.comps) if (c.type === "fotos") for (const i of c.data.items || []) {
+    const m = i.kit && melhor[i.sigla];
+    if (m && m !== i) for (const k of ["query", "query2", "alternativas", "prefere", "tema", "evita", "nao", "marca", "ano"]) i[k] = m[k];
+  }
   return {
     segments: per,
     people: roster.list.map((p) => ({ name: p.name, team: p.team ? p.team.nome : "", sigla: p.team ? p.team.sigla : "", sofa: p.team ? p.team.sofa : null, rating: p.rating })),
