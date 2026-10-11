@@ -1492,3 +1492,208 @@ body.format-vertical .cta {
   top: -58px;
   font-size: 48px;
 }
+
+/* ---------- efeitos nas fotos das camisas ---------- */
+.foto-frame.antiga img:not(.fundo) {
+  filter: sepia(0.85) contrast(1.1) brightness(0.95);
+}
+.fx-grao {
+  position: absolute;
+  inset: 0;
+  opacity: 0.35;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+.fx-pulso {
+  position: absolute;
+  inset: 0;
+  mix-blend-mode: screen;
+  background: radial-gradient(ellipse at 50% 60%, rgba(255, 120, 20, 0.85), rgba(255, 60, 0, 0) 70%);
+}
+.fx-pulso.vermelho { background: radial-gradient(ellipse at 50% 60%, rgba(255, 40, 40, 0.85), rgba(255, 0, 0, 0) 70%); }
+.fx-pulso.azul { background: radial-gradient(ellipse at 50% 60%, rgba(60, 140, 255, 0.85), rgba(0, 60, 255, 0) 70%); }
+.fx-brilho {
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: 0;
+  width: 45%;
+  mix-blend-mode: screen;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0));
+}
+.fx-vazio {
+  position: absolute;
+  left: 50%;
+  top: 8%;
+  transform: translateX(-50%);
+  color: #ffd23b;
+  font-size: 150px;
+  text-shadow: 0 6px 24px rgba(0, 0, 0, 0.7);
+}
+.fx-spot {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse 42% 55% at 50% 46%, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.88) 100%);
+}
+.brasa {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff3b0 0%, #ffb020 40%, rgba(255, 80, 0, 0) 72%);
+  box-shadow: 0 0 14px 4px rgba(255, 120, 0, 0.55);
+}
+.lupa {
+  position: absolute;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #111;
+  box-shadow: 0 0 0 6px #fff, 0 0 0 11px #d4af37, 0 24px 60px rgba(0, 0, 0, 0.7);
+  transform-origin: 50% 50%;
+}
+.lupa img {
+  position: absolute;
+  max-width: none;
+}
+.lupa-txt {
+  position: absolute;
+  text-align: center;
+  color: #fff;
+  background: rgba(10, 10, 10, 0.88);
+  border-radius: 12px;
+  padding: 8px 12px;
+  box-shadow: inset 0 0 0 2px #d4af37;
+}
+/* ---------- efeitos por cima ---------- */
+.fx-black {
+  position: absolute;
+  inset: 0;
+}
+.fx-congela {
+  position: absolute;
+  inset: 0;
+  backdrop-filter: grayscale(1) contrast(1.25);
+  background: rgba(255, 255, 255, 0.04);
+}
+.fx-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+}
+.fx-interroga {
+  position: absolute;
+  color: #ffd23b;
+  -webkit-text-stroke: 6px #000;
+  text-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  line-height: 1;
+}
+.meme {
+  position: absolute;
+  filter: drop-shadow(0 14px 18px rgba(0, 0, 0, 0.55));
+}
+.meme svg {
+  width: 100%;
+  height: 100%;
+}
+.meme .pq {
+  width: 100%;
+  height: 82%;
+  margin-top: 9%;
+  border-radius: 50% 50% 46% 46%;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.45) 0 8%, rgba(255, 255, 255, 0) 22%),
+    radial-gradient(circle at 70% 65%, rgba(120, 60, 0, 0.35) 0 6%, rgba(0, 0, 0, 0) 14%),
+    radial-gradient(circle at 40% 70%, rgba(120, 60, 0, 0.3) 0 5%, rgba(0, 0, 0, 0) 12%),
+    radial-gradient(circle at 50% 40%, #f6d27a, #d99a2b 70%, #a8661a);
+}
+.etiqueta {
+  position: absolute;
+  min-width: 300px;
+  padding: 26px 40px 26px 70px;
+  border-radius: 14px 40px 40px 14px;
+  background: linear-gradient(160deg, #ffe27a, #d4af37);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.55), inset 0 0 0 3px rgba(0, 0, 0, 0.25);
+  transform-origin: 0 50%;
+}
+.etiqueta .furo {
+  position: absolute;
+  left: 22px;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  margin-top: -11px;
+  border-radius: 50%;
+  background: #222;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+.etiqueta .preco {
+  color: #111;
+  font-size: 64px;
+  white-space: nowrap;
+}
+.rota {
+  position: absolute;
+  left: 50px;
+  bottom: 140px;
+  padding: 22px 30px;
+  border-radius: 18px;
+  background: rgba(12, 12, 12, 0.86);
+  box-shadow: inset 0 0 0 2px rgba(255, 210, 59, 0.6), 0 20px 50px rgba(0, 0, 0, 0.6);
+}
+.rt-linha {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.rt-linha svg {
+  width: 300px;
+  height: 46px;
+}
+.rt-c {
+  color: #fff;
+  font-size: 36px;
+}
+.rt-num {
+  color: #ffd23b;
+  font-size: 96px;
+  line-height: 1;
+  margin-top: 8px;
+  text-align: center;
+}
+.varal-corda {
+  position: absolute;
+  left: -20px;
+  right: -20px;
+  height: 4px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #ddd, #fff, #ddd);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5);
+}
+.varal-cam {
+  position: absolute;
+  transform-origin: 50% 0;
+  filter: drop-shadow(0 16px 20px rgba(0, 0, 0, 0.55)) blur(0.4px);
+}
+.varal-cam img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 10px;
+}
+.varal-cam.sem-foto img {
+  padding: 18%;
+  box-sizing: border-box;
+  background: rgba(20, 20, 20, 0.8);
+}
+.varal-cam .pregador {
+  position: absolute;
+  left: 50%;
+  top: -14px;
+  width: 16px;
+  height: 34px;
+  margin-left: -8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #c08a4a, #e0b071);
+  z-index: 2;
+}

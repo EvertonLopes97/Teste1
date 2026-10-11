@@ -174,3 +174,28 @@ test("fotos de apoio: só com a pessoa citada no título (nada de Messi fixo)", 
   assert.equal(score({ title: "Lionel Messi 2021", width: 900, height: 900 }, k), -99);
   assert.ok(score({ title: "Hulk Atletico Mineiro 2021", width: 900, height: 900 }, k) > 5);
 });
+
+test("camisas: nota falada, lupa, efeitos, etiqueta e mapa saem do roteiro", () => {
+  const { notaFalada, segmentComponents } = require("../tools/roteiro/componentes");
+  assert.equal(notaFalada("minha nota pra essa camisa é nove e meio"), "9,5");
+  assert.equal(notaFalada("Minha nota: 8."), "8");
+  assert.equal(notaFalada("um golaço"), "");
+  const seg = (fields) => ({ fields: { MODO: "[IMG+VO]", FALA: "A camisa do Galo", ...fields }, ctx: { ano: "2026", timeBloco: null }, block: "1. Nº 5 — ATLÉTICO-MG" });
+  const roster = { list: [], get: () => null, inText: () => [] };
+  let r = segmentComponents(seg({ MG: 'LUPA DE DETALHE na gola, com o texto "GALO DOIDO"; depois no escudo.', IMG: "foto oficial da camisa do Atlético-MG", VFX: "brilho (light sweep) atravessando o tecido" }), roster);
+  const f = r.comps.find((c) => c.type === "fotos");
+  assert.deepEqual(f.data.lupas.map((l) => l.alvo), ["gola", "escudo"]);
+  assert.equal(f.data.lupas[0].texto, "GALO DOIDO");
+  assert.ok(f.data.brilho);
+  r = segmentComponents(seg({ MODO: "[MG+VO]", MG: 'mapa animado com uma seta de São Paulo ao Rio e o contador "+70.000"; selo "50 ANOS".' }), roster);
+  const rota = r.comps.find((c) => c.type === "rota");
+  assert.equal(rota.data.contador, "+70.000");
+  assert.equal(rota.data.para, "RIO");
+  r = segmentComponents(seg({ MODO: "[CAM]", VFX: 'no "cone de trânsito", um cone 3D cai do lado da sua cabeça (meme).', MG: 'etiqueta de preço "R$ 399,99"' }), roster);
+  assert.equal(r.comps.find((c) => c.type === "vfx").data.obj, "cone");
+  assert.equal(r.comps.find((c) => c.type === "vfx").anchor, "cone de trânsito");
+  assert.equal(r.comps.find((c) => c.type === "etiqueta").data.text, "R$ 399,99");
+  r = segmentComponents(seg({ MODO: "[CAM]", MG: "no lugar da PLACA DE NOTA, um coração verde simples em fade (sem número)." }), roster);
+  assert.ok(!r.comps.some((c) => c.type === "nota"));
+  assert.equal(r.comps.find((c) => c.type === "vfx").data.kind, "coracao");
+});

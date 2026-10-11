@@ -197,9 +197,21 @@ function directModes(plan, opts = {}) {
         // imagens achadas na internet (jogadores.py → jogadores.json "imagens"); sem imagem, sem placa
         d.items = d.items
           .map((it) => ({ ...it, file: (assets.imagens && assets.imagens[it.query] && assets.imagens[it.query].file) || "", crest: crestOf(it.sigla), at: rel(it.anchor ? nameTime(it.anchor, start - 0.3, end) ?? anchorT(it.anchor, start - 0.3, end) : null) }))
-          // rodada rápida: a camisa sem foto entra com o escudo (a arara não fica vazia)
-          .filter((it) => it.file || (d.seq && it.crest));
+          // camisa sem foto entra com o escudo do time (o comando do roteiro não some); foto de apoio sem imagem sai
+          .filter((it) => it.file || (it.kit && it.crest));
         if (!d.items.length) return;
+        // lupas de detalhe: cada uma quando ele fala da gola/escudo/patch (senão espalhadas no trecho)
+        if (d.lupas && d.lupas.length) {
+          const len = end - start;
+          d.lupas.forEach((l, k) => {
+            const t = rel(anchorT(l.anchor, start, end));
+            l.at = t !== undefined && t > 0.8 ? t : 1.2 + (k * (len - 1.6)) / d.lupas.length;
+            sfx.push({ t: start + l.at, kind: "whoosh_short" });
+          });
+          d.lupas.sort((a, b) => a.at - b.at);
+        }
+        // uma foto só: entra junto com a placa (a lupa/ficha dependem dela)
+        if (d.items.length === 1) d.items[0].at = 0.2;
         let prev = 0.2;
         for (const it of d.items) {
           if (it.at === undefined || it.at < prev - 0.05) it.at = prev;
@@ -252,6 +264,37 @@ function directModes(plan, opts = {}) {
           sfx.push({ t: st + t + 0.3, kind: "boom" });
           shakes.push({ t: st + t + 0.32, amp: 9 });
         });
+      } else if (c.type === "vfx") {
+        // efeito especial na palavra do roteiro: no "foi de preto", no "cone de trânsito"
+        const t = c.anchor ? anchorT(c.anchor, S - 0.3, E) : null;
+        const inteiro = ["escurecer", "coracao", "brasas"].includes(d.kind);
+        const st = inteiro ? S + (d.kind === "coracao" ? Math.min(1.5, (E - S) * 0.3) : 0) : t !== null ? t - 0.05 : S + Math.min(1.0, (E - S) * 0.3);
+        const dur = { blackout: 1.3, interrogacao: 1.7, meme: 2.4 }[d.kind] || E - st;
+        overlays.push({ type: "vfx", start: st, end: Math.min(inteiro ? E : E + 0.6, st + dur), data: d });
+        if (d.kind === "blackout") sfx.push({ t: st, kind: "boom" });
+        if (d.kind === "interrogacao") {
+          sfx.push({ t: st, kind: "glitch" });
+          shakes.push({ t: st + 0.1, amp: 6 });
+        }
+        if (d.kind === "meme") sfx.push({ t: st + 0.35, kind: "pop" });
+      } else if (c.type === "etiqueta") {
+        const t = anchorT(c.anchor, S, E);
+        const st = t !== null ? t - 0.2 : S + Math.min(1.2, (E - S) * 0.4);
+        overlays.push({ type: "etiqueta", start: st, end: Math.min(E + 0.3, st + 3.2), data: d });
+        sfx.push({ t: st, kind: "pop" }, { t: st + 0.5, kind: "ding" });
+      } else if (c.type === "rota") {
+        const t = c.anchor ? anchorT(c.anchor, S, E) : null;
+        const st = Math.max(S + 0.4, t !== null ? t - 1.2 : S + 0.6);
+        overlays.push({ type: "rota", start: st, end: E, data: d });
+        sfx.push({ t: st, kind: "whoosh" });
+      } else if (c.type === "varal") {
+        d.items = d.items
+          .map((it) => ({ ...it, file: (assets.imagens && assets.imagens[it.query] && assets.imagens[it.query].file) || "", crest: crestOf(it.sigla) }))
+          .filter((it) => it.file || it.crest);
+        if (!d.items.length) continue;
+        const st = S + 0.3;
+        overlays.push({ type: "varal", start: st, end: Math.min(E, st + Math.max(4, E - st)), data: d });
+        d.items.forEach((_, k) => sfx.push({ t: st + 0.15 + k * 0.22, kind: "whoosh_short" }));
       } else if (c.type === "stamps") {
         d.overlay = true;
         // cada selo na hora em que é falado ("anulado", "não é pênalti")

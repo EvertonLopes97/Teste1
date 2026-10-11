@@ -744,7 +744,7 @@
       fit: true,
       build(el, d, box) {
         bg(el, "vitrine");
-        const r = { items: [], seq: !!d.seq };
+        const r = { items: [], seq: !!d.seq, box };
         const portrait = box.h > box.w * 1.1;
         const labelH = 64;
         const fichaW = d.ficha && !d.seq && d.items.length === 1 ? (portrait ? 0 : box.w * 0.34) : 0;
@@ -764,7 +764,7 @@
           const k = d.seq ? 0 : i;
           const cx = x0 + (k % cols) * (fw + gap);
           const cy = y0 + Math.floor(k / cols) * (fh + labelH + gap);
-          const f = h("div", `foto-frame${d.kenburns ? " kb" : ""}${it.file ? "" : " sem-foto"}`);
+          const f = h("div", `foto-frame${d.kenburns ? " kb" : ""}${it.file ? "" : " sem-foto"}${d.antiga && it.file ? " antiga" : ""}`);
           Object.assign(f.style, { left: `${cx}px`, top: `${cy}px`, width: `${fw}px`, height: `${fh}px` });
           if (it.file) {
             const fundo = h("img", "fundo");
@@ -774,6 +774,12 @@
           const img = h("img");
           img.src = file(it.file || it.crest);
           f.appendChild(img);
+          // luz pulsando (sinalizador), brilho passando no tecido, grão de foto antiga
+          let pulso = null, brilho = null;
+          if (d.pulso && it.file) f.appendChild((pulso = h("div", `fx-pulso ${d.pulso}`)));
+          if (d.brilho && it.file) f.appendChild((brilho = h("div", "fx-brilho")));
+          if (d.antiga && it.file) f.appendChild(h("div", "fx-grao"));
+          if (it.vazio) f.appendChild(h("div", "fx-vazio anton", "?"));
           el.appendChild(f);
           let lb = null;
           if (it.label) {
@@ -783,8 +789,31 @@
             Object.assign(lb.style, { left: `${cx - 40}px`, top: `${cy + fh + 10}px`, width: `${fw + 80}px`, fontSize: `${Math.min(32, ((fw + 80) * 1.7) / Math.max(10, it.label.length))}px` });
             el.appendChild(lb);
           }
-          r.items.push({ f, img, lb, it });
+          r.items.push({ f, img, lb, it, pulso, brilho, cx, cy, fw, fh });
         });
+        // brasas subindo atrás da camisa
+        if (d.brasas) r.brasas = brasas(el, box, 46);
+        // spot de luz: a camisa "acende" no escuro
+        if (d.spot) el.appendChild((r.spot = h("div", "fx-spot")));
+        // lupa de detalhe (gola, escudo, patch...): círculo com a foto ampliada + texto
+        if (d.lupas && d.lupas.length && !d.seq) {
+          const alvo = r.items.find((x) => x.it.kit && x.it.file) || r.items.find((x) => x.it.file);
+          if (alvo) {
+            const tam = Math.min(alvo.fw, alvo.fh) * (portrait ? 0.62 : 0.56);
+            r.lupas = d.lupas.map((l) => {
+              const c = h("div", "lupa");
+              Object.assign(c.style, { width: `${tam}px`, height: `${tam}px` });
+              const zi = h("img");
+              zi.src = file(alvo.it.file);
+              c.appendChild(zi);
+              const t = l.texto ? h("div", "lupa-txt anton", l.texto) : null;
+              el.appendChild(c);
+              if (t) el.appendChild(t);
+              return { c, zi, t, l, tam, alvo };
+            });
+          }
+        }
+        if (d.lupas && r.lupas) r.lupas.forEach((x, i) => (x.fim = i + 1 < r.lupas.length ? r.lupas[i + 1].l.at : 1e9));
         if (fichaW || fichaH) {
           const fc = h("div", "ficha");
           if (portrait) Object.assign(fc.style, { left: "40px", right: "40px", top: `${box.h - fichaH - 10}px`, height: `${fichaH}px` });
@@ -832,6 +861,37 @@
           // zoom lento (Ken Burns)
           const kb = d.kenburns ? 0.12 : 0.05;
           x.img.style.transform = `scale(${(1 + kb * clamp((lt - at) / Math.max(1, dur))).toFixed(4)})`;
+          if (d.parado && !r.seq) x.f.style.transform = x.f.style.transform.replace(/rotate\([^)]*\)/, "");
+          if (x.pulso) x.pulso.style.opacity = String((0.25 + 0.35 * (0.5 + 0.5 * Math.sin(lt * 5.5))) * fade(lt, at + 0.3, 0.4));
+          if (x.brilho) {
+            const ciclo = ((lt - at - 0.6) % 2.6 + 2.6) % 2.6;
+            x.brilho.style.transform = `translateX(${(-120 + 240 * clamp(ciclo / 1.1)).toFixed(1)}%) skewX(-18deg)`;
+            x.brilho.style.opacity = String(lt > at + 0.6 && ciclo < 1.1 ? 1 : 0);
+          }
+        });
+        if (r.brasas) moverBrasas(r.brasas, lt, r.box);
+        if (r.spot) r.spot.style.opacity = String(1 - 0.55 * outCubic(prog(lt, 0.15, 0.7)));
+        if (r.lupas) r.lupas.forEach((x) => {
+          const on = lt >= x.l.at && lt < x.fim;
+          const q = on ? outBack(prog(lt, x.l.at, 0.4), 1.6) * (1 - inCubic(prog(lt, x.fim - 0.25, 0.25))) : 0;
+          const a = x.alvo;
+          const nw = a.img.naturalWidth || 1, nh = a.img.naturalHeight || 1;
+          const k = Math.min(a.fw / nw, a.fh / nh);
+          const dw = nw * k, dh = nh * k;
+          const P = ALVOS_XY[x.l.alvo] || [0.5, 0.45];
+          const px = a.cx + (a.fw - dw) / 2 + P[0] * dw, py = a.cy + (a.fh - dh) / 2 + P[1] * dh;
+          const zoom = 2.6;
+          // o círculo fica ao lado do detalhe (sem tampar), com a imagem ampliada centrada nele
+          const lado = px > a.cx + a.fw / 2 ? 1 : -1;
+          let lx = px + lado * x.tam * 0.55 - x.tam / 2, ly = py - x.tam * 0.35;
+          lx = Math.max(10, Math.min(r.box.w - x.tam - 10, lx));
+          ly = Math.max(10, Math.min(r.box.h - x.tam - 70, ly));
+          Object.assign(x.c.style, { left: `${lx}px`, top: `${ly}px`, opacity: String(clamp(q * 3)), transform: `scale(${Math.max(0.01, q).toFixed(3)})` });
+          Object.assign(x.zi.style, { width: `${dw * zoom}px`, height: `${dh * zoom}px`, left: `${x.tam / 2 - P[0] * dw * zoom}px`, top: `${x.tam / 2 - P[1] * dh * zoom}px` });
+          if (x.t) {
+            Object.assign(x.t.style, { left: `${Math.max(10, lx - 40)}px`, top: `${ly + x.tam + 12}px`, width: `${x.tam + 80}px`, opacity: String(fade(lt, x.l.at + 0.3, 0.2) * (on ? 1 : 0)) });
+            x.t.style.fontSize = `${Math.min(34, ((x.tam + 80) * 1.6) / Math.max(8, x.l.texto.length))}px`;
+          }
         });
         if (r.ficha) r.ficha.forEach((l, i) => {
           const q = outCubic(prog(lt, 0.5 + i * 0.45, 0.35));
@@ -933,6 +993,212 @@
           r.coroa.style.transform = `translateY(${(-40 * (1 - q)).toFixed(1)}px) scale(${q.toFixed(3)})`;
           r.coroa.style.left = r.rows[0].cr.style.left;
         }
+      },
+    };
+
+    // ---------------------------------------------------------------- partículas (brasas/faíscas)
+    function brasas(el, box, n) {
+      const ps = [];
+      let seed = 11;
+      const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+      for (let i = 0; i < n; i++) {
+        const p = h("div", "brasa");
+        const s = 4 + rnd() * 9;
+        Object.assign(p.style, { width: `${s}px`, height: `${s}px` });
+        el.appendChild(p);
+        ps.push({ p, x: rnd(), v: 0.12 + rnd() * 0.22, f: rnd() * 6.28, d: rnd() * 3, w: 20 + rnd() * 50 });
+      }
+      return ps;
+    }
+    function moverBrasas(ps, lt, box) {
+      for (const b of ps) {
+        const y = 1.05 - (((lt + b.d) * b.v) % 1.1);
+        const x = b.x * box.w + Math.sin(lt * 1.7 + b.f) * b.w;
+        b.p.style.transform = `translate(${x.toFixed(1)}px, ${(y * box.h).toFixed(1)}px)`;
+        b.p.style.opacity = String(clamp(Math.min(1, (1.05 - y) * 4) * (0.5 + 0.5 * Math.sin(lt * 9 + b.f)) * clamp(y * 3)));
+      }
+    }
+    const ALVOS_XY = { gola: [0.5, 0.17], escudo: [0.63, 0.3], patch: [0.37, 0.3], numer: [0.5, 0.45], costas: [0.5, 0.4], etiqueta: [0.5, 0.82], selo: [0.5, 0.22], estampa: [0.45, 0.5], tecido: [0.5, 0.55], manga: [0.15, 0.3], centro: [0.5, 0.45] };
+    /** posição ao lado da cabeça sem sair da tela; no 9:16 (sem espaço do lado) vai acima da cabeça */
+    function aoLadoDaCabeca(f, w, hgt, box, dy = 0) {
+      const lado = f.x > box.w / 2 ? -1 : 1;
+      let x = f.x + lado * (f.w * 0.75 + w * 0.55) - w / 2;
+      let y = f.y - hgt * 0.5 + dy;
+      const cabe = x >= 10 && x + w <= box.w - 10;
+      if (!cabe) {
+        x = Math.max(10, Math.min(box.w - w - 10, x));
+        // encostaria no rosto: sobe para cima da cabeça
+        if (x < f.x + f.w * 0.6 && x + w > f.x - f.w * 0.6) y = Math.max(20, f.y - f.w * 1.15 - hgt);
+      }
+      return { x, y, lado };
+    }
+    /** lado da tela com mais espaço livre (longe do rosto): +1 direita, -1 esquerda */
+    const ladoLivre = (box) => {
+      const f = window.__rosto;
+      return f && f.x > box.w / 2 ? -1 : 1;
+    };
+
+    // ---------------------------------------------------------------- efeitos especiais por cima
+    T.vfx = {
+      fit: true,
+      overlay: true,
+      build(el, d, box) {
+        const r = { box };
+        if (d.kind === "blackout") el.appendChild((r.b = h("div", "fx-black")));
+        else if (d.kind === "escurecer") el.appendChild((r.b = h("div", "fx-black")));
+        else if (d.kind === "brasas") r.ps = brasas(el, box, 40);
+        else if (d.kind === "interrogacao") {
+          el.appendChild((r.g = h("div", "fx-congela")));
+          el.appendChild((r.fl = h("div", "fx-flash")));
+          el.appendChild((r.t = h("div", "fx-interroga anton", d.text || "?!")));
+          r.t.style.fontSize = `${Math.min(box.w, box.h) * 0.34}px`;
+        } else if (d.kind === "meme") {
+          r.o = h("div", `meme meme-${d.obj}`);
+          if (d.obj === "cone") r.o.innerHTML = '<svg viewBox="0 0 100 120"><path d="M50 4 L82 100 L18 100 Z" fill="#ff6a00" stroke="#7a2e00" stroke-width="2"/><path d="M40 34 L60 34 L65 50 L35 50 Z M31 62 L69 62 L74 78 L26 78 Z" fill="#fff"/><rect x="6" y="98" width="88" height="14" rx="4" fill="#e85d00" stroke="#7a2e00" stroke-width="2"/></svg>';
+          else if (d.obj === "paodequeijo") r.o.innerHTML = '<div class="pq"></div>';
+          else r.o.textContent = "😂";
+          el.appendChild(r.o);
+        } else if (d.kind === "coracao") {
+          r.o = h("div", "meme coracao");
+          r.o.innerHTML = `<svg viewBox="0 0 100 90"><path d="M50 86 C20 62 4 46 4 26 C4 12 15 4 27 4 C38 4 46 11 50 19 C54 11 62 4 73 4 C85 4 96 12 96 26 C96 46 80 62 50 86 Z" fill="${d.cor || "#00a35a"}"/></svg>`;
+          el.appendChild(r.o);
+        }
+        return r;
+      },
+      update(r, d, lt, dur) {
+        const f = window.__rosto || { x: r.box.w / 2, y: r.box.h * 0.4, w: r.box.w * 0.11 };
+        if (d.kind === "blackout") {
+          // a tela apaga 0,3 s e a luz volta num spot que abre do centro
+          const R = 140 * outCubic(prog(lt, 0.3, 0.7));
+          r.b.style.background = lt < 0.3 ? "#000" : `radial-gradient(circle at 50% 45%, rgba(0,0,0,0) ${R * 0.6}%, rgba(0,0,0,0.92) ${R}%)`;
+          r.b.style.opacity = String(1 - prog(lt, dur - 0.35, 0.35));
+        } else if (d.kind === "escurecer") {
+          r.b.style.background = "#000";
+          r.b.style.opacity = String((d.nivel || 0.15) * fade(lt, 0, 0.6));
+        } else if (d.kind === "brasas") moverBrasas(r.ps, lt, r.box);
+        else if (d.kind === "interrogacao") {
+          const congela = lt < 0.9;
+          r.g.style.opacity = congela ? "1" : String(1 - prog(lt, 0.9, 0.2));
+          r.fl.style.opacity = String(1 - prog(lt, 0, 0.12));
+          const q = outBack(prog(lt, 0.08, 0.35), 2.4);
+          const tw = r.t.offsetWidth || 300, th = r.t.offsetHeight || 300;
+          const pos = aoLadoDaCabeca(f, tw, th, r.box, -f.w * 0.4);
+          const lado = pos.lado;
+          Object.assign(r.t.style, { left: `${pos.x + tw / 2}px`, top: `${pos.y + th / 2}px`, opacity: String(fade(lt, 0.08, 0.05) * (1 - prog(lt, dur - 0.3, 0.3))), transform: `translate(-50%,-50%) rotate(${lado * 8}deg) scale(${q.toFixed(3)})` });
+        } else if (d.kind === "meme") {
+          // do lado da cabeça: o cone CAI e quica; o pão de queijo gira
+          const tam = Math.min(f.w * 0.95, r.box.w * 0.3);
+          const pos = aoLadoDaCabeca(f, tam, tam, r.box, tam * 0.3);
+          const x = pos.x;
+          const yFim = pos.y;
+          const cai = d.obj === "cone" ? outBack(prog(lt, 0, 0.45), 1.4) : outCubic(prog(lt, 0, 0.35));
+          const y = d.obj === "cone" ? -tam + (yFim + tam) * cai : yFim;
+          const giro = d.obj === "paodequeijo" ? Math.cos(lt * 5) : 1;
+          Object.assign(r.o.style, { width: `${tam}px`, height: `${tam}px`, left: `${x}px`, top: `${y}px`, opacity: String((d.obj === "cone" ? 1 : fade(lt, 0, 0.2)) * (1 - prog(lt, dur - 0.3, 0.3))), transform: `scaleX(${giro.toFixed(3)}) scale(${d.obj === "cone" ? 1 : cai.toFixed(3)})` });
+        } else if (d.kind === "coracao") {
+          const tam = Math.min(f.w * 0.75, r.box.w * 0.25);
+          const pos = aoLadoDaCabeca(f, tam, tam, r.box, -tam * 0.2);
+          const bate = 1 + 0.06 * Math.max(0, Math.sin(lt * 4));
+          Object.assign(r.o.style, { width: `${tam}px`, height: `${tam}px`, left: `${pos.x}px`, top: `${pos.y}px`, opacity: String(0.9 * fade(lt, 0, 0.8) * (1 - prog(lt, dur - 0.6, 0.6))), transform: `scale(${bate.toFixed(3)})` });
+        }
+      },
+    };
+
+    // ---------------------------------------------------------------- etiqueta de preço balançando
+    T.etiqueta = {
+      fit: true,
+      overlay: true,
+      build(el, d, box) {
+        const r = { box };
+        r.w = h("div", "etiqueta");
+        r.w.append(h("div", "furo"), h("div", "preco anton", d.text || ""));
+        el.appendChild(r.w);
+        return r;
+      },
+      update(r, d, lt, dur) {
+        const f = window.__rosto || { x: r.box.w / 2, y: r.box.h * 0.4, w: r.box.w * 0.11 };
+        const ew = r.w.offsetWidth || 380, eh = r.w.offsetHeight || 120;
+        const pos = aoLadoDaCabeca(f, ew, eh, r.box, f.w * 0.2);
+        const lado = pos.lado;
+        const q = outBack(prog(lt, 0, 0.45), 1.8);
+        const ang = Math.sin(lt * 4) * 9 * Math.exp(-lt * 1.2);
+        Object.assign(r.w.style, { left: `${pos.x + ew / 2}px`, top: `${pos.y + eh / 2}px`, opacity: String(fade(lt, 0, 0.1) * (1 - prog(lt, dur - 0.3, 0.3))), transform: `translate(-50%,-50%) rotate(${(-8 * lado + ang).toFixed(2)}deg) scale(${q.toFixed(3)})` });
+      },
+    };
+
+    // ---------------------------------------------------------------- rota no mapa + contador (+70.000)
+    T.rota = {
+      fit: true,
+      overlay: true,
+      build(el, d, box) {
+        const r = {};
+        r.w = h("div", "rota");
+        const portrait = box.h > box.w * 1.1;
+        if (portrait) Object.assign(r.w.style, { left: "30px", right: "30px", bottom: "160px" });
+        if (d.de) {
+          r.w.innerHTML = `<div class="rt-linha"><span class="rt-c anton">${d.de}</span><svg viewBox="0 0 300 40" preserveAspectRatio="none"><path class="rt-p" d="M8 30 Q150 -10 292 30" fill="none" stroke="#ffd23b" stroke-width="5" stroke-dasharray="320" stroke-dashoffset="320" stroke-linecap="round"/><circle cx="8" cy="30" r="7" fill="#fff"/><circle class="rt-fim" cx="292" cy="30" r="8" fill="#ffd23b" opacity="0"/></svg><span class="rt-c anton">${d.para}</span></div>`;
+        }
+        if (d.contador) r.w.appendChild((r.n = h("div", "rt-num anton", "0")));
+        el.appendChild(r.w);
+        r.p = r.w.querySelector(".rt-p");
+        r.fim = r.w.querySelector(".rt-fim");
+        return r;
+      },
+      update(r, d, lt, dur) {
+        const q = outCubic(prog(lt, 0.2, 1.4));
+        r.w.style.opacity = String(fade(lt, 0, 0.2) * (1 - prog(lt, dur - 0.3, 0.3)));
+        r.w.style.transform = `translateY(${(30 * (1 - outCubic(prog(lt, 0, 0.35)))).toFixed(1)}px)`;
+        if (r.p) r.p.setAttribute("stroke-dashoffset", String(320 * (1 - q)));
+        if (r.fim) r.fim.setAttribute("opacity", q > 0.97 ? "1" : "0");
+        if (r.n) {
+          const alvo = Number(String(d.contador).replace(/\D/g, "")) || 0;
+          const v = Math.round(alvo * outCubic(prog(lt, 0.6, 1.8)));
+          r.n.textContent = `${/^\+/.test(d.contador) ? "+" : ""}${v.toLocaleString("pt-BR")}`;
+        }
+      },
+    };
+
+    // ---------------------------------------------------------------- varal: as camisas caem e penduram (abertura)
+    T.varal = {
+      fit: true,
+      overlay: true,
+      build(el, d, box) {
+        const r = { cs: [] };
+        const portrait = box.h > box.w * 1.1;
+        const n = d.items.length;
+        const f = window.__rosto;
+        // posições longe do rosto
+        const livres = [];
+        const faixa = f ? [f.x - f.w * 1.3, f.x + f.w * 1.3] : [box.w * 0.4, box.w * 0.6];
+        const cw = portrait ? box.w / (n + 0.6) : Math.min(230, (box.w - (faixa[1] - faixa[0])) / (n + 0.8));
+        const slots = [];
+        for (let x = cw * 0.7; x < box.w - cw * 0.5; x += cw * 1.02) if (portrait || x + cw / 2 < faixa[0] || x - cw / 2 > faixa[1]) slots.push(x);
+        while (slots.length > n) slots.splice(Math.floor(slots.length / 2), 1);
+        r.y0 = portrait ? box.h * 0.1 : 70;
+        r.corda = h("div", "varal-corda");
+        Object.assign(r.corda.style, { top: `${r.y0}px` });
+        el.appendChild(r.corda);
+        d.items.forEach((it, i) => {
+          const c = h("div", "varal-cam");
+          Object.assign(c.style, { width: `${cw * 0.92}px`, height: `${cw * 1.05}px`, left: `${(slots[i] ?? (i + 0.5) * cw) - cw * 0.46}px`, top: `${r.y0 + 6}px` });
+          const im = h("img");
+          im.src = file(it.file || it.crest);
+          if (!it.file) c.classList.add("sem-foto");
+          c.append(h("div", "pregador"), im);
+          el.appendChild(c);
+          r.cs.push(c);
+        });
+        return r;
+      },
+      update(r, d, lt, dur) {
+        r.corda.style.opacity = String(fade(lt, 0, 0.3) * (1 - prog(lt, dur - 0.4, 0.4)));
+        r.cs.forEach((c, i) => {
+          const at = 0.15 + i * 0.22;
+          const q = outBack(prog(lt, at, 0.5), 1.5);
+          const ang = Math.sin((lt - at) * 4.5 + i) * 7 * Math.exp(-(lt - at) * 1.4) + Math.sin(lt * 1.3 + i) * 1.5;
+          c.style.opacity = String(fade(lt, at, 0.1) * (1 - prog(lt, dur - 0.4, 0.4)));
+          c.style.transform = `translateY(${(-420 * (1 - q)).toFixed(1)}px) rotate(${(lt > at ? ang : 0).toFixed(2)}deg)`;
+        });
       },
     };
 

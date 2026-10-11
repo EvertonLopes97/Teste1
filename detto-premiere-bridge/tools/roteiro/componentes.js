@@ -96,6 +96,27 @@ function findTeams(text, o = {}) {
   return found.sort((a, b) => a.i - b.i).map((f) => f.team);
 }
 
+/**
+ * Nota que ele FALOU: "minha nota é 9", "nota 8,5", "dou nove e meio", "nota dez", "10 pra ela".
+ * Procura até ~6 palavras depois de "nota"; sem "nota", o último número de 0 a 10 do trecho.
+ * @param {string} fala
+ */
+function notaFalada(fala) {
+  const EXT = { dez: 10, nove: 9, oito: 8, sete: 7, seis: 6, cinco: 5, quatro: 4, tres: 3, dois: 2, duas: 2, um: 1, zero: 0 };
+  const t = norm(fala).replace(/(\d) (\d)\b/g, "$1,$2");
+  const num = "(10|\\d(?:,\\d{1,2})?|dez|nove|oito|sete|seis|cinco|quatro|tres|dois|duas|um|zero)(\\s+e\\s+meio|\\s+e\\s+meia)?";
+  const m = t.match(new RegExp(`\\bnota\\b(?:\\s+\\S+){0,5}?\\s+${num}\\b`)) ||
+    [...t.matchAll(/\b(10|\d(?:,\d{1,2})?)(\s+e\s+meio)?\b/g)].pop(); // sem "nota": o último número (só algarismos)
+  if (!m) return "";
+  let n = EXT[m[1]] !== undefined ? EXT[m[1]] : Number(m[1].replace(",", "."));
+  if (m[2]) n += 0.5;
+  if (!(n >= 0 && n <= 10)) return "";
+  return String(n).replace(".", ",");
+}
+
+/** onde fica cada detalhe na foto da camisa de frente (x, y em fração da imagem) */
+const ALVOS = { gola: [0.5, 0.17], escudo: [0.63, 0.3], patch: [0.37, 0.3], numer: [0.5, 0.45], costas: [0.5, 0.4], etiqueta: [0.5, 0.82], selo: [0.5, 0.22], estampa: [0.45, 0.5], tecido: [0.5, 0.55], manga: [0.15, 0.3], centro: [0.5, 0.45] };
+
 /** @param {string} sigla */
 const teamBySigla = (sigla) => TEAMS.find((t) => t.sigla === sigla.toUpperCase() || t.apelidos.includes(norm(sigla))) || null;
 
@@ -594,6 +615,10 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
       }
     }
     emSequencia = true;
+  } else if (/cabide vazio/i.test(mg)) {
+    // quem ainda não lançou: cabide vazio com o escudo e um "?"
+    const t = findTeams(mg)[0] || ctx.timeBloco;
+    if (t) fotos = [{ query: "", kit: true, vazio: true, sigla: t.sigla, label: `${t.nome.toUpperCase()} • AINDA NÃO LANÇOU`, anchor: t.nome }];
   } else if (!/vazio|ainda não|sem camisa/i.test(mg)) {
     const temCamisa = /cabide|camisa|uniforme|manto|miniatura|vitrine|arara/i.test(`${mg} ${img}`) || /foto oficial|divulga[çc][ãa]o/i.test(img) || (modo === "IMG+VO" && !img);
     // times citados no MG fora de placar ("placar BAHIA 2 x 1 REMO" não pede a camisa do Remo)
@@ -618,6 +643,19 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
       fotos = [{ query: q.trim(), exige: pessoa ? [pessoa.key[pessoa.key.length - 1]] : t ? [t.nome.split(/[-\s]/)[0]] : [], label: "", anchor: pessoa ? pessoa.name : t ? t.nome : "" }];
     }
   }
+  // comparação lado a lado: "1997" (foto da camisa antiga) | "2026" (camisa nova); "ao lado de uma foto de colar Pataxó"
+  const tBloco = (fotos[0] && fotos[0].kit && TEAMS.find((x) => x.sigla === fotos[0].sigla)) || ctx.timeBloco;
+  if (tBloco && /lado a lado|compara/i.test(mg)) {
+    const anosCmp = [...mg.matchAll(/"((?:19|20)\d\d)"/g)].map((m) => m[1]);
+    if (anosCmp.length >= 2) {
+      fotos = anosCmp.slice(0, 3).map((y) =>
+        y === ano && fotos[0] && fotos[0].kit
+          ? { ...fotos[0], label: y }
+          : { query: `camisa ${tBloco.nome} ${y}`, exige: [norm(tBloco.nome).split(/[-\s]/)[0], y], label: y, anchor: y, foto: true, sigla: tBloco.sigla });
+    }
+    const aoLado = mg.match(/ao lado de (?:uma |um )?foto d[eoa]s? ([^(.;,]+)/i);
+    if (aoLado && fotos[0]) fotos = [fotos[0], { query: stripEmoji(aoLado[1]).trim(), exige: [norm(aoLado[1]).split(" ").filter((w) => w.length >= 4).pop() || ""], label: "", anchor: aoLado[1].trim().split(" ").pop(), foto: true }];
+  }
   // a corrida de barras já mostra os times: sem fotos junto
   const temBarras = [...`${mg}\n${F.GRAFICO || ""}`.matchAll(/^\s*[A-ZÀ-Ý][A-ZÀ-Ý .'-]{2,}\s+\d{1,3}(?:,\d+)?\s*%/gm)].length >= 3;
   if (emSequencia) for (let k = comps.length - 1; k >= 0; k--) if (comps[k].type === "stamps" || comps[k].type === "cards") comps.splice(k, 1);
@@ -626,15 +664,67 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
     add("fotos", { items: fotos, seq: emSequencia, ficha: linhas.length >= 2 ? linhas.slice(0, 4) : null, kenburns: modo === "IMG+VO" }, fotos[0].anchor || "", "plate");
   }
 
+  // selo junto da foto: vai por cima dela ("50 ANOS" sobre a foto da Invasão), não numa tela à parte
+  if (comps.some((c) => c.type === "fotos")) for (const c of comps) if (c.type === "stamps") c.place = "overlay";
+  // efeitos em cima da foto da camisa: lupa de detalhe, filtro antigo, brilho passando, luz pulsando, brasas, spot
+  const fc = comps.find((c) => c.type === "fotos");
+  if (fc) {
+    const lupas = [...mg.matchAll(/LUPA(?: DE DETALHE)?\s+(?:n[oa]s?|em)\s+([^,.;"(]+?)(?:\s*,?\s*com o texto\s+"([^"]+)")?(?=[,.;(]|\s+ao lado|\s+com|$)/gim)];
+    // "LUPA no patch (...); depois na etiqueta; depois no selo das costas"
+    const depois = lupas.length ? [...mg.slice((lupas[lupas.length - 1].index || 0)).matchAll(/depois\s+(?:LUPA\s+)?n[oa]s?\s+([a-zçãéêíóú ]+?)(?=[,.;(]|$)/gim)] : [];
+    const todas = [...lupas.map((m) => [m[1], m[2]]), ...depois.map((m) => [m[1], ""])];
+    if (todas.length && !fc.data.seq) {
+      const vistos = new Set();
+      fc.data.lupas = todas
+        .map(([alvoTxt, texto]) => {
+          const alvo = norm(alvoTxt).replace(/^(a|o|as|os)\s+/, "").trim();
+          const k = Object.keys(ALVOS).find((x) => alvo.includes(x)) || "centro";
+          return { alvo: k, texto: stripEmoji(texto || "").toUpperCase(), anchor: alvo.split(" ")[0] };
+        })
+        .filter((l) => !vistos.has(l.alvo) && vistos.add(l.alvo))
+        .slice(0, 3);
+    }
+    if (/s[ée]pia|foto antiga|gr[ãa]o/i.test(vfx)) fc.data.antiga = true;
+    if (/light sweep|brilho[^.]*atravessando|reflexo de luz/i.test(`${vfx} ${img}`)) fc.data.brilho = true;
+    if (/pulsando|luz de sinalizador/i.test(vfx)) fc.data.pulso = (vfx.match(/gradiente\s+(\w+)/i) || [])[1] || "laranja";
+    if (/brasas|fa[íi]scas/i.test(vfx)) fc.data.brasas = true;
+    if (/spot de luz|acende com um spot/i.test(vfx)) fc.data.spot = true;
+    if (/sem balan[çc]ar|parado/i.test(mg)) fc.data.parado = true;
+  }
+
   // número do ranking: NÚMERO "5" carimbando
   const rk = mg.match(/N[ÚU]MERO\s+"(\d{1,2})"/i);
   if (rk) comps.unshift({ type: "bignum", data: { text: rk[1], count: 1, color: "gold", fade: /fade|sem carimbo/i.test(mg) }, anchor: "", place: "plate", short: true });
 
-  // placa de nota (a nota é a que ele FALOU: "minha nota: 8")
-  if (/PLACA DE NOTA/i.test(mg)) {
-    const m = norm(seg.spoken || "").match(/\bnota\s*(?:e\s*)?(10|\d(?:[ ,.]\d)?)\b/) || norm(seg.spoken || "").match(/\bnota\s+(dez|nove|oito|sete|seis|cinco|quatro|tres|dois|zero)\b/);
-    const ext = { dez: "10", nove: "9", oito: "8", sete: "7", seis: "6", cinco: "5", quatro: "4", tres: "3", dois: "2", zero: "0" };
-    if (m) add("nota", { value: (ext[m[1]] || m[1]).replace(/\s/, ","), label: "MINHA NOTA" }, "nota", "plate");
+  // efeitos especiais por cima (câmera ou gráfico), cada um na palavra entre aspas: no "foi de preto"
+  const deixa = (/** @type {RegExp} */ re) => {
+    const m = vfx.match(re);
+    if (!m) return "";
+    const antes = vfx.slice(0, m.index).split(/[\n;]/).pop() || "";
+    return ((antes.match(/no\s+"([^"]+)"/i) || vfx.slice(m.index).match(/no\s+"([^"]+)"/i) || [])[1] || "").replace(/[?!]/g, "");
+  };
+  if (/blackout|tela inteira\s+"?apaga/i.test(vfx)) add("vfx", { kind: "blackout" }, deixa(/blackout|apaga/i), "overlay");
+  if (/record scratch|congelando|"\?!"/i.test(vfx)) add("vfx", { kind: "interrogacao", text: "?!" }, deixa(/record scratch|congel|\?!/i), "overlay");
+  const meme = vfx.match(/(?:um|uma)\s+([\wçãéêíóú ]+?)\s+3D\s+(?:cai|gira|aparece)/i);
+  if (meme) add("vfx", { kind: "meme", obj: /cone/i.test(meme[1]) ? "cone" : /p[ãa]o de queijo/i.test(meme[1]) ? "paodequeijo" : "emoji", label: meme[1].trim() }, deixa(/3D/i), "overlay");
+  if (/cora[çc][ãa]o/i.test(mg)) add("vfx", { kind: "coracao", cor: /verde/i.test(mg) ? "#00a35a" : "#e5322d" }, "", "overlay");
+  if (/escurecer|ilumina[çc][ãa]o mais baixa/i.test(vfx)) add("vfx", { kind: "escurecer", nivel: Number((vfx.match(/(\d{1,2})\s*%/) || [])[1] || 15) / 100 }, "", "overlay");
+  if (/brasas|fa[íi]scas/i.test(vfx) && !fc) add("vfx", { kind: "brasas" }, "", "overlay");
+  // etiqueta de preço "R$ 399,99" e chamada com ícone: ícone de luva + "ESTREIA COM OS GOLEIROS"
+  const preco = mg.match(/etiqueta de pre[çc]o\s+"([^"]+)"/i);
+  if (preco) add("etiqueta", { text: preco[1] }, preco[1].replace(/[^\d,]/g, "").split(",")[0], "overlay");
+  const chamada = mg.match(/[íi]cone de (\w+)\s*\+\s*"([^"]{4,40})"/i);
+  if (chamada) add("headline", { lines: [{ text: stripEmoji(chamada[2]), box: false }] }, chamada[2], "overlay");
+  // mapa: seta de São Paulo ao Rio + contador "+70.000"
+  const mapa = mg.match(/mapa[^.]*?de\s+([A-ZÀ-Ý][\wÀ-ú ]+?)\s+a[o]?\s+([A-ZÀ-Ý][\wÀ-ú]+)/);
+  const cont = mg.match(/contador\s+"([+\d.]+)"/i);
+  if (mapa || cont) add("rota", { de: mapa ? mapa[1].trim().toUpperCase() : "", para: mapa ? mapa[2].trim().toUpperCase() : "", contador: cont ? cont[1] : "" }, cont ? cont[1].replace(/\D/g, "").slice(0, 2) : "", "overlay");
+
+  // placa de nota (a nota é a que ele FALOU: "minha nota: 8"); "no lugar da placa de nota, um coração" = sem nota
+  if (/PLACA DE NOTA/i.test(mg) && !/no lugar da PLACA DE NOTA/i.test(mg)) {
+    const v = notaFalada(seg.spoken || F.FALA || "");
+    if (v) add("nota", { value: v, label: "MINHA NOTA" }, "nota", "plate");
+    else ajustes.push("PLACA DE NOTA: não achei a nota na fala (diga \"nota 9\", \"nove e meio\"...)");
   }
 
   // placar citado no MG: placar "ATLÉTICO 2 x 1 CRUZEIRO • COPA DO BRASIL"
@@ -659,7 +749,8 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
     const q = quotedCaps(tela).map(stripEmoji).filter(Boolean);
     const cta = /SEGUI|COMENT|CURT|LIKE|COMPARTILH|INSCREV/i.test(tela);
     if (cta) add("cta", { label: q.find((x) => !/^SEGUIR$/.test(x)) || (/COMENT/i.test(tela) ? "COMENTA AÍ" : "DEIXA O LIKE"), button: /SEGUI/i.test(tela) ? "SEGUIR" : /LIKE|CURT/i.test(tela) ? "CURTIR" : "SEGUIR" }, "segue comenta curte like compartilha", "overlay");
-    else if (q.length) add("headline", { lines: q[0].split(/\s*[•|]\s*/).filter(Boolean).map((t, i, arr) => ({ text: t, box: arr.length > 1 && i === Math.floor(arr.length / 2) })) }, q[0], modo === "CAM" ? "overlay" : "plate");
+    // com foto na tela, o texto entra POR CIMA dela ("O BRASIL SEMPRE ESTEVE AQUI" sobre a camisa)
+    else if (q.length) add("headline", { lines: q[0].split(/\s*[•|]\s*/).filter(Boolean).map((t, i, arr) => ({ text: t, box: arr.length > 1 && i === Math.floor(arr.length / 2) })) }, q[0], modo === "CAM" || comps.some((c) => c.type === "fotos") ? "overlay" : "plate");
   }
 
   return { modo, vfx: hasVfx, lance, comps, ajustes };
@@ -724,16 +815,30 @@ function roteiroComponents(roteiro) {
       per[i].comps.unshift({ type: "var", data: { label: (/** @type {any} */ (s).sub || "").replace(/:.*/, "").toUpperCase() }, anchor: "", place: "plate", short: true });
     }
   });
+  // abertura: "as 5 camisas caindo de cima e pendurando atrás de você num varal" = as camisas do ranking
+  roteiro.segments.forEach((s, i) => {
+    const v = `${s.fields.VFX || ""} ${s.fields.EFEITO || ""}`;
+    if (!/varal|camisas caindo/i.test(v)) return;
+    const n = Number((v.match(/(\d)\s+camisas/) || [])[1]) || 5;
+    const ranking = [];
+    per.forEach((p) => {
+      if (!p.comps.some((c) => c.type === "bignum" && c.data.color === "gold")) return;
+      const f = p.comps.find((c) => c.type === "fotos");
+      const it = f && f.data.items.find((x) => x.kit);
+      if (it && !ranking.some((r) => r.sigla === it.sigla)) ranking.push({ ...it, label: "" });
+    });
+    if (ranking.length) per[i].comps.push({ type: "varal", data: { items: ranking.slice(0, n) }, anchor: "", place: "overlay" });
+  });
   // mesmo time = mesma camisa: a busca de cada time usa a descrição mais completa do vídeo
   // (a abertura e o resumo final citam só o time; o bloco dele tem marca, nome e cores)
   /** @type {Record<string, any>} */
   const melhor = {};
   const peso = (/** @type {any} */ i) => (i.tema || []).length * 2 + (i.prefere || []).filter(Boolean).length;
-  for (const p of per) for (const c of p.comps) if (c.type === "fotos") for (const i of c.data.items || []) {
-    if (i.kit && i.sigla && (!melhor[i.sigla] || peso(i) > peso(melhor[i.sigla]))) melhor[i.sigla] = i;
+  for (const p of per) for (const c of p.comps) if (c.type === "fotos" || c.type === "varal") for (const i of c.data.items || []) {
+    if (i.kit && i.query && i.sigla && (!melhor[i.sigla] || peso(i) > peso(melhor[i.sigla]))) melhor[i.sigla] = i;
   }
-  for (const p of per) for (const c of p.comps) if (c.type === "fotos") for (const i of c.data.items || []) {
-    const m = i.kit && melhor[i.sigla];
+  for (const p of per) for (const c of p.comps) if (c.type === "fotos" || c.type === "varal") for (const i of c.data.items || []) {
+    const m = i.kit && i.query && melhor[i.sigla];
     if (m && m !== i) for (const k of ["query", "query2", "alternativas", "prefere", "tema", "evita", "nao", "marca", "ano"]) i[k] = m[k];
   }
   return {
@@ -742,4 +847,4 @@ function roteiroComponents(roteiro) {
   };
 }
 
-module.exports = { roteiroComponents, segmentComponents, buildRoster, normModo, findTeam, findTeams, gamesInFala, mentions, norm, stripEmoji, TEAMS };
+module.exports = { ALVOS, notaFalada, roteiroComponents, segmentComponents, buildRoster, normModo, findTeam, findTeams, gamesInFala, mentions, norm, stripEmoji, TEAMS };

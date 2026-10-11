@@ -94,12 +94,14 @@ def main():
           "--words", job / "words.json", "--gap", "0.8", "--job", video.stem, "--out", job / "EDIT_PLAN.json",
           "--report", job / "alinhamento.json", "--ajustes", job / "ajustes.txt"])
     plano = json.loads((job / "EDIT_PLAN.json").read_text(encoding="utf-8"))
-    if (plano.get("meta") or {}).get("people"):
-        # fotos dos jogadores e escudos, conferidos pelo elenco atual de cada time
-        try:
-            roda([py, T / "jogadores.py", job / "EDIT_PLAN.json"])
-        except subprocess.CalledProcessError:
-            print("Aviso: não consegui buscar as fotos dos jogadores (sem internet?). Os cards saem com as iniciais.")
+    # SEMPRE: fotos dos jogadores, escudos e as imagens pedidas no roteiro (camisas, fotos de apoio)
+    # (antes só rodava quando o roteiro tinha jogador; no vídeo das camisas ficava sem nenhuma imagem)
+    try:
+        roda([py, T / "jogadores.py", job / "EDIT_PLAN.json"])
+    except subprocess.CalledProcessError:
+        print("Aviso: não consegui buscar as fotos/imagens (sem internet?). Camisa sem foto sai com o escudo.")
+    if (job / "imagens_conferir.jpg").exists():
+        print(f"Imagens escolhidas: {job / 'imagens_conferir.jpg'}")
     base = ["node", T / "render-dynamic.js", job / "EDIT_PLAN.json", "--video", video, "--face", job / "face.json",
             "--fonts", PONTE / "fonts", "--work", job / "tmp"] + (["--sfx", a.sfx] if a.sfx else [])
     trecho = ["--from", "0", "--to", "60"] if a.teste else []
