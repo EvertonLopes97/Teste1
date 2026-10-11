@@ -352,11 +352,14 @@ def main():
                 uniforme = q2.replace("terceira camisa", "terceiro uniforme").replace("segunda camisa", "segundo uniforme")
                 # todas as buscas juntas; fica a imagem que mais bate (nome da camisa, ano, site de camisas)
                 if not r:
+                    print(f"  procurando: {it.get('label') or q}", flush=True)
                     r = buscar(q, it.get("exige") or [], log=lambda m: None, alternativas=alt[:2],
                                prefere=it.get("prefere") or [], kit=bool(it.get("kit")), evita=it.get("evita") or [],
                                ano=it.get("ano") if it.get("kit") else None, tema=it.get("tema") or [], nao=it.get("nao") or [],
                                extras=[q2, uniforme, ingles] if it.get("kit") else [], marca=it.get("marca") or "")
                 if r:
+                    if not ja.get(mesma):
+                        print(f"    ok: {(r.get('pagina') or r.get('file') or '')[:70]}", flush=True)
                     out["imagens"][q] = r
                     ja.setdefault(mesma, r)
                 else:
