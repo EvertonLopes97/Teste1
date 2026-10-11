@@ -252,7 +252,7 @@ function buildPlan(roteiro, opts) {
           ? "win"
           : "",
       ...(comp
-        ? { modo: comp.segments[i].modo, lance: comp.segments[i].lance, comps: comp.segments[i].comps, sub: /** @type {any} */ (seg).sub || "", fala: seg.fields.FALA || "" }
+        ? { modo: comp.segments[i].modo, lance: comp.segments[i].lance, comps: comp.segments[i].comps, ajustes: comp.segments[i].ajustes || [], sub: /** @type {any} */ (seg).sub || "", fala: /** @type {any} */ (seg).spoken || seg.fields.FALA || "" }
         : {}),
     });
 

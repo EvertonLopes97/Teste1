@@ -71,6 +71,28 @@ function findTeam(text, o = {}) {
   }
   return best ? best.team : null;
 }
+/**
+ * Todos os clubes citados, na ordem do texto. cap: só com inicial maiúscula (fala).
+ * @param {string} text @param {{cap?: boolean}} [o]
+ */
+function findTeams(text, o = {}) {
+  const plain = String(text || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const found = [];
+  for (const team of TEAMS) {
+    let best = Infinity;
+    for (const ap of team.apelidos) {
+      if (ap.length <= 3) continue;
+      const re = new RegExp(`(^|[^\\p{L}])(${ap.replace(/[-\s]+/g, "[-\\s]+")})(?![\\p{L}])`, "giu");
+      for (const m of plain.matchAll(re)) {
+        if (o.cap && !/^\p{Lu}/u.test(m[2])) continue;
+        best = Math.min(best, (m.index || 0) + m[1].length);
+      }
+    }
+    if (best < Infinity) found.push({ team, i: best });
+  }
+  return found.sort((a, b) => a.i - b.i).map((f) => f.team);
+}
+
 /** @param {string} sigla */
 const teamBySigla = (sigla) => TEAMS.find((t) => t.sigla === sigla.toUpperCase() || t.apelidos.includes(norm(sigla))) || null;
 
@@ -307,8 +329,11 @@ function gamesInFala(fala) {
  * Componentes de um trecho.
  * @param {any} seg @param {Roster} roster @param {any[]} [games] jogos citados no roteiro todo
  */
-function segmentComponents(seg, roster, games = []) {
-  const F = seg.fields;
+function segmentComponents(seg, roster, games = [], titulo = "") {
+  // o que ele FALOU de verdade (transcrição alinhada) vale mais que a FALA escrita no roteiro
+  const F = { ...seg.fields, ...(seg.spoken ? { FALA: seg.spoken } : {}) };
+  /** @type {string[]} */
+  const ajustes = [];
   const mg = [F.MG, F.GRAFICO].filter(Boolean).join("\n");
   const vfx = [F.VFX, F.EFEITO].filter(Boolean).join("\n");
   const tela = F.TELA || "";
@@ -425,6 +450,26 @@ function segmentComponents(seg, roster, games = []) {
     }
     // lance sem vídeo: cards de quem é citado na fala
     if (!list.length && lance && !comps.length) list = roster.inText(F.FALA || "").filter((p) => p.rating != null && alone(F.FALA || "", p)).slice(0, 2).map((p) => card(p, p.rating));
+    // fala diferente do roteiro: o card acompanha o que foi DITO (sai quem não foi citado,
+    // entra quem foi citado e tem nota no roteiro)
+    if (seg.spoken && list.length && !lance) {
+      const ditos = roster.inText(seg.spoken).filter((p) => alone(seg.spoken, p));
+      const nomes = ditos.map((p) => p.name);
+      // só mexe em quem estava ESCRITO na FALA do roteiro (o card citado só no MG fica)
+      const escritos = roster.inText(seg.fields.FALA || "").map((p) => p.name);
+      if (list.some((c) => nomes.includes(c.name))) {
+        const fora = list.filter((c) => !nomes.includes(c.name) && escritos.includes(c.name) && c.rating != null);
+        if (fora.length && fora.length < list.length) {
+          list = list.filter((c) => !fora.includes(c));
+          ajustes.push(`cards: tirei ${fora.map((c) => c.name).join(", ")} (você não citou)`);
+        }
+        const novos = ditos.filter((p) => p.rating != null && !escritos.includes(p.name) && !list.some((c) => c.name === p.name)).slice(0, Math.max(0, 6 - list.length));
+        if (novos.length) {
+          list.push(...novos.map((p) => card(p, p.rating)));
+          ajustes.push(`cards: entrou ${novos.map((p) => p.name).join(", ")} (você citou)`);
+        }
+      }
+    }
     // cartão vermelho: vale para quem é citado na mesma frase ("card do Pérez ... cartão vermelho")
     for (const sent of all.split(/\n|\.\s|;|→/)) {
       if (!/cart[ãa]o vermelho|glitch vermelho/i.test(sent)) continue;
@@ -490,6 +535,29 @@ function segmentComponents(seg, roster, games = []) {
     if (options.length >= 2) add("poll", { question: question.toUpperCase(), options: options.slice(0, 3) }, "", "overlay");
   }
 
+  // fotos da internet: camisas/uniformes dos times citados, ou o que o VISUAL pedir
+  const visual = F.VISUAL && !/^facecam/i.test(F.VISUAL.trim()) ? F.VISUAL : "";
+  const pedeFoto = /camisa|uniforme|manto|foto|imagem/i.test(mg) || visual;
+  if (pedeFoto && !comps.some((c) => ["cards", "pitch", "scoregrid", "fotos"].includes(c.type))) {
+    const base = `${mg} ${visual}`;
+    const ano = (base.match(/\b20\d\d\b/) || (F.FALA || "").match(/\b20\d\d\b/) || [String(new Date().getFullYear())])[0];
+    // o tema do vídeo vale para todos os trechos ("CAMISAS 3 DOS TIMES" → terceira camisa)
+    const tema = `${base} ${F.FALA || ""} ${titulo}`;
+    const qual = /camisas?\s*(3|tr[êe]s)\b|terceir|third/i.test(tema) ? "terceira camisa" : /camisas?\s*(2|dois)\b|segund|reserva|away/i.test(tema) ? "segunda camisa" : "camisa";
+    let teams = findTeams(base);
+    if (!teams.length) teams = findTeams(F.FALA || "", { cap: true });
+    /** @type {any[]} */
+    let items = [];
+    if (/camisa|uniforme|manto/i.test(base) && teams.length) {
+      items = teams.slice(0, 3).map((t) => ({ query: `${qual} ${t.nome} ${ano}`, exige: [t.nome.split(/[-\s]/)[0]], label: `${t.nome.toUpperCase()} • ${qual.toUpperCase()}`, anchor: t.nome, sigla: t.sigla }));
+    } else {
+      const q = (base.match(/"([^"]{4,})"/) || [])[1] || stripEmoji(visual || mg).replace(/\(.*?\)/g, "").slice(0, 80);
+      const pessoa = roster.inText(q)[0];
+      items = [{ query: q.trim(), exige: pessoa ? [pessoa.key[pessoa.key.length - 1]] : teams.slice(0, 1).map((t) => t.nome.split(/[-\s]/)[0]), label: stripEmoji(quotedCaps(base)[0] || ""), anchor: pessoa ? pessoa.name : teams[0] ? teams[0].nome : "" }];
+    }
+    if (items.length && items[0].query) add("fotos", { items }, items[0].anchor, "plate");
+  }
+
   // textos de tela (CAM): batidas de palavra e chamadas
   if (tela && !/ENQUETE/.test(tela.toUpperCase())) {
     const q = quotedCaps(tela).map(stripEmoji).filter(Boolean);
@@ -498,7 +566,7 @@ function segmentComponents(seg, roster, games = []) {
     else if (q.length) add("headline", { lines: q[0].split(/\s*[•|]\s*/).filter(Boolean).map((t, i, arr) => ({ text: t, box: arr.length > 1 && i === Math.floor(arr.length / 2) })) }, q[0], modo === "CAM" ? "overlay" : "plate");
   }
 
-  return { modo, vfx: hasVfx, lance, comps };
+  return { modo, vfx: hasVfx, lance, comps, ajustes };
 }
 
 /**
@@ -509,7 +577,7 @@ function segmentComponents(seg, roster, games = []) {
 function roteiroComponents(roteiro) {
   const roster = buildRoster(roteiro);
   const games = roteiro.segments.flatMap((s) => gamesInFala(s.fields.FALA || "").flatMap((g) => g.games));
-  const per = roteiro.segments.map((s) => segmentComponents(s, roster, games));
+  const per = roteiro.segments.map((s) => segmentComponents(s, roster, games, roteiro.title || ""));
   // campinho contínuo no bloco
   per.forEach((p, i) => {
     const pitch = p.comps.find((c) => c.type === "pitch");
@@ -541,4 +609,4 @@ function roteiroComponents(roteiro) {
   };
 }
 
-module.exports = { roteiroComponents, segmentComponents, buildRoster, normModo, findTeam, gamesInFala, mentions, norm, stripEmoji, TEAMS };
+module.exports = { roteiroComponents, segmentComponents, buildRoster, normModo, findTeam, findTeams, gamesInFala, mentions, norm, stripEmoji, TEAMS };

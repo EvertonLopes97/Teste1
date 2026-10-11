@@ -178,6 +178,18 @@ function directModes(plan, opts = {}) {
         shakes.push({ t: start + 0.45, amp: 7 });
       } else if (c.type === "vinheta") {
         sfx.push({ t: start + 0.15, kind: "hit" });
+      } else if (c.type === "fotos") {
+        // imagens achadas na internet (jogadores.py → jogadores.json "imagens"); sem imagem, sem placa
+        d.items = d.items
+          .map((it) => ({ ...it, file: (assets.imagens && assets.imagens[it.query] && assets.imagens[it.query].file) || "", crest: crestOf(it.sigla), at: rel(it.anchor ? nameTime(it.anchor, start - 0.3, end) ?? anchorT(it.anchor, start - 0.3, end) : null) }))
+          .filter((it) => it.file);
+        if (!d.items.length) return;
+        let prev = 0.2;
+        for (const it of d.items) {
+          if (it.at === undefined || it.at < prev - 0.05) it.at = prev;
+          prev = it.at + 0.4;
+          sfx.push({ t: start + it.at, kind: "pop" });
+        }
       }
       if (c.type !== "var") sfx.push({ t: start, kind: "whoosh" });
       plates.push(p);

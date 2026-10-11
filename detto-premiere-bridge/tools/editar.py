@@ -85,7 +85,7 @@ def main():
         roda([py, T / "roteiro_ia.py", job / "words.json", job / "roteiro.txt", "--titulo", a.titulo])
     roda(["node", T / "roteiro-to-plan.js", job / "roteiro.txt", "--media", video, "--duration", f"{dur:.2f}",
           "--words", job / "words.json", "--gap", "0.8", "--job", video.stem, "--out", job / "EDIT_PLAN.json",
-          "--report", job / "alinhamento.json"])
+          "--report", job / "alinhamento.json", "--ajustes", job / "ajustes.txt"])
     plano = json.loads((job / "EDIT_PLAN.json").read_text(encoding="utf-8"))
     if (plano.get("meta") or {}).get("people"):
         # fotos dos jogadores e escudos, conferidos pelo elenco atual de cada time

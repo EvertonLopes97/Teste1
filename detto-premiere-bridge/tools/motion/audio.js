@@ -48,12 +48,11 @@ function buildAudio(o) {
     .join("+");
   const bleeps = (o.plan.audio || []).filter((x) => x.type === "bleep");
   const on = bleeps.map((b) => `between(t,${f3(b.start)},${f3(b.start + b.duration)})`).join("+");
-  // voz: tratada e nivelada SOZINHA primeiro (-16 LUFS); os efeitos entram bem abaixo dela e
-  // ainda "abaixam" sozinhos enquanto você fala (sidechain), para nunca brigar com a voz
+  // voz: tratada e nivelada SOZINHA primeiro (-16 LUFS). Efeitos: cada um já vem nivelado na
+  // mesma altura (sfx.js) e entram ~12 dB abaixo da voz (0.3), todos iguais
   const parts = [
-    `[0:a]aresample=48000,asetnsamples=n=64:p=0,aselect='${aSel}',asetpts=N/SR/TB,asetnsamples=n=1024:p=0${o.tratarVoz === false ? "" : `,${cadeiaVoz()}`},loudnorm=I=-16:TP=-2:LRA=11,aresample=48000${on ? `,volume=0:enable='${on}'` : ""},asplit=2[voz][vsc]`,
-    `[1:a]aresample=48000,volume=${o.sfxGain ?? 0.3}[fx0]`,
-    `[fx0][vsc]sidechaincompress=threshold=0.015:ratio=6:attack=8:release=280:makeup=1[fx]`,
+    `[0:a]aresample=48000,asetnsamples=n=64:p=0,aselect='${aSel}',asetpts=N/SR/TB,asetnsamples=n=1024:p=0${o.tratarVoz === false ? "" : `,${cadeiaVoz()}`},loudnorm=I=-16:TP=-2:LRA=11,aresample=48000${on ? `,volume=0:enable='${on}'` : ""}[voz]`,
+    `[1:a]aresample=48000,volume=${o.sfxGain ?? 0.3}[fx]`,
   ];
   const ins = ["[voz]", "[fx]"];
   if (on) {

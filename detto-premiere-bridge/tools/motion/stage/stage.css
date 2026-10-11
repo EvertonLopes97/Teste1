@@ -598,7 +598,7 @@ body.format-vertical #stage {
 }
 body.format-vertical .caption {
   bottom: 330px;
-  font-size: 50px;
+  font-size: 58px;
 }
 body.format-vertical #stage.side-active .caption {
   left: 30px;
@@ -1310,4 +1310,53 @@ body.format-vertical .cta {
 .camwrap.pip {
   border-radius: calc(26px * var(--k));
   box-shadow: 0 0 0 calc(5px * var(--k)) #b6ff3b, 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
+/* fotos da internet (camisas etc.) */
+.foto-frame {
+  position: absolute;
+  border-radius: 18px;
+  overflow: hidden;
+  background: #f4f5f2;
+  box-shadow: 0 0 0 4px #fff, 0 0 0 7px #b6ff3b, 0 24px 60px rgba(0, 0, 0, 0.6);
+}
+.foto-frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform-origin: center;
+}
+.foto-label {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #fff;
+  white-space: nowrap;
+}
+.foto-label .crest {
+  flex: none;
+}
+
+/* gancho dos cortes 9:16 */
+.gancho {
+  position: absolute;
+  left: 30px;
+  right: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.gancho .gl {
+  padding: 4px 22px;
+  background: #b6ff3b;
+  color: #0d1013;
+  line-height: 1.15;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+.gancho .gl.alt {
+  background: #fff;
 }

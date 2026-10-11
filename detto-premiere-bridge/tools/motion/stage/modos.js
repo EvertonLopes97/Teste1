@@ -107,7 +107,7 @@
         const gap = 26;
         const maxW = (box.w - 70 - (perRow + extra - 1) * gap) / (perRow + extra);
         const maxH = (box.h - 120 - (d.notes && d.notes.length ? 70 : 0) - (rows - 1) * gap) / rows / 1.42;
-        const cw = Math.max(120, Math.min(300, maxW, maxH));
+        const cw = Math.max(120, Math.min(portrait ? 460 : 300, maxW, maxH)); // no 9:16 o card ocupa a tela
         const ch = cw * 1.42;
         const totalW = (perRow + extra) * cw + (perRow + extra - 1) * gap;
         const totalH = rows * ch + (rows - 1) * gap;
@@ -735,6 +735,87 @@
           const x = d.overlay ? inCubic(prog(lt, dur - 0.3, 0.3)) : 0;
           e.style.opacity = String((lt >= at ? 1 : 0) * (1 - x));
           e.style.transform = `translate(-50%, -50%) translateY(${fall.toFixed(1)}px) scaleY(${squash}) rotate(${d.spin ? (lt * 40).toFixed(1) : 0}deg)`;
+        });
+      },
+    };
+
+    // ---------------------------------------------------------------- fotos da internet (camisas, VISUAL)
+    T.fotos = {
+      fit: true,
+      build(el, d, box) {
+        bg(el);
+        const r = { items: [] };
+        const n = d.items.length;
+        const portrait = box.h > box.w * 1.1;
+        const cols = portrait ? 1 : n;
+        const rows = portrait ? n : 1;
+        const gap = 30;
+        const labelH = 64;
+        const fw = Math.min((box.w - 80 - (cols - 1) * gap) / cols, portrait ? box.w - 120 : 760);
+        const fh = Math.min((box.h - 90 - rows * labelH - (rows - 1) * gap) / rows, fw * (n === 1 ? (portrait ? 1.15 : 0.8) : 1.15));
+        const x0 = (box.w - (cols * fw + (cols - 1) * gap)) / 2;
+        const y0 = (box.h - (rows * (fh + labelH) + (rows - 1) * gap)) / 2;
+        d.items.forEach((it, i) => {
+          const cx = x0 + (portrait ? 0 : i * (fw + gap));
+          const cy = y0 + (portrait ? i * (fh + labelH + gap) : 0);
+          const f = h("div", "foto-frame");
+          Object.assign(f.style, { left: `${cx}px`, top: `${cy}px`, width: `${fw}px`, height: `${fh}px` });
+          const img = h("img");
+          img.src = file(it.file);
+          f.appendChild(img);
+          el.appendChild(f);
+          let lb = null;
+          if (it.label) {
+            lb = h("div", "foto-label anton");
+            if (it.crest || it.sigla) lb.appendChild(crest({ crest: it.crest, sigla: it.sigla }, labelH * 0.7));
+            lb.appendChild(h("span", "", it.label));
+            Object.assign(lb.style, { left: `${cx}px`, top: `${cy + fh + 10}px`, width: `${fw}px`, fontSize: `${Math.min(30, (fw * 1.6) / Math.max(10, it.label.length))}px` });
+            el.appendChild(lb);
+          }
+          r.items.push({ f, img, lb, it });
+        });
+        return r;
+      },
+      update(r, d, lt, dur) {
+        r.items.forEach((x, i) => {
+          const at = x.it.at != null ? x.it.at : 0.2 + i * 0.4;
+          const q = outBack(prog(lt, at, 0.45), 1.7);
+          x.f.style.opacity = String(fade(lt, at, 0.12));
+          x.f.style.transform = `translateY(${(90 * (1 - q)).toFixed(1)}px) rotate(${((i % 2 ? 1.5 : -1.5) * q).toFixed(2)}deg) scale(${(0.85 + 0.15 * q).toFixed(3)})`;
+          x.img.style.transform = `scale(${(1 + 0.05 * clamp((lt - at) / Math.max(1, dur))).toFixed(4)})`;
+          if (x.lb) {
+            x.lb.style.opacity = String(fade(lt, at + 0.25, 0.2));
+            x.lb.style.transform = `translateY(${(20 * (1 - outCubic(prog(lt, at + 0.25, 0.3)))).toFixed(1)}px)`;
+          }
+        });
+      },
+    };
+
+    // ---------------------------------------------------------------- gancho escrito (início dos cortes 9:16)
+    T.gancho = {
+      fit: true,
+      overlay: true,
+      build(el, d, box) {
+        const r = { linhas: [] };
+        const w = h("div", "gancho");
+        w.style.top = `${box.h * 0.1}px`;
+        const palavras = String(d.text || "").toUpperCase().split(/\s+/).filter(Boolean);
+        const porLinha = Math.max(2, Math.ceil(palavras.length / Math.ceil(palavras.length / 3)));
+        for (let i = 0; i < palavras.length; i += porLinha) {
+          const l = h("div", `gl anton${(i / porLinha) % 2 ? " alt" : ""}`, palavras.slice(i, i + porLinha).join(" "));
+          l.style.fontSize = `${Math.min(84, (box.w * 1.5) / Math.max(6, l.textContent.length))}px`;
+          w.appendChild(l);
+          r.linhas.push(l);
+        }
+        el.appendChild(w);
+        return r;
+      },
+      update(r, d, lt, dur) {
+        const x = inCubic(prog(lt, dur - 0.25, 0.25));
+        r.linhas.forEach((l, i) => {
+          const q = outBack(prog(lt, i * 0.18, 0.3), 2.2);
+          l.style.opacity = String(fade(lt, i * 0.18, 0.08) * (1 - x));
+          l.style.transform = `rotate(${i % 2 ? 2 : -2}deg) scale(${(0.5 + 0.5 * q).toFixed(3)})`;
         });
       },
     };

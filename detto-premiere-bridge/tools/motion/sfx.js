@@ -129,7 +129,30 @@ const SYNTH = {
 };
 
 /** Volume relativo de cada efeito na mixagem. */
-const GAIN = { whoosh: 0.45, whoosh_short: 0.3, hit: 0.6, pop: 0.45, tick: 0.3, click: 0.45, ding: 0.4, riser: 0.35, boom: 0.6, glitch: 0.35 };
+/** Todos os efeitos na MESMA altura (o volume geral fica em audio.js, abaixo da voz). */
+const GAIN = {};
+
+/**
+ * Nivela um efeito pelo volume percebido (RMS da parte que soa), não pelo pico: um "pop"
+ * curto e um "boom" longo saem com a mesma altura.
+ * @param {Float32Array} buf
+ */
+function nivelar(buf) {
+  let peak = 1e-6;
+  for (const v of buf) peak = Math.max(peak, Math.abs(v));
+  let sum = 0;
+  let n = 0;
+  const limiar = peak * 0.1; // só a parte que soa (ignora a cauda/silêncio)
+  for (const v of buf) {
+    if (Math.abs(v) >= limiar) {
+      sum += v * v;
+      n++;
+    }
+  }
+  const rms = Math.sqrt(sum / Math.max(1, n)) || 1e-6;
+  const k = Math.min(0.12 / rms, 0.95 / peak); // alvo -18 dBFS RMS, sem estourar o pico
+  return buf.map((v) => v * k);
+}
 
 /**
  * @param {Array<{t: number, kind: string}>} events
@@ -169,9 +192,9 @@ function writeSfxTrack(events, duration, file) {
     const synth = SYNTH[e.kind] || (e.kind === "boom" ? SYNTH.hit : e.kind === "glitch" ? SYNTH.click : null);
     if (!synth) return;
     const key = `${e.kind}:${n % 4}`; // pequenas variações (ou arquivos diferentes da biblioteca)
-    if (!cache.has(key)) cache.set(key, daBiblioteca(e.kind, n % 4) || synth(17 + (n % 4) * 31));
+    if (!cache.has(key)) cache.set(key, nivelar(daBiblioteca(e.kind, n % 4) || synth(17 + (n % 4) * 31)));
     const buf = cache.get(key);
-    const g = GAIN[e.kind] ?? 0.5;
+    const g = GAIN[e.kind] ?? 1;
     const start = Math.round(e.t * SR);
     for (let i = 0; i < buf.length && start + i < total; i++) if (start + i >= 0) mix[start + i] += buf[i] * g;
   });

@@ -19,7 +19,9 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
 - "COMENTA AÍ / SEGUIR" nunca fica no rosto (vai abaixo do queixo ou acima da cabeça).
 - Voz tratada por padrão (RNNoise, EQ, de-esser, compressor) e nivelada sozinha (-16 LUFS); efeitos sonoros
   bem abaixo e abaixam enquanto ele fala (sidechain); final -14 LUFS. `--voz 0` desliga o tratamento;
-  `--sfx 0.3` = volume dos efeitos (padrão 0.3; ele achou alto o antigo 0.55).
+  `--sfx 0.3` = volume dos efeitos (padrão 0.3; ele achou alto o antigo 0.55). Cada efeito é nivelado pelo
+  volume percebido (todos na MESMA altura, ~12 dB abaixo da voz).
+- Cortes 9:16 (`vertical_N`): gancho escrito na tela nos 3 primeiros segundos; componentes refeitos para o vertical.
 - Efeitos sonoros: os da pasta do Everton. Catalogar uma vez:
   `python tools\biblioteca_sons.py "E:\edição\efeitos de video\PACK DE EDIÇÃO 2.0"` → `sons.json`.
   Categoria sem arquivo usa Mixkit (soco, tapa, chicote, whoosh) ou o sintetizado.
@@ -31,6 +33,9 @@ O Everton grava lendo um roteiro, mas muda as falas. `python tools\editar.py "<v
 - Alinhamento global roteiro × transcrição (`tools/roteiro/align.js`, programação dinâmica): cada trecho começa
   onde foi FALADO; improviso (`[IMPROVISA: ...]`) e palavras trocadas não atrapalham.
 - Legenda = o que ele DISSE (transcrição); o roteiro só corrige a grafia dos nomes; ERRATA vale também.
+- Os COMANDOS também seguem a fala: cada trecho guarda o texto falado (`spokenBySegment`); placares, enquete e
+  cards saem do que foi dito (quem estava na FALA e ele não citou sai; quem ele citou e tem nota entra).
+  Relatório `<job>\ajustes.txt` (roteiro × falado e o que mudou).
 - Formato com modos (`tools/roteiro/componentes.js` lê; `tools/motion/director-modos.js` dirige):
   `[CAM]` câmera + legenda | `[CAM+MG]` gráfico + câmera pequena no canto (borda verde-limão) |
   `[MG+VO]` só gráfico | `[LANCE+VO]` sem vídeo do lance → gráfico do trecho ou cards de quem é citado.
@@ -42,6 +47,10 @@ O Everton grava lendo um roteiro, mas muda as falas. `python tools\editar.py "<v
 - Banco PRONTO (vem no git pull): `tools/banco/jogadores/<id>.webp` (todos os jogadores dos 20 times, sem fundo),
   `tools/banco/elencos/*.json`, `tools/banco/escudos/*.png`. Atualizar (transferências): `python tools\banco_fotos.py`
   (o SofaScore dá 403 no PC do Everton: atualize aqui no Claude e faça push).
+- Não achou no banco/SofaScore → `tools/busca_imagem.py` procura na INTERNET até achar (Bing, DuckDuckGo, Wikimedia,
+  Openverse; título precisa citar o nome; foto de pessoa precisa de UM rosto e é recortada). Cache `tools/banco/web`.
+- Fotos de camisa/objeto: MG com "camisa/uniforme/foto" ou VISUAL → componente `fotos` (1 a 3 lado a lado,
+  na hora em que o time é falado); o tema do título ("CAMISAS 3") vale para o vídeo todo.
 - Fotos: `tools\jogadores.py <job>\EDIT_PLAN.json` → `jogadores.json`. Procura no ELENCO atual do time
   (SofaScore); só usa quando o nome bate com UM jogador; senão fica sem foto (iniciais) e aparece no relatório.
   Galo usa as fotos do site (`tools/galo/banco/elenco`). Fotos de apoio (Openverse) só com a pessoa no título.

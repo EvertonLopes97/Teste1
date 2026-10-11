@@ -93,6 +93,12 @@ async function main() {
   if (a.cut) ranges = cutRanges(plan, a.cut);
   else if (a.from || a.to) ranges = [[Number(a.from || 0), Math.min(d.duration, Number(a.to || d.duration))]];
   const total = ranges.reduce((s, [x, y]) => s + (y - x), 0);
+  // corte 9:16: o gancho escrito na tela nos primeiros segundos (o do roteiro; senão o título do corte)
+  if (a.cut) {
+    const vc = ((plan.meta && plan.meta.vertical_cuts) || []).find((v) => String(v.index) === String(a.cut));
+    const gancho = vc && (vc.hook || vc.title);
+    if (gancho) d.items.push({ id: "gancho", type: "gancho", start: ranges[0][0], end: ranges[0][0] + 3.0, data: { text: gancho }, z: 45 });
+  }
   log(`formato ${format} ${outFps} fps, ${ranges.map(([x, y]) => `${x.toFixed(1)}–${y.toFixed(1)}s`).join(" + ")} (${total.toFixed(1)}s)`);
 
   const flagsDir = path.join(work, "flags");

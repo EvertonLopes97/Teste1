@@ -17,7 +17,7 @@ const fs = require("fs");
 const { parseRoteiro } = require("./roteiro/parse");
 const { buildPlan } = require("./roteiro/build");
 const { alignRoteiro, makeMapper } = require("./roteiro/align");
-const { buildCaptions, toSrt } = require("./roteiro/captions");
+const { buildCaptions, toSrt, spokenBySegment } = require("./roteiro/captions");
 const { analyzePlan, formatPreview } = require("../plugin/src/core/analyze");
 
 function args(argv) {
@@ -50,6 +50,12 @@ async function main() {
       gap: a.gap ? Number(a.gap) : undefined,
     });
     roteiro = aligned.roteiro;
+    // o que foi FALADO em cada trecho: os comandos de edição seguem a fala, não o texto escrito
+    const sp = spokenBySegment(roteiro, words);
+    roteiro.segments.forEach((s, i) => {
+      if (sp[i].text.split(" ").length >= 3) /** @type {any} */ (s).spoken = sp[i].text;
+      /** @type {any} */ (s).parecido = sp[i].parecido;
+    });
     if (!a["no-jumpcuts"]) keep = aligned.keep;
     console.error(`alinhamento: ${aligned.report.matched} trechos encontrados na fala, ${aligned.report.estimated} estimados`);
     const mmss = (/** @type {number} */ t) => `${Math.floor(t / 60)}:${String(Math.round(t % 60)).padStart(2, "0")}`;
@@ -71,6 +77,22 @@ async function main() {
     const toTimeline = keep ? makeMapper(keep) : (t) => t;
     plan.captions = buildCaptions(roteiro, words, toTimeline);
     if (a.srt) fs.writeFileSync(a.srt, toSrt(plan.captions));
+  }
+  if (a.ajustes && plan.meta.segments) {
+    // relatório: onde a fala foi diferente do roteiro e o que a edição mudou por isso
+    const mmss = (/** @type {number} */ t) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
+    const linhas = ["Trechos em que você falou diferente do roteiro (a edição seguiu a FALA):", ""];
+    roteiro.segments.forEach((s, i) => {
+      const x = /** @type {any} */ (s);
+      const aj = (plan.meta.segments[i] && plan.meta.segments[i].ajustes) || [];
+      if (!s.fields.FALA || (x.parecido >= 0.75 && !aj.length)) return;
+      linhas.push(`[${mmss(x.tc)} do roteiro → ${mmss(s.start)} do vídeo]  ${Math.round((x.parecido || 0) * 100)}% igual`);
+      linhas.push(`  ROTEIRO: ${s.fields.FALA.replace(/"/g, "").slice(0, 220)}`);
+      linhas.push(`  FALOU:   ${(x.spoken || "(não achei na fala)").slice(0, 220)}`);
+      for (const l of aj) linhas.push(`  → ${l}`);
+      linhas.push("");
+    });
+    fs.writeFileSync(a.ajustes, linhas.join("\n"));
   }
   const json = JSON.stringify(plan, null, 2);
   if (a.out) fs.writeFileSync(a.out, json + "\n");

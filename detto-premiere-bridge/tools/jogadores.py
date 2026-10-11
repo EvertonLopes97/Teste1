@@ -209,6 +209,8 @@ def main():
     for s in (plan.get("meta") or {}).get("segments") or []:
         for c in s.get("comps") or []:
             d = c.get("data") or {}
+            for it in d.get("items") or []:
+                siglas.add(it.get("sigla"))
             for g in d.get("groups") or []:
                 for m in g.get("games") or []:
                     siglas.update([m.get("siglaA"), m.get("siglaB")])
@@ -221,38 +223,75 @@ def main():
         t = next((x for x in TIMES if x["sigla"] == sg), None)
         if t:
             out["teams"][sg] = {"nome": t["nome"], "crest": escudo(t)}
+    from busca_imagem import buscar
+
+    def na_internet(nome, time_nome):
+        """Não achou no banco nem no SofaScore: procura na internet até achar (foto com UM rosto)."""
+        sobrenome = norm(nome).split()[-1]
+        for q in ([f"{nome} {time_nome}", f"{nome} {time_nome} jogador", f"{nome} futebol"] if time_nome else [f"{nome} futebol", f"{nome} técnico"]):
+            r = buscar(q, [sobrenome], rosto=True, log=lambda m: None)
+            if r:
+                return r
+        return None
+
     for p in pessoas:
         nome = p["name"]
         t = next((x for x in TIMES if x["sigla"] == p.get("sigla")), None)
-        if not t:
-            out["sem_foto"].append(f"{nome} (sem time no roteiro)")
-            continue
-        if t["sigla"] == "CAM":
+        dst = None
+        j = None
+        if t and t["sigla"] == "CAM":
             f = foto_galo(nome)
             if f:
                 out["players"][nome] = {"photo": str(f), "fonte": "site do Atlético"}
                 continue
-        lista = elenco(t["sofa"])
-        j = casar(nome, lista) if lista else None
-        if not j:
-            j = pela_busca(nome, t["sofa"])
-        if not j:
-            out["sem_foto"].append(f"{nome} ({t['nome']}: não achei no elenco, ou há dois com esse nome)")
-            continue
-        # banco pronto (vem no git pull): tools/banco/jogadores/<id>.webp — sem internet
-        dst = BANCO / "jogadores" / f"{j['id']}.webp"
-        if not dst.exists() and dst.with_suffix(".png").exists():
-            dst = dst.with_suffix(".png")
-        if not dst.exists():
-            baixar_foto(j["id"], dst)
-        if dst.exists():
+        if t:
+            lista = elenco(t["sofa"])
+            j = casar(nome, lista) if lista else None
+            if not j:
+                j = pela_busca(nome, t["sofa"])
+        if j:
+            # banco pronto (vem no git pull): tools/banco/jogadores/<id>.webp — sem internet
+            dst = BANCO / "jogadores" / f"{j['id']}.webp"
+            if not dst.exists() and dst.with_suffix(".png").exists():
+                dst = dst.with_suffix(".png")
+            if not dst.exists():
+                baixar_foto(j["id"], dst)
+                time.sleep(0.2)
+        if dst is not None and dst.exists():
             out["players"][nome] = {"photo": str(dst), "fonte": f"SofaScore: {j['name']} ({t['nome']})"}
+            continue
+        r = na_internet(nome, t["nome"] if t else "")
+        if r:
+            out["players"][nome] = {"photo": r["file"], "fonte": f"internet ({r['fonte']}): {r['titulo'][:70]}"}
         else:
-            out["sem_foto"].append(f"{nome} (foto indisponível)")
-        time.sleep(0.2)
+            out["sem_foto"].append(f"{nome} ({t['nome'] if t else 'sem time'}: não achei nem na internet)")
+
+    # fotos pedidas no roteiro (camisas, VISUAL): procura na internet até achar
+    out["imagens"] = {}
+    for s in (plan.get("meta") or {}).get("segments") or []:
+        for c in s.get("comps") or []:
+            if c.get("type") != "fotos":
+                continue
+            for it in c["data"].get("items", []):
+                q = it.get("query", "")
+                if not q or q in out["imagens"]:
+                    continue
+                # até achar: a busca do roteiro, sem o ano, em inglês (sites de camisas) e sem o ano de novo
+                ingles = q.replace("terceira camisa", "third kit").replace("segunda camisa", "away kit").replace("camisa", "home kit")
+                sem_ano = lambda x: re.sub(r"\s*\b20\d\d\b", "", x).strip()  # noqa: E731
+                r = None
+                for v in dict.fromkeys([q, sem_ano(q), ingles, sem_ano(ingles)]):
+                    r = buscar(v, it.get("exige") or [], log=lambda m: None)
+                    if r:
+                        break
+                if r:
+                    out["imagens"][q] = r
+                else:
+                    out["sem_foto"].append(f"imagem: {q} (não achei)")
     saida.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
     n = len(pessoas)
-    print(f"Fotos conferidas: {len(out['players'])}/{n} jogadores, {sum(1 for x in out['teams'].values() if x['crest'])}/{len(out['teams'])} escudos")
+    print(f"Fotos conferidas: {len(out['players'])}/{n} jogadores, {sum(1 for x in out['teams'].values() if x['crest'])}/{len(out['teams'])} escudos"
+          + (f", {len(out['imagens'])} imagens da internet" if out["imagens"] else ""))
     for s in out["sem_foto"]:
         print(f"  sem foto: {s}")
     for a in sorted(AVISOS)[:5]:

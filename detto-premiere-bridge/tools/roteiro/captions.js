@@ -131,6 +131,31 @@ function mapHeard(display, heard) {
 }
 
 /**
+ * O que foi FALADO em cada trecho (texto da transcrição com a grafia do roteiro nos nomes),
+ * e quanto da FALA escrita foi dita (0 a 1).
+ * @param {import("./parse").Roteiro} roteiro  roteiro já alinhado (tempos na mídia)
+ * @param {Word[]} words
+ * @returns {Array<{text: string, parecido: number}>}
+ */
+function spokenBySegment(roteiro, words) {
+  return roteiro.segments.map((seg) => {
+    const fala = (seg.fields.FALA || "").replace(/"/g, "");
+    const display = fala.split(/\s+/).filter(Boolean);
+    const heard = words.filter((w) => w.s >= seg.start - 0.05 && w.s < seg.end);
+    if (!heard.length) return { text: "", parecido: 0 };
+    const map = display.length ? mapHeard(display, heard) : heard.map(() => -1);
+    const text = heard
+      .map((h, j) => {
+        const k = map[j];
+        return k >= 0 && (/^\p{Lu}|\d/u.test(display[k]) || tokens(display[k]).join("") === tokens(h.w).join("")) ? display[k] : h.w.trim();
+      })
+      .join(" ");
+    const usados = new Set(map.filter((k) => k >= 0));
+    return { text, parecido: display.length ? usados.size / display.length : 0 };
+  });
+}
+
+/**
  * Corrige a grafia com a ERRATA ("Rúlque" → HULK); vale para 1 a 3 palavras seguidas.
  * @param {CaptionWord[]} list @param {Array<{heard: string, correct: string}>} errata
  */
@@ -227,4 +252,4 @@ function toSrt(caps) {
   return caps.map((c, i) => `${i + 1}\n${srtTime(c.start)} --> ${srtTime(c.end)}\n${c.text}\n`).join("\n");
 }
 
-module.exports = { buildCaptions, alignWords, mapHeard, toSrt, isHighlight };
+module.exports = { buildCaptions, alignWords, mapHeard, spokenBySegment, toSrt, isHighlight };
