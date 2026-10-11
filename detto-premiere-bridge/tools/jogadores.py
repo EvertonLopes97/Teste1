@@ -173,16 +173,29 @@ def baixar_foto(pid, dst):
 
 
 def imagem_local(plano, it):
-    """Imagem que o Everton deixou na pasta "imagens" (do job ou do vídeo): nome do arquivo com o time/assunto."""
+    """Imagem que o Everton deixou na pasta "imagens" (do job ou do vídeo).
+    Camisa: arquivo com o NOME DO TIME (Vasco.jpg, Atlético-MG.png, São Paulo.webp).
+    Outras fotos: arquivo com palavras da busca (Santos 1997.jpg, colar Pataxó.jpg, torcida Santos Vila.jpg)."""
     pastas = [plano.parent / "imagens", plano.parent.parent / "imagens"]
-    alvo = norm(it.get("label", "").split("•")[0] or it.get("query", ""))
-    chaves = [k for k in [alvo, norm(it.get("anchor", ""))] if k]
-    for pasta in pastas:
-        if not pasta.is_dir():
-            continue
-        for f in sorted(pasta.iterdir()):
-            if f.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp") and any(k and (k in norm(f.stem) or norm(f.stem) in k) for k in chaves):
-                return {"file": str(f), "fonte": "sua pasta imagens", "titulo": f.name, "pagina": "", "busca": it.get("query", "")}
+    arquivos = [f for pasta in pastas if pasta.is_dir() for f in sorted(pasta.iterdir())
+                if f.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp")]
+    if not arquivos:
+        return None
+    achado = None
+    if it.get("kit"):
+        t = next((x for x in TIMES if x["sigla"] == it.get("sigla")), None)
+        nomes = {norm(it.get("label", "").split("•")[0])}
+        if t:
+            nomes |= {norm(t["nome"]), norm(t["nome"].split("-")[0])} | {norm(a) for a in t.get("apelidos", []) if len(a) > 3}
+        nomes.discard("")
+        achado = next((f for f in arquivos if norm(f.stem) in nomes), None)
+    else:
+        palavras = set(norm(f"{it.get('query', '')} {it.get('label', '')}").split())
+        times = {norm(x["nome"]) for x in TIMES} | {norm(x["nome"].split("-")[0]) for x in TIMES}
+        bons = [f for f in arquivos if norm(f.stem) not in times and norm(f.stem).split() and set(norm(f.stem).split()) <= palavras]
+        achado = max(bons, key=lambda f: len(norm(f.stem).split()), default=None)
+    if achado:
+        return {"file": str(achado), "fonte": "sua pasta imagens", "titulo": achado.name, "pagina": "", "busca": it.get("query", "")}
     return None
 
 
@@ -352,16 +365,16 @@ def main():
         return buscar(q, it.get("exige") or [], log=lambda m: None, alternativas=alt[:2],
                       prefere=it.get("prefere") or [], kit=bool(it.get("kit")), evita=it.get("evita") or [],
                       ano=it.get("ano") if it.get("kit") else None, tema=it.get("tema") or [], nao=it.get("nao") or [],
-                      extras=[q2, uniforme, ingles] if it.get("kit") else [], marca=it.get("marca") or "", prazo=45)
+                      extras=[q2, uniforme, ingles] if it.get("kit") else [], marca=it.get("marca") or "", prazo=120)
 
-    # 2) na internet, 3 de cada vez, no máximo ~6 min no total (o que não achar sai com o escudo)
+    # 2) na internet, 3 de cada vez, todas as buscas de cada imagem (o que não achar sai com o escudo)
     if pedidos:
         from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
-        print(f"Procurando {len(pedidos)} imagens na internet (até ~6 min; Ctrl+C pula e segue com o que achou)...", flush=True)
+        print(f"Procurando {len(pedidos)} imagens na internet (Ctrl+C pula e segue com o que achou)...", flush=True)
         pool = ThreadPoolExecutor(max_workers=3)
         tarefas = {pool.submit(procura, q, it): q for q, it in pedidos.items()}
         feitos = 0
-        fim = time.time() + 360
+        fim = time.time() + 3600
         pendentes = set(tarefas)
         try:
             while pendentes:
