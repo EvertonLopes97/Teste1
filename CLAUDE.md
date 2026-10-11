@@ -51,6 +51,11 @@ O Everton grava lendo um roteiro, mas muda as falas. `python tools\editar.py "<v
   Openverse; título precisa citar o nome; foto de pessoa precisa de UM rosto e é recortada). Cache `tools/banco/web`.
 - Fotos de camisa/objeto: MG com "camisa/uniforme/foto" ou VISUAL → componente `fotos` (1 a 3 lado a lado,
   na hora em que o time é falado); o tema do título ("CAMISAS 3") vale para o vídeo todo.
+  Camisa EXATA: a busca usa marca/temporada/cores escritas perto do time no roteiro, exige time + "terceira/third/III"
+  + ano (2025 = 2025 ou 2025/26, nunca 2024/25), prefere sites de camisa/lojas e descarta concept/vazamento/esboço.
+  Mesmo time no vídeo = mesma imagem. Garantido: foto na pasta `imagens\` (do vídeo ou do job) com o nome do time.
+- Fala diferente do roteiro: deixa de EFEITO e nome de card não ditos ficam no lugar "mais ou menos" (onde a palavra
+  estaria pela FALA, `alignWords`), em vez de sumir ou ir para o começo do trecho.
 - Fotos: `tools\jogadores.py <job>\EDIT_PLAN.json` → `jogadores.json`. Procura no ELENCO atual do time
   (SofaScore); só usa quando o nome bate com UM jogador; senão fica sem foto (iniciais) e aparece no relatório.
   Galo usa as fotos do site (`tools/galo/banco/elenco`). Fotos de apoio (Openverse) só com a pessoa no título.

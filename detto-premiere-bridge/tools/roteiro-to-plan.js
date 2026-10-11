@@ -52,9 +52,15 @@ async function main() {
     roteiro = aligned.roteiro;
     // o que foi FALADO em cada trecho: os comandos de edição seguem a fala, não o texto escrito
     const sp = spokenBySegment(roteiro, words);
+    const { alignWords } = require("./roteiro/captions");
     roteiro.segments.forEach((s, i) => {
-      if (sp[i].text.split(" ").length >= 3) /** @type {any} */ (s).spoken = sp[i].text;
-      /** @type {any} */ (s).parecido = sp[i].parecido;
+      const x = /** @type {any} */ (s);
+      if (sp[i].text.split(" ").length >= 3) x.spoken = sp[i].text;
+      x.parecido = sp[i].parecido;
+      // tempo de cada palavra do ROTEIRO (as não faladas ficam no lugar "mais ou menos" entre as vizinhas)
+      const display = (s.fields.FALA || "").replace(/"/g, "").split(/\s+/).filter(Boolean);
+      const heard = words.filter((w) => w.s >= s.start - 0.05 && w.s < s.end);
+      if (display.length && heard.length) x.palavras = alignWords(display, heard).map((t, k) => (t ? { w: display[k], t: t.s } : null)).filter(Boolean);
     });
     if (!a["no-jumpcuts"]) keep = aligned.keep;
     console.error(`alinhamento: ${aligned.report.matched} trechos encontrados na fala, ${aligned.report.estimated} estimados`);

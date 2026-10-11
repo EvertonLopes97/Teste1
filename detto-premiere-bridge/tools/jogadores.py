@@ -172,6 +172,20 @@ def baixar_foto(pid, dst):
     return Path(dst).exists()
 
 
+def imagem_local(plano, it):
+    """Imagem que o Everton deixou na pasta "imagens" (do job ou do vídeo): nome do arquivo com o time/assunto."""
+    pastas = [plano.parent / "imagens", plano.parent.parent / "imagens"]
+    alvo = norm(it.get("label", "").split("•")[0] or it.get("query", ""))
+    chaves = [k for k in [alvo, norm(it.get("anchor", ""))] if k]
+    for pasta in pastas:
+        if not pasta.is_dir():
+            continue
+        for f in sorted(pasta.iterdir()):
+            if f.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp") and any(k and (k in norm(f.stem) or norm(f.stem) in k) for k in chaves):
+                return {"file": str(f), "fonte": "sua pasta imagens", "titulo": f.name, "pagina": "", "busca": it.get("query", "")}
+    return None
+
+
 def foto_galo(nome):
     alvos = {slug(nome)}
     if " " in nome:
@@ -268,6 +282,7 @@ def main():
 
     # fotos pedidas no roteiro (camisas, VISUAL): procura na internet até achar
     out["imagens"] = {}
+    ja = {}
     for s in (plan.get("meta") or {}).get("segments") or []:
         for c in s.get("comps") or []:
             if c.get("type") != "fotos":
@@ -276,16 +291,26 @@ def main():
                 q = it.get("query", "")
                 if not q or q in out["imagens"]:
                     continue
-                # até achar: a busca do roteiro, sem o ano, em inglês (sites de camisas) e sem o ano de novo
+                # 1) a SUA imagem: pasta "imagens" do job ou do vídeo, arquivo com o nome do time/assunto
+                r = imagem_local(plano, it)
+                # o mesmo time no vídeo = a mesma camisa (a da busca mais detalhada, que vem primeiro)
+                mesma = (it.get("sigla"), it.get("label"))
+                if not r and mesma[0] and mesma in ja:
+                    r = ja[mesma]
+                # 2) até achar na internet: a busca do roteiro, sem o ano, em inglês (sites de camisas)
                 ingles = q.replace("terceira camisa", "third kit").replace("segunda camisa", "away kit").replace("camisa", "home kit")
-                sem_ano = lambda x: re.sub(r"\s*\b20\d\d\b", "", x).strip()  # noqa: E731
-                r = None
-                for v in dict.fromkeys([q, sem_ano(q), ingles, sem_ano(ingles)]):
-                    r = buscar(v, it.get("exige") or [], log=lambda m: None)
+                sem_ano = lambda x: re.sub(r"\s*\b20\d\d(\s*[/-]\s*\d+)?\b", "", x).strip()  # noqa: E731
+                tentativas = [(v, it.get("alternativas") or []) for v in dict.fromkeys([q, ingles])]
+                # por último sem exigir o ano (temporada nova pode ainda não ter o ano no título)
+                tentativas += [(v, (it.get("alternativas") or [])[:1]) for v in dict.fromkeys([sem_ano(q), sem_ano(ingles)])]
+                for v, alt in tentativas:
                     if r:
                         break
+                    r = buscar(v, it.get("exige") or [], log=lambda m: None, alternativas=alt,
+                               prefere=it.get("prefere") or [], kit=bool(it.get("kit")), evita=it.get("evita") or [])
                 if r:
                     out["imagens"][q] = r
+                    ja.setdefault(mesma, r)
                 else:
                     out["sem_foto"].append(f"imagem: {q} (não achei)")
     saida.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")

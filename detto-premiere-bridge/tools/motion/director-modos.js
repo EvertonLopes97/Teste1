@@ -54,9 +54,23 @@ function directModes(plan, opts = {}) {
       if (!t) continue;
       if (keys.some((k) => t === k || close(t, k) || (k.length >= 5 && t.length >= 5 && (t.startsWith(k.slice(0, 5)) || k.startsWith(t.slice(0, 5)))))) return w.s;
     }
+    // não falou o nome: onde ele estaria pela FALA do roteiro (mesmo lugar ou perto)
+    const ap = aproximado(name);
+    return ap !== null && ap >= from - 0.5 && ap < to ? ap : null;
+  };
+  const anchorT0 = (text, from, to) => (text ? findAnchor(words, text, from, to) : null);
+  /** trecho atual: tempo "mais ou menos" de uma palavra do roteiro que ele falou diferente */
+  let palavrasSeg = [];
+  const aproximado = (text) => {
+    const ks = norm(text).split(" ").filter((k) => k.length >= 3);
+    if (!ks.length) return null;
+    for (const p of palavrasSeg) {
+      const t = norm(p.w).replace(/ /g, "");
+      if (ks.some((k) => t === k || close(t, k))) return p.t;
+    }
     return null;
   };
-  const anchorT = (text, from, to) => (text ? findAnchor(words, text, from, to) : null);
+  const anchorT = (text, from, to) => anchorT0(text, from, to) ?? (text ? aproximado(text) : null);
 
   const photo = (name) => (assets.players && assets.players[name] && assets.players[name].photo) || "";
   const crestOf = (sigla) => (assets.teams && assets.teams[sigla] && assets.teams[sigla].crest) || "";
@@ -70,6 +84,7 @@ function directModes(plan, opts = {}) {
 
   segments.forEach((seg, si) => {
     const S = seg.start;
+    palavrasSeg = seg.palavras || [];
     // o campinho que continua nos trechos seguintes do bloco vai até o fim do último
     const comps = (seg.comps || []).filter((c) => !c.continues);
     const modo = seg.modo || "CAM";

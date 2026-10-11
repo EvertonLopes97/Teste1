@@ -273,7 +273,18 @@ function alignRoteiro(roteiro, words, opts) {
       const target = tokens(m[1].replace(/\.\.\.$/, ""));
       if (!target.length || target.length > 6) continue;
       const k = inSeg.findIndex((w, j) => target.every((t, n) => inSeg[j + n] && close(inSeg[j + n].t, t)));
-      if (k >= 0) seg.cues[m[1]] = inSeg[k].s;
+      if (k >= 0) {
+        seg.cues[m[1]] = inSeg[k].s;
+        continue;
+      }
+      // falou diferente: o lugar "mais ou menos" — onde essa palavra ESTARIA na fala, pelo roteiro
+      const { alignWords } = require("./captions");
+      const display = (seg.fields.FALA || "").replace(/"/g, "").split(/\s+/).filter(Boolean);
+      const di = display.findIndex((_, j) => target.every((t, n) => display[j + n] && close(tokens(display[j + n]).join(""), t)));
+      if (di >= 0 && inSeg.length) {
+        const times = alignWords(display, inSeg);
+        if (times[di]) seg.cues[m[1]] = times[di].s;
+      }
     }
   });
 

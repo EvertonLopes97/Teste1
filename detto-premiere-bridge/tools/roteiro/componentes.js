@@ -549,7 +549,36 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
     /** @type {any[]} */
     let items = [];
     if (/camisa|uniforme|manto/i.test(base) && teams.length) {
-      items = teams.slice(0, 3).map((t) => ({ query: `${qual} ${t.nome} ${ano}`, exige: [t.nome.split(/[-\s]/)[0]], label: `${t.nome.toUpperCase()} • ${qual.toUpperCase()}`, anchor: t.nome, sigla: t.sigla }));
+      // a camisa EXATA do roteiro: descrição perto do nome do time (marca, temporada, cores, nome da coleção)
+      const fontes = `${mg}\n${visual}\n${seg.fields.FALA || ""}`;
+      items = teams.slice(0, 3).map((t) => {
+        const ap = t.apelidos.filter((x) => x.length > 3).concat(norm(t.nome));
+        const frase = fontes.split(/\n|[.;]\s|→/).find((l) => ap.some((x) => norm(l).includes(x))) || "";
+        const marca = (frase.match(/\b(adidas|nike|puma|umbro|new balance|kappa|volt|diadora|joma|reebok|le coq|penalty|lupo|topper|mizuno|under armour|hummel|castore|macron)\b/i) || [])[1] || "";
+        const temporada = (frase.match(/\b(20\d\d(?:\s*[/-]\s*(?:20)?\d\d)?|\d\d\/\d\d)\b/) || [ano])[0];
+        const cores = (frase.match(/\b(azul|celeste|branc[ao]|pret[ao]|verde|vermelh[ao]|amarel[ao]|dourad[ao]|ros[ao]|rox[ao]|laranja|cinza|bege|grená|vinho|marrom|creme|prata)\b/gi) || []).map((c) => c.toLowerCase());
+        const colecao = (frase.match(/"([^"]{3,40})"/) || [])[1] || "";
+        // formas do ano no título: "2026", "2025/26", "25/26"
+        const fim = Number((temporada.match(/(\d\d)$/) || [])[1]) + 2000;
+        const so = /^20\d\d$/.test(temporada); // "2025" pode ser a 2025 ou a 2025/26
+        // "2025" sozinho = a camisa lançada em 2025 (2025 ou 2025/26), não a 2024/25
+        const anos = so
+          ? [temporada, `${fim} ${String(fim + 1).slice(2)}`, `${String(fim).slice(2)} ${String(fim + 1).slice(2)}`]
+          : [...new Set([temporada, ...(temporada.match(/20\d\d/g) || []), `${fim}`, `${fim - 1} ${String(fim).slice(2)}`, `${String(fim - 1).slice(2)} ${String(fim).slice(2)}`])];
+        const evita = so ? [String(fim - 1), `${String(fim - 1).slice(2)} ${String(fim).slice(2)}`] : [];
+        const tn = t.nome.split(/[-\s]/)[0];
+        return {
+          query: `${qual} ${t.nome} ${temporada} ${marca}`.replace(/\s+/g, " ").trim(),
+          exige: [tn],
+          alternativas: [qual === "terceira camisa" ? ["terceira", "third", "3rd", "iii", "camisa 3", "uniforme 3", "kit 3"] : qual === "segunda camisa" ? ["segunda", "away", "2", "ii", "reserva"] : ["camisa", "kit", "jersey", "shirt", "uniforme", "home"], anos],
+          prefere: [marca, ...cores, colecao, ...anos],
+          evita,
+          kit: true,
+          label: `${t.nome.toUpperCase()} • ${qual.toUpperCase()}`,
+          anchor: t.nome,
+          sigla: t.sigla,
+        };
+      });
     } else {
       const q = (base.match(/"([^"]{4,})"/) || [])[1] || stripEmoji(visual || mg).replace(/\(.*?\)/g, "").slice(0, 80);
       const pessoa = roster.inText(q)[0];

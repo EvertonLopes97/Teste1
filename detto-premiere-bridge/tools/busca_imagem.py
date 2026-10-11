@@ -124,52 +124,89 @@ def um_rosto(img):
     return img[y0:y1, x0:x1]
 
 
-def buscar(q, exige=(), rosto=False, destino=None, minimo=300, log=print):
-    """Devolve {file, fonte, titulo, pagina} ou None. Tenta todas as fontes até achar."""
+KIT_SITES = re.compile(r"footballkitarchive|todosobrecamisetas|mantosdofutebol|maquinadoesporte|footyheadlines|netshoes|centauro|"
+                       r"lojavirtual|loja|store|shop|adidas|nike|puma|umbro|newbalance|kappa|volt|diadora|joma", re.I)
+FALSO = re.compile(r"concept|conceito|fan ?made|vazad|vazament|\bvaza\b|leak|rumor|suposta|esbo[cç]o|revelad|mockup|retro|replica antiga|"
+                   r"pes ?20|fifa ?2\d|dream league|dls", re.I)
+OUTRO_MODELO = re.compile(r"feminin|infantil|kids|women|torcedor? pro|regata|polo|treino|training|goleiro|goalkeeper", re.I)
+
+
+def pontua(c, prefere, kit, evita=()):
+    t = norm(f"{c['titulo']} {c['pagina']} {urllib.parse.unquote(c['url'])}")
+    s = sum(2 for p in prefere if p and re.search(rf"\b{re.escape(p)}", t))
+    s -= sum(5 for e in evita if e and re.search(rf"\b{re.escape(e)}", t))  # outra temporada
+    if kit and KIT_SITES.search(f"{c['pagina']} {c['url']}"):
+        s += 4
+    if FALSO.search(f"{c['titulo']} {c['pagina']}"):
+        s -= 8
+    if kit and OUTRO_MODELO.search(f"{c['titulo']} {c['pagina']}"):
+        s -= 3  # camisa feminina/infantil/treino/goleiro: só se não tiver a de jogo
+    w, h = c.get("w") or 0, c.get("h") or 0
+    if w and h and min(w, h) >= 600:
+        s += 1
+    return s
+
+
+def buscar(q, exige=(), rosto=False, destino=None, minimo=300, log=print, alternativas=(), prefere=(), kit=False, evita=()):
+    """Devolve {file, fonte, titulo, pagina} ou None. Junta candidatos das fontes, só aceita os que
+    citam TODAS as palavras exigidas (e pelo menos uma de cada grupo de alternativas), e baixa na
+    ordem de pontuação (site de camisas, ano/marca/cor citados; "concept"/"fan made" fica de fora)."""
     import cv2
     import numpy as np
     exige = [norm(e) for e in exige if norm(e)]
-    chave = hashlib.sha1(f"{q}|{','.join(exige)}|{rosto}".encode()).hexdigest()[:16]
+    alternativas = [[norm(x) for x in g if norm(x)] for g in alternativas if g]
+    prefere = [norm(p) for p in prefere if norm(p)]
+    evita = [norm(e) for e in evita if norm(e)]
+    chave = hashlib.sha1(f"{q}|{','.join(exige)}|{alternativas}|{rosto}|{kit}|{evita}".encode()).hexdigest()[:16]
     CACHE.mkdir(parents=True, exist_ok=True)
     meta = CACHE / f"{chave}.json"
     if meta.exists():
         m = json.loads(meta.read_text(encoding="utf-8"))
         if Path(m.get("file", "")).exists():
             return m
+
+    def passa(c):
+        texto = norm(f"{c['titulo']} {c['pagina']} {urllib.parse.unquote(c['url'])}")
+        if exige and not all(re.search(rf"\b{re.escape(e)}", texto) for e in exige):
+            return False
+        if any(not any(re.search(rf"\b{re.escape(x)}", texto) for x in g) for g in alternativas):
+            return False
+        return not RUIM.search(c["titulo"] or "") and not (kit and FALSO.search(f"{c['titulo']} {c['pagina']}"))
+
+    cands = []
     for fonte in FONTES:
         try:
-            cands = fonte(q)
+            achados = [c for c in fonte(q)[:30] if passa(c)]
         except Exception as e:  # noqa: BLE001
             log(f"  {fonte.__name__}: {e}")
             continue
-        for c in cands[:25]:
-            texto = norm(f"{c['titulo']} {c['pagina']} {urllib.parse.unquote(c['url'])}")
-            if exige and not all(re.search(rf"\b{re.escape(e)}", texto) for e in exige):
+        cands += achados
+        if len(cands) >= 6:
+            break
+    cands.sort(key=lambda c: -pontua(c, prefere, kit, evita))
+    for c in cands[:20]:
+        dado = pegar(c["url"], binario=True, ref=c.get("pagina", ""))
+        if not dado or len(dado) < 5000:
+            continue
+        img = cv2.imdecode(np.frombuffer(dado, np.uint8), cv2.IMREAD_COLOR)
+        if img is None or min(img.shape[:2]) < minimo:
+            continue
+        if rosto:
+            img = um_rosto(img)
+            if img is None or min(img.shape[:2]) < 120:
                 continue
-            if RUIM.search(c["titulo"] or ""):
-                continue
-            dado = pegar(c["url"], binario=True, ref=c.get("pagina", ""))
-            if not dado or len(dado) < 5000:
-                continue
-            img = cv2.imdecode(np.frombuffer(dado, np.uint8), cv2.IMREAD_COLOR)
-            if img is None or min(img.shape[:2]) < minimo:
-                continue
-            if rosto:
-                img = um_rosto(img)
-                if img is None or min(img.shape[:2]) < 120:
-                    continue
-            if max(img.shape[:2]) > 1400:
-                k = 1400 / max(img.shape[:2])
-                img = cv2.resize(img, (int(img.shape[1] * k), int(img.shape[0] * k)), interpolation=cv2.INTER_AREA)
-            out = Path(destino) if destino else CACHE / f"{chave}.jpg"
-            out.parent.mkdir(parents=True, exist_ok=True)
-            ok, buf = cv2.imencode(out.suffix or ".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 90] if out.suffix != ".webp" else [cv2.IMWRITE_WEBP_QUALITY, 85])
-            if not ok:
-                continue
-            out.write_bytes(buf.tobytes())
-            m = {"file": str(out), "fonte": c["fonte"], "titulo": c["titulo"], "pagina": c["pagina"], "busca": q}
-            meta.write_text(json.dumps(m, ensure_ascii=False), encoding="utf-8")
-            return m
+        if max(img.shape[:2]) > 1400:
+            k = 1400 / max(img.shape[:2])
+            img = cv2.resize(img, (int(img.shape[1] * k), int(img.shape[0] * k)), interpolation=cv2.INTER_AREA)
+        out = Path(destino) if destino else CACHE / f"{chave}.jpg"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        ok, buf = cv2.imencode(out.suffix or ".jpg", img, [cv2.IMWRITE_JPEG_QUALITY, 90] if out.suffix != ".webp" else [cv2.IMWRITE_WEBP_QUALITY, 85])
+        if not ok:
+            continue
+        out.write_bytes(buf.tobytes())
+        m = {"file": str(out), "fonte": c["fonte"], "titulo": c["titulo"], "pagina": c["pagina"], "busca": q}
+        meta.write_text(json.dumps(m, ensure_ascii=False), encoding="utf-8")
+        return m
     return None
 
 
