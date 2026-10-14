@@ -25,10 +25,13 @@ function extractCamFrames(plan, video, dir, fps, ranges) {
   const total = Math.round(plan.cuts.reduce((m, c) => Math.max(m, c.timeline + (c.end - c.start)), 0) * fps);
   // quadros de uma extração com outra cor (ex.: antes da correção do HDR) não servem
   const cor = corDaGravacao(video);
+  // os quadros são guardados pela posição na TIMELINE: se os cortes mudaram (silêncio do começo, CORTES NA
+  // GRAVAÇÃO, outro roteiro), os antigos são de outro trecho da gravação → vídeo fora de sincronia. Refaz.
+  const assinatura = `${cor.filtro}|${fps}|${path.resolve(video)}|${JSON.stringify(plan.cuts.map((c) => [c.start, c.end, c.timeline]))}`;
   const marca = path.join(dir, "cor.txt");
-  if (fs.existsSync(dir) && (!fs.existsSync(marca) || fs.readFileSync(marca, "utf-8") !== cor.filtro)) fs.rmSync(dir, { recursive: true, force: true });
+  if (fs.existsSync(dir) && (!fs.existsSync(marca) || fs.readFileSync(marca, "utf-8") !== assinatura)) fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(marca, cor.filtro);
+  fs.writeFileSync(marca, assinatura);
   const want = (ranges && ranges.length ? ranges : [[0, total / fps]]).map(([a, b]) => [Math.round(a * fps), Math.min(total, Math.round(b * fps))]);
   const name = (n) => path.join(dir, `${String(n).padStart(6, "0")}.jpg`);
   // timeline → quadro da gravação, só onde falta

@@ -109,7 +109,7 @@ async function main() {
   extractCamFrames(plan, a.video, camDir, d.fps, ranges);
   log("quadros da gravação extraídos");
   // quadros já compostos são reaproveitados só se direção, formato e trechos forem os mesmos
-  const key = crypto.createHash("sha1").update(JSON.stringify([d, format, ranges, a.scale || 1.5, outFps, a["seguir-rosto"] || "0", corDaGravacao(a.video).filtro, 3])).digest("hex").slice(0, 10);
+  const key = crypto.createHash("sha1").update(JSON.stringify([d, format, ranges, a.scale || 1.5, outFps, a["seguir-rosto"] || "0", corDaGravacao(a.video).filtro, plan.cuts.map((c) => [c.start, c.end, c.timeline]), 4])).digest("hex").slice(0, 10);
   const framesDir = path.join(work, `frames_${format}${a.cut ? `_cut${a.cut}` : ""}_${outFps}fps_${key}`);
   const n = await renderComposite({
     plan,
