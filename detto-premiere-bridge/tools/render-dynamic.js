@@ -111,6 +111,14 @@ async function main() {
   // quadros já compostos são reaproveitados só se direção, formato e trechos forem os mesmos
   const key = crypto.createHash("sha1").update(JSON.stringify([d, format, ranges, a.scale || 1.5, outFps, a["seguir-rosto"] || "0", corDaGravacao(a.video).filtro, plan.cuts.map((c) => [c.start, c.end, c.timeline]), 4])).digest("hex").slice(0, 10);
   const framesDir = path.join(work, `frames_${format}${a.cut ? `_cut${a.cut}` : ""}_${outFps}fps_${key}`);
+  // quadros de renders antigos (outro roteiro/teste) ocupam GBs: apaga antes de começar (disco cheio = vídeo cortado)
+  for (const velho of fs.existsSync(work) ? fs.readdirSync(work) : []) {
+    if (/^frames_/.test(velho) && path.join(work, velho) !== framesDir) fs.rmSync(path.join(work, velho), { recursive: true, force: true });
+  }
+  const livre = espacoLivreGB(work);
+  if (livre !== null && livre < (total * 0.012 * (format === "vertical" ? 0.8 : 1)) + 1.5) {
+    log(`AVISO: só ${livre.toFixed(1)} GB livres no disco do job. Este render precisa de ~${(total * 0.012 + 1.5).toFixed(1)} GB. Libere espaço se der erro.`);
+  }
   const n = await renderComposite({
     plan,
     direction: d,
@@ -157,7 +165,31 @@ async function main() {
     { stdio: "inherit" }
   );
   if (r.status !== 0) throw new Error("falha na codificação final");
+  // confere a duração: vídeo mais curto que o plano = quadro faltando (disco cheio) → avisa em vez de "pronto"
+  const dur = Number(spawnSync("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", a.out], { encoding: "utf-8" }).stdout || 0);
+  if (dur && dur < total - 1.5) {
+    throw new Error(`o vídeo saiu com ${dur.toFixed(1)} s, mas devia ter ${total.toFixed(1)} s (faltou quadro — disco cheio?). Libere espaço e rode de novo: ele continua de onde parou.`);
+  }
+  // render terminou certo: os quadros compostos não servem mais (vários GB)
+  fs.rmSync(framesDir, { recursive: true, force: true });
   log(`pronto: ${a.out}`);
+}
+
+/** GB livres no disco da pasta (Windows: wmic/PowerShell; Linux/mac: df). null se não souber. */
+function espacoLivreGB(dir) {
+  try {
+    if (process.platform === "win32") {
+      const drive = path.resolve(dir).slice(0, 2);
+      const out = spawnSync("powershell", ["-NoProfile", "-Command", `(Get-PSDrive ${drive[0]}).Free`], { encoding: "utf-8" }).stdout;
+      const n = Number(String(out).trim());
+      return n ? n / 1e9 : null;
+    }
+    const out = spawnSync("df", ["-Pk", dir], { encoding: "utf-8" }).stdout.trim().split("\n").pop() || "";
+    const kb = Number(out.split(/\s+/)[3]);
+    return kb ? kb / 1e6 : null;
+  } catch {
+    return null;
+  }
 }
 
 main().catch((e) => {

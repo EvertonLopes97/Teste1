@@ -21,6 +21,15 @@ const { cameraAt } = require("./director");
  * desses trechos. A cor HDR do iPhone é convertida para SDR (ver corDaGravacao).
  * @param {Array<[number, number]>} [ranges]
  */
+/** @param {string} f */
+function tamanho(f) {
+  try {
+    return fs.statSync(f).size;
+  } catch {
+    return 0;
+  }
+}
+
 function extractCamFrames(plan, video, dir, fps, ranges) {
   const total = Math.round(plan.cuts.reduce((m, c) => Math.max(m, c.timeline + (c.end - c.start)), 0) * fps);
   // quadros de uma extração com outra cor (ex.: antes da correção do HDR) não servem
@@ -42,7 +51,7 @@ function extractCamFrames(plan, video, dir, fps, ranges) {
     const n = Math.round(c.end * fps) - Math.round(c.start * fps);
     for (let k = 0; k < n; k++) {
       const f = t0 + k;
-      if (f >= total || !want.some(([a, b]) => f >= a && f < b) || fs.existsSync(name(f))) continue;
+      if (f >= total || !want.some(([a, b]) => f >= a && f < b) || tamanho(name(f)) > 2000) continue;
       pairs.push([f, Math.round(c.start * fps) + k]);
     }
   }
@@ -118,7 +127,15 @@ async function renderComposite(o) {
     for (let f = Math.round(a * fps); f < Math.round(b * fps); f++) jobs.push({ out: out++, f });
   }
   const file = (n) => path.join(o.outDir, `${String(n).padStart(6, "0")}.jpg`);
-  const todo = jobs.filter((j) => !fs.existsSync(file(j.out))); // retomável
+  // retomável; quadro vazio/quebrado (disco cheio, queda no meio) é refeito
+  const bom = (/** @type {string} */ f) => {
+    try {
+      return fs.statSync(f).size > 2000;
+    } catch {
+      return false;
+    }
+  };
+  const todo = jobs.filter((j) => !bom(file(j.out)));
   const opts = { fontsDir: o.fontsDir, flagsDir: o.flagsDir, format: o.format, scale: o.scale || 1.5 };
   let stage = await openStage(opts);
   let reabrindo = null;

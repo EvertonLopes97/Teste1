@@ -87,6 +87,8 @@ O Everton grava lendo um roteiro, mas muda as falas. `python tools\editar.py "<v
   Galo usa as fotos do site (`tools/galo/banco/elenco`). Fotos de apoio (Openverse) só com a pessoa no título.
 - Cor: iPhone grava em HDR (HLG). A extração converte para SDR (zscale + tonemap mobius, `DETTO_TONEMAP`).
   Vale também para Galo e React (`tools/cor.py`).
+- Disco: o render apaga os quadros de renders antigos, refaz quadro vazio, confere a duração do mp4 (curto = erro claro)
+  e o `editar.py` apaga `<job>\tmp` no fim. Aviso de pouco espaço no início do render.
 - Conferência antes de entregar: `tools\conferir.py` (roda no editar.py) → `<job>\conferencia.txt` e
   `conferencia.jpg` (gravação × editado): cor, brilho, fotos sem conferência, volume. Leia antes de dizer que terminou.
 

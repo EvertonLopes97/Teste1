@@ -120,6 +120,8 @@ def main():
         cortes = sorted({int(m.group(1)) for x in plano.get("markers", []) for m in [re.match(r"9:16 #(\d+)", x.get("name", ""))] if m})
         for k in cortes:
             roda(base + ["--cut", k, "--out", job / f"vertical_{k}.mp4"])
+    # tudo pronto: os quadros extraídos/compostos ocupam vários GB (disco cheio corta o vídeo)
+    shutil.rmtree(job / "tmp", ignore_errors=True)
     conf = job / "conferencia.txt"
     if conf.exists():
         print("\n" + conf.read_text(encoding="utf-8").splitlines()[0])
