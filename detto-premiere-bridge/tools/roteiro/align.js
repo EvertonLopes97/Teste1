@@ -313,7 +313,8 @@ function alignRoteiro(roteiro, words, opts) {
     if (last && s - last.end <= gap - 2 * pad) last.end = Math.max(last.end, e);
     else keep.push({ start: s, end: e });
   }
-  if (keep.length) keep[0].start = Math.min(keep[0].start, 0.05) < 0.3 ? 0 : keep[0].start;
+  // silêncio do começo sai (antes ficava sempre a partir do 0:00); só fica o 0:00 se a fala começa logo
+  if (keep.length && keep[0].start < 1.0) keep[0].start = 0;
 
   return { roteiro: { ...roteiro, segments: segs, timedNotes }, keep, report };
 }

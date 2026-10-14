@@ -681,10 +681,12 @@
         const r = { items: [] };
         const n = d.items.length;
         const portrait = box.h > box.w;
+        // um embaixo do outro (letras grandes) quando são 3+ ou frases longas; lado a lado só 2 curtos
+        const empilha = portrait || n === 1 || n >= 3 || d.items.some((x) => x.text.length > 14);
         d.items.forEach((it, i) => {
           const s = h("div", `stamp ${it.kind} anton`, it.text);
-          s.style.fontSize = `${Math.min(70, (box.w * (portrait ? 1.2 : 0.9)) / Math.max(8, it.text.length) / (portrait ? 1 : Math.max(1, n * 0.6)))}px`;
-          if (portrait || n === 1) {
+          s.style.fontSize = `${Math.min(76, (box.w * (portrait ? 1.2 : empilha ? 1.05 : 0.9)) / Math.max(8, it.text.length) / (empilha ? 1 : Math.max(1, n * 0.6)))}px`;
+          if (empilha) {
             s.style.left = "50%";
             s.style.top = `${(box.h * (i + 1)) / (n + 1)}px`;
           } else {
@@ -983,7 +985,7 @@
           x.row.style.opacity = String(fade(lt, at, 0.2));
           x.fill.style.width = `${(x.w * q).toFixed(1)}px`;
           x.cr.style.left = `${(x.w * q).toFixed(1)}px`;
-          x.v.textContent = `${(x.x.value * q).toFixed(1).replace(".", ",")}%`;
+          x.v.textContent = d.unidade === "pts" ? `${Math.round(x.x.value * q)} PTS` : `${(x.x.value * q).toFixed(1).replace(".", ",")}%`;
           const pisca = x.x.destaque && lt > at + tempo ? 0.6 + 0.4 * Math.abs(Math.sin(lt * 6)) : 1;
           x.fill.style.opacity = String(pisca);
         });

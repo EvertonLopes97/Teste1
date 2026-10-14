@@ -282,8 +282,10 @@ def main():
     for s in (plan.get("meta") or {}).get("segments") or []:
         for c in s.get("comps") or []:
             d = c.get("data") or {}
-            for it in (d.get("items") or []) + (d.get("rows") or []):
-                siglas.add(it.get("sigla"))
+            linhas = [x for r in (d.get("rows") or []) for x in (r if isinstance(r, list) else [r])]  # campinho: linhas de cards
+            for it in (d.get("items") or []) + linhas + (d.get("cards") or []) + (d.get("bench") or []):
+                if isinstance(it, dict):
+                    siglas.add(it.get("sigla"))
             for g in d.get("groups") or []:
                 for m in g.get("games") or []:
                     siglas.update([m.get("siglaA"), m.get("siglaB")])

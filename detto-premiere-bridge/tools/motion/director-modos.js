@@ -97,7 +97,20 @@ function directModes(plan, opts = {}) {
 
     // lance sem o vídeo do lance: selos vão por cima da câmera (não vale tela parada só com um selo)
     if (modo === "LANCE+VO") for (const c of comps) if (c.type === "stamps" && !comps.some((x) => x.type === "cards" || x.type === "redcard")) c.place = "overlay";
+    // placas na ORDEM em que o assunto é falado (o placar do Derby antes do selo do pênalti perdido);
+    // número do ranking e VAR continuam abrindo o trecho
     const plateComps = comps.filter((c) => c.place === "plate");
+    {
+      const quando = (/** @type {any} */ c) => (c.type === "var" || c.type === "bignum" || c.type === "pitch" ? -1 : c.type === "cards" ? nameTime(c.data.cards[0].name, S, E) : c.anchor ? anchorT(c.anchor, S, E) : null);
+      let ultimo = -1;
+      const ts = plateComps.map((c, i) => {
+        const q = quando(c);
+        ultimo = q === null ? ultimo + 0.001 : q; // sem tempo: fica logo depois do anterior
+        return { c, i, t: ultimo };
+      });
+      ts.sort((x, y) => x.t - y.t || x.i - y.i);
+      ts.forEach((x, k) => (plateComps[k] = x.c));
+    }
     const layoutFor = (c) => (c.type === "var" ? "full" : modo === "CAM+MG" || modo === "CAM" ? "camPip" : "full");
 
     // horários de entrada dos componentes de tela no trecho
@@ -163,9 +176,31 @@ function directModes(plan, opts = {}) {
           for (const m of g.games) {
             m.crestA = crestOf(m.siglaA);
             m.crestB = crestOf(m.siglaB);
-            m.at = rel(anchorT(m.anchor, start - 0.3, end));
-            if (m.at !== undefined) sfx.push({ t: start + m.at, kind: "tick" });
+            // o time da casa pode ter sido falado por apelido ("Galo") ou errado: tenta o apelido e o visitante
+            const tA = anchorT(m.anchor, start - 0.3, end) ?? (m.apelidosA || []).map((x) => anchorT0(x, start - 0.3, end)).find((x) => x !== null) ?? null;
+            const tB = tA === null && m.anchorB ? anchorT0(m.anchorB, start - 0.3, end) : null;
+            m.at = rel(tA ?? (tB !== null ? tB - 0.4 : null));
           }
+        // a lista está na ordem da fala: tempo fora de ordem é engano (nome falado errado) → fica entre os vizinhos
+        for (const g of d.groups) {
+          const gs = g.games;
+          gs.forEach((m, k) => {
+            if (m.at === undefined) return;
+            const antes = gs.slice(0, k).map((x) => x.at).filter((x) => x !== undefined).pop();
+            const depois = gs.slice(k + 1).map((x) => x.at).filter((x) => x !== undefined);
+            const prox = depois.length ? Math.min(...depois) : undefined;
+            if ((antes !== undefined && m.at < antes) || (prox !== undefined && m.at > prox && depois.filter((x) => x < m.at).length >= 2)) m.at = undefined;
+          });
+          gs.forEach((m, k) => {
+            if (m.at !== undefined) return;
+            const a0 = gs.slice(0, k).map((x) => x.at).filter((x) => x !== undefined).pop() ?? 0.2;
+            const iB = gs.findIndex((x, j) => j > k && x.at !== undefined);
+            const b0 = iB >= 0 ? gs[iB].at : Math.min(end - start - 0.5, a0 + 2.5);
+            const passos = (iB >= 0 ? iB : gs.length) - k + 1;
+            m.at = a0 + (b0 - a0) / passos;
+          });
+          for (const m of gs) sfx.push({ t: start + m.at, kind: "tick" });
+        }
       } else if (c.type === "scoreseq") {
         d.crestA = crestOf(d.siglaA);
         d.crestB = crestOf(d.siglaB);
@@ -177,7 +212,7 @@ function directModes(plan, opts = {}) {
         sfx.push({ t: start, kind: "glitch" }, { t: start + 0.3, kind: "tick" });
       } else if (c.type === "stamps") {
         d.items.forEach((it, k) => {
-          const t = anchorT(it.text, start, end);
+          const t = anchorT(it.deixa || it.text, start, end);
           it.at = t === null ? 0.3 + k * Math.min(1.2, (end - start - 0.6) / d.items.length) : t - start;
           sfx.push({ t: start + it.at + 0.12, kind: "hit" });
           if (it.kind === "bad") shakes.push({ t: start + it.at + 0.15, amp: 5 });
@@ -259,7 +294,7 @@ function directModes(plan, opts = {}) {
         d.times = bigTimes(d, S, E, S);
         const st = S + Math.max(0, Math.min(...d.times) - 0.05);
         d.times = d.times.map((t) => t - (st - S));
-        overlays.push({ type: "bignum", start: st, end: Math.min(E, st + Math.max(...d.times) + 1.6), data: d });
+        overlays.push({ type: "bignum", start: st, end: Math.min(E + 1.5, st + Math.max(...d.times) + 1.6), data: d });
         d.times.forEach((t) => {
           sfx.push({ t: st + t + 0.3, kind: "boom" });
           shakes.push({ t: st + t + 0.32, amp: 9 });
@@ -299,7 +334,7 @@ function directModes(plan, opts = {}) {
         d.overlay = true;
         // cada selo na hora em que é falado ("anulado", "não é pênalti")
         d.items.forEach((it, k) => {
-          const t = anchorT(it.text, S, E);
+          const t = anchorT(it.deixa || it.text, S, E);
           const st = t !== null ? t - 0.2 : S + 0.5 + k * 3.2;
           overlays.push({ type: "stamps", start: st, end: Math.min(E, st + 2.8), data: { overlay: true, items: [{ ...it, at: 0.1 }] } });
           sfx.push({ t: st + 0.22, kind: "hit" });

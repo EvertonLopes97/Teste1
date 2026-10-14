@@ -17,6 +17,26 @@ const fs = require("fs");
 const { parseRoteiro } = require("./roteiro/parse");
 const { buildPlan } = require("./roteiro/build");
 const { alignRoteiro, makeMapper } = require("./roteiro/align");
+
+/** a ERRATA do roteiro também vale para a fala usada nos comandos ("marcelo anjel" → MARCELO RANGEL) */
+function comErrata(/** @type {string} */ txt, /** @type {Array<{heard: string, correct: string}>} */ errata) {
+  const sem = (/** @type {string} */ x) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  let out = txt;
+  for (const e of [...errata].sort((a, b) => b.heard.length - a.heard.length)) {
+    const alvo = sem(e.heard).toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    if (!alvo.trim()) continue;
+    const re = new RegExp(`(^|[^\\p{L}])${alvo}(?=$|[^\\p{L}])`, "giu");
+    const base = sem(out);
+    let res = "", last = 0;
+    for (const m of base.matchAll(re)) {
+      const ini = (m.index || 0) + m[1].length;
+      res += out.slice(last, ini) + e.correct.toLowerCase().replace(/(^|\s)(\p{L})(\p{L}*)/gu, (c, sp, l, r) => (/^(d[aoe]s?|e)$/.test(l + r) ? c : sp + l.toUpperCase() + r));
+      last = ini + m[0].length - m[1].length;
+    }
+    out = res + out.slice(last);
+  }
+  return out;
+}
 const { buildCaptions, toSrt, spokenBySegment } = require("./roteiro/captions");
 const { analyzePlan, formatPreview } = require("../plugin/src/core/analyze");
 
@@ -45,6 +65,13 @@ async function main() {
   if (a.words) {
     if (!a.duration) throw new Error("--words exige --duration (duração real da mídia em segundos)");
     words = JSON.parse(fs.readFileSync(a.words, "utf-8"));
+    // CORTES NA GRAVAÇÃO (repetições, erros): as palavras desses trechos saem da fala, da legenda e do vídeo
+    const cortes = roteiro.cortes || [];
+    if (cortes.length) {
+      const antes = words.length;
+      words = words.filter((w) => !cortes.some((c) => (w.s + w.e) / 2 >= c.start && (w.s + w.e) / 2 <= c.end));
+      console.log(`cortes na gravação: ${cortes.length} trechos, ${antes - words.length} palavras fora`);
+    }
     const aligned = alignRoteiro(roteiro, words, {
       mediaDuration: Number(a.duration),
       gap: a.gap ? Number(a.gap) : undefined,
@@ -55,7 +82,7 @@ async function main() {
     const { alignWords } = require("./roteiro/captions");
     roteiro.segments.forEach((s, i) => {
       const x = /** @type {any} */ (s);
-      if (sp[i].text.split(" ").length >= 3) x.spoken = sp[i].text;
+      if (sp[i].text.split(" ").length >= 3) x.spoken = comErrata(sp[i].text, roteiro.errata || []);
       x.parecido = sp[i].parecido;
       // tempo de cada palavra do ROTEIRO (as não faladas ficam no lugar "mais ou menos" entre as vizinhas)
       const display = (s.fields.FALA || "").replace(/"/g, "").split(/\s+/).filter(Boolean);
@@ -63,6 +90,12 @@ async function main() {
       if (display.length && heard.length) x.palavras = alignWords(display, heard).map((t, k) => (t ? { w: display[k], t: t.s } : null)).filter(Boolean);
     });
     if (!a["no-jumpcuts"]) keep = aligned.keep;
+    // garante que nada dos cortes fique (o respiro de 0,12 s das palavras vizinhas)
+    if (keep && (roteiro.cortes || []).length) {
+      for (const c of roteiro.cortes) {
+        keep = keep.flatMap((k) => (k.end <= c.start || k.start >= c.end ? [k] : [{ start: k.start, end: c.start }, { start: c.end, end: k.end }].filter((x) => x.end - x.start > 0.05)));
+      }
+    }
     console.error(`alinhamento: ${aligned.report.matched} trechos encontrados na fala, ${aligned.report.estimated} estimados`);
     const mmss = (/** @type {number} */ t) => `${Math.floor(t / 60)}:${String(Math.round(t % 60)).padStart(2, "0")}`;
     const est = aligned.report.details.filter((d) => d.at === null).map((d) => mmss(d.tc));

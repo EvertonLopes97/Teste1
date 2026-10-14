@@ -42,6 +42,7 @@
  * @property {Array<{heard: string, correct: string}>} errata
  * @property {Array<{time: number, text: string}>} timedNotes   notas gerais com [mm:ss] (ex.: palavrão)
  * @property {string} [assets]                  texto da "LISTA DE ASSETS" (times dos jogadores)
+ * @property {Array<{start: number, end: number, motivo: string}>} [cortes]  CORTES NA GRAVAÇÃO (repetições), em tempo da gravação
  */
 
 const FIELD_KEYS = {
@@ -105,7 +106,7 @@ function normalizeText(text) {
 function parseRoteiro(raw) {
   const lines = normalizeText(raw).split("\n");
   /** @type {Roteiro} */
-  const out = { title: "", blocks: [], segments: [], verticalCuts: [], errata: [], timedNotes: [], assets: "" };
+  const out = { title: "", blocks: [], segments: [], verticalCuts: [], errata: [], timedNotes: [], assets: "", cortes: /** @type {Array<{start:number,end:number,motivo:string}>} */ ([]) };
   const isRule = (/** @type {string|undefined} */ l) => !!l && /^\s*={5,}\s*$/.test(l);
 
   let block = "";
@@ -177,6 +178,7 @@ function parseRoteiro(raw) {
       blockDefaults = {};
       blockRange = null;
       if (/CORTES VERTICAIS/i.test(trimmed)) section = "VERTICAL";
+      else if (/CORTES? NA GRAVA[ÇC][ÃA]O|TRECHOS? (PARA|PRA) CORTAR/i.test(trimmed)) section = "CORTES";
       else if (/ERRATA/i.test(trimmed)) section = "ERRATA";
       else if (/LISTA DE ASSETS|ASSETS/i.test(trimmed)) section = "ASSETS";
       else if (/LISTA DE SFX|SFX PRA BAIXAR|CONFER[ÊE]NCIA|FONTES/i.test(trimmed)) section = "IGNORE";
@@ -205,6 +207,15 @@ function parseRoteiro(raw) {
     if (section === "VERTICAL") {
       if (/^\d+\./.test(trimmed)) flushVertical();
       if (/^\d+\./.test(trimmed) || (vertBuf.length && trimmed)) vertBuf.push(trimmed);
+      continue;
+    }
+    if (section === "CORTES") {
+      // "- 0:10.8 – 0:14.2  (repetiu a frase)" = tempo da GRAVAÇÃO
+      const m = trimmed.match(/(\d{1,2}):(\d{2}(?:[.,]\d+)?)\s*[–—-]\s*(\d{1,2}):(\d{2}(?:[.,]\d+)?)/);
+      if (m) {
+        const t = (/** @type {string} */ mm, /** @type {string} */ ss) => Number(mm) * 60 + Number(ss.replace(",", "."));
+        (out.cortes || (out.cortes = [])).push({ start: t(m[1], m[2]), end: t(m[3], m[4]), motivo: (trimmed.match(/\(([^)]*)\)/) || [])[1] || "" });
+      }
       continue;
     }
     if (section === "ERRATA") {
@@ -254,6 +265,21 @@ function parseRoteiro(raw) {
       const rest = trimmed.slice((range.index || 0) + range[0].length).trim();
       const f = rest.match(FIELD_RE);
       if (f) setField(FIELD_KEYS[/** @type {keyof typeof FIELD_KEYS} */ (f[1])] || f[1], f[2]);
+      // "[0:00 – 0:08]  [CAM] + [VFX]" / "[5:00 – 5:50]  [CAM+MG]  — VOLPI 10" (modo sem a palavra MODO:)
+      else if (/^\[(CAM|MG|LANCE|IMG)/i.test(rest)) setField("MODO", rest.split(/\s+[—–]\s+/)[0]);
+      continue;
+    }
+    // trecho sem tempo: "[CAM+MG]  — O CRUZEIRO" (entra depois do anterior; a fala acha o lugar certo)
+    const semTempo = trimmed.match(/^\[(CAM|MG|LANCE|IMG)[^\]]*\](?:\s*\+\s*\[[^\]]*\])*/i);
+    if (semTempo && section === "BLOCK") {
+      const prev = out.segments[out.segments.length - 1];
+      const start = (prev ? prev.end : blockRange ? blockRange.start : 0) + 0.01;
+      seg = { start, end: start + 0.01, block, sub: (trimmed.split(/\s+[—–]\s+/)[1] || sub).trim(), opensSub, fields: {}, notes: [], events: pendingEvents, defaults: { ...blockDefaults } };
+      opensSub = false;
+      pendingEvents = [];
+      out.segments.push(seg);
+      lastField = null;
+      setField("MODO", semTempo[0]);
       continue;
     }
     if (/^\[IMPROVISA/i.test(trimmed)) {

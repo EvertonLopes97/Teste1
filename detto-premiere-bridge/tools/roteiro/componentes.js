@@ -389,7 +389,12 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
 
   // placas de placar da rodada
   if (/PLACAS? DE PLACAR|PLACAS|GRID/.test(mg.toUpperCase())) {
-    const groups = gamesInFala(F.FALA || "");
+    // a lista escrita no MG ("VASCO 0 x 0 REMO", uma por linha) vale mais que a fala (ele pode falar "Basque e Remo")
+    const escritos = [...mg.matchAll(/^\s*([A-ZÀ-Ýa-zà-ý][\p{L} .'-]+?)\s+(\d+)\s*x\s*(\d+)\s+([\p{L} .'-]+?)\s*$/gmu)]
+      .map((m) => ({ m, a: findTeam(m[1]), b: findTeam(m[4]) }))
+      .filter((x) => x.a && x.b && x.a !== x.b)
+      .map(({ m, a, b }) => ({ a: a.nome, sa: Number(m[2]), sb: Number(m[3]), b: b.nome, siglaA: a.sigla, siglaB: b.sigla, anchor: m[1].trim(), anchorB: m[4].trim(), apelidosA: a.apelidos }));
+    const groups = escritos.length >= 2 ? [{ label: "", games: escritos }] : gamesInFala(F.FALA || "");
     if (groups.reduce((n, g) => n + g.games.length, 0) >= 2) add("scoregrid", { title: "PLACARES DA RODADA", groups }, "", "plate");
   }
 
@@ -408,6 +413,9 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
     const steps = [...seq[1].matchAll(/(\d)\s*x\s*(\d)/g)].map((m) => [Number(m[1]), Number(m[2])]);
     /** @type {any[]} */
     const teams = [];
+    // "placar animado 0x1 → 2x1 entre Atlético e Santos": os times escritos valem primeiro (na ordem)
+    const entre = mg.match(/placar animado[^\n]*?\bentre\s+([^;\n.]+)/i);
+    if (entre) for (const t of findTeams(entre[1])) if (!teams.includes(t)) teams.push(t);
     for (const w of String(F.FALA || "").split(/[\s,.]+/)) {
       const t = findTeam(w, { cap: true });
       if (t && !teams.includes(t)) teams.push(t);
@@ -415,7 +423,7 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
     // times dos jogadores citados (o "Neymar" é do Santos)
     for (const m of mentions(mg, roster)) if (m.p.team && !teams.includes(m.p.team)) teams.push(m.p.team);
     // ordem mandante x visitante: a do jogo citado no roteiro ("Santos 2 a 2 Flamengo")
-    const g = games.find((x) => teams.some((t) => t.sigla === x.siglaA) && teams.some((t) => t.sigla === x.siglaB));
+    const g = entre ? null : games.find((x) => teams.some((t) => t.sigla === x.siglaA) && teams.some((t) => t.sigla === x.siglaB));
     const A = g ? teamBySigla(g.siglaA) : teams[0];
     const B = g ? teamBySigla(g.siglaB) : teams[1];
     if (steps.length && A && B) add("scoreseq", { a: A.nome, b: B.nome, siglaA: A.sigla, siglaB: B.sigla, steps }, "", "plate");
@@ -522,13 +530,21 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
   const stampSrc = [mg, F.TELESTRATOR || "", vfx].join("\n");
   if (/SELO|CARIMB|ANULADO/i.test(stampSrc)) {
     const items = quotedCaps(stampSrc)
+      .filter((q) => !/\d+\s*x\s*\d+/.test(q)) // placar "BRAGANTINO 3 x 0 CRUZEIRO" é placa de placar, não selo
       .map((q) => stripEmoji(q.replace(/^LANCE \d\s*/i, "")))
       .filter((q) => q.length >= 4 && !/^(VAR|CHECKING\.\.\.)$/.test(q))
       .slice(0, 3)
       .map((q) => ({ text: q, kind: /✅|CORRETO/.test(q) ? "ok" : /❌|N[ÃA]O ERA|ANULADO|SUSPENSO/.test(q) ? "bad" : "warn" }));
     const used = comps.filter((c) => c.type === "cards").flatMap((c) => c.data.notes);
     for (let k = items.length - 1; k >= 0; k--) if (used.includes(items[k].text)) items.splice(k, 1);
-    if (items.length) add("stamps", { items }, items[0].text, comps.length ? "plate" : modo === "CAM" ? "overlay" : "plate");
+    // deixa escrita: 'no "bandeirinha", selo "PROVOCAÇÃO"' → o selo entra quando ele fala "bandeirinha"
+    for (const it of items) {
+      const k = stampSrc.indexOf(it.text);
+      const antes = k > 0 ? stampSrc.slice(0, k).split(/[\n;]/).pop() || "" : "";
+      const d = (antes.match(/no\s+"([^"]+)"/i) || [])[1];
+      if (d) /** @type {any} */ (it).deixa = d;
+    }
+    if (items.length) add("stamps", { items }, /** @type {any} */ (items[0]).deixa || items[0].text, comps.length ? "plate" : modo === "CAM" ? "overlay" : "plate");
   }
 
   // enquete (a palavra ENQUETE fora das aspas; "Fonte: enquete ge" no rodapé não é enquete)
@@ -657,7 +673,7 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
     if (aoLado && fotos[0]) fotos = [fotos[0], { query: stripEmoji(aoLado[1]).trim(), exige: [norm(aoLado[1]).split(" ").filter((w) => w.length >= 4).pop() || ""], label: "", anchor: aoLado[1].trim().split(" ").pop(), foto: true }];
   }
   // a corrida de barras já mostra os times: sem fotos junto
-  const temBarras = [...`${mg}\n${F.GRAFICO || ""}`.matchAll(/^\s*[A-ZÀ-Ý][A-ZÀ-Ý .'-]{2,}\s+\d{1,3}(?:,\d+)?\s*%/gm)].length >= 3;
+  const temBarras = [...`${mg}\n${F.GRAFICO || ""}`.matchAll(/^\s*[A-ZÀ-Ý][A-ZÀ-Ý .'-]{2,}\s+\d{1,3}(?:,\d+)?\s*(?:%|PTS\b|PONTOS\b)/gm)].length >= 3;
   if (emSequencia) for (let k = comps.length - 1; k >= 0; k--) if (comps[k].type === "stamps" || comps[k].type === "cards") comps.splice(k, 1);
   if (fotos.length && !temBarras && !comps.some((c) => ["cards", "pitch", "scoregrid"].includes(c.type))) {
     const linhas = ficha ? ficha.split(/\s*•\s*/).map((x) => stripEmoji(x).replace(/\.$/, "").trim()).filter(Boolean) : [];
@@ -737,11 +753,13 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
   }
 
   // corrida de barras: "VASCO 29,4%" uma linha por time
-  const barras = [...mg.matchAll(/^\s*([A-ZÀ-Ý][A-ZÀ-Ý .'-]{2,})\s+(\d{1,3}(?:,\d+)?)\s*%/gm)]
+  // (ou pontos da tabela: "FLAMENGO 64 PTS")
+  const unidade = /^\s*[A-ZÀ-Ý][A-ZÀ-Ý .'-]{2,}\s+\d{1,3}\s*(?:PTS|PONTOS)\b/m.test(mg) ? "pts" : "%";
+  const barras = [...mg.matchAll(/^\s*([A-ZÀ-Ý][A-ZÀ-Ý .'-]{2,}?)\s+(\d{1,3}(?:,\d+)?)\s*(?:%|PTS\b|PONTOS\b)/gm)]
     .map((m) => ({ nome: m[1].trim(), valor: Number(m[2].replace(",", ".")), time: findTeams(m[1])[0] }))
     .filter((b, i, all) => b.valor > 0 && all.findIndex((x) => x.nome === b.nome) === i);
   if (barras.length >= 3) {
-    add("barras", { rows: barras.map((b) => ({ label: b.nome, value: b.valor, sigla: b.time ? b.time.sigla : "", anchor: b.time ? b.time.nome : b.nome })), coroa: /coroa/i.test(mg + (F.GRAFICO || "")), fonte: (tela.match(/"(Fonte:[^"]+)"/i) || [])[1] || "" }, barras[0].nome, "plate");
+    add("barras", { rows: barras.map((b) => ({ label: b.nome, value: b.valor, sigla: b.time ? b.time.sigla : "", anchor: b.time ? b.time.nome : b.nome })), coroa: /coroa/i.test(mg + (F.GRAFICO || "")), unidade, fonte: (tela.match(/"(Fonte:[^"]+)"/i) || [])[1] || "" }, barras[0].nome, "plate");
   }
 
   // textos de tela (CAM): batidas de palavra e chamadas
