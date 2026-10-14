@@ -40,6 +40,7 @@ def roda(cmd):
 
 def main():
     p = argparse.ArgumentParser()
+    p.add_argument("--fps", type=int, default=60, help="fps do horizontal (padrão 60, o do YouTube; verticais saem em 30)")
     p.add_argument("video")
     p.add_argument("--teste", action="store_true")
     p.add_argument("--sem-verticais", action="store_true")
@@ -108,7 +109,8 @@ def main():
     base = ["node", T / "render-dynamic.js", job / "EDIT_PLAN.json", "--video", video, "--face", job / "face.json",
             "--fonts", PONTE / "fonts", "--work", job / "tmp"] + (["--sfx", a.sfx] if a.sfx else [])
     trecho = ["--from", "0", "--to", "60"] if a.teste else []
-    roda(base + trecho + ["--out", job / "horizontal.mp4"])
+    # YouTube: horizontal em 60 fps (gráficos e movimentos a 60 reais; a gravação a 30 é repetida)
+    roda(base + trecho + ["--fps", str(a.fps), "--out", job / "horizontal.mp4"])
     # conferência antes de entregar: cor × gravação (HDR do iPhone), fotos, volume
     try:
         roda([py, T / "conferir.py", job / "horizontal.mp4", video, "--job", job])

@@ -116,8 +116,9 @@ async function main() {
     if (/^frames_/.test(velho) && path.join(work, velho) !== framesDir) fs.rmSync(path.join(work, velho), { recursive: true, force: true });
   }
   const livre = espacoLivreGB(work);
-  if (livre !== null && livre < (total * 0.012 * (format === "vertical" ? 0.8 : 1)) + 1.5) {
-    log(`AVISO: só ${livre.toFixed(1)} GB livres no disco do job. Este render precisa de ~${(total * 0.012 + 1.5).toFixed(1)} GB. Libere espaço se der erro.`);
+  const precisa = total * 0.012 * (outFps / 30) * (format === "vertical" ? 0.8 : 1) + 1.5;
+  if (livre !== null && livre < precisa) {
+    log(`AVISO: só ${livre.toFixed(1)} GB livres no disco do job. Este render precisa de ~${precisa.toFixed(1)} GB. Libere espaço se der erro.`);
   }
   const n = await renderComposite({
     plan,
