@@ -1,0 +1,21 @@
+CANAL AUTOMÁTICO DO GALO — como ligar (uma vez só)
+(em construção: ainda não foi testado de ponta a ponta no seu PC)
+
+1) GRAVAÇÕES DE MÁSCARA  →  pasta mascara\
+   5 a 10 s cada, o nome diz o clima: rindo.mov, bravo.mov, comemorando.mov, pensativo.mov,
+   concordando.mov, surpreso.mov, falando.mov (pode ter vários: rindo 2.mov).
+
+2) SUA VOZ  →  voz\minha_voz.wav
+   20 a 30 s falando normal, sem música. É a voz que a narração vai imitar.
+
+3) LIGAR O CANAL NOVO NO YOUTUBE
+   a) console.cloud.google.com → criar projeto → "APIs e serviços" → ativar "YouTube Data API v3"
+   b) "Tela de consentimento OAuth": tipo Externo, adicione o seu e-mail como usuário de teste
+   c) "Credenciais" → Criar → "ID do cliente OAuth" → tipo "App para computador" → baixar o JSON
+   d) salvar como client_secret.json nesta pasta
+   e) rodar:  python tools\canal\canal.py --login   → escolher o CANAL NOVO → Permitir
+
+4) TESTAR SEM POSTAR:  python tools\canal\canal.py --nao-postar --forcar
+5) LIGAR SOZINHO:      python tools\canal\canal.py --agendar   (a cada 2 h, das 8h às 23h)
+
+config.json: fontes (canais da imprensa), nome do canal, duração do vídeo, vídeos por dia.
