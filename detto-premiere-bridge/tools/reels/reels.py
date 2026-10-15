@@ -53,6 +53,9 @@ CONFIG_PADRAO = {
     "max_duracao": 60,
     "corte_max": 15,
     "tags_padrao": ["#futebol", "#humor", "#resenha", "#viral", "#fy"],
+    # cada reel pronto entra na fila de postagem dessas contas (tools/postar/postar.py posta no horário); [] = não posta
+    "postar": ["instagram:detto.galo", "tiktok:detto.galo"],
+    "pasta_postar": "",
     "exemplos": [
         "Quando é o professor que escolhe as duplas e você vê com quem seu amigo está sentado:",
         "Quando vocês sabem que está rolando uma química mas nenhum dos dois toma iniciativa",
@@ -744,6 +747,7 @@ def main():
                     grava_json(base / "historico.json", hist)
                     if c.get("url"):
                         _tira_link(base, c["url"], ok=True)
+                    _para_postar(cfg, saida, destino / f"{nome}.txt")
                     feitos += 1
                     log(f"   pronto: {saida}")
                     continue
@@ -806,10 +810,27 @@ def main():
         grava_json(base / "historico.json", hist)
         if c.get("seu") and c.get("url"):
             _tira_link(base, c["url"], ok=True)
+        _para_postar(cfg, saida, destino / f"{nome}.txt")
         feitos += 1
         log(f"   pronto: {saida}")
     shutil.rmtree(tmp, ignore_errors=True)
     log(f"\n{feitos} reel(s) em {destino}")
+
+
+def _para_postar(cfg, video, txt):
+    """põe o reel na fila de postagem (Instagram / TikTok) — postar.py sobe no horário de cada conta"""
+    if not cfg.get("postar"):
+        return
+    try:
+        sys.path.insert(0, str(TOOLS / "postar"))
+        from postar import enfileira, pasta_padrao as pasta_postar
+
+        base = Path(cfg.get("pasta_postar") or pasta_postar())
+        # nome com a data (o "01 - ..." de amanhã não pisa no de hoje)
+        enfileira(base, video, cfg["postar"], txt, nome=f"{dt.date.today().isoformat()} {Path(video).name}")
+        log(f"   na fila de postagem: {', '.join(cfg['postar'])}")
+    except Exception as e:
+        log(f"   não entrou na fila de postagem ({e}); poste manual")
 
 
 def _tira_link(base, url, ok):

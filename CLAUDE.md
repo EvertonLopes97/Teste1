@@ -53,6 +53,14 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   do próprio vídeo: mínimo dos quadros do lance, linhas centralizadas do topo; OCR só para a legenda), MÚSICA/áudio
   inteiro do original, mesmo lance e duração —, só a parte da outra pessoa (até o corte de cena achado) vira o começo
   dele. `--modo novo` = texto novo + áudio dele. Começo de gravação longa: `.txt` ao lado com `trecho: 8.0-12.4`.
+- POSTAGEM AUTOMÁTICA: `python tools\postar\postar.py` (APIs oficiais; setup em `tools\postar\LEIA-ME.txt`). Pasta
+  `E:\DETTO\postar`: `entrada\<plat>_<conta>\` = fila (mp4 + .txt mesmo nome; texto após "---" não vai), `postados\`,
+  `falhas\` (3 erros), `tokens\`, `config.json` (chaves Meta/TikTok, intervalo e horário por conta). Contas: Instagram
+  @detto.galo (Reels, posta sozinho), TikTok @detto.galo e @detto.tv (RASCUNHO na caixa do TikTok até o app ser
+  aprovado: máx. 5 pendentes, legenda em `legendas_tiktok_<conta>.txt`; aprovado → `"modo": "direto"`). Reels entram
+  na fila sozinhos (`"postar"` no config dos reels; `[]` desliga). `--login instagram|tiktok --conta X [--token]`,
+  `--agendar` (a cada 20 min), `--status`, `--agora video --para plat:conta`.
+- CANAL AUTOMÁTICO YouTube (`tools\canal\`, voz clonada + máscara): em construção, não testado de ponta a ponta.
 - TESTES: `npm run check` (tipos + testes + teste VISUAL `test/visual.test.js`: quadros do palco × `test/visual/ref_*.png`).
   Mudou o visual de propósito → `npm run visual:aprovar`. GitHub Actions roda tudo a cada push (`.github/workflows/testes.yml`).
 
