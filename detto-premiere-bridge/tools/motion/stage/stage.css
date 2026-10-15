@@ -2019,3 +2019,59 @@ body.format-vertical .cta {
   top: 0;
   transform-origin: 0 0;
 }
+
+/* vídeo do lance */
+.lance-box {
+  overflow: hidden;
+  background: #000;
+}
+.lance-v {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transform-origin: 50% 50%;
+}
+.lance-bg {
+  position: absolute;
+  inset: -40px;
+  width: calc(100% + 80px);
+  height: calc(100% + 80px);
+  object-fit: cover;
+  filter: blur(18px) brightness(0.45);
+}
+.lance-chip {
+  position: absolute;
+  left: 22px;
+  top: 22px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(17, 20, 24, 0.88);
+  border-left: 6px solid #ff3b3b;
+  padding: 8px 16px 6px 12px;
+  font-size: 30px;
+  line-height: 1;
+  color: #fff;
+}
+.lance-chip i {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #ff3b3b;
+  box-shadow: 0 0 10px #ff3b3b;
+}
+.lance-chip span {
+  color: #b6ff3b;
+}
+.lance-nome {
+  position: absolute;
+  left: 24px;
+  top: 78px;
+  font-size: 54px;
+  color: #fff;
+  -webkit-text-stroke: 2px #111;
+  paint-order: stroke fill;
+  text-shadow: 4px 4px 0 #b6ff3b;
+}

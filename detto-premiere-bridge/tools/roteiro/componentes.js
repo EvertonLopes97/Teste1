@@ -807,6 +807,40 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
     else if (q.length) add("headline", { lines: q[0].split(/\s*[•|]\s*/).filter(Boolean).map((t, i, arr) => ({ text: t, box: arr.length > 1 && i === Math.floor(arr.length / 2) })) }, q[0], modo === "CAM" || comps.some((c) => c.type === "fotos") ? "overlay" : "plate");
   }
 
+  // vídeo do lance (versão "com lances"): [LANCE+VO] ou linha LANCE: (link/arquivo + tempo, ou só a descrição)
+  // tools/lances.py acha o vídeo de melhores momentos e o momento; o diretor normal ignora (place "lance")
+  const ln = F.LANCE || "";
+  if (lance || ln) {
+    const url = (ln.match(/https?:\/\/\S+/) || [])[0] || (ln.match(/[^\s"]+\.(?:mp4|mov|mkv|webm)\b/i) || [])[0] || "";
+    const tm = ln.match(/(\d{1,2}:\d{2}(?:[.,]\d+)?)\s*[–—-]\s*(\d{1,2}:\d{2}(?:[.,]\d+)?)/);
+    const texto = [F.FALA || "", mg, ln].join("\n");
+    let times = findTeams(texto).slice(0, 2);
+    // um time só: o adversário vem dos jogos citados no roteiro ("Atlético 2 a 1 Santos")
+    if (times.length === 1) {
+      const j = games.find((g) => g.siglaA === times[0].sigla || g.siglaB === times[0].sigla);
+      const outro = j && findTeam(j.siglaA === times[0].sigla ? j.b : j.a);
+      if (outro) times.push(outro);
+    }
+    const pl = mg.match(/"([^"]*\d+\s*x\s*\d+[^"]*)"/);
+    const jogo = times.length === 2 && games.find((g) => [g.siglaA, g.siglaB].sort().join() === [times[0].sigla, times[1].sigla].sort().join());
+    add(
+      "lance",
+      {
+        times: times.map((t) => ({ nome: t.nome, sigla: t.sigla, sofa: t.sofa || null, apelidos: t.apelidos || [] })),
+        url,
+        inicio: tm ? tm[1].replace(",", ".") : "",
+        fim: tm ? tm[2].replace(",", ".") : "",
+        evento: /p[êe]nalti/i.test(texto) ? "pênalti" : /cart[ãa]o|expuls/i.test(texto) ? "cartão" : /defes|defend|pegou/i.test(texto) ? "defesa" : /\bgol|virada|empat|bate|chut/i.test(texto) ? "gol" : "",
+        placar: pl ? stripEmoji(pl[1]).toUpperCase() : "",
+        // placar do jogo (desempata a busca: "ATLÉTICO-MG 2 X 1 SANTOS")
+        gols: jogo ? [jogo.sa, jogo.sb] : null,
+        sem: /^\s*(sem|nenhum|n[ãa]o)\b/i.test(ln) && !url,
+      },
+      "",
+      "lance"
+    );
+  }
+
   return { modo, vfx: hasVfx, lance, comps, ajustes };
 }
 

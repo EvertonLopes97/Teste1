@@ -1578,6 +1578,42 @@
       },
     };
 
+    // ---------------------------------------------------------------- vídeo do LANCE (versão com lances)
+    // quadros extraídos do vídeo de melhores momentos: d.base (pasta, file://…/), d.n quadros a d.fps
+    T.lance = {
+      fit: true,
+      build(el, d, box) {
+        const r = { box };
+        el.classList.add("lance-box");
+        if (box.h > box.w * 0.7) el.appendChild((r.bg = h("img", "lance-bg")));
+        el.appendChild((r.v = h("img", "lance-v")));
+        r.chip = h("div", "lance-chip");
+        r.chip.innerHTML = `<i></i><b class="anton">LANCE</b>${d.chip ? `<span class="anton">${d.chip}</span>` : ""}`;
+        el.appendChild(r.chip);
+        if (d.jogador) el.appendChild((r.nome = h("div", "lance-nome anton", d.jogador.toUpperCase())));
+        el.appendChild((r.fl = h("div", "fx-flash")));
+        return r;
+      },
+      update(r, d, lt, dur) {
+        const k = Math.max(0, Math.min((d.n || 1) - 1, Math.floor(lt * (d.fps || 30))));
+        const src = d.foto || `${d.base}${String(k).padStart(6, "0")}.jpg`;
+        if (r.v.getAttribute("src") !== src) {
+          r.v.src = src;
+          if (r.bg) r.bg.src = src;
+        }
+        const q = outCubic(prog(lt, 0, 0.3));
+        const sai = inCubic(prog(lt, dur - 0.25, 0.25));
+        r.v.style.transform = `scale(${(1.12 - 0.12 * q + (d.foto ? 0.1 : 0.03) * prog(lt, 0.3, dur)).toFixed(4)})`;
+        r.v.parentElement.style.opacity = String(1 - sai);
+        r.fl.style.opacity = String(0.7 * (1 - prog(lt, 0, 0.16)));
+        r.chip.style.transform = `translateX(${(-260 * (1 - outBack(prog(lt, 0.15, 0.35), 1.4))).toFixed(1)}px)`;
+        if (r.nome) {
+          r.nome.style.opacity = String(clamp(prog(lt, 0.5, 0.15)) * (1 - prog(lt, Math.min(dur - 0.3, 3.2), 0.3)));
+          r.nome.style.transform = `translateY(${(30 * (1 - outCubic(prog(lt, 0.5, 0.3)))).toFixed(1)}px)`;
+        }
+      },
+    };
+
     // ---------------------------------------------------------------- gancho escrito (início dos cortes 9:16)
     T.gancho = {
       fit: true,

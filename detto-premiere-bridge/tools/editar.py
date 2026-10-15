@@ -19,7 +19,9 @@ Passos (cada um é pulado se o arquivo já existir na pasta do job, então dá p
      corte sugerido, com voz tratada e seus efeitos sonoros
   6. fotos dos jogadores/escudos conferidas pelo elenco do SofaScore              → jogadores.json
   7. conferência antes de entregar (cor × gravação, fotos, volume)                → conferencia.txt/.jpg
---teste: só o primeiro minuto.
+  8. versão COM LANCES de cada vídeo (trechos [LANCE+VO]: vídeo do lance baixado dos melhores momentos)
+     → horizontal_lances.mp4, vertical_completo_lances.mp4, vertical_N_lances.mp4 (você escolhe qual postar)
+--teste: só o primeiro minuto.   --sem-lances: não busca os lances.   --cookies chrome: YouTube pedindo login.
 """
 import argparse
 import json
@@ -47,6 +49,8 @@ def main():
     p.add_argument("--titulo", default="")
     p.add_argument("--sfx", help="volume dos efeitos sonoros (padrão 0.3; 0.15 = mais baixo, 0.5 = mais alto, 0 = sem efeitos)")
     p.add_argument("--roteiro", help="seu roteiro (.txt); senão procura <nome do vídeo>.txt na pasta do vídeo")
+    p.add_argument("--sem-lances", action="store_true", help="não faz a versão com o vídeo dos lances")
+    p.add_argument("--cookies", default=None, help="navegador logado no YouTube (chrome, edge, firefox) se pedir login")
     a = p.parse_args()
     video = Path(a.video).resolve()
     if not video.exists() and video.parent.exists():
@@ -106,11 +110,32 @@ def main():
         print("\nBusca de imagens pulada (Ctrl+C). Seguindo a edição com o que já foi achado.")
     if (job / "imagens_conferir.jpg").exists():
         print(f"Imagens escolhidas: {job / 'imagens_conferir.jpg'}")
+    # vídeo dos lances (versão com lances): melhores momentos do YouTube, lance achado pela narração
+    lances = None
+    pede = any(c.get("type") == "lance" for s_ in (plano.get("meta") or {}).get("segments", []) for c in s_.get("comps", []))
+    if pede and not a.sem_lances:
+        try:
+            roda([py, T / "lances.py", job / "EDIT_PLAN.json"] + (["--cookies", a.cookies] if a.cookies else []))
+        except (subprocess.CalledProcessError, KeyboardInterrupt):
+            print("Aviso: busca dos lances falhou/pulada. Sai só a versão sem lances.")
+        lj = job / "lances.json"
+        if lj.exists() and any(L.get("video") and L.get("dur") for L in json.loads(lj.read_text(encoding="utf-8")).get("lances", [])):
+            lances = lj
+            print(f"Lances achados: confira {job / 'lances_conferir.jpg'}")
     base = ["node", T / "render-dynamic.js", job / "EDIT_PLAN.json", "--video", video, "--face", job / "face.json",
             "--fonts", PONTE / "fonts", "--work", job / "tmp"] + (["--sfx", a.sfx] if a.sfx else [])
     trecho = ["--from", "0", "--to", "60"] if a.teste else []
     # YouTube: horizontal em 60 fps (gráficos e movimentos a 60 reais; a gravação a 30 é repetida)
+    def com_lances(args, saida):
+        """a mesma saída com o vídeo dos lances: só os trechos de lance são refeitos e emendados"""
+        if lances and saida.exists():
+            try:
+                roda(base + args + ["--lances", lances, "--base", saida, "--out", saida.with_name(saida.stem + "_lances.mp4")])
+            except subprocess.CalledProcessError:
+                print(f"Aviso: a versão com lances de {saida.name} falhou; a sem lances está pronta.")
+
     roda(base + trecho + ["--fps", str(a.fps), "--out", job / "horizontal.mp4"])
+    com_lances(trecho + ["--fps", str(a.fps)], job / "horizontal.mp4")
     # conferência antes de entregar: cor × gravação (HDR do iPhone), fotos, volume
     try:
         roda([py, T / "conferir.py", job / "horizontal.mp4", video, "--job", job])
@@ -118,10 +143,12 @@ def main():
         print("Aviso: a conferência automática falhou; confira o vídeo antes de postar.")
     # o vídeo inteiro também em 9:16 (TikTok / Reels), com gráficos e legendas refeitos para o vertical
     roda(base + trecho + ["--format", "vertical", "--out", job / "vertical_completo.mp4"])
+    com_lances(trecho + ["--format", "vertical"], job / "vertical_completo.mp4")
     if not a.sem_verticais and not a.teste:
         cortes = sorted({int(m.group(1)) for x in plano.get("markers", []) for m in [re.match(r"9:16 #(\d+)", x.get("name", ""))] if m})
         for k in cortes:
             roda(base + ["--cut", k, "--out", job / f"vertical_{k}.mp4"])
+            com_lances(["--cut", k], job / f"vertical_{k}.mp4")
     # tudo pronto: os quadros extraídos/compostos ocupam vários GB (disco cheio corta o vídeo)
     shutil.rmtree(job / "tmp", ignore_errors=True)
     conf = job / "conferencia.txt"

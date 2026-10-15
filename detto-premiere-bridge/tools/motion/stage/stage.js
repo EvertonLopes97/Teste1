@@ -724,7 +724,8 @@
         const el = h("div", `item type-${it.type}${it.layout ? ` layout-${it.layout}` : ""}`);
         el.style.zIndex = String(it.z || 0);
         {
-          const A = it.layout === "camPip" ? L.pipArea : { x: 0, y: 0, w: L.W, h: L.H };
+          // lance no horizontal: o vídeo do lance na tela toda e a câmera pequena por cima, no canto
+          const A = it.layout === "camPip" && !(it.data && it.data.telaCheia) ? L.pipArea : { x: 0, y: 0, w: L.W, h: L.H };
           const box = h("div", "fitbox");
           box.style.left = `${A.x}px`;
           box.style.top = `${A.y}px`;
