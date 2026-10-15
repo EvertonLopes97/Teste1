@@ -364,10 +364,78 @@ def texto_png(texto, saida, W=1080, H=1920):
         ds.text((x, y + 4), l, font=fonte, fill=(0, 0, 0, 235), stroke_width=7, stroke_fill=(0, 0, 0, 235))
         dt_.text((x, y), l, font=fonte, fill=(255, 255, 255, 255), stroke_width=3, stroke_fill=(15, 15, 15, 255))
     sombra = sombra.filter(ImageFilter.GaussianBlur(6))
+    texto_png.fim = y0 + len(linhas) * alt + 10  # onde o texto termina (o vídeo pode ir logo abaixo)
     Image.alpha_composite(sombra, img).save(saida)
 
 
-def monta(inicio, clip, ini, fim, texto, saida, tmp, i_ini=0.0, i_fim=None, zoom=None, foco=0.5):
+def _quadro(f, t):
+    import cv2
+    import numpy as np
+
+    r = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{t:.2f}", "-i", str(f), "-frames:v", "1", "-vf", "scale=-2:640", "-f", "image2pipe", "-vcodec", "png", "-"], capture_output=True)
+    return cv2.imdecode(np.frombuffer(r.stdout, np.uint8), cv2.IMREAD_GRAYSCALE) if r.stdout else None
+
+
+def _faixa(f, t0, t1):
+    """faixa (y0, y1 em fração da altura) onde está o vídeo de verdade: linhas cheias e com movimento.
+    Fora dela: barra preta com o texto gravado do outro criador (texto = linha com pouco pixel aceso)."""
+    import numpy as np
+
+    fr = [q for q in (_quadro(f, t0 + (t1 - t0) * k / 5) for k in range(1, 5)) if q is not None]
+    if len(fr) < 2:
+        return None
+    a = np.array(fr, np.float32)
+    cheia = ((a > 14).mean(axis=2)).mean(axis=0) > 0.6
+    mexe = a.std(axis=0).mean(axis=1) > 6
+    ok = cheia & mexe
+    melhor, ini = (0, 0, 0), None
+    for y, v in enumerate(list(ok) + [False]):
+        if v and ini is None:
+            ini = y
+        elif not v and ini is not None:
+            if y - ini > melhor[0]:
+                melhor = (y - ini, ini, y)
+            ini = None
+    h = a.shape[1]
+    if melhor[0] < h * 0.2:
+        return None
+    # barra de verdade = fora da faixa quase tudo PRETO (só o texto aceso); parede/gramado parado não conta
+    luz = ((a > 14).mean(axis=2)).mean(axis=0)
+    fora = np.concatenate([luz[: melhor[1]], luz[melhor[2]:]])
+    if len(fora) > h * 0.1 and float(np.median(fora)) > 0.25:
+        return 0.0, 1.0
+    return melhor[1] / h, melhor[2] / h
+
+
+def analisa_viral(f):
+    """Repost no formato meme (outro criador no começo + o lance com faixa preta e texto gravado):
+    acha onde começa o lance (corte de cena em que aparece a faixa) e a faixa do vídeo (sem o texto dele).
+    Devolve {"inicio": s, "faixa": (y0, y1)} — vazio se o vídeo é "limpo"."""
+    d = dur(f)
+    r = subprocess.run(["ffmpeg", "-v", "info", "-i", str(f), "-vf", "select='gt(scene,0.25)',showinfo", "-f", "null", "-"], capture_output=True, text=True)
+    cortes = [0.0] + [float(x) for x in re.findall(r"pts_time:([\d.]+)", r.stderr or "") if 0.8 < float(x) < d - 1]
+    cortes = sorted(set(cortes)) + [d]
+    partes = []
+    for a_, b_ in zip(cortes[:-1], cortes[1:]):
+        if b_ - a_ >= 0.6:
+            partes.append((a_, b_, _faixa(f, a_, b_)))
+    out = {}
+    tem_barra = [p for p in partes if p[2] and (p[2][1] - p[2][0]) < 0.85]
+    if not tem_barra:
+        return out
+    primeira = tem_barra[0]
+    # antes dela, tela cheia (o criador original) → o lance começa no corte
+    if primeira[0] > 0.5 and all(not p[2] or (p[2][1] - p[2][0]) >= 0.85 for p in partes if p[1] <= primeira[0] + 0.01):
+        out["inicio"] = round(primeira[0] + 0.05, 2)
+    fx = _faixa(f, primeira[0], d)
+    if fx and (fx[1] - fx[0]) < 0.9:
+        # margem para dentro: corta a borda (às vezes sobra 1 linha do texto ou da barra)
+        # (em cima mais: a última linha do texto do outro criador costuma encostar no vídeo)
+        out["faixa"] = (round(fx[0] + 0.03, 4), round(fx[1] - 0.006, 4))
+    return out
+
+
+def monta(inicio, clip, ini, fim, texto, saida, tmp, i_ini=0.0, i_fim=None, zoom=None, foco=0.5, faixa=None):
     """começo (tela cheia) → flash → viral (vertical cheio; horizontal ampliado com faixa preta) + texto no topo.
     i_ini/i_fim: trecho do começo (gravação longa); zoom: ampliação do viral horizontal (1 = largura toda, sem cortar;
     padrão até 1,33); foco: onde fica o corte lateral (0 = esquerda, 0,5 = meio, 1 = direita)."""
@@ -377,6 +445,12 @@ def monta(inicio, clip, ini, fim, texto, saida, tmp, i_ini=0.0, i_fim=None, zoom
     di = max(0.5, i_fim - i_ini)
     dc = max(1.0, fim - ini)
     cw, ch = tamanho(clip)
+    corta = ""
+    if faixa:
+        # só a faixa do lance (sem a barra preta e o texto do outro criador)
+        y0, y1 = int(ch * faixa[0]) // 2 * 2, int(ch * faixa[1]) // 2 * 2
+        corta = f"crop={cw}:{y1 - y0}:0:{y0},"
+        ch = y1 - y0
     ar = cw / max(1, ch)
     png = tmp / "texto.png"
     texto_png(texto, png, W, H)
@@ -388,11 +462,14 @@ def monta(inicio, clip, ini, fim, texto, saida, tmp, i_ini=0.0, i_fim=None, zoom
         z = zoom if zoom else min(1.33, (H * 0.67) / (W / ar))
         sw, sh = int(W * z) // 2 * 2, int(W * z / ar) // 2 * 2
         x = int((sw - W) * max(0.0, min(1.0, foco)))
-        vclip = f"scale={sw}:{sh},crop={W}:{sh}:{x}:0,pad={W}:{H}:0:(oh-ih)/2:black"
+        # abaixo do texto quando cabe (texto no preto, como nos seus); senão no meio
+        fim_txt = getattr(texto_png, "fim", int(H * 0.3))
+        y = max((H - sh) // 2, min(fim_txt + 24, H - sh)) // 2 * 2
+        vclip = f"scale={sw}:{sh},crop={W}:{sh}:{x}:0,pad={W}:{H}:0:{y}:black"
     fl = 0.12
     f = (f"[0:v]trim={i_ini:.3f}:{i_fim:.3f},setpts=PTS-STARTPTS,{cor_sdr(inicio)}{cobre},fps={FPS},setsar=1,format=yuv420p,"
          f"fade=t=out:st={max(0, di - fl):.3f}:d={fl}:color=white[v0];"
-         f"[1:v]trim={ini:.3f}:{fim:.3f},setpts=PTS-STARTPTS,{cor_sdr(clip)}{vclip},fps={FPS},setsar=1,format=yuv420p,"
+         f"[1:v]trim={ini:.3f}:{fim:.3f},setpts=PTS-STARTPTS,{cor_sdr(clip)}{corta}{vclip},fps={FPS},setsar=1,format=yuv420p,"
          f"fade=t=in:st=0:d={fl * 1.5:.3f}:color=white[v1];")
     ai, ac = audio_bom(inicio), audio_bom(clip)
     a0 = (f"[0:a:{ai}]atrim={i_ini:.3f}:{i_fim:.3f},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo,loudnorm=I=-16:TP=-2[a0];" if ai is not None
@@ -508,6 +585,12 @@ def main():
             log("   longo demais, próximo")
             hist["usados"][chave] = {"pulado": "longo"}
             continue
+        # repost em formato meme: tira o começo do outro criador e a barra com o texto dele
+        av = analisa_viral(clip)
+        if av.get("inicio"):
+            log(f"   o lance começa em {av['inicio']:.1f}s (antes é o outro criador: sai)")
+        if av.get("faixa"):
+            log(f"   faixa do vídeo {av['faixa'][0]:.2f}–{av['faixa'][1]:.2f} da altura (texto gravado do original fica de fora)")
         # Gemini: começo + texto + legenda + tags + trecho
         peq = video_pequeno(clip, tmp / "viral.mp4")
         g = escreve(peq, info, descr, cfg, usos_hoje) if peq and not (a.texto and a.inicio) else None
@@ -528,29 +611,34 @@ def main():
             # sem Gemini: rodízio pelo começo menos usado (e não usado hoje)
             nome_inicio = sorted(por_nome, key=lambda k: (k in usos_hoje, hist["inicios"].get(k, {}).get("n", 0), random.random()))[0]
         texto = re.sub(r"\s+", " ", (g or {}).get("texto") or re.sub(r"#\S+|[^\w\sÀ-ÿ?!,.:]", "", info.get("title", "")).strip() or "Quando o futebol é assim")
-        orig = tags_originais(info)
+        dono = {norm(x).replace("_", "").replace(".", "") for x in (info.get("channel"), info.get("uploader"), info.get("uploader_id")) if x}
+        orig = [t for t in tags_originais(info) if norm(t[1:]).replace("_", "") not in dono]
         tags = (orig + [t if t.startswith("#") else "#" + t for t in (g or {}).get("tags", [])] + cfg["tags_padrao"])
         tags = list(dict.fromkeys(t.lower().replace(" ", "") for t in tags))[:5]
         legenda = ((g or {}).get("legenda") or texto).strip()
         ini = float((g or {}).get("inicio_corte") or 0)
         fim = float((g or {}).get("fim_corte") or 0)
+        if not a.corte and av.get("inicio") and ini < av["inicio"]:
+            ini = av["inicio"]
+            fim = max(fim, dclip) if fim <= ini else fim
         if not (0 <= ini < dclip) or fim <= ini:
-            ini, fim = 0.0, dclip
+            ini, fim = av.get("inicio", 0.0), dclip
         fim = min(fim, dclip, ini + cfg["corte_max"])
         if fim - ini < 3:
-            ini, fim = 0.0, min(dclip, cfg["corte_max"])
+            ini = av.get("inicio", 0.0)
+            fim = min(dclip, ini + cfg["corte_max"])
         n = feitos_hoje + feitos + 1
         nome = f"{n:02d} - {slug(texto, 40)}"
         saida = destino / f"{nome}.mp4"
         log(f"   começo: {nome_inicio} | texto: {texto}")
         i_ini, i_fim = trecho_do_inicio(por_nome[nome_inicio])
         zoom = a.zoom or ({"aberto": 1.0}.get(str(g.get("enquadramento", "")).lower()))
-        if not monta(por_nome[nome_inicio], clip, ini, fim, texto, saida, tmp, i_ini, i_fim, zoom, a.foco):
+        if not monta(por_nome[nome_inicio], clip, ini, fim, texto, saida, tmp, i_ini, i_fim, zoom, a.foco, av.get("faixa")):
             log("   falhou a edição, próximo")
             continue
         fonte_txt = c.get("url") or str(clip)
         (destino / f"{nome}.txt").write_text(f"{legenda}\n\n{' '.join(tags)}\n\n---\nTexto na tela: {texto}\nOriginal: {fonte_txt}"
-                                             f"{' (@' + info['uploader_id'] + ')' if info.get('uploader_id') else ''}\n", encoding="utf-8")
+                                             f"{' (@' + str(info.get('channel') or info.get('uploader_id')) + ')' if info.get('channel') or info.get('uploader_id') else ''}\n", encoding="utf-8")
         hist["usados"][chave] = {"dia": hoje, "arquivo": saida.name, "url": fonte_txt}
         i = hist["inicios"].setdefault(nome_inicio, {"n": 0})
         i["n"] += 1
