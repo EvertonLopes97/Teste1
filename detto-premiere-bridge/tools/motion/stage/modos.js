@@ -1204,6 +1204,380 @@
       },
     };
 
+    // ================================================================ PACOTE PRO (rastreio, 3D, recorte)
+    const cabeca = (box) => window.__cabeca || { x: box.w / 2, y: box.h * 0.4, w: box.w * 0.12 };
+    const retrato = (box) => box.h > box.w * 1.1;
+
+    // ---------------------------------------------------------------- texto ATRÁS dele (recorte da pessoa)
+    // A palavra gigante fica entre o fundo e ele (máscara do quadro). Sem máscara: vai acima da cabeça.
+    T.atras = {
+      fit: true,
+      overlay: true,
+      tarde: true,
+      build(el, d, box) {
+        const r = { box, linhas: [] };
+        r.w = h("div", "atras");
+        const palavras = String(d.text || "").toUpperCase().split(/\s+/).filter(Boolean);
+        const linhas = palavras.length > 2 && palavras.join(" ").length > 11 ? [palavras.slice(0, Math.ceil(palavras.length / 2)).join(" "), palavras.slice(Math.ceil(palavras.length / 2)).join(" ")] : [palavras.join(" ")];
+        const maxL = Math.max(...linhas.map((l) => l.length));
+        const fs = Math.min(box.h * (linhas.length > 1 ? 0.3 : 0.42), (box.w * (retrato(box) ? 1.3 : 1.55)) / Math.max(3, maxL));
+        linhas.forEach((l, i) => {
+          const s = h("div", `at-l anton${i % 2 ? " alt" : ""}${d.cor === "vermelho" ? " red" : ""}`, l);
+          s.style.fontSize = `${fs.toFixed(0)}px`;
+          r.w.appendChild(s);
+          r.linhas.push(s);
+        });
+        r.fs = fs;
+        el.appendChild(r.w);
+        return r;
+      },
+      update(r, d, lt, dur) {
+        const f = cabeca(r.box);
+        const masc = !!window.__mascara;
+        const alto = r.w.offsetHeight || r.fs;
+        // com recorte: atrás da cabeça (a cabeça tapa um pedaço); sem: acima dela
+        // no 9:16 a cabeça é grande: o texto fica mais alto (a cabeça tapa só a parte de baixo)
+        let y = masc ? (retrato(r.box) ? f.y - f.w * 0.95 - alto * 0.55 : f.y - f.w * 0.55 - alto * 0.5) : f.y - f.w * 1.05 - alto;
+        y = Math.max(r.box.h * 0.04, Math.min(r.box.h - alto - 20, y));
+        const sai = inCubic(prog(lt, dur - 0.35, 0.35));
+        r.w.style.top = `${y.toFixed(1)}px`;
+        r.w.style.opacity = String(clamp(prog(lt, 0, 0.18)) * (1 - sai));
+        r.linhas.forEach((l, i) => {
+          const q = outCubic(prog(lt, i * 0.12, 0.55));
+          const esp = (0.02 + 0.05 * outCubic(prog(lt, 0, dur))) * r.fs; // abre devagar (respira)
+          l.style.letterSpacing = `${(esp - 0.12 * r.fs * (1 - q)).toFixed(1)}px`;
+          l.style.transform = `translateY(${(r.fs * 0.35 * (1 - q)).toFixed(1)}px) scale(${(1.25 - 0.25 * q - 0.04 * sai).toFixed(4)})`;
+          l.style.filter = q < 1 ? `blur(${(10 * (1 - q)).toFixed(1)}px)` : "";
+        });
+      },
+    };
+
+    // ---------------------------------------------------------------- rastreio: segue a cabeça quadro a quadro
+    // etiqueta (ponto na cabeça + linha + caixa), mira (alvo travado no rosto), emoji grudado
+    T.rastreio = {
+      fit: true,
+      overlay: true,
+      tarde: true,
+      build(el, d, box) {
+        const r = { box };
+        if (d.kind === "mira") {
+          r.m = h("div", "mira");
+          r.m.innerHTML = '<i class="c m-tl"></i><i class="c m-tr"></i><i class="c m-bl"></i><i class="c m-br"></i><i class="scan"></i><i class="cruz"></i>';
+          r.lab = h("div", "mira-lab anton", "");
+          r.sub = d.sub ? h("div", "mira-sub", d.sub) : null;
+          el.append(r.m, r.lab);
+          if (r.sub) el.appendChild(r.sub);
+        } else if (d.kind === "emoji") {
+          r.e = h("div", "rs-emoji", d.text || "😂");
+          el.appendChild(r.e);
+        } else {
+          r.svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+          r.svg.setAttribute("class", "rs-svg");
+          r.svg.setAttribute("width", String(box.w));
+          r.svg.setAttribute("height", String(box.h));
+          r.svg.innerHTML = '<path class="rs-linha" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/><circle class="rs-ponto" r="9" fill="#B6FF3B" stroke="#111" stroke-width="3"/><circle class="rs-anel" r="9" fill="none" stroke="#B6FF3B" stroke-width="3"/>';
+          r.cx = h("div", "rs-caixa");
+          r.cx.append(h("div", "rs-t anton", d.text || ""));
+          if (d.sub) r.cx.append(h("div", "rs-s", d.sub));
+          el.append(r.svg, r.cx);
+          r.path = r.svg.querySelector(".rs-linha");
+          r.pt = r.svg.querySelector(".rs-ponto");
+          r.anel = r.svg.querySelector(".rs-anel");
+        }
+        return r;
+      },
+      update(r, d, lt, dur) {
+        const f = cabeca(r.box);
+        const sai = inCubic(prog(lt, dur - 0.3, 0.3));
+        if (d.kind === "mira") {
+          // trava: começa grande e girando, fecha no rosto
+          const q = outCubic(prog(lt, 0, 0.45));
+          const w = f.w * (1.55 + 1.2 * (1 - q));
+          const hh = f.w * (1.95 + 1.2 * (1 - q));
+          Object.assign(r.m.style, { left: `${(f.x - w / 2).toFixed(1)}px`, top: `${(f.y - hh * 0.4).toFixed(1)}px`, width: `${w.toFixed(1)}px`, height: `${hh.toFixed(1)}px`, opacity: String(clamp(lt / 0.12) * (1 - sai)), transform: `rotate(${(25 * (1 - q)).toFixed(2)}deg)` });
+          r.m.classList.toggle("travou", lt > 0.5);
+          const scan = r.m.querySelector(".scan");
+          scan.style.top = `${(50 + 46 * Math.sin(lt * 3.2)).toFixed(1)}%`;
+          scan.style.opacity = lt > 0.5 ? "0.85" : "0";
+          // rótulo digitando
+          const txt = String(d.text || "");
+          const n = Math.round(txt.length * clamp(prog(lt, 0.45, 0.5)));
+          r.lab.textContent = txt.slice(0, n) + (n < txt.length && lt > 0.45 ? "▌" : "");
+          const lx = f.x - w / 2;
+          let ly = f.y - hh * 0.4 - 52;
+          if (ly < 10) ly = f.y + hh * 0.6 + 10;
+          Object.assign(r.lab.style, { left: `${lx.toFixed(1)}px`, top: `${ly.toFixed(1)}px`, opacity: String((lt > 0.45 ? 1 : 0) * (1 - sai)) });
+          if (r.sub) Object.assign(r.sub.style, { left: `${(f.x + w / 2 + 12).toFixed(1)}px`, top: `${(f.y - 10).toFixed(1)}px`, opacity: String(clamp(prog(lt, 0.9, 0.2)) * (1 - sai)) });
+          return;
+        }
+        if (d.kind === "emoji") {
+          const tam = f.w * 0.75;
+          const lado = f.x > r.box.w / 2 ? -1 : 1;
+          const q = outBack(prog(lt, 0, 0.4), 2.2);
+          const bal = Math.sin(lt * 6) * 8 * Math.exp(-lt * 0.8);
+          Object.assign(r.e.style, { fontSize: `${tam.toFixed(0)}px`, left: `${Math.max(8, Math.min(r.box.w - tam * 1.15, f.x + lado * f.w * 0.62 - tam / 2)).toFixed(1)}px`, top: `${Math.max(8, f.y - f.w * 1.05 - tam * 0.4).toFixed(1)}px`, opacity: String(1 - sai), transform: `rotate(${(lado * 14 + bal).toFixed(1)}deg) scale(${q.toFixed(3)})` });
+          return;
+        }
+        // etiqueta: ponto em cima da cabeça → linha em cotovelo → caixa no lado livre
+        const lado = f.x > r.box.w * 0.5 ? -1 : 1;
+        const px = f.x + lado * f.w * 0.18;
+        const py = f.y - f.w * 0.8;
+        const cw = r.cx.offsetWidth || 260;
+        const ch = r.cx.offsetHeight || 70;
+        const port = retrato(r.box);
+        let ex = px + lado * (port ? f.w * 0.35 : f.w * 0.9);
+        let ey = Math.max(ch + 30, py - (port ? f.w * 0.75 : f.w * 0.55));
+        let bx = lado > 0 ? ex + 10 : ex - 10 - cw;
+        if (bx < 12) {
+          bx = 12;
+          ex = bx + cw + 10;
+        }
+        if (bx + cw > r.box.w - 12) {
+          bx = r.box.w - 12 - cw;
+          ex = bx - 10;
+        }
+        const qL = outCubic(prog(lt, 0.12, 0.35));
+        const qB = outBack(prog(lt, 0.4, 0.35), 1.6);
+        const len = Math.hypot(ex - px, ey - py) + 40;
+        r.path.setAttribute("d", `M${px.toFixed(1)} ${py.toFixed(1)} L${ex.toFixed(1)} ${ey.toFixed(1)} L${(ex + lado * 40).toFixed(1)} ${ey.toFixed(1)}`);
+        r.path.setAttribute("stroke-dasharray", String(len));
+        r.path.setAttribute("stroke-dashoffset", String(len * (1 - qL)));
+        r.pt.setAttribute("cx", px.toFixed(1));
+        r.pt.setAttribute("cy", py.toFixed(1));
+        r.pt.setAttribute("r", String(9 * outBack(prog(lt, 0, 0.25), 2)));
+        const pulso = (lt * 1.4) % 1;
+        r.anel.setAttribute("cx", px.toFixed(1));
+        r.anel.setAttribute("cy", py.toFixed(1));
+        r.anel.setAttribute("r", String(9 + 22 * pulso));
+        r.anel.setAttribute("opacity", String((1 - pulso) * (lt > 0.2 ? 1 : 0)));
+        r.svg.style.opacity = String(1 - sai);
+        Object.assign(r.cx.style, { left: `${bx.toFixed(1)}px`, top: `${(ey - ch / 2).toFixed(1)}px`, opacity: String(clamp(prog(lt, 0.4, 0.1)) * (1 - sai)), transform: `scale(${qB.toFixed(3)})`, transformOrigin: lado > 0 ? "0% 50%" : "100% 50%" });
+      },
+    };
+
+    // ---------------------------------------------------------------- congela: quadro parado, ele recortado com contorno
+    T.congela = {
+      fit: true,
+      overlay: true,
+      tarde: true,
+      build(el, d, box) {
+        const r = { box };
+        el.appendChild((r.fl = h("div", "fx-flash")));
+        r.tag = h("div", "cg-tag");
+        r.nome = h("div", "cg-nome anton", d.text || "");
+        r.tag.appendChild(r.nome);
+        if (d.sub) r.tag.appendChild((r.sub = h("div", "cg-sub anton", d.sub)));
+        r.seta = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        r.seta.setAttribute("class", "cg-seta");
+        r.seta.setAttribute("viewBox", "0 0 120 80");
+        r.seta.innerHTML = '<path d="M6 10 C40 6 80 20 104 62" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round"/><path d="M84 58 L106 66 L108 42" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>';
+        el.append(r.tag, r.seta);
+        // os textos do congela ficam acima do recorte dele
+        el.style.zIndex = "22";
+        return r;
+      },
+      antes(r, d, lt, dur) {
+        const fx = window.__fxFrame;
+        const q = 1 - inCubic(prog(lt, dur - 0.25, 0.25));
+        const masc = !!window.__mascara;
+        fx.fundo = masc ? `grayscale(${q.toFixed(3)}) brightness(${(1 - 0.5 * q).toFixed(3)}) contrast(${(1 + 0.1 * q).toFixed(3)})` : `saturate(${(1 - 0.6 * q).toFixed(3)}) brightness(${(1 - 0.15 * q).toFixed(3)})`;
+        if (masc) {
+          fx.contorno = clamp(prog(lt, 0.02, 0.12)) * q;
+          fx.cutZ = 4;
+        }
+      },
+      update(r, d, lt, dur) {
+        const f = cabeca(r.box);
+        const sai = inCubic(prog(lt, dur - 0.25, 0.25));
+        r.fl.style.opacity = String(0.9 * (1 - prog(lt, 0, 0.18)));
+        const port = retrato(r.box);
+        const lado = f.x > r.box.w / 2 ? -1 : 1;
+        const tw = r.tag.offsetWidth || 400;
+        const th = r.tag.offsetHeight || 120;
+        let x = port ? r.box.w / 2 - tw / 2 : lado > 0 ? f.x + f.w * 1.25 : f.x - f.w * 1.25 - tw;
+        x = Math.max(16, Math.min(r.box.w - tw - 16, x));
+        const y = port ? r.box.h * 0.6 : f.y - th * 0.2;
+        if (port) window.__fxFrame.semLegenda = true;
+        const q = outBack(prog(lt, 0.08, 0.35), 1.8);
+        Object.assign(r.tag.style, { left: `${x.toFixed(1)}px`, top: `${y.toFixed(1)}px`, opacity: String(clamp(prog(lt, 0.08, 0.08)) * (1 - sai)), transform: `rotate(${(port ? -3 : -4 * lado).toFixed(1)}deg) scale(${q.toFixed(3)})` });
+        // seta do texto até ele
+        const sw = Math.min(150, f.w * 1.1);
+        const sx = port ? x + tw * 0.15 : lado > 0 ? x - sw * 0.9 : x + tw - sw * 0.1;
+        const sy = port ? y - sw * 0.75 : y + th * 0.55;
+        Object.assign(r.seta.style, { left: `${sx.toFixed(1)}px`, top: `${sy.toFixed(1)}px`, width: `${sw.toFixed(1)}px`, height: `${(sw * 0.67).toFixed(1)}px`, opacity: String(clamp(prog(lt, 0.3, 0.1)) * (1 - sai)), transform: port ? "rotate(-100deg)" : lado > 0 ? "scaleX(-1)" : "" });
+      },
+    };
+
+    // ---------------------------------------------------------------- transição no corte (palco todo)
+    T.transicao = {
+      fit: true,
+      overlay: true,
+      build(el, d) {
+        const r = {};
+        el.appendChild((r.fl = h("div", "fx-flash")));
+        r.fl.style.opacity = "0";
+        if (d.kind === "glitch") {
+          r.faixas = [];
+          for (let i = 0; i < 7; i++) {
+            const f = h("div", "gl-faixa");
+            el.appendChild(f);
+            r.faixas.push(f);
+          }
+        }
+        return r;
+      },
+      update(r, d, lt, dur) {
+        const fx = window.__fxFrame;
+        const c = d.corte ?? dur / 2; // tempo do corte dentro do efeito
+        const u = lt - c; // <0 antes do corte, >0 depois
+        const W = 1280;
+        if (d.kind === "whip") {
+          // chicote: sai rápido para a esquerda com borrão e o próximo entra pela direita
+          const a = u < 0 ? inCubic(prog(lt, 0, c)) : 1 - outCubic(prog(u, 0, dur - c));
+          fx.transicao = { x: (u < 0 ? -1 : 1) * a * W * 0.12, blur: 55 * a, s: 1 + 0.26 * a };
+        } else if (d.kind === "zoom") {
+          const a = u < 0 ? inCubic(prog(lt, 0, c)) : 1 - outCubic(prog(u, 0, dur - c));
+          fx.transicao = { s: 1 + 0.45 * a, blur: 6 * a, blurY: 6 * a, rgb: 14 * a, rot: (u < 0 ? 1 : -1) * 2.5 * a };
+          r.fl.style.opacity = String(0.85 * Math.max(0, 1 - Math.abs(u) / 0.09));
+        } else if (d.kind === "glitch") {
+          const a = Math.max(0, 1 - Math.abs(u) / (dur / 2));
+          const k = Math.floor(lt * 30);
+          const rnd = (n) => (Math.sin(k * 12.9898 + n * 78.233) * 43758.5453) % 1;
+          fx.transicao = { x: rnd(1) * 40 * a, rgb: (10 + Math.abs(rnd(2)) * 22) * a, brilho: 1 + 0.25 * a * Math.abs(rnd(3)) };
+          r.faixas.forEach((f, i) => {
+            const on = Math.abs(rnd(10 + i)) < 0.55 * a;
+            Object.assign(f.style, { top: `${(Math.abs(rnd(20 + i)) * 100).toFixed(1)}%`, height: `${(2 + Math.abs(rnd(30 + i)) * 9).toFixed(1)}%`, opacity: on ? "1" : "0", transform: `translateX(${(rnd(40 + i) * 120).toFixed(0)}px)`, background: i % 2 ? "rgba(182,255,59,.35)" : "rgba(255,59,59,.3)" });
+          });
+        } else {
+          // flash branco
+          r.fl.style.opacity = String(Math.max(0, 1 - Math.abs(u) / (dur / 2)));
+        }
+      },
+    };
+
+    // ---------------------------------------------------------------- texto 3D (extrusão + perspectiva)
+    T.texto3d = {
+      fit: true,
+      overlay: true,
+      tarde: true,
+      build(el, d, box) {
+        const r = { box };
+        r.cena = h("div", "t3d-cena");
+        r.t = h("div", `t3d anton${d.cor === "vermelho" ? " red" : ""}`, String(d.text || "").toUpperCase());
+        const port = retrato(box);
+        const n = Math.max(4, r.t.textContent.length);
+        r.t.style.fontSize = `${Math.min(port ? 140 : 150, ((port ? box.w * 0.8 : box.w * 0.4) * 1.6) / n).toFixed(0)}px`;
+        r.cena.appendChild(r.t);
+        el.appendChild(r.cena);
+        return r;
+      },
+      update(r, d, lt, dur) {
+        const f = cabeca(r.box);
+        const port = retrato(r.box);
+        const lado = f.x > r.box.w / 2 ? -1 : 1;
+        const tw = r.t.offsetWidth || 400;
+        const th = r.t.offsetHeight || 150;
+        let x = port ? r.box.w / 2 - tw / 2 : lado > 0 ? Math.max(f.x + f.w * 1.1, r.box.w * 0.55) : Math.min(f.x - f.w * 1.1 - tw, r.box.w * 0.45 - tw);
+        x = Math.max(50, Math.min(r.box.w - tw - 50, x));
+        const y = port ? r.box.h * 0.64 : r.box.h * 0.3;
+        if (port) window.__fxFrame.semLegenda = true;
+        const q = outBack(prog(lt, 0, 0.6), 1.3);
+        const sai = inCubic(prog(lt, dur - 0.35, 0.35));
+        // gira de lado para frente e fica balançando em 3D
+        const ry = (port ? 0 : -lado * 14) + 70 * (1 - q) * lado + Math.sin(lt * 1.6) * 6 + sai * 80 * lado;
+        const rx = 12 * (1 - q) + Math.sin(lt * 1.2 + 1) * 4;
+        Object.assign(r.cena.style, { left: `${x.toFixed(1)}px`, top: `${y.toFixed(1)}px`, width: `${tw}px`, height: `${th}px`, opacity: String(clamp(prog(lt, 0, 0.12)) * (1 - sai)) });
+        r.t.style.transform = `rotateY(${ry.toFixed(2)}deg) rotateX(${rx.toFixed(2)}deg) scale(${(0.6 + 0.4 * q).toFixed(3)})`;
+      },
+    };
+
+    // ---------------------------------------------------------------- carta FUT 3D (walkout): vira na tela
+    function fut(c, w) {
+      const nota = c.rating;
+      const tier = nota == null ? "prata" : nota >= 8 ? "ouro" : nota >= 6.5 ? "prata" : "bagre";
+      const k = h("div", `fut ${tier}`);
+      k.style.width = `${w}px`;
+      k.style.height = `${(w * 1.42).toFixed(0)}px`;
+      const fr = h("div", "fut-frente");
+      const topo = h("div", "fut-topo");
+      topo.append(h("div", "fut-nota anton", fmt(nota) || "–"), h("div", "fut-lab", tier === "bagre" ? "BAGRE" : tier === "ouro" ? "CRAQUE" : "NOTA"));
+      const cr = crest(c, w * 0.2);
+      cr.classList.add("fut-esc");
+      topo.appendChild(cr);
+      const foto = h("div", "fut-foto");
+      if (c.photo) {
+        const i = h("img");
+        i.src = file(c.photo);
+        foto.appendChild(i);
+      } else foto.appendChild(h("div", "ini anton", initials(c.name)));
+      const nome = h("div", "fut-nome anton", String(c.name || "").split(/\s+/).slice(-2).join(" ").toUpperCase());
+      nome.style.fontSize = `${Math.min(w * 0.15, (w * 1.5) / Math.max(5, nome.textContent.length)).toFixed(0)}px`;
+      const rod = h("div", "fut-rod", c.sub || (tier === "bagre" ? "SELEÇÃO DOS BAGRES" : "SELEÇÃO DA RODADA"));
+      fr.append(foto, topo, nome, rod, h("div", "fut-brilho"));
+      const verso = h("div", "fut-verso");
+      verso.appendChild(h("div", "anton", "DETTO"));
+      k.append(fr, verso);
+      k.style.fontSize = `${w / 10}px`;
+      return k;
+    }
+    T.carta = {
+      fit: true,
+      overlay: true,
+      tarde: true,
+      build(el, d, box) {
+        const r = { box, ks: [] };
+        const port = retrato(box);
+        const n = d.cards.length;
+        const w = d.overlay ? (port ? box.w * 0.4 : Math.min(320, box.h * 0.5)) : Math.min((box.w * 0.84) / n - 24, (box.h * 0.74) / 1.42, 300);
+        r.w = w;
+        r.cena = h("div", "fut-cena");
+        el.appendChild(r.cena);
+        if (!d.overlay) {
+          r.feixe = h("div", "fut-feixe");
+          r.cena.appendChild(r.feixe);
+        }
+        d.cards.forEach((c) => {
+          const k = fut(c, w);
+          r.cena.appendChild(k);
+          r.ks.push(k);
+        });
+        return r;
+      },
+      update(r, d, lt, dur) {
+        const port = retrato(r.box);
+        const n = r.ks.length;
+        const W = r.w;
+        const H = W * 1.42;
+        const sai = inCubic(prog(lt, dur - 0.35, 0.35));
+        let pos;
+        if (d.overlay) {
+          const f = cabeca(r.box);
+          const lado = f.x > r.box.w / 2 ? -1 : 1;
+          const x = port ? r.box.w / 2 - W / 2 : lado > 0 ? Math.max(f.x + f.w * 1.2, r.box.w * 0.6) : Math.min(f.x - f.w * 1.2 - W, r.box.w * 0.4 - W);
+          const y = port ? r.box.h * 0.92 - H : r.box.h * 0.5 - H / 2;
+          if (port) window.__fxFrame.semLegenda = true;
+          pos = [{ x: Math.max(16, Math.min(r.box.w - W - 16, x)), y }];
+        } else {
+          const gap = 26;
+          const tot = n * W + (n - 1) * gap;
+          pos = r.ks.map((_, i) => ({ x: r.box.w / 2 - tot / 2 + i * (W + gap), y: r.box.h * 0.53 - H / 2 }));
+          if (r.feixe) r.feixe.style.opacity = String(clamp(prog(lt, 0, 0.3)) * (1 - prog(lt, 1.2, 0.8)) * (1 - sai));
+        }
+        r.ks.forEach((k, i) => {
+          const at = (d.times && d.times[i] != null ? d.times[i] : i * 0.35) + 0.05;
+          const q = outCubic(prog(lt, at, 0.95));
+          const p = pos[Math.min(i, pos.length - 1)];
+          // sobe girando (540° → 0) e fica flutuando em 3D
+          const ry = 540 * (1 - q) + Math.sin(lt * 1.5 + i) * 9 * q;
+          const rx = 6 * Math.sin(lt * 1.1 + i * 0.7) * q;
+          const sobe = (1 - outBack(prog(lt, at, 0.6), 1.3)) * 180;
+          Object.assign(k.style, { left: `${p.x.toFixed(1)}px`, top: `${(p.y + sobe).toFixed(1)}px`, opacity: String(clamp(prog(lt, at, 0.12)) * (1 - sai)), transform: `rotateY(${ry.toFixed(2)}deg) rotateX(${rx.toFixed(2)}deg) scale(${(0.7 + 0.3 * q - 0.1 * sai).toFixed(3)})` });
+          const br = k.querySelector(".fut-brilho");
+          br.style.transform = `translateX(${(-160 + 320 * prog(lt, at + 0.9, 0.7)).toFixed(1)}%) skewX(-20deg)`;
+        });
+      },
+    };
+
     // ---------------------------------------------------------------- gancho escrito (início dos cortes 9:16)
     T.gancho = {
       fit: true,

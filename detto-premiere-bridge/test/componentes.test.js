@@ -199,3 +199,33 @@ test("camisas: nota falada, lupa, efeitos, etiqueta e mapa saem do roteiro", () 
   assert.ok(!r.comps.some((c) => c.type === "nota"));
   assert.equal(r.comps.find((c) => c.type === "vfx").data.kind, "coracao");
 });
+
+test("pacote PRO: texto atrás, rastreio, mira, emoji, congela, texto 3D, carta FUT e transição", () => {
+  const { segmentComponents, buildRoster } = require("../tools/roteiro/componentes");
+  const seg = {
+    block: "POLÊMICA",
+    fields: {
+      MODO: "[CAM]",
+      FALA: "o cara chutou a bandeirinha e tomou a virada do galo contra o Mirassol",
+      VFX: 'texto atrás "POLÊMICA" no "bandeirinha"\nmira "GABIGOL" • "CHUTOU A BANDEIRINHA"\nemoji 🤡 na cabeça no "virada"\ncongela "GABIGOL" • "O PROVOCADOR" no "cara"\ntexto 3D "VIRADA" vermelho\nselo "PROVOCAÇÃO"',
+      TRANSICAO: "glitch",
+      MG: "CARTA FUT: GABIGOL (Santos) 4,2",
+    },
+  };
+  const { comps } = segmentComponents(seg, buildRoster({ segments: [seg] }), []);
+  const by = (t, k) => comps.find((c) => c.type === t && (!k || c.data.kind === k));
+  assert.equal(by("atras").data.text, "POLÊMICA");
+  assert.equal(by("atras").anchor, "bandeirinha");
+  assert.deepEqual([by("rastreio", "mira").data.text, by("rastreio", "mira").data.sub], ["GABIGOL", "CHUTOU A BANDEIRINHA"]);
+  assert.equal(by("rastreio", "emoji").data.text, "🤡");
+  assert.equal(by("rastreio", "emoji").anchor, "virada");
+  assert.deepEqual([by("congela").data.text, by("congela").data.sub, by("congela").anchor], ["GABIGOL", "O PROVOCADOR", "cara"]);
+  assert.equal(by("texto3d").data.cor, "vermelho");
+  assert.equal(by("transicao").data.kind, "glitch");
+  assert.equal(by("carta").place, "overlay");
+  assert.equal(by("carta").data.cards[0].rating, 4.2);
+  // as aspas dos comandos PRO não viram selo
+  assert.deepEqual(by("stamps").data.items.map((i) => i.text), ["PROVOCAÇÃO"]);
+  // "Mirassol" não é "mira"
+  assert.equal(comps.filter((c) => c.type === "rastreio" && c.data.kind === "mira").length, 1);
+});

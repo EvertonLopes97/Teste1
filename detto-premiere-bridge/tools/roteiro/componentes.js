@@ -318,6 +318,11 @@ function card(p, r, tags = "") {
 }
 
 /** Textos entre aspas, sem os que são descrição de animação ("pop", "thud"). @param {string} s */
+/** tira os comandos do pacote PRO (texto atrás "X", mira "Y"...) para as aspas deles não virarem selo/chamada */
+function semPro(s) {
+  return String(s).replace(/(texto\s+atr[áa]s(?:\s+d(?:ele|a cabe[çc]a|o rosto))?|texto\s+3D|rastreio|etiqueta na cabe[çc]a|seta na cabe[çc]a|\bmira(?:\s+no\s+rosto)?|\b(?:congela|freeze)(?:\s+(?:a imagem|o quadro|com contorno))?)\s*:?\s*"[^"]*"(\s*[•|+]\s*"[^"]*")?/gi, "");
+}
+
 function quotedCaps(s) {
   return [...String(s).matchAll(/"([^"]+)"/g)]
     .map((m) => m[1].trim())
@@ -519,7 +524,9 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
         .filter((q) => q.length > 3 && q !== statLabel && !list.some((c) => norm(q).includes(norm(c.name))) && !/^LANCE \d/.test(q));
       const res = mg.match(/RESULTADO:\s*([^;.\n"]+)/i);
       if (res && !notes.some((n) => n.includes(stripEmoji(res[1]).toUpperCase().replace(/\bX\b/, "x").trim()))) notes.push(stripEmoji(res[1]).toUpperCase().replace(/\bX\b/, "x"));
-      add("cards", { cards: list.slice(0, 6), notes: notes.slice(0, 2), stat: stat ? { label: statLabel, from: Number(stat[2]), to: Number(stat[3]) } : null, link: (mg.match(/linha animada[^"]*"([^"]+)"/i) || [])[1] || "" }, list[0].anchor, "plate");
+      // CARTA FUT: a carta 3D vira na tela (uma por jogador; sozinha na câmera vai ao lado da cabeça)
+      if (/\bCARTA\b|\bFUT\b|WALKOUT/i.test(mg)) add("carta", { cards: list.slice(0, 3) }, list[0].anchor, modo === "CAM" && list.length === 1 ? "overlay" : "plate");
+      else add("cards", { cards: list.slice(0, 6), notes: notes.slice(0, 2), stat: stat ? { label: statLabel, from: Number(stat[2]), to: Number(stat[3]) } : null, link: (mg.match(/linha animada[^"]*"([^"]+)"/i) || [])[1] || "" }, list[0].anchor, "plate");
     }
   }
 
@@ -527,7 +534,7 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
   if (/cart[ãa]o vermelho 3D|cart[ãa]o vermelho.*batendo/i.test(all) && !comps.some((c) => c.type === "cards" || c.type === "pitch")) add("redcard", { label: "VERMELHO DIRETO" }, "vermelho", "plate");
 
   // selos / carimbos
-  const stampSrc = [mg, F.TELESTRATOR || "", vfx].join("\n");
+  const stampSrc = semPro([mg, F.TELESTRATOR || "", vfx].join("\n"));
   if (/SELO|CARIMB|ANULADO/i.test(stampSrc)) {
     const items = quotedCaps(stampSrc)
       .filter((q) => !/\d+\s*x\s*\d+/.test(q)) // placar "BRAGANTINO 3 x 0 CRUZEIRO" é placa de placar, não selo
@@ -544,7 +551,7 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
       const d = (antes.match(/no\s+"([^"]+)"/i) || [])[1];
       if (d) /** @type {any} */ (it).deixa = d;
     }
-    if (items.length) add("stamps", { items }, /** @type {any} */ (items[0]).deixa || items[0].text, comps.length ? "plate" : modo === "CAM" ? "overlay" : "plate");
+    if (items.length) add("stamps", { items }, /** @type {any} */ (items[0]).deixa || items[0].text, comps.some((c) => c.place === "plate") ? "plate" : modo === "CAM" ? "overlay" : "plate");
   }
 
   // enquete (a palavra ENQUETE fora das aspas; "Fonte: enquete ge" no rodapé não é enquete)
@@ -736,6 +743,35 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
   const cont = mg.match(/contador\s+"([+\d.]+)"/i);
   if (mapa || cont) add("rota", { de: mapa ? mapa[1].trim().toUpperCase() : "", para: mapa ? mapa[2].trim().toUpperCase() : "", contador: cont ? cont[1] : "" }, cont ? cont[1].replace(/\D/g, "").slice(0, 2) : "", "overlay");
 
+  // ---------------- pacote PRO: texto atrás dele, rastreio, mira, emoji grudado, congela, texto 3D, transição
+  const pro = [vfx, mg, tela].join("\n");
+  const aspas2 = (/** @type {RegExp} */ re) => {
+    const m = pro.match(re);
+    if (!m) return null;
+    const resto = pro.slice((m.index || 0) + m[0].length);
+    const sub = (resto.match(/^\s*[•|+]\s*"([^"]+)"/) || [])[1] || "";
+    const antes = pro.slice(0, m.index).split(/[\n;]/).pop() || "";
+    const deixa = (resto.match(/^[^\n;]*?\bno\s+"([^"]+)"/i) || antes.match(/\bno\s+"([^"]+)"/i) || [])[1] || "";
+    return { text: stripEmoji(m[1]).trim(), sub: stripEmoji(sub).trim(), deixa: deixa.replace(/[?!]/g, ""), linha: m[0] + resto.split("\n")[0] };
+  };
+  const atras = aspas2(/texto\s+atr[áa]s(?:\s+d(?:ele|a cabe[çc]a|o rosto))?\s*:?\s*"([^"]+)"/i);
+  if (atras) add("atras", { text: atras.text, cor: /vermelh/i.test(atras.linha) ? "vermelho" : "" }, atras.deixa || atras.text, "overlay");
+  const rast = aspas2(/(?:rastreio|etiqueta na cabe[çc]a|seta na cabe[çc]a)\s*:?\s*"([^"]+)"/i);
+  if (rast) add("rastreio", { kind: "etiqueta", text: rast.text.toUpperCase(), sub: rast.sub.toUpperCase() }, rast.deixa || rast.text, "overlay");
+  const mira = aspas2(/\bmira(?:\s+no\s+rosto)?\s*:?\s*"([^"]+)"/i);
+  if (mira) add("rastreio", { kind: "mira", text: mira.text.toUpperCase(), sub: mira.sub.toUpperCase() }, mira.deixa || mira.text, "overlay");
+  const emo = pro.match(/emoji\s+"?(\p{Extended_Pictographic}[\u{FE0F}\u{200D}\p{Extended_Pictographic}]*)"?\s*(?:na cabe[çc]a|grudado|em cima)/u);
+  if (emo) add("rastreio", { kind: "emoji", text: emo[1] }, ((pro.slice(emo.index).split("\n")[0].match(/\bno\s+"([^"]+)"/i) || [])[1] || ""), "overlay");
+  const cg = aspas2(/\b(?:congela|freeze)(?:\s+(?:a imagem|o quadro|com contorno))?\s*:?\s*"([^"]+)"/i);
+  if (cg) add("congela", { text: cg.text.toUpperCase(), sub: cg.sub.toUpperCase() }, cg.deixa, "overlay");
+  const t3 = aspas2(/texto\s+3D\s*:?\s*"([^"]+)"/i);
+  if (t3) add("texto3d", { text: t3.text, cor: /vermelh/i.test(t3.linha) ? "vermelho" : "" }, t3.deixa || t3.text, "overlay");
+  if (F.TRANSICAO) {
+    const k = norm(F.TRANSICAO);
+    const kind = /nenhum|seco|sem/.test(k) ? "nenhuma" : /glitch|rgb/.test(k) ? "glitch" : /zoom/.test(k) ? "zoom" : /flash|branco/.test(k) ? "flash" : "whip";
+    add("transicao", { kind }, "", "overlay");
+  }
+
   // placa de nota (a nota é a que ele FALOU: "minha nota: 8"); "no lugar da placa de nota, um coração" = sem nota
   if (/PLACA DE NOTA/i.test(mg) && !/no lugar da PLACA DE NOTA/i.test(mg)) {
     const v = notaFalada(seg.spoken || F.FALA || "");
@@ -764,7 +800,7 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
 
   // textos de tela (CAM): batidas de palavra e chamadas
   if (tela && !/ENQUETE/.test(tela.toUpperCase())) {
-    const q = quotedCaps(tela).map(stripEmoji).filter(Boolean);
+    const q = quotedCaps(semPro(tela)).map(stripEmoji).filter(Boolean);
     const cta = /SEGUI|COMENT|CURT|LIKE|COMPARTILH|INSCREV/i.test(tela);
     if (cta) add("cta", { label: q.find((x) => !/^SEGUIR$/.test(x)) || (/COMENT/i.test(tela) ? "COMENTA AÍ" : "DEIXA O LIKE"), button: /SEGUI/i.test(tela) ? "SEGUIR" : /LIKE|CURT/i.test(tela) ? "CURTIR" : "SEGUIR" }, "segue comenta curte like compartilha", "overlay");
     // com foto na tela, o texto entra POR CIMA dela ("O BRASIL SEMPRE ESTEVE AQUI" sobre a camisa)
@@ -832,6 +868,13 @@ function roteiroComponents(roteiro) {
     if (/** @type {any} */ (s).opensSub && /POL[ÊE]MICA/i.test(/** @type {any} */ (s).sub || "") && !prevVar && !per[i].comps.some((c) => c.type === "var")) {
       per[i].comps.unshift({ type: "var", data: { label: (/** @type {any} */ (s).sub || "").replace(/:.*/, "").toUpperCase() }, anchor: "", place: "plate", short: true });
     }
+  });
+  // troca de bloco: transição (chicote / zoom alternando); "TRANSIÇÃO: nenhuma" no trecho tira, vinheta já é a transição
+  let alterna = 0;
+  roteiro.segments.forEach((s, i) => {
+    if (i === 0 || s.block === roteiro.segments[i - 1].block) return;
+    if (per[i].comps.some((c) => c.type === "transicao" || c.type === "vinheta")) return;
+    per[i].comps.push({ type: "transicao", data: { kind: alterna++ % 2 ? "zoom" : "whip" }, anchor: "", place: "overlay" });
   });
   // abertura: "as 5 camisas caindo de cima e pendurando atrás de você num varal" = as camisas do ranking
   roteiro.segments.forEach((s, i) => {

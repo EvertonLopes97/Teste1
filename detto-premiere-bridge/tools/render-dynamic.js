@@ -28,7 +28,7 @@ const { direct } = require("./motion/director");
 const { ensureFlags } = require("./motion/flags");
 const { findImages, creditsText } = require("./motion/media-search");
 const { writeSfxTrack } = require("./motion/sfx");
-const { renderComposite, extractCamFrames } = require("./motion/render-frames");
+const { renderComposite, extractCamFrames, gerarMascaras } = require("./motion/render-frames");
 const { buildAudio } = require("./motion/audio");
 const { corDaGravacao } = require("./motion/ffopts");
 
@@ -108,6 +108,7 @@ async function main() {
   const camDir = path.join(work, "cam");
   extractCamFrames(plan, a.video, camDir, d.fps, ranges);
   log("quadros da gravação extraídos");
+  gerarMascaras(d, camDir, ranges, log);
   // quadros já compostos são reaproveitados só se direção, formato e trechos forem os mesmos
   const key = crypto.createHash("sha1").update(JSON.stringify([d, format, ranges, a.scale || 1.5, outFps, a["seguir-rosto"] || "0", corDaGravacao(a.video).filtro, plan.cuts.map((c) => [c.start, c.end, c.timeline]), 4])).digest("hex").slice(0, 10);
   const framesDir = path.join(work, `frames_${format}${a.cut ? `_cut${a.cut}` : ""}_${outFps}fps_${key}`);

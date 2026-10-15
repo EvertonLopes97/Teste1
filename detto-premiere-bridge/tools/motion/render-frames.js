@@ -82,6 +82,50 @@ function extractCamFrames(plan, video, dir, fps, ranges) {
   return total;
 }
 
+/** trechos congelados (VFX congela): a imagem para no quadro do começo, o áudio segue */
+function congelados(d) {
+  return (d.items || []).filter((i) => i.type === "congela").map((i) => [i.start, i.end]);
+}
+
+/** tempo da gravação mostrado no tempo t da timeline (congela = quadro parado) */
+function tempoCam(t, freezes) {
+  const fz = freezes.find(([a, b]) => t >= a && t < b);
+  return fz ? fz[0] + 0.02 : t;
+}
+
+/**
+ * Máscaras da pessoa (recorte) só nos quadros com "texto atrás" ou "congela": cam/mask/000123.png.
+ * Roda tools/motion/recorte.py (MediaPipe). Sem Python/MediaPipe, segue sem recorte.
+ */
+function gerarMascaras(d, camDir, ranges, log = console.error) {
+  const camFps = d.fps;
+  const freezes = congelados(d);
+  /** @type {Map<number, boolean>} quadro → precisa de borda (congela) */
+  const precisa = new Map();
+  for (const it of d.items || []) {
+    if (it.type !== "atras" && it.type !== "congela") continue;
+    for (const [a, b] of ranges) {
+      const x = Math.max(a, it.start);
+      const y = Math.min(b, it.end);
+      for (let t = x; t < y; t += 1 / camFps) {
+        const q = Math.floor(tempoCam(t, freezes) * camFps + 1e-6);
+        precisa.set(q, precisa.get(q) || it.type === "congela");
+      }
+    }
+  }
+  if (!precisa.size) return;
+  const maskDir = path.join(camDir, "mask");
+  const nome = (q, s = "") => path.join(maskDir, `${String(q).padStart(6, "0")}${s}.png`);
+  const falta = [...precisa].filter(([q, b]) => !fs.existsSync(nome(q)) || (b && !fs.existsSync(nome(q, "_borda"))));
+  if (!falta.length) return;
+  const lista = path.join(camDir, "..", "recorte.txt");
+  fs.writeFileSync(lista, falta.sort((a, b) => a[0] - b[0]).map(([q, b]) => (b ? `${q} c` : String(q))).join("\n"));
+  const py = process.env.DETTO_PYTHON || (process.platform === "win32" ? "python" : "python3");
+  log(`recorte da pessoa: ${falta.length} quadros (texto atrás / congela)`);
+  const r = spawnSync(py, [path.join(__dirname, "recorte.py"), camDir, maskDir, lista], { stdio: "inherit" });
+  if (r.status !== 0) log("aviso: recorte falhou; o texto vai acima da cabeça (sem recorte)");
+}
+
 /** Posição do rosto no tempo da timeline (interpola o rastreamento feito na gravação). */
 function makeFaceAt(plan, face, seguir) {
   if (!seguir && face && face.points && face.points.length) {
@@ -119,6 +163,10 @@ async function renderComposite(o) {
   const fps = o.fps || camFps;
   const camTotal = Math.round(o.plan.cuts.reduce((m, c) => Math.max(m, c.timeline + (c.end - c.start)), 0) * camFps);
   const faceAt = makeFaceAt(o.plan, o.face, o.seguirRosto);
+  // a cabeça DE VERDADE (rastreio, mira, emoji grudado): sempre segue o rosto, mesmo com câmera parada
+  const cabecaAt = makeFaceAt(o.plan, o.face, true);
+  const freezes = congelados(d);
+  const maskDir = path.join(o.camDir, "mask");
   fs.mkdirSync(o.outDir, { recursive: true });
   /** @type {Array<{out: number, f: number}>} */
   const jobs = [];
@@ -175,8 +223,11 @@ async function renderComposite(o) {
         let feitos = 0;
         for (const j of mine) {
           const t = j.f / fps;
-          const cf = Math.min(camTotal - 1, Math.floor(t * camFps + 1e-6));
-          const cam = { src: pathToFileURL(path.join(o.camDir, `${String(cf).padStart(6, "0")}.jpg`)).href, ...cameraAt(d, t), face: faceAt(t) };
+          const tc = tempoCam(t, freezes);
+          const cf = Math.min(camTotal - 1, Math.floor(tc * camFps + 1e-6));
+          const mk = path.join(maskDir, `${String(cf).padStart(6, "0")}.png`);
+          const bd = path.join(maskDir, `${String(cf).padStart(6, "0")}_borda.png`);
+          const cam = { src: pathToFileURL(path.join(o.camDir, `${String(cf).padStart(6, "0")}.jpg`)).href, ...cameraAt(d, t), face: faceAt(tc), faceT: cabecaAt(tc), mask: fs.existsSync(mk) ? pathToFileURL(mk).href : "", borda: fs.existsSync(bd) ? pathToFileURL(bd).href : "" };
           for (let tent = 0; ; tent++) {
             try {
               if (feitos > 0 && feitos % RECICLA === 0 && tent === 0) throw new Error("reciclar");
@@ -206,4 +257,4 @@ async function renderComposite(o) {
   return jobs.length;
 }
 
-module.exports = { renderComposite, extractCamFrames, makeFaceAt };
+module.exports = { renderComposite, extractCamFrames, makeFaceAt, gerarMascaras, congelados, tempoCam };

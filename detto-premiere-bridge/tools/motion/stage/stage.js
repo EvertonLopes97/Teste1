@@ -503,6 +503,32 @@
   const camImg = h("img", "cam");
   camWrap.appendChild(camImg);
   stage.appendChild(camWrap);
+  // recorte da pessoa (máscara do quadro): fica POR CIMA do "texto atrás" e é o adesivo do congela
+  const cutWrap = h("div", "camwrap cutwrap");
+  const camCut = h("img", "cam");
+  // contorno branco (congela): a máscara engordada, pintada de branco, por baixo dele
+  const camBorda = h("div", "cam borda");
+  cutWrap.append(camBorda, camCut);
+  cutWrap.style.display = "none";
+  stage.appendChild(cutWrap);
+  // filtros de transição (desfoque de movimento horizontal e separação RGB), aplicados ao palco todo
+  const svgNS = "http://www.w3.org/2000/svg";
+  const fxSvg = document.createElementNS(svgNS, "svg");
+  fxSvg.setAttribute("width", "0");
+  fxSvg.setAttribute("height", "0");
+  fxSvg.style.position = "absolute";
+  fxSvg.innerHTML =
+    '<filter id="fx-mb" x="-10%" y="0" width="120%" height="100%" color-interpolation-filters="sRGB"><feGaussianBlur id="fx-mb-b" stdDeviation="0 0"/></filter>' +
+    '<filter id="fx-rgb" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">' +
+    '<feColorMatrix in="SourceGraphic" type="matrix" values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0" result="r"/>' +
+    '<feOffset id="fx-rgb-r" in="r" dx="0" dy="0" result="r2"/>' +
+    '<feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 1 0 0 0  0 0 0 0 0  0 0 0 1 0" result="g"/>' +
+    '<feColorMatrix in="SourceGraphic" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 1 0 0  0 0 0 1 0" result="b"/>' +
+    '<feOffset id="fx-rgb-b" in="b" dx="0" dy="0" result="b2"/>' +
+    '<feBlend in="r2" in2="g" mode="screen" result="rg"/><feBlend in="rg" in2="b2" mode="screen"/></filter>';
+  document.body.appendChild(fxSvg);
+  /** estado do palco pedido pelos efeitos deste quadro (transição, congela) */
+  let fxFrame = null;
 
   function placeLayout(rec, k, lt, dur) {
     const { el, item } = rec;
@@ -600,6 +626,67 @@
     camImg.style.transform = `translate(${left.toFixed(2)}px, ${top.toFixed(2)}px)`;
     // onde o rosto está na tela (para gráficos não taparem o rosto)
     window.__rosto = { x: r.x + left + face.cx * imgW, y: r.y + top + face.cy * imgH, w: face.w * SRC.w * s0 * z, H: L.H };
+    // cabeça DE VERDADE neste quadro (rastreamento): rastreio, mira, emoji grudado
+    const ft = cam.faceT || face;
+    window.__cabeca = { x: r.x + left + ft.cx * imgW, y: r.y + top + ft.cy * imgH, w: ft.w * imgW, janela: kWin > 0.001 || (kPip || 0) > 0.001 };
+    // congela: fundo cinza e escuro, ele colorido (o recorte por cima fica sem filtro)
+    camImg.style.filter = fxFrame && fxFrame.fundo ? fxFrame.fundo : "";
+    // recorte da pessoa: mesma posição e zoom da câmera, com a máscara do quadro
+    const recorte = cam.mask && kWin <= 0.001 && !usePip;
+    cutWrap.style.display = recorte ? "block" : "none";
+    if (recorte) {
+      cutWrap.style.cssText = camWrap.style.cssText;
+      cutWrap.style.zIndex = String((fxFrame && fxFrame.cutZ) || 3);
+      cutWrap.style.display = "block";
+      if (camCut.getAttribute("src") !== camImg.getAttribute("src")) camCut.src = camImg.getAttribute("src") || "";
+      const url = `url("${cam.mask}")`;
+      camCut.style.cssText = camImg.style.cssText;
+      camCut.style.filter = "";
+      camCut.style.webkitMaskImage = camCut.style.maskImage = url;
+      camCut.style.webkitMaskSize = camCut.style.maskSize = "100% 100%";
+      camCut.style.webkitMaskRepeat = camCut.style.maskRepeat = "no-repeat";
+      // adesivo: contorno branco em volta dele (congela) — máscara engordada (barato, sem filtro)
+      const ol = (fxFrame && fxFrame.contorno) || 0;
+      const usaBorda = ol > 0 && cam.borda;
+      if (!usaBorda) camBorda.style.display = "none";
+      else {
+        camBorda.style.cssText = camImg.style.cssText;
+        camBorda.style.display = "block";
+        camBorda.style.filter = "";
+        camBorda.style.background = "#fff";
+        camBorda.style.opacity = String(clamp(ol));
+        camBorda.style.webkitMaskImage = camBorda.style.maskImage = `url("${cam.borda}")`;
+        camBorda.style.webkitMaskSize = camBorda.style.maskSize = "100% 100%";
+        camBorda.style.webkitMaskRepeat = camBorda.style.maskRepeat = "no-repeat";
+      }
+    }
+  }
+
+  /** transição no palco todo: chicote (desfoque de movimento), zoom com RGB, flash */
+  function aplicaTransicao() {
+    const tr = fxFrame && fxFrame.transicao;
+    const mb = document.getElementById("fx-mb-b");
+    if (!tr) {
+      stage.style.filter = "";
+      stage.style.transform = "";
+      document.body.style.background = "";
+      return;
+    }
+    document.body.style.background = "#000";
+    const f = [];
+    if (tr.blur > 0.3) {
+      mb.setAttribute("stdDeviation", `${tr.blur.toFixed(1)} ${(tr.blurY || 0).toFixed(1)}`);
+      f.push("url(#fx-mb)");
+    }
+    if (tr.rgb > 0.3) {
+      document.getElementById("fx-rgb-r").setAttribute("dx", tr.rgb.toFixed(1));
+      document.getElementById("fx-rgb-b").setAttribute("dx", (-tr.rgb).toFixed(1));
+      f.push("url(#fx-rgb)");
+    }
+    if (tr.brilho) f.push(`brightness(${tr.brilho.toFixed(3)})`);
+    stage.style.filter = f.join(" ");
+    stage.style.transformOrigin = "50% 45%";
+    stage.style.transform = `translate(${(tr.x || 0).toFixed(1)}px, 0) scale(${(tr.s || 1).toFixed(4)}) rotate(${(tr.rot || 0).toFixed(3)}deg)`;
   }
 
   // ---------------------------------------------------------------- API
@@ -624,6 +711,11 @@
     let kSide = 0;
     let kPip = 0;
     let shiftCaption = 0;
+    // efeitos deste quadro pedem coisas ao palco (transição, congela, recorte) por aqui
+    fxFrame = window.__fxFrame = {};
+    window.__mascara = !!(cam && cam.mask);
+    /** componentes que seguem a cabeça: desenhados DEPOIS da câmera deste quadro */
+    const tarde = [];
     for (const it of items) {
       if (t < it.start || t >= it.end) continue;
       active.add(it.id);
@@ -680,7 +772,8 @@
         placeLayout(rec, k, lt, dur);
       }
       if (it.type === "caption" && it.data.side) shiftCaption = 1;
-      TYPES[it.type].update(rec.refs, it.data, lt, dur, t, rec.el);
+      if (TYPES[it.type].tarde) tarde.push([rec, lt, dur]);
+      else TYPES[it.type].update(rec.refs, it.data, lt, dur, t, rec.el);
     }
     for (const [id, rec] of live) {
       if (!active.has(id)) {
@@ -689,7 +782,13 @@
       }
     }
     stage.classList.toggle("side-active", kSide > 0.5 && shiftCaption === 1);
+    // o que depende da câmera deste quadro pede antes (fxFrame) e desenha depois
+    for (const [rec] of tarde) if (TYPES[rec.item.type].antes) TYPES[rec.item.type].antes(rec.refs, rec.item.data, t - rec.item.start, rec.item.end - rec.item.start);
     if (cam) placeCamera(cam, kWin, kSide, kPip);
+    for (const [rec, lt, dur] of tarde) TYPES[rec.item.type].update(rec.refs, rec.item.data, lt, dur, t, rec.el);
+    aplicaTransicao();
+    // 9:16: carta/congela/texto 3D na parte de baixo → a legenda sai enquanto eles estão na tela
+    stage.classList.toggle("sem-legenda", !!fxFrame.semLegenda);
     return active.size;
   }
 

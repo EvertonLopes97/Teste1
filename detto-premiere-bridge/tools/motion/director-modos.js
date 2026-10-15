@@ -165,6 +165,17 @@ function directModes(plan, opts = {}) {
           }
         }
         if (d.stat) for (let k = 0; k < Math.min(10, d.stat.to); k++) sfx.push({ t: start + 0.6 + (k * Math.min(2.4, (end - start) * 0.5)) / d.stat.to, kind: "tick" });
+      } else if (c.type === "carta") {
+        d.cards = d.cards.map((x) => dress(x));
+        d.times = d.cards.map((x, k) => {
+          const t = rel(nameTime(x.name, start - 0.3, end));
+          return t === undefined ? 0.2 + k * 0.45 : Math.max(0.15, t);
+        });
+        for (let k = 1; k < d.times.length; k++) d.times[k] = Math.max(d.times[k], d.times[k - 1] + 0.4);
+        d.times.forEach((t, k) => {
+          sfx.push({ t: start + t, kind: "whoosh" });
+          sfx.push({ t: start + t + 0.95, kind: d.cards[k].rating != null && d.cards[k].rating < 6.5 ? "hit" : "ding" });
+        });
       } else if (c.type === "pitch") {
         const all = [...d.rows.flat(), ...(d.bench || [])];
         for (const x of all) Object.assign(x, dress(x), { at: rel(nameTime(x.name, start, end)) });
@@ -330,6 +341,31 @@ function directModes(plan, opts = {}) {
         const st = S + 0.3;
         overlays.push({ type: "varal", start: st, end: Math.min(E, st + Math.max(4, E - st)), data: d });
         d.items.forEach((_, k) => sfx.push({ t: st + 0.15 + k * 0.22, kind: "whoosh_short" }));
+      } else if (["atras", "rastreio", "congela", "texto3d", "carta"].includes(c.type)) {
+        // pacote PRO: na palavra (deixa) — texto atrás, etiqueta/mira/emoji na cabeça, congela, texto 3D, carta FUT
+        const t = c.type === "carta" ? nameTime(d.cards[0].name, S - 0.3, E) : c.anchor ? anchorT(c.anchor, S - 0.3, E) : null;
+        const pad = { atras: 0.12, rastreio: 0.1, congela: 0, texto3d: 0.1, carta: 0.15 }[c.type];
+        const st = Math.max(S, t !== null ? t - pad : S + Math.min(c.type === "congela" ? 0.6 : 0.4, (E - S) * 0.25));
+        const dur = c.type === "rastreio" ? (d.kind === "mira" ? 2.6 : d.kind === "emoji" ? 2.4 : 3.0) : { atras: 2.4, congela: 1.6, texto3d: 2.2, carta: 3.0 }[c.type];
+        const end = Math.min(E + (c.type === "congela" ? 0 : 0.5), st + dur);
+        if (end - st < 0.6) continue;
+        if (c.type === "carta") {
+          d.overlay = true;
+          d.cards = d.cards.map((x) => dress(x));
+          d.times = [0.05];
+        }
+        overlays.push({ type: c.type, start: st, end, data: d, z: c.type === "atras" ? 2 : 20 });
+        if (c.type === "atras") sfx.push({ t: st, kind: "boom" });
+        else if (c.type === "rastreio") sfx.push({ t: st, kind: d.kind === "mira" ? "glitch" : "pop" }, ...(d.kind === "mira" ? [{ t: st + 0.5, kind: "click" }] : []));
+        else if (c.type === "congela") sfx.push({ t: st, kind: "hit" }, { t: st + 0.1, kind: "whoosh_short" });
+        else if (c.type === "texto3d") sfx.push({ t: st, kind: "whoosh" });
+        else sfx.push({ t: st, kind: "whoosh" }, { t: st + 1.0, kind: d.cards[0].rating != null && d.cards[0].rating < 6.5 ? "hit" : "ding" });
+      } else if (c.type === "transicao") {
+        // transição no corte do começo do trecho (sai do anterior e entra neste)
+        if (d.kind === "nenhuma" || S < 0.6) continue;
+        const pre = d.kind === "glitch" ? 0.16 : 0.2;
+        overlays.push({ type: "transicao", start: S - pre, end: S + (d.kind === "flash" ? 0.2 : 0.3), data: { ...d, corte: pre }, z: 40 });
+        sfx.push({ t: S - pre, kind: d.kind === "glitch" ? "glitch" : "whoosh_short" });
       } else if (c.type === "stamps") {
         d.overlay = true;
         // cada selo na hora em que é falado ("anulado", "não é pênalti")
@@ -357,6 +393,19 @@ function directModes(plan, opts = {}) {
   }
 
   plates.sort((a, b) => a.start - b.start);
+  // pacote PRO: um efeito ao lado da cabeça por vez (o que entra encerra o anterior)
+  const lado = overlays.filter((o) => ["rastreio", "congela", "texto3d", "carta"].includes(o.type)).sort((a, b) => a.start - b.start);
+  for (let i = 1; i < lado.length; i++) {
+    const a = lado[i - 1];
+    if (lado[i].start < a.end) {
+      if (lado[i].start - a.start >= 1.2) a.end = lado[i].start;
+      else {
+        const len = lado[i].end - lado[i].start;
+        lado[i].start = a.end;
+        lado[i].end = a.end + len;
+      }
+    }
+  }
   // selos sobre a câmera: um de cada vez
   const st = overlays.filter((o) => o.type === "stamps").sort((a, b) => a.start - b.start);
   for (let i = 1; i < st.length; i++) {
@@ -396,7 +445,7 @@ function directModes(plan, opts = {}) {
 
   const items = [
     ...plates.map((p) => ({ type: p.type, start: p.start, end: p.end, layout: p.layout, data: p.data, z: 10 })),
-    ...overlays.map((o) => ({ ...o, z: 20 })),
+    ...overlays.map((o) => ({ ...o, z: o.z ?? 20 })),
     ...caps.map((c) => ({ ...c, z: 15 })),
     { type: "watermark", start: 0, end: duration, data: { text: "@detto.galo" }, z: 30 },
   ].map((it, i) => ({ id: `${it.type}_${i}`, ...it }));

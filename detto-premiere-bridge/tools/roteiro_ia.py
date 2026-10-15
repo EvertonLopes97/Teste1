@@ -74,6 +74,16 @@ O QUE O MG PODE PEDIR (escreva assim, o editor automático entende):
 - vinheta de bloco: vinheta "NOME".   - aspas: aspas "FRASE" — Autor.
 - selos: selo "ANULADO" / "✅ CORRETO".   - tela de VAR: "vira a TELA DE VAR".
 - números grandes: VFX: três "10" azuis caem do topo.
+- carta FUT 3D (vira na tela): MG: CARTA FUT: NOME (Time) nota.
+
+EFEITOS PRO (VFX, na palavra falada com no "palavra"; no máximo 1 a cada ~15 s, só nos momentos fortes):
+- VFX: texto atrás "POLÊMICA" no "polêmica"   (palavra gigante ATRÁS dele; abertura de assunto)
+- VFX: rastreio "EU NO DOMINGO" • "ASSISTINDO DE CASA" no "domingo"   (etiqueta presa na cabeça dele)
+- VFX: mira "ALVO DA TORCIDA" no "torcida"   (alvo travando no rosto dele, quando ele vira o assunto)
+- VFX: emoji 🤡 na cabeça no "palhaçada"   (emoji grudado na cabeça)
+- VFX: congela "GABIGOL" • "O PROVOCADOR" no "cara"   (imagem para, ele recortado com contorno e o nome)
+- VFX: texto 3D "VIRADA" no "virada"   (palavra 3D girando; "vermelho" no fim deixa vermelha)
+- TRANSIÇÃO: glitch / zoom / whip / nenhuma   (no trecho que abre bloco; sem nada = automática)
 
 REGRAS:
 - Um trecho [m:ss – m:ss] por frase/ideia (5 a 15 s), cobrindo a fala inteira, em ordem, sem buracos.

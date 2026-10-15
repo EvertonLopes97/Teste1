@@ -1697,3 +1697,325 @@ body.format-vertical .cta {
   background: linear-gradient(90deg, #c08a4a, #e0b071);
   z-index: 2;
 }
+
+/* ================================================================ PACOTE PRO */
+/* texto atrás dele (entre o fundo e o recorte) */
+.atras {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  pointer-events: none;
+}
+#stage.sem-legenda .caption {
+  opacity: 0;
+}
+.atras .at-l {
+  display: block;
+  line-height: 0.86;
+  color: #fff;
+  white-space: nowrap;
+  text-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+  transform-origin: 50% 60%;
+}
+.atras .at-l.alt {
+  color: #b6ff3b;
+}
+.atras .at-l.red {
+  color: #ff3b3b;
+}
+
+/* rastreio: etiqueta presa na cabeça */
+.rs-svg {
+  position: absolute;
+  left: 0;
+  top: 0;
+  overflow: visible;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.6));
+}
+.rs-caixa {
+  position: absolute;
+  background: #b6ff3b;
+  color: #111;
+  padding: 8px 18px 6px;
+  border-radius: 6px;
+  box-shadow: 0 0 0 4px #111, 0 10px 30px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
+}
+.rs-caixa .rs-t {
+  font-size: 40px;
+  line-height: 1;
+}
+.rs-caixa .rs-s {
+  font: 800 18px "Inter", sans-serif;
+  margin-top: 2px;
+  letter-spacing: 0.5px;
+}
+.rs-emoji {
+  position: absolute;
+  line-height: 1;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5));
+}
+
+/* mira travando no rosto */
+.mira {
+  position: absolute;
+  border-radius: 6px;
+}
+.mira .c {
+  position: absolute;
+  width: 26%;
+  height: 22%;
+  border: 0 solid #fff;
+}
+.mira.travou .c {
+  border-color: #ff3b3b;
+}
+.mira .m-tl {
+  left: 0;
+  top: 0;
+  border-left-width: 6px;
+  border-top-width: 6px;
+}
+.mira .m-tr {
+  right: 0;
+  top: 0;
+  border-right-width: 6px;
+  border-top-width: 6px;
+}
+.mira .m-bl {
+  left: 0;
+  bottom: 0;
+  border-left-width: 6px;
+  border-bottom-width: 6px;
+}
+.mira .m-br {
+  right: 0;
+  bottom: 0;
+  border-right-width: 6px;
+  border-bottom-width: 6px;
+}
+.mira .scan {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, #ff3b3b, transparent);
+}
+.mira .cruz {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  background: linear-gradient(#fff, #fff) center/2px 100% no-repeat, linear-gradient(#fff, #fff) center/100% 2px no-repeat;
+  opacity: 0.7;
+}
+.mira-lab {
+  position: absolute;
+  background: #ff3b3b;
+  color: #fff;
+  font-size: 34px;
+  line-height: 1;
+  padding: 6px 12px 4px;
+  white-space: nowrap;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+.mira-sub {
+  position: absolute;
+  font: 800 20px "Inter", sans-serif;
+  color: #fff;
+  background: rgba(17, 20, 24, 0.85);
+  border-left: 5px solid #ff3b3b;
+  padding: 6px 10px;
+  white-space: nowrap;
+}
+
+/* congela: nome do "personagem" */
+.cg-tag {
+  position: absolute;
+  transform-origin: 50% 50%;
+}
+.cg-nome {
+  font-size: 92px;
+  line-height: 0.9;
+  color: #fff;
+  -webkit-text-stroke: 3px #111;
+  paint-order: stroke fill;
+  text-shadow: 6px 6px 0 #b6ff3b, 0 14px 30px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+}
+.cg-sub {
+  display: inline-block;
+  margin-top: 8px;
+  background: #b6ff3b;
+  color: #111;
+  font-size: 34px;
+  line-height: 1;
+  padding: 6px 12px 4px;
+}
+.cg-seta {
+  position: absolute;
+  overflow: visible;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.6));
+}
+
+/* glitch: faixas deslocadas */
+.gl-faixa {
+  position: absolute;
+  left: -5%;
+  width: 110%;
+  mix-blend-mode: screen;
+}
+
+/* texto 3D extrudado */
+.t3d-cena {
+  position: absolute;
+  perspective: 900px;
+}
+.t3d {
+  display: inline-block;
+  white-space: nowrap;
+  line-height: 0.9;
+  color: #fff;
+  transform-origin: 50% 50%;
+  text-shadow: 1px 1px 0 #9bdc2f, 2px 2px 0 #8fcc2a, 3px 3px 0 #83bc26, 4px 4px 0 #77ac22, 5px 5px 0 #6b9c1e, 6px 6px 0 #5f8c1a, 7px 7px 0 #537c16, 8px 8px 0 #476c12,
+    9px 9px 0 #3b5c0e, 10px 10px 0 #2f4c0a, 14px 18px 26px rgba(0, 0, 0, 0.55);
+}
+.t3d.red {
+  text-shadow: 1px 1px 0 #e03030, 2px 2px 0 #cc2a2a, 3px 3px 0 #b82424, 4px 4px 0 #a41e1e, 5px 5px 0 #901818, 6px 6px 0 #7c1212, 7px 7px 0 #680c0c, 8px 8px 0 #540808,
+    9px 9px 0 #400404, 10px 10px 0 #2c0000, 14px 18px 26px rgba(0, 0, 0, 0.55);
+}
+
+/* carta FUT 3D */
+.fut-cena {
+  position: absolute;
+  inset: 0;
+  perspective: 1100px;
+}
+.fut-feixe {
+  position: absolute;
+  left: 50%;
+  top: -10%;
+  width: 70%;
+  height: 120%;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at 50% 60%, rgba(255, 236, 160, 0.55), rgba(255, 236, 160, 0) 60%), linear-gradient(90deg, transparent 30%, rgba(255, 255, 255, 0.18) 50%, transparent 70%);
+  filter: blur(6px);
+}
+.fut {
+  position: absolute;
+  transform-style: preserve-3d;
+  transform-origin: 50% 50%;
+}
+.fut-frente,
+.fut-verso {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  clip-path: polygon(50% 0, 100% 7%, 100% 88%, 50% 100%, 0 88%, 0 7%);
+  overflow: hidden;
+}
+.fut-verso {
+  transform: rotateY(180deg);
+  background: linear-gradient(160deg, #1d232b, #0b0d10);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #b6ff3b;
+  font-size: 2.6em;
+  letter-spacing: 2px;
+}
+.fut.ouro .fut-frente {
+  background: linear-gradient(155deg, #fff3b0 0%, #e5c04a 30%, #b8892a 62%, #f3d77a 100%);
+  color: #2b1d00;
+}
+.fut.prata .fut-frente {
+  background: linear-gradient(155deg, #ffffff 0%, #cfd6dd 35%, #8e98a3 65%, #e4e9ee 100%);
+  color: #14181d;
+}
+.fut.bagre .fut-frente {
+  background: linear-gradient(155deg, #6b1414 0%, #3a0b0b 45%, #1a0606 75%, #7a1b1b 100%);
+  color: #ffd0d0;
+}
+.fut-topo {
+  position: absolute;
+  left: 7%;
+  top: 11%;
+  width: 26%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 2;
+}
+.fut-nota {
+  font-size: 3em;
+  line-height: 0.9;
+}
+.fut-lab {
+  font: 900 0.7em "Inter", sans-serif;
+  letter-spacing: 1px;
+}
+.fut-esc {
+  margin-top: 0.4em;
+}
+.fut-foto {
+  position: absolute;
+  right: 3%;
+  top: 9%;
+  width: 64%;
+  height: 56%;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+}
+.fut-foto img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35));
+}
+.fut-foto .ini {
+  font-size: 4em;
+  opacity: 0.6;
+}
+.fut-nome {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  top: 66%;
+  text-align: center;
+  line-height: 1;
+  border-top: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  padding: 0.12em 0 0.06em;
+  white-space: nowrap;
+}
+.fut-rod {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 79%;
+  text-align: center;
+  font: 900 0.78em "Inter", sans-serif;
+  letter-spacing: 1px;
+}
+.fut-brilho {
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  width: 35%;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0));
+  mix-blend-mode: overlay;
+}
+.cutwrap .borda {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 0;
+}
