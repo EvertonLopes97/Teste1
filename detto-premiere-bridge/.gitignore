@@ -12,3 +12,4 @@ tools/galo/banco/recortes/
 tools/banco/web/
 tools/motion/modelos/selfie_multiclass_256x256.tflite
 tools/motion/modelos/*.baixando
+tools/motion/modelos/face_landmarker.task

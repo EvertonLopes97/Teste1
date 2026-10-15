@@ -50,6 +50,7 @@ def main():
     p.add_argument("--sfx", help="volume dos efeitos sonoros (padrão 0.3; 0.15 = mais baixo, 0.5 = mais alto, 0 = sem efeitos)")
     p.add_argument("--roteiro", help="seu roteiro (.txt); senão procura <nome do vídeo>.txt na pasta do vídeo")
     p.add_argument("--sem-lances", action="store_true", help="não faz a versão com o vídeo dos lances")
+    p.add_argument("--sem-thumbs", action="store_true", help="não faz as 4 thumbs")
     p.add_argument("--cookies", default=None, help="navegador logado no YouTube (chrome, edge, firefox) se pedir login")
     a = p.parse_args()
     video = Path(a.video).resolve()
@@ -149,6 +150,12 @@ def main():
         for k in cortes:
             roda(base + ["--cut", k, "--out", job / f"vertical_{k}.mp4"])
             com_lances(["--cut", k], job / f"vertical_{k}.mp4")
+    # 4 thumbs (suas melhores reações + texto + jogador) para escolher
+    if not a.sem_thumbs and not a.teste:
+        try:
+            roda([py, T / "thumb" / "thumb.py", job])
+        except (subprocess.CalledProcessError, KeyboardInterrupt):
+            print("Aviso: as thumbs falharam; rode depois: python tools\\thumb\\thumb.py \"" + str(job) + "\"")
     # tudo pronto: os quadros extraídos/compostos ocupam vários GB (disco cheio corta o vídeo)
     shutil.rmtree(job / "tmp", ignore_errors=True)
     conf = job / "conferencia.txt"
