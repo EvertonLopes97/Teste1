@@ -124,9 +124,26 @@ def tamanho(f):
         return 1080, 1920
 
 
-def tem_audio(f):
-    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", str(f)], capture_output=True, text=True)
-    return bool(r.stdout.strip())
+def audio_bom(f):
+    """nº (entre os áudios) do primeiro áudio que o FFmpeg lê. iPhone novo grava 2: o 1º é "áudio espacial" (APAC),
+    que o FFmpeg não abre; o 2º é o AAC normal. None = sem áudio"""
+    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=codec_name", "-of", "csv=p=0", str(f)], capture_output=True, text=True)
+    for k, c in enumerate(r.stdout.split()):
+        if c and c not in ("unknown", "none", "apac"):
+            return k
+    return None
+
+
+def cor_sdr(f):
+    """iPhone grava em HDR (HLG): converte para SDR (cor certa), igual ao editor"""
+    try:
+        sys.path.insert(0, str(TOOLS))
+        from cor import filtro_cor
+
+        x = filtro_cor(str(f))
+        return f"{x}," if x else ""
+    except Exception:
+        return ""
 
 
 # ------------------------------------------------------------------ baixar (yt-dlp: YouTube, TikTok, Instagram)
@@ -265,7 +282,9 @@ def descricao_inicio(f, cache, tmp):
     """o que você faz no começo: .txt ao lado, nome do arquivo, ou o Gemini assiste (uma vez)"""
     txt = f.with_suffix(".txt")
     if txt.exists():
-        return txt.read_text(encoding="utf-8").strip()
+        d = re.sub(r"(?im)^\s*trecho\s*:?.*$", "", txt.read_text(encoding="utf-8")).strip()
+        if d:
+            return d
     nome = f.stem.strip()
     if len(re.findall(r"[a-zA-ZÀ-ÿ]{3,}", nome)) >= 2 and not re.match(r"^(img|vid|mov|dsc|pxl|whatsapp)", nome, re.I):
         return nome
@@ -300,7 +319,8 @@ Responda SÓ JSON:
  "legenda": "<legenda do post, 1 ou 2 frases curtas, pode ter 1 emoji e uma pergunta para comentarem>",
  "tags": ["#...", "#...", "#...", "#...", "#..."],
  "inicio_corte": <segundo do vídeo viral onde começa a parte boa>,
- "fim_corte": <segundo onde termina; no máximo {cfg['corte_max']} s depois do início>}}"""
+ "fim_corte": <segundo onde termina; no máximo {cfg['corte_max']} s depois do início>,
+ "enquadramento": "<aberto se o vídeo é horizontal em plano aberto e a jogada acontece perto das bordas (não pode cortar as laterais); senão fechado>"}}"""
     if orig:
         prompt += f"\nAs tags do vídeo original são {' '.join(orig[:12])}: use as que servem primeiro."
     if usos_hoje:
@@ -340,16 +360,21 @@ def texto_png(texto, saida, W=1080, H=1920):
     for i, l in enumerate(linhas):
         x = (W - d0.textlength(l, font=fonte)) / 2
         y = y0 + i * alt
-        ds.text((x + 2, y + 3), l, font=fonte, fill=(0, 0, 0, 200))
-        dt_.text((x, y), l, font=fonte, fill=(255, 255, 255, 255), stroke_width=1, stroke_fill=(30, 30, 30, 160))
-    sombra = sombra.filter(ImageFilter.GaussianBlur(4))
+        # sombra larga e escura: lê em parede branca e no gramado
+        ds.text((x, y + 4), l, font=fonte, fill=(0, 0, 0, 235), stroke_width=7, stroke_fill=(0, 0, 0, 235))
+        dt_.text((x, y), l, font=fonte, fill=(255, 255, 255, 255), stroke_width=3, stroke_fill=(15, 15, 15, 255))
+    sombra = sombra.filter(ImageFilter.GaussianBlur(6))
     Image.alpha_composite(sombra, img).save(saida)
 
 
-def monta(inicio, clip, ini, fim, texto, saida, tmp):
-    """começo (tela cheia) → flash → viral (vertical cheio; horizontal ampliado com faixa preta) + texto no topo"""
+def monta(inicio, clip, ini, fim, texto, saida, tmp, i_ini=0.0, i_fim=None, zoom=None, foco=0.5):
+    """começo (tela cheia) → flash → viral (vertical cheio; horizontal ampliado com faixa preta) + texto no topo.
+    i_ini/i_fim: trecho do começo (gravação longa); zoom: ampliação do viral horizontal (1 = largura toda, sem cortar;
+    padrão até 1,33); foco: onde fica o corte lateral (0 = esquerda, 0,5 = meio, 1 = direita)."""
     W, H, FPS = 1080, 1920, 30
-    di = dur(inicio)
+    di_total = dur(inicio)
+    i_fim = min(di_total, i_fim) if i_fim else di_total
+    di = max(0.5, i_fim - i_ini)
     dc = max(1.0, fim - ini)
     cw, ch = tamanho(clip)
     ar = cw / max(1, ch)
@@ -360,20 +385,36 @@ def monta(inicio, clip, ini, fim, texto, saida, tmp):
         vclip = cobre
     else:
         # horizontal: largura cheia ampliada até 1,33x (no máximo 67% da altura), faixa preta em cima/embaixo
-        z = min(1.33, (H * 0.67) / (W / ar))
+        z = zoom if zoom else min(1.33, (H * 0.67) / (W / ar))
         sw, sh = int(W * z) // 2 * 2, int(W * z / ar) // 2 * 2
-        vclip = f"scale={sw}:{sh},crop={W}:{sh},pad={W}:{H}:0:(oh-ih)/2:black"
+        x = int((sw - W) * max(0.0, min(1.0, foco)))
+        vclip = f"scale={sw}:{sh},crop={W}:{sh}:{x}:0,pad={W}:{H}:0:(oh-ih)/2:black"
     fl = 0.12
-    f = (f"[0:v]{cobre},fps={FPS},setsar=1,fade=t=out:st={max(0, di - fl):.3f}:d={fl}:color=white[v0];"
-         f"[1:v]trim={ini:.3f}:{fim:.3f},setpts=PTS-STARTPTS,{vclip},fps={FPS},setsar=1,fade=t=in:st=0:d={fl * 1.5:.3f}:color=white[v1];")
-    a0 = "[0:a]aresample=48000,loudnorm=I=-16:TP=-2[a0];" if tem_audio(inicio) else f"anullsrc=r=48000:cl=stereo,atrim=0:{di:.3f}[a0];"
-    a1 = (f"[1:a]atrim={ini:.3f}:{fim:.3f},asetpts=PTS-STARTPTS,aresample=48000,loudnorm=I=-16:TP=-2[a1];" if tem_audio(clip)
+    f = (f"[0:v]trim={i_ini:.3f}:{i_fim:.3f},setpts=PTS-STARTPTS,{cor_sdr(inicio)}{cobre},fps={FPS},setsar=1,format=yuv420p,"
+         f"fade=t=out:st={max(0, di - fl):.3f}:d={fl}:color=white[v0];"
+         f"[1:v]trim={ini:.3f}:{fim:.3f},setpts=PTS-STARTPTS,{cor_sdr(clip)}{vclip},fps={FPS},setsar=1,format=yuv420p,"
+         f"fade=t=in:st=0:d={fl * 1.5:.3f}:color=white[v1];")
+    ai, ac = audio_bom(inicio), audio_bom(clip)
+    a0 = (f"[0:a:{ai}]atrim={i_ini:.3f}:{i_fim:.3f},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo,loudnorm=I=-16:TP=-2[a0];" if ai is not None
+          else f"anullsrc=r=48000:cl=stereo,atrim=0:{di:.3f}[a0];")
+    a1 = (f"[1:a:{ac}]atrim={ini:.3f}:{fim:.3f},asetpts=PTS-STARTPTS,aresample=48000,aformat=channel_layouts=stereo,loudnorm=I=-16:TP=-2[a1];" if ac is not None
           else f"anullsrc=r=48000:cl=stereo,atrim=0:{dc:.3f}[a1];")
     f += a0 + a1 + "[v0][a0][v1][a1]concat=n=2:v=1:a=1[vc][ac];[vc][2:v]overlay=0:0[v];[ac]loudnorm=I=-14:TP=-1[a]"
     r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(inicio), "-i", str(clip), "-loop", "1", "-i", str(png), "-filter_complex", f,
                         "-map", "[v]", "-map", "[a]", "-t", f"{di + dc:.3f}", "-c:v", "libx264", "-preset", "medium", "-crf", "19", "-pix_fmt", "yuv420p",
+                        "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709",
                         "-r", str(FPS), "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(saida)])
     return r.returncode == 0 and saida.exists()
+
+
+def trecho_do_inicio(f):
+    """gravação longa de começo: o .txt ao lado pode ter "trecho: 8.0-12.4" (só essa parte entra)"""
+    txt = f.with_suffix(".txt")
+    if txt.exists():
+        m = re.search(r"trecho\s*:?\s*([\d.,]+)\s*[-–]\s*([\d.,]+)", txt.read_text(encoding="utf-8"), re.I)
+        if m:
+            return float(m.group(1).replace(",", ".")), float(m.group(2).replace(",", "."))
+    return 0.0, None
 
 
 # ------------------------------------------------------------------ principal
@@ -396,7 +437,14 @@ def main():
     ap.add_argument("--quantos", type=int, default=10)
     ap.add_argument("--cookies", default=None, help="chrome, edge ou firefox (Instagram/TikTok/YouTube pedindo login)")
     ap.add_argument("--agendar", metavar="HH:MM", help="cria a tarefa diária no Windows")
-    ap.add_argument("--clip", help="(teste) usa este vídeo como viral em vez de buscar")
+    ap.add_argument("--clip", help="usa este vídeo (arquivo ou link) como viral em vez de buscar")
+    ap.add_argument("--inicio", help="nome do começo (arquivo da pasta inicios, sem extensão) em vez de o Gemini escolher")
+    ap.add_argument("--texto", help="texto da tela (senão o Gemini escreve)")
+    ap.add_argument("--legenda", help="legenda do post")
+    ap.add_argument("--tags", help="as 5 tags, separadas por espaço")
+    ap.add_argument("--corte", help="trecho do viral, ex.: 9.5-21")
+    ap.add_argument("--zoom", type=float, help="ampliação do viral horizontal (1 = largura toda; padrão até 1,33)")
+    ap.add_argument("--foco", type=float, default=0.5, help="onde cortar a lateral do viral ampliado (0 esq., 0,5 meio, 1 dir.)")
     a = ap.parse_args()
     base = Path(a.pasta)
     cfg = prepara_pasta(base)
@@ -421,7 +469,7 @@ def main():
     links = [l.strip() for l in (base / "links.txt").read_text(encoding="utf-8").splitlines() if re.match(r"https?://", l.strip())]
     fila = [{"url": u, "chave": None, "seu": True} for u in links]
     if a.clip:
-        fila = [{"arquivo": a.clip, "chave": f"arquivo:{Path(a.clip).name}", "seu": True}]
+        fila = [{"url": a.clip, "chave": None, "seu": True}] if re.match(r"https?://", a.clip) else [{"arquivo": a.clip, "chave": f"arquivo:{Path(a.clip).name}", "seu": True}]
     buscou = False
     feitos = 0
     while feitos < a.quantos:
@@ -462,7 +510,19 @@ def main():
             continue
         # Gemini: começo + texto + legenda + tags + trecho
         peq = video_pequeno(clip, tmp / "viral.mp4")
-        g = escreve(peq, info, descr, cfg, usos_hoje) if peq else None
+        g = escreve(peq, info, descr, cfg, usos_hoje) if peq and not (a.texto and a.inicio) else None
+        g = dict(g or {})
+        if a.inicio:
+            g["inicio"] = a.inicio
+        if a.texto:
+            g["texto"] = a.texto
+        if a.legenda:
+            g["legenda"] = a.legenda
+        if a.tags:
+            g["tags"] = a.tags.split()
+        if a.corte:
+            x, y = a.corte.replace(",", ".").split("-")
+            g["inicio_corte"], g["fim_corte"] = float(x), float(y)
         nome_inicio = (g or {}).get("inicio") if g and (g.get("inicio") in por_nome) else None
         if not nome_inicio:
             # sem Gemini: rodízio pelo começo menos usado (e não usado hoje)
@@ -483,7 +543,9 @@ def main():
         nome = f"{n:02d} - {slug(texto, 40)}"
         saida = destino / f"{nome}.mp4"
         log(f"   começo: {nome_inicio} | texto: {texto}")
-        if not monta(por_nome[nome_inicio], clip, ini, fim, texto, saida, tmp):
+        i_ini, i_fim = trecho_do_inicio(por_nome[nome_inicio])
+        zoom = a.zoom or ({"aberto": 1.0}.get(str(g.get("enquadramento", "")).lower()))
+        if not monta(por_nome[nome_inicio], clip, ini, fim, texto, saida, tmp, i_ini, i_fim, zoom, a.foco):
             log("   falhou a edição, próximo")
             continue
         fonte_txt = c.get("url") or str(clip)
