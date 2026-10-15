@@ -124,7 +124,9 @@ def ytdlp(args, cookies=None):
     base = [sys.executable, "-m", "yt_dlp", "--no-warnings", "--no-playlist"]
     if shutil.which("node"):
         base += ["--js-runtimes", "node"]
-    if cookies:
+    if cookies and Path(cookies).is_file():
+        base += ["--cookies", str(cookies)]  # cookies.txt exportado do navegador
+    elif cookies:
         base += ["--cookies-from-browser", cookies]
     r = subprocess.run(base + args, capture_output=True, text=True, encoding="utf-8", errors="replace")
     if r.returncode != 0 and "js-runtimes" in (r.stderr or "") and "no such option" in (r.stderr or "").lower():
