@@ -397,7 +397,7 @@ def acao(nome, d):
     elif nome == "login":
         plat, conta = d["plataforma"], d["conta"]
         exe, extra = py_filho()
-        cmd = [exe, str(TOOLS / "postar" / "postar.py"), "--pasta", str(BASE), "--login", plat, "--conta", conta]
+        cmd = [exe, "-u", str(TOOLS / "postar" / "postar.py"), "--pasta", str(BASE), "--login", plat, "--conta", conta]
         if d.get("token"):
             cmd += ["--token", d["token"]]
         logf = open(BASE / "login.log", "w", encoding="utf-8")

@@ -706,6 +706,13 @@ async function loga(ci, token){
   vigiaLogin = setInterval(async () => {
     const r = await api("login_resultado");
     box.textContent = r.texto || "esperando…";
+    // o navegador do PC nem sempre abre sozinho: link para abrir aqui mesmo
+    const m = (r.texto || "").match(/https:\/\/www\.(facebook|tiktok)\.com\/\S+/);
+    if(m && r.rodando && !$("#loginLink")){
+      const a = document.createElement("a"); a.id = "loginLink"; a.href = m[0]; a.target = "_blank"; a.rel = "noopener";
+      a.innerHTML = "<button class='pri' style='margin-top:8px'>Abrir a página de login</button>"; box.after(a);
+    }
+    if(!r.rodando) $("#loginLink")?.remove();
     if(!r.rodando){ clearInterval(vigiaLogin); carrega(true); }
   }, 2000);
 }
