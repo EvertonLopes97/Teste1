@@ -53,9 +53,11 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   do próprio vídeo: mínimo dos quadros do lance, linhas centralizadas do topo; OCR só para a legenda), MÚSICA/áudio
   inteiro do original, mesmo lance e duração —, só a parte da outra pessoa (até o corte de cena achado) vira o começo
   dele. `--modo novo` = texto novo + áudio dele. Começo de gravação longa: `.txt` ao lado com `trecho: 8.0-12.4`.
-  Meme SEM barra (pessoa em tela cheia com legenda no meio → lance com a legenda dele): `corte_de_cena` (troca brusca
-  ou fade pelo preto) + `legenda_parada` (letras claras em todos os quadros E com borda) → a legenda da pessoa vai
-  para o começo dele, o lance fica igual, áudio original inteiro.
+  Cenas (`partes_da_pessoa`): o vídeo é dividido em cenas (corte seco ou fade pelo preto) e cada uma é "pessoa" ou
+  "lance" (Gemini com uma foto de cada cena; sem Gemini: 1ª cena + as parecidas com ela). TODA cena da pessoa — no
+  começo, no MEIO ou no fim — vira um pedaço do começo dele (seguido; acabou, volta do início), com a legenda daquela
+  cena (`legenda_parada`, copiada pixel a pixel) e o mesmo fade; os lances e o áudio ficam iguais (`troca_partes`).
+  Link DELE nunca cai no modo normal: sem pessoa/lance achados = "NÃO FIZ" no registro e o link vai como FALHOU.
 - POSTAGEM AUTOMÁTICA: `python tools\postar\postar.py` (APIs oficiais; setup em `tools\postar\LEIA-ME.txt`). Pasta
   `E:\DETTO\postar`: `entrada\<plat>_<conta>\` = fila (mp4 + .txt mesmo nome; texto após "---" não vai), `postados\`,
   `falhas\` (3 erros), `tokens\`, `config.json` (chaves Meta/TikTok, intervalo e horário por conta). Contas: Instagram

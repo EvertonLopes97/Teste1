@@ -284,13 +284,13 @@ def tags_originais(info):
 
 
 # ------------------------------------------------------------------ Gemini (assiste o vídeo e escreve)
-def gemini_json(partes):
+def gemini_json(partes, temperatura=0.8):
     if not os.environ.get("GEMINI_API_KEY"):
         return None
     sys.path.insert(0, str(TOOLS))
     from roteiro_ia import gerar
 
-    corpo = json.dumps({"contents": [{"parts": partes}], "generationConfig": {"temperature": 0.8, "responseMimeType": "application/json"}}).encode()
+    corpo = json.dumps({"contents": [{"parts": partes}], "generationConfig": {"temperature": temperatura, "responseMimeType": "application/json"}}).encode()
     try:
         r = gerar(corpo, log=log)
         txt = r["candidates"][0]["content"]["parts"][0]["text"]
@@ -634,27 +634,183 @@ def texto_do_original(clip, t0, t1, saida):
     return saida
 
 
-def corte_de_cena(f, maximo=15.0):
-    """meme SEM barra preta (pessoa em tela cheia → lance em tela cheia, cada parte com a sua legenda):
-    onde a parte da pessoa termina — troca brusca de imagem ou passagem pelo preto (fade). None = não achou."""
+# ------------------------------------------------------------------ meme do link dele: onde está a OUTRA PESSOA
+FPS_ANALISE = 30
+
+
+def cenas_do_video(f):
+    """divide o vídeo em cenas: corte seco (a imagem troca de uma vez) ou passagem pelo preto (fade).
+    Devolve (cenas, quadros): cenas = [{"a", "b", "fade_in", "fade_out"}] em segundos; quadros = miniaturas BGR."""
     import numpy as np
 
     W, H = 72, 128
-    r = subprocess.run(["ffmpeg", "-v", "error", "-i", str(f), "-vf", f"fps=10,scale={W}:{H}", "-f", "rawvideo", "-pix_fmt", "gray", "-"],
+    r = subprocess.run(["ffmpeg", "-v", "error", "-i", str(f), "-vf", f"fps={FPS_ANALISE},scale={W}:{H}", "-f", "rawvideo", "-pix_fmt", "bgr24", "-"],
                        capture_output=True)
     a = np.frombuffer(r.stdout, np.uint8)
-    if a.size < W * H * 20:
-        return None
-    a = a[: a.size // (W * H) * W * H].reshape(-1, H, W).astype(np.float32)
-    luz = a.mean(axis=(1, 2))
-    dif = np.concatenate([[0.0], np.abs(np.diff(a, axis=0)).mean(axis=(1, 2))])
-    fim = min(len(a) * 0.75, maximo * 10)
-    for i in range(10, int(fim)):
-        base_d = float(np.median(dif[1:i])) or 1.0
-        base_l = float(np.median(luz[:i])) or 1.0
-        if dif[i] > max(30.0, 4 * base_d) or luz[i] < 0.4 * base_l:
-            return round((i - 1) / 10 + 0.05, 2)
-    return None
+    n = a.size // (W * H * 3)
+    if n < FPS_ANALISE:
+        return [], None
+    a = a[: n * W * H * 3].reshape(n, H, W, 3)
+    g = a.astype(np.float32).mean(axis=3)
+    luz = g.mean(axis=(1, 2))
+    dif = np.concatenate([[0.0], np.abs(np.diff(g, axis=0)).mean(axis=(1, 2))])
+    med = float(np.median(dif[1:])) + 1e-3
+    marcas = []  # (início, fim) em quadros de cada troca de cena
+    # passagens pelo preto: quadros bem mais escuros que o segundo anterior
+    i = 1
+    while i < n:
+        base = float(np.median(luz[max(0, i - FPS_ANALISE):i])) if i > 3 else float(luz[0])
+        if base > 25 and luz[i] < 0.55 * base:
+            j = i
+            while j < n and luz[j] < 0.75 * base:
+                j += 1
+            k = i
+            while k > 1 and luz[k - 1] < 0.92 * base and luz[k - 1] < luz[k - 2] + 2:
+                k -= 1  # começo do escurecimento
+            if j - k <= FPS_ANALISE * 1.5:
+                marcas.append((k, j))
+            i = j + 1
+        else:
+            i += 1
+    # cortes secos
+    for i in range(1, n):
+        if dif[i] > max(28.0, 5 * med) and not any(m0 - 2 <= i <= m1 + 2 for m0, m1 in marcas):
+            marcas.append((i, i))
+    marcas.sort()
+    cenas, ini, fade_in = [], 0, False
+    for m0, m1 in marcas:
+        if m0 - ini >= max(3, FPS_ANALISE // 6):
+            cenas.append({"a": ini / FPS_ANALISE, "b": m0 / FPS_ANALISE, "fade_in": fade_in, "fade_out": m1 > m0, "q": (ini, m0)})
+        elif cenas and m1 > m0:
+            cenas[-1]["fade_out"] = True
+        ini, fade_in = m1, m1 > m0
+    if n - ini >= 3:
+        cenas.append({"a": ini / FPS_ANALISE, "b": n / FPS_ANALISE, "fade_in": fade_in, "fade_out": False, "q": (ini, n)})
+    # cena colada em outra (corte sem fade): o fim de uma é o começo da outra
+    for c0, c1 in zip(cenas[:-1], cenas[1:]):
+        if not c0["fade_out"] and not c1["fade_in"]:
+            c0["b"] = c1["a"]
+    return cenas, a
+
+
+def _parecida(a, c0, c1):
+    """quanto a cena c1 parece com a c0 (mesmo lugar / mesma pessoa): histograma de cor"""
+    import cv2
+
+    def hist(c):
+        q0, q1 = c["q"]
+        h = sum(cv2.calcHist([cv2.cvtColor(x, cv2.COLOR_BGR2HSV)], [0, 1], None, [18, 8], [0, 180, 0, 256])
+                for x in a[q0:q1:max(1, (q1 - q0) // 6)])
+        return cv2.normalize(h, h).flatten()
+    return float(cv2.compareHist(hist(c0), hist(c1), cv2.HISTCMP_CORREL))
+
+
+def partes_da_pessoa(clip, tmp):
+    """Meme do link dele (outra pessoa + lance, podendo voltar a pessoa no meio): marca cada cena como "pessoa"
+    (a parte que vira o seu começo) ou "lance". Gemini olhando uma foto de cada cena; sem Gemini: a 1ª cena é a
+    pessoa e as cenas parecidas com ela (mesmo lugar) também."""
+    import cv2
+
+    cenas, a = cenas_do_video(clip)
+    if len(cenas) < 2:
+        return cenas
+    tipos = None
+    if os.environ.get("GEMINI_API_KEY"):
+        partes = [{"text": "Este vídeo é um MEME de futebol: uma pessoa se grava (selfie/celular, situação do dia a dia, "
+                           "com legenda tipo 'eu quando...') e depois entra o LANCE (jogo de futebol, transmissão, jogador, "
+                           "torcida, outro vídeo viral). Às vezes a pessoa volta no meio ou no fim. Abaixo vai uma foto de "
+                           "cada cena, em ordem. Para cada cena responda \"pessoa\" (a parte gravada pela pessoa do meme) ou "
+                           "\"lance\" (o resto). Responda JSON {\"cenas\": [\"pessoa\", \"lance\", ...]} com "
+                           f"exatamente {len(cenas)} itens."}]
+        for k, c in enumerate(cenas):
+            ok, jpg = cv2.imencode(".jpg", cv2.resize(_quadro_cor(clip, (c["a"] + c["b"]) / 2), (216, 384)))
+            partes.append({"text": f"cena {k + 1} ({c['a']:.1f}s a {c['b']:.1f}s):"})
+            partes.append({"inline_data": {"mime_type": "image/jpeg", "data": base64.b64encode(jpg.tobytes()).decode()}})
+        g = gemini_json(partes, temperatura=0)
+        t = (g or {}).get("cenas")
+        if isinstance(t, list) and len(t) == len(cenas) and all(str(x).lower() in ("pessoa", "lance") for x in t):
+            tipos = [str(x).lower() for x in t]
+            log("   cenas (Gemini): " + ", ".join(f"{c['a']:.1f}-{c['b']:.1f}s {x}" for c, x in zip(cenas, tipos)))
+    if tipos is None:
+        tipos = ["pessoa"] + ["pessoa" if _parecida(a, cenas[0], c) > 0.8 else "lance" for c in cenas[1:]]
+        log("   cenas: " + ", ".join(f"{c['a']:.1f}-{c['b']:.1f}s {x}" for c, x in zip(cenas, tipos)))
+    for c, x in zip(cenas, tipos):
+        c["tipo"] = x
+    return cenas
+
+
+def _quadro_cor(f, t):
+    import cv2
+    import numpy as np
+
+    r = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{t:.2f}", "-i", str(f), "-frames:v", "1", "-f", "image2pipe", "-vcodec", "png", "-"],
+                       capture_output=True)
+    q = cv2.imdecode(np.frombuffer(r.stdout, np.uint8), cv2.IMREAD_COLOR) if r.stdout else None
+    return q if q is not None else np.zeros((384, 216, 3), np.uint8)
+
+
+def troca_partes(inicio, i_ini, i_fim, clip, cenas, pngs, saida):
+    """Igual ao original (texto, música inteira, lances); TODA cena da outra pessoa (no começo, no meio ou no fim)
+    vira um pedaço do seu começo, com a legenda que estava nela. Fade da cena original = fade no seu pedaço."""
+    inicio = inicio_sdr(inicio)
+    W, H = tamanho(clip)
+    W, H = W // 2 * 2, H // 2 * 2
+    F = fps_de(clip)
+    dc = dur(clip)
+    di_total = dur(inicio)
+    i_fim = min(di_total, i_fim) if i_fim else di_total
+    cobre = f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H}"
+    # cada cena vai até a fronteira com a próxima; a transição do original (fade pelo preto) fica do lado da pessoa,
+    # para o rosto dela nunca aparecer escurecendo
+    fronteiras = []
+    for c0, c1 in zip(cenas[:-1], cenas[1:]):
+        fronteiras.append(c0["b"] if (c1["tipo"] == "pessoa" and c0["tipo"] != "pessoa") else c1["a"])
+    limites = [0.0] + fronteiras + [dc]
+    blocos = []
+    for k, c in enumerate(cenas):
+        a_, b = limites[k], limites[k + 1]
+        if blocos and blocos[-1]["tipo"] == c["tipo"] and c["tipo"] == "lance":
+            blocos[-1]["b"] = b
+            continue
+        blocos.append({"tipo": c["tipo"], "a": a_, "b": b, "k": k,
+                       "fade_in": c["fade_in"] and k > 0, "fade_out": c["fade_out"] and k < len(cenas) - 1})
+    blocos = [x for x in blocos if x["b"] - x["a"] > 0.02]
+    entradas = ["-i", str(inicio), "-i", str(clip)]
+    f, nomes, cursor, ip = [], [], i_ini, 2
+    seu_total = max(0.3, i_fim - i_ini)
+    for j, bl in enumerate(blocos):
+        d = bl["b"] - bl["a"]
+        if bl["tipo"] == "pessoa":
+            if cursor + d > i_fim and d <= seu_total:
+                cursor = i_ini  # acabou o seu começo: volta para o início dele
+            fim_seu = min(i_fim, cursor + d)
+            falta = max(0.0, d - (fim_seu - cursor))
+            fades = ""
+            if bl["fade_in"]:
+                fades += f",fade=t=in:st=0:d={min(0.35, d / 3):.3f}"
+            if bl["fade_out"]:
+                fades += f",fade=t=out:st={max(0.0, d - min(0.35, d / 3)):.3f}:d={min(0.35, d / 3):.3f}"
+            f.append(f"[0:v]trim={cursor:.3f}:{fim_seu:.3f},setpts=PTS-STARTPTS,{cobre},fps={F},setsar=1,format=yuv420p"
+                     f"{f',tpad=stop_mode=clone:stop_duration={falta:.3f}' if falta > 0.01 else ''},trim=duration={d:.3f}[pv{j}]")
+            png = pngs.get(bl["k"])
+            if png:
+                entradas += ["-loop", "1", "-i", str(png)]
+                f.append(f"[pv{j}][{ip}:v]overlay=0:0:format=auto:shortest=1{fades},format=yuv420p[s{j}]")
+                ip += 1
+            else:
+                f.append(f"[pv{j}]null{fades}[s{j}]")
+            cursor = fim_seu
+        else:
+            f.append(f"[1:v]trim={bl['a']:.3f}:{bl['b']:.3f},setpts=PTS-STARTPTS,{cor_sdr(clip)}scale={W}:{H},fps={F},setsar=1,format=yuv420p[s{j}]")
+        nomes.append(f"[s{j}]")
+    f.append(f"{''.join(nomes)}concat=n={len(nomes)}:v=1:a=0[v]")
+    ac = audio_bom(clip)
+    cmd = ["ffmpeg", "-v", "error", "-y"] + entradas + ["-filter_complex", ";".join(f), "-map", "[v]"]
+    cmd += (["-map", f"1:a:{ac}", "-c:a", "aac", "-b:a", "192k"] if ac is not None else [])
+    cmd += ["-t", f"{dc:.3f}", "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-colorspace", "bt709", "-color_primaries", "bt709",
+            "-color_trc", "bt709", "-movflags", "+faststart", str(saida)]
+    r = subprocess.run(cmd)
+    return r.returncode == 0 and saida.exists()
 
 
 def legenda_parada(clip, t0, t1, saida):
@@ -751,32 +907,6 @@ def ler_texto(png):
     g = gemini_json([{"text": "Transcreva exatamente o texto desta imagem (português, mantenha abreviações como 'q' e 'ent'). JSON {\"texto\": \"...\"}"},
                      {"inline_data": {"mime_type": "image/png", "data": base64.b64encode(tmp.read_bytes()).decode()}}])
     return (g or {}).get("texto", "")
-
-
-def troca(inicio, i_ini, i_fim, clip, corte, png, saida):
-    """Igual ao original (mesmo texto, música inteira, mesmo lance); só a parte da outra pessoa vira o seu começo."""
-    inicio = inicio_sdr(inicio)
-    W, H = tamanho(clip)
-    W, H = W // 2 * 2, H // 2 * 2
-    F = fps_de(clip)
-    dc = dur(clip)
-    di_total = dur(inicio)
-    i_fim = min(di_total, i_fim) if i_fim else di_total
-    seu = max(0.3, i_fim - i_ini)
-    falta = max(0.0, corte - seu)  # seu começo mais curto que o dele: segura o último quadro
-    cobre = f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H}"
-    f = (f"[0:v]trim={i_ini:.3f}:{min(i_fim, i_ini + corte):.3f},setpts=PTS-STARTPTS,{cor_sdr(inicio)}{cobre},fps={F},setsar=1,format=yuv420p"
-         f"{f',tpad=stop_mode=clone:stop_duration={falta:.3f}' if falta > 0.01 else ''}[vi0];"
-         f"[vi0][2:v]overlay=0:0:format=auto:shortest=1,format=yuv420p[vi];"
-         f"[1:v]trim=start={corte:.3f},setpts=PTS-STARTPTS,{cor_sdr(clip)}scale={W}:{H},fps={F},setsar=1,format=yuv420p[vc];"
-         f"[vi][vc]concat=n=2:v=1:a=0[v]")
-    ac = audio_bom(clip)
-    cmd = ["ffmpeg", "-v", "error", "-y", "-i", str(inicio), "-i", str(clip), "-loop", "1", "-i", str(png), "-filter_complex", f, "-map", "[v]"]
-    cmd += (["-map", f"1:a:{ac}", "-c:a", "aac", "-b:a", "192k"] if ac is not None else [])
-    cmd += ["-t", f"{dc:.3f}", "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-colorspace", "bt709", "-color_primaries", "bt709",
-            "-color_trc", "bt709", "-movflags", "+faststart", str(saida)]
-    r = subprocess.run(cmd)
-    return r.returncode == 0 and saida.exists()
 
 
 def escolhe_inicio(texto, descr, usos_hoje, hist, por_nome):
@@ -908,52 +1038,62 @@ def main():
             log(f"   faixa do vídeo {av['faixa'][0]:.2f}–{av['faixa'][1]:.2f} da altura (texto gravado do original fica de fora)")
         # LINK SEU no formato meme (outra pessoa + lance): fica IGUAL ao original — mesmo texto, música inteira,
         # mesmo lance —, só troca a parte da pessoa pelo seu começo
-        corte_t, png, so_pessoa = None, None, False
         if c.get("seu") and a.modo != "novo":
-            if av.get("inicio"):
-                corte_t = av["inicio"]
-                png = texto_do_original(clip, av["inicio"] + 0.2, dclip - 0.2, tmp / "texto_original.png")
+            # cada cena: pessoa (vira o seu começo, com a legenda dela) ou lance (fica igual). Link SEU nunca vira
+            # o modo normal: se não der, avisa e não posta nada errado.
+            cenas = partes_da_pessoa(clip, tmp)
+            pessoas = [k for k, x in enumerate(cenas) if x.get("tipo") == "pessoa"]
+            if not pessoas or len(pessoas) == len(cenas):
+                log("   NÃO FIZ: não achei onde está a outra pessoa e onde está o lance neste vídeo"
+                    " (para usar só o lance com texto novo: modo novo)")
+                if c.get("url"):
+                    _tira_link(base, c["url"], ok=False)
+                continue
+            texto_barra = (texto_do_original(clip, av["inicio"] + 0.2, dclip - 0.2, tmp / "texto_original.png")
+                           if av.get("inicio") else None)
+            pngs = {}
+            for k in pessoas:
+                x = cenas[k]
+                m = min(0.15, (x["b"] - x["a"]) / 5)
+                pg = legenda_parada(clip, x["a"] + m, x["b"] - m, tmp / f"legenda_{k}.png") if x["b"] - x["a"] >= 0.6 else None
+                pngs[k] = pg or texto_barra
+            lido = ""
+            for k in pessoas:
+                if pngs[k] and not lido:
+                    lido = ler_texto(pngs[k])
+            texto = a.texto or lido or "meme"
+            nome_inicio = a.inicio if a.inicio in por_nome else escolhe_inicio(texto, descr, usos_hoje, hist, por_nome)
+            i_ini, i_fim = trecho_do_inicio(por_nome[nome_inicio])
+            n = feitos_hoje + feitos + 1
+            nome = f"{n:02d} - {slug(texto, 40)}"
+            saida = destino / f"{nome}.mp4"
+            trechos = ", ".join(f"{cenas[k]['a']:.1f}-{cenas[k]['b']:.1f}s" for k in pessoas)
+            log(f"   TROCA: mesmo texto ({texto}), música inteira; seu começo ({nome_inicio}) no lugar da outra pessoa em {trechos}")
+            if troca_partes(por_nome[nome_inicio], i_ini, i_fim, clip, cenas, pngs, saida):
+                dono = {norm(x).replace("_", "").replace(".", "") for x in (info.get("channel"), info.get("uploader"), info.get("uploader_id")) if x}
+                tags = [t for t in tags_originais(info) if norm(t[1:]).replace("_", "") not in dono]
+                tags = list(dict.fromkeys(tags + (a.tags.split() if a.tags else []) + cfg["tags_padrao"]))[:5]
+                desc = re.sub(r"#\S+|@\S+", "", info.get("description") or "").strip()
+                legenda = a.legenda or (desc if len(desc) > 8 else texto)
+                fonte_txt = c.get("url") or str(clip)
+                (destino / f"{nome}.txt").write_text(f"{legenda}\n\n{' '.join(tags)}\n\n---\nTexto na tela (o do original): {texto}\nOriginal: {fonte_txt}"
+                                                     f"{' (@' + str(info.get('channel')) + ')' if info.get('channel') else ''}\n", encoding="utf-8")
+                hist["usados"][chave] = {"dia": hoje, "arquivo": saida.name, "url": fonte_txt, "modo": "troca"}
+                h_ = hist["inicios"].setdefault(nome_inicio, {"n": 0})
+                h_["n"] += 1
+                h_["ultimo"] = hoje
+                usos_hoje.append(nome_inicio)
+                grava_json(base / "historico.json", hist)
+                if c.get("url"):
+                    _tira_link(base, c["url"], ok=True)
+                _para_postar(cfg, saida, destino / f"{nome}.txt")
+                feitos += 1
+                log(f"   pronto: {saida}")
             else:
-                # meme sem barra (pessoa em tela cheia, legenda no meio → lance com a legenda dele)
-                corte_t = corte_de_cena(clip)
-                if corte_t:
-                    so_pessoa = True
-                    log(f"   meme sem barra: a outra pessoa vai até {corte_t:.1f}s; a legenda dela vai para o seu começo")
-                    png = legenda_parada(clip, 0.15, corte_t - 0.15, tmp / "texto_original.png") or png_vazio(clip, tmp / "texto_vazio.png")
-        if corte_t:
-            if png:
-                lido = ler_texto(png) if not (so_pessoa and png.name == "texto_vazio.png") else ""
-                texto = a.texto or lido or re.sub(r"#\S+|[^\w\sÀ-ÿ?!,.:]", "", info.get("title", "")).strip() or "meme"
-                nome_inicio = a.inicio if a.inicio in por_nome else escolhe_inicio(texto, descr, usos_hoje, hist, por_nome)
-                i_ini, i_fim = trecho_do_inicio(por_nome[nome_inicio])
-                n = feitos_hoje + feitos + 1
-                nome = f"{n:02d} - {slug(texto, 40)}"
-                saida = destino / f"{nome}.mp4"
-                log(f"   TROCA: mesmo texto ({texto}), música inteira; seu começo: {nome_inicio} no lugar dos {corte_t:.1f}s da outra pessoa")
-                if troca(por_nome[nome_inicio], i_ini, i_fim, clip, corte_t, png, saida):
-                    dono = {norm(x).replace("_", "").replace(".", "") for x in (info.get("channel"), info.get("uploader"), info.get("uploader_id")) if x}
-                    tags = [t for t in tags_originais(info) if norm(t[1:]).replace("_", "") not in dono]
-                    tags = list(dict.fromkeys(tags + (a.tags.split() if a.tags else []) + cfg["tags_padrao"]))[:5]
-                    desc = re.sub(r"#\S+", "", info.get("description") or "").strip()
-                    legenda = a.legenda or (desc if len(desc) > 8 else texto)
-                    fonte_txt = c.get("url") or str(clip)
-                    (destino / f"{nome}.txt").write_text(f"{legenda}\n\n{' '.join(tags)}\n\n---\nTexto na tela (o do original): {texto}\nOriginal: {fonte_txt}"
-                                                         f"{' (@' + str(info.get('channel')) + ')' if info.get('channel') else ''}\n", encoding="utf-8")
-                    hist["usados"][chave] = {"dia": hoje, "arquivo": saida.name, "url": fonte_txt, "modo": "troca"}
-                    h_ = hist["inicios"].setdefault(nome_inicio, {"n": 0})
-                    h_["n"] += 1
-                    h_["ultimo"] = hoje
-                    usos_hoje.append(nome_inicio)
-                    grava_json(base / "historico.json", hist)
-                    if c.get("url"):
-                        _tira_link(base, c["url"], ok=True)
-                    _para_postar(cfg, saida, destino / f"{nome}.txt")
-                    feitos += 1
-                    log(f"   pronto: {saida}")
-                    continue
-                log("   a troca falhou; fazendo no modo normal")
-            else:
-                log("   não achei o texto do original; fazendo no modo normal")
+                log("   NÃO FIZ: a troca falhou (veja o erro acima)")
+                if c.get("url"):
+                    _tira_link(base, c["url"], ok=False)
+            continue
         # Gemini: começo + texto + legenda + tags + trecho
         peq = video_pequeno(clip, tmp / "viral.mp4")
         g = escreve(peq, info, descr, cfg, usos_hoje) if peq and not (a.texto and a.inicio) else None
