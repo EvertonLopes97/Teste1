@@ -118,7 +118,7 @@ def atualiza_cache(forca=False):
         try:
             if c["plataforma"] == "instagram":
                 CACHE["limite"][k] = P.ig_limite(c_, BASE, c["conta"])
-            elif c_["tiktok"].get("modo") != "direto":
+            elif c_["tiktok"].get("modo") not in ("direto", "studio"):
                 CACHE["pendentes"][k] = P.tt_pendentes(c_, BASE, c["conta"])[1]
             CACHE["erro"].pop(k, None)
         except Exception as e:
@@ -189,7 +189,8 @@ def estado_painel():
         ult = []
         for f in feitos[:8]:
             d = P.le_json(f, {})
-            ult.append({"nome": d.get("video") or f.stem, "quando": (d.get("quando") or "")[:16].replace("T", " "), "link": d.get("link", ""),
+            q_ = d.get("agendado_para") or d.get("quando") or ""
+            ult.append({"nome": d.get("video") or f.stem, "quando": q_[:16].replace("T", " "), "link": d.get("link", ""),
                         "modo": d.get("modo", "")})
         falhas = [item(p) for p in sorted((BASE / "falhas" / k).glob("*")) if p.suffix.lower() in VIDEO_EXT]
         pend = CACHE["pendentes"].get(k)
@@ -199,6 +200,14 @@ def estado_painel():
             pend_l.append({"nome": r.get("video", ""), "legenda": txt.read_text(encoding="utf-8").split("\n---")[0].strip() if txt.exists() else "",
                            "quando": dt.datetime.fromtimestamp(r.get("quando", 0)).strftime("%d/%m %H:%M")})
         prox = P.proximo(c, est, k)
+        eh_studio = P.studio(c_, c)
+        plano = []
+        if eh_studio:
+            slots = P.planeja(c, est, k, len(fila), P.agendados_por_dia(BASE, k))
+            for i_, v_ in enumerate(fila):
+                plano.append(slots[i_].strftime("%Y-%m-%dT%H:%M") if i_ < len(slots) else "")
+            if slots:
+                prox = slots[0]
         lim = CACHE["limite"].get(k)
         contas.append({
             "k": k, "plataforma": c["plataforma"], "conta": c["conta"], "ativo": c.get("ativo", True) is not False,
@@ -210,6 +219,8 @@ def estado_painel():
             "ultimo": (est.get(k, {}).get("ultimo") or "")[:16].replace("T", " "),
             "proximo": prox.strftime("%d/%m %H:%M"), "proximo_ja": prox <= dt.datetime.now(),
             "falhas": falhas, "ultimos": ult, "pendentes": pend_l if pend is not None else None,
+            "studio": eh_studio, "plano": plano,
+            "preparados": len(P.le_json(BASE / "tiktok_studio" / f"_preparados_{c['conta']}.json", [])) if eh_studio else 0,
             "limite": list(lim) if lim else None, "erro": CACHE["erro"].get(k, ""),
             "tentativas": est.get(k, {}).get("falhas", {}),
         })
@@ -232,7 +243,7 @@ def estado_painel():
     t = TRABALHO["reels"]
     return {
         "pausado": bool(c_.get("pausado")), "contas": contas, "postando": TRABALHO["postando"],
-        "tiktok": {"modo": c_["tiktok"].get("modo", "rascunho"), "ia": bool(c_["tiktok"].get("ia")),
+        "tiktok": {"modo": c_["tiktok"].get("modo", "studio"), "ia": bool(c_["tiktok"].get("ia")),
                    "chaves": bool(c_["tiktok"].get("client_key") and c_["tiktok"].get("client_secret"))},
         "instagram": {"chaves": bool(c_["instagram"].get("app_id") and c_["instagram"].get("app_secret"))},
         "reels": {"prontos_hoje": len(prontos), "inicios": inicios, "links": links[-10:], "n_links": len(links),
@@ -423,6 +434,26 @@ def acao(nome, d):
         rc = P.le_json(f, {})
         rc["postar"] = [x for x in d.get("para", []) if re.fullmatch(r"(instagram|tiktok):[\w.]+", x)]
         P.grava_json(f, rc)
+    elif nome == "studio_agendei":
+        # você agendou no TikTok Studio: os vídeos saem da fila com o horário planejado
+        c = conta_de(d["k"])
+        k = d["k"]
+        fila = P.fila_de(BASE, k)
+        slots = P.planeja(c, P.le_json(BASE / "estado.json", {}), k, len(fila), P.agendados_por_dia(BASE, k))
+        pedidos = set(nome_seguro(n) for n in d.get("nomes", []))
+        if d.get("da_pasta"):
+            pedidos |= set(P.le_json(BASE / "tiktok_studio" / f"_preparados_{c['conta']}.json", []))
+        feitos = 0
+        for v, t in zip(fila, slots):
+            if v.name in pedidos:
+                P.marca_agendado(BASE, c, v, t)
+                feitos += 1
+        if d.get("da_pasta") or not P.fila_de(BASE, k):
+            limpa_studio(c)
+            (BASE / "tiktok_studio" / f"_preparados_{c['conta']}.json").unlink(missing_ok=True)
+        return {"ok": True, "feitos": feitos}
+    elif nome == "studio_preparar":
+        return prepara_studio(conta_de(d["k"]), int(d.get("quantos") or 0))
     elif nome == "teste_marca":
         # reel teste: "promovido" = você já mandou para os seguidores; "ignorado" = some da lista
         f = BASE / "postados" / nome_seguro(d["k"]) / nome_seguro(d["arq"])
@@ -461,6 +492,57 @@ def acao(nome, d):
     else:
         raise ValueError(f"ação desconhecida: {nome}")
     return {"ok": True}
+
+
+def pasta_studio(c):
+    return BASE / "tiktok_studio" / c["conta"]
+
+
+def limpa_studio(c):
+    p = pasta_studio(c)
+    if p.exists():
+        for f in p.iterdir():
+            try:
+                f.unlink()
+            except OSError:
+                pass
+
+
+def prepara_studio(c, quantos=0):
+    """pasta pronta para o TikTok Studio: os vídeos com o horário no nome (ordem de agendar) + LEGENDAS.txt"""
+    k = P.chave(c)
+    fila = P.fila_de(BASE, k)
+    slots = P.planeja(c, P.le_json(BASE / "estado.json", {}), k, len(fila), P.agendados_por_dia(BASE, k))
+    if quantos:
+        slots = slots[:quantos]
+    if not slots:
+        raise ValueError("nada para agendar (fila vazia)")
+    p = pasta_studio(c)
+    p.mkdir(parents=True, exist_ok=True)
+    limpa_studio(c)
+    dias = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
+    linhas = [f"TIKTOK STUDIO — @{c['conta']}  (tiktok.com/tiktokstudio/upload)",
+              "Para cada vídeo: Enviar → escolha o arquivo → cole a legenda → Agendar → data e hora abaixo.",
+              "Depois, no painel: \"Agendei os N da pasta\" (ou o ✔ de cada vídeo).", ""]
+    preparados = []
+    for i, (v, t) in enumerate(zip(fila, slots), 1):
+        curto = nome_seguro(re.sub(r"^\d{4}-\d{2}-\d{2}( \d{4,6})? ?", "", v.stem))[:60]
+        nome = f"{i:02d} - {t:%d-%m %Hh%M} - {curto}{v.suffix.lower()}"
+        preparados.append(v.name)
+        try:
+            os.link(v, p / nome)
+        except OSError:
+            shutil.copyfile(v, p / nome)
+        linhas += [f"===== {i:02d}  {dias[t.weekday()]} {t:%d/%m}  às {t:%H:%M} =====", f"arquivo: {nome}", P.legenda_de(v) or "(sem legenda)", ""]
+    (p / f"LEGENDAS - {c['conta']}.txt").write_text("\n".join(linhas), encoding="utf-8")
+    P.grava_json(BASE / "tiktok_studio" / f"_preparados_{c['conta']}.json", preparados)
+    if os.name == "nt":
+        try:
+            os.startfile(str(p))  # noqa: S606
+        except OSError:
+            pass
+    P.log(f"{k}: pasta do TikTok Studio pronta com {len(slots)} vídeos: {p}")
+    return {"ok": True, "pasta": str(p), "n": len(slots)}
 
 
 def ed_postar(d, pasta=None, rels=None):
@@ -639,9 +721,9 @@ class Painel(hserver.BaseHTTPRequestHandler):
         f = BASE / onde / nome_seguro(q.get("k", "")) / nome_seguro(q.get("nome", ""))
         if not f.exists():
             return self._json({"erro": "não achei"}, 404)
-        return self._manda(f)
+        return self._manda(f, baixar=q.get("baixar") == "1", como=nome_seguro(q["como"]) if q.get("como") else None)
 
-    def _manda(self, f, baixar=False):
+    def _manda(self, f, baixar=False, como=None):
         tam = f.stat().st_size
         ini, fim = 0, tam - 1
         rg = re.match(r"bytes=(\d*)-(\d*)", self.headers.get("Range") or "")
@@ -657,7 +739,7 @@ class Painel(hserver.BaseHTTPRequestHandler):
                 ".png": "image/png", ".webp": "image/webp", ".txt": "text/plain; charset=utf-8"}.get(f.suffix.lower(), "video/mp4")
         self.send_header("Content-Type", tipo)
         if baixar:
-            self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + urllib.parse.quote(f.name))
+            self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + urllib.parse.quote(como or f.name))
         self.send_header("Accept-Ranges", "bytes")
         self.send_header("Content-Length", str(fim - ini + 1))
         if rg:

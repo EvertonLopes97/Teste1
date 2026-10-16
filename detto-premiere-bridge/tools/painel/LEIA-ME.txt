@@ -11,9 +11,9 @@ Firewall perguntando: marque "Redes privadas" → Permitir (é o que deixa abrir
 Endereço: http://localhost:8730
 
 ==================== CONFIGURAÇÕES (uma vez só) ====================
-1. Chaves dos apps (como criar: tools\postar\LEIA-ME.txt) → Meta: ID + chave secreta; TikTok: client key + secret → Salvar.
-2. Login das contas → "Conectar" em cada uma (abre o navegador NO PC; entre na conta certa e autorize).
-   No TikTok: saia de uma conta e entre na outra antes de conectar a segunda.
+1. Chave do app da Meta (como criar: tools\postar\LEIA-ME.txt) → ID + chave secreta → Salvar.
+   TikTok NÃO precisa de app nem de login: é pelo TikTok Studio (veja abaixo).
+2. Login do Instagram → "Conectar" (abre o navegador NO PC; entre no Facebook dono da página e autorize).
 3. PIN do celular (4 a 8 números) → no celular, no mesmo Wi-Fi, abra o endereço mostrado ali → "Adicionar à tela inicial".
 4. PC: Configurações do Windows → Sistema → Energia → Suspender = Nunca (na tomada). Desligado/dormindo não posta.
 
@@ -43,7 +43,15 @@ Fila: ↑ ↓ ordem, ✎ ver/editar legenda (e mandar para outra conta), 🚀 po
 REELS TESTE (Instagram, ligado): vai só para quem não te segue. O painel mostra as views e avisa (🔥) quando bate a
   meta → abra o reel no app → "Compartilhar com seguidores" → no painel "Já mandei". (O Instagram não deixa a API
   fazer esse passo.) "O Instagram decide" = ele manda sozinho se for bem.
-TikTok (até o app ser aprovado): chega como rascunho no app → "Legendas para colar no TikTok" → Copiar → publica.
+TIKTOK (@detto.galo e @detto.tv) = pelo TIKTOK STUDIO (o TikTok não aprova app para postar nas próprias contas;
+  o agendador do Studio é oficial). Cada vídeo da fila mostra "agendar: sex 16/10 08:00" (pelo intervalo, horário e
+  máximo por dia da conta; até 10 dias à frente).
+  1. "Preparar pasta" → abre E:\DETTO\postar\tiktok_studio\<conta>\ com os vídeos numerados com dia e hora
+     ("01 - 16-10 08h00 - nome.mp4") + "LEGENDAS - <conta>.txt".
+  2. "Abrir o TikTok Studio" (entre na conta certa) → Enviar → escolha o arquivo → cole a legenda do LEGENDAS.txt →
+     Agendar → a data e a hora do nome do arquivo. Repita para cada um (uma vez por semana resolve).
+  3. No painel: "✔ Agendei os N da pasta" (ou o ✔ de cada vídeo). Eles saem da fila e o próximo horário continua dali.
+  Também dá para baixar (⬇) e copiar a legenda (📋) de cada vídeo direto pelo celular.
 
 ==================== ABA REELS AUTOMÁTICOS ====================
 Link de um vídeo (TikTok/Insta/YouTube) → "Fazer agora" (igual ao original, só a pessoa vira você; escolha o começo

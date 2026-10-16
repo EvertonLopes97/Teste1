@@ -18,10 +18,9 @@ PASTA (padrão E:\\DETTO\\postar):
   tokens\\             logins (renovam sozinhos)
 
 INSTAGRAM: posta de verdade (Reels, com legenda), sozinho. Até ~100 por dia pela API.
-TIKTOK: até o TikTok aprovar o app ("audit"), vai como RASCUNHO para a caixa de entrada do TikTok da conta:
-  você recebe a notificação no celular, abre, cola a legenda (fica em legendas_tiktok_<conta>.txt) e toca em Publicar.
-  O TikTok deixa no máximo 5 rascunhos pendentes por conta: o sistema só manda o próximo quando tiver vaga.
-  Com o app aprovado, mude "modo": "direto" no config.json e passa a postar sozinho, com legenda.
+TIKTOK: pelo TIKTOK STUDIO (padrão "modo": "studio"): nada vai pela API; o painel planeja os horários e prepara
+  a pasta com os vídeos + legendas, você agenda no site e marca "Agendei". (O TikTok não aprova app para postar
+  nas próprias contas; "rascunho"/"direto" pela API continuam disponíveis no config.json.)
 """
 import argparse
 import datetime as dt
@@ -49,7 +48,7 @@ VIDEO_EXT = {".mp4", ".mov", ".m4v", ".webm"}
 CONFIG_PADRAO = {
     "pausado": False,  # true = não posta nada (o painel tem o botão)
     "instagram": {"app_id": "", "app_secret": "", "config_id": "", "versao": "v23.0", "porta_login": 8724},
-    "tiktok": {"client_key": "", "client_secret": "", "redirect": "http://localhost:8723/callback/", "modo": "rascunho", "ia": False},
+    "tiktok": {"client_key": "", "client_secret": "", "redirect": "http://localhost:8723/callback/", "modo": "studio", "ia": False},
     "contas": [
         # intervalo_min = minutos entre posts; horas = janela do dia; max_dia = 0 sem limite; ativo = false pausa só esta conta
         # Instagram: teste = posta como REELS TESTE (só para quem não te segue); graduar "manual" = você manda para os
@@ -106,6 +105,13 @@ def prepara(base):
     lido = le_json(cfg_f, {})
     for k, v in lido.items():
         cfg[k] = {**cfg.get(k, {}), **v} if isinstance(v, dict) and isinstance(cfg.get(k), dict) else v
+    # TikTok: o padrão agora é o TikTok Studio (o TikTok não aprova app para postar nas próprias contas).
+    # Quem ficou com "rascunho" sem nunca ter posto as chaves do app passa para "studio".
+    if cfg["tiktok"].get("modo") == "rascunho" and not cfg["tiktok"].get("client_key"):
+        cfg["tiktok"]["modo"] = "studio"
+        d = le_json(cfg_f, {})
+        d.setdefault("tiktok", {})["modo"] = "studio"
+        grava_json(cfg_f, d)
     for c in cfg["contas"]:
         for k_, v_ in CONFIG_PADRAO["contas"][0].items():
             if k_ in ("teste", "graduar", "meta_views") and c.get("plataforma") != "instagram":
@@ -482,7 +488,71 @@ def na_hora(c, ultimo, estado=None, k=None):
     return not ultimo or (agora - ultimo).total_seconds() >= c.get("intervalo_min", 80) * 60
 
 
+def studio(cfg, c):
+    """TikTok pelo TikTok Studio: o sistema planeja e prepara, você agenda no site (nada vai pela API)"""
+    return c["plataforma"] == "tiktok" and cfg["tiktok"].get("modo", "studio") == "studio"
+
+
+def planeja(c, estado, k, n, ocupados=None, dias=10):
+    """horários dos próximos n vídeos da conta (intervalo, janela do dia e máximo por dia). O TikTok Studio
+    agenda de 15 min a 10 dias à frente."""
+    h0, h1 = janela(c)
+    agora = dt.datetime.now().replace(second=0, microsecond=0)
+    t = agora + dt.timedelta(minutes=20)
+    ult = estado.get(k, {}).get("ultimo")
+    if ult:
+        t = max(t, dt.datetime.fromisoformat(ult) + dt.timedelta(minutes=c.get("intervalo_min", 80)))
+    por_dia = dict(ocupados or {})
+    out = []
+    while len(out) < n and t < agora + dt.timedelta(days=dias):
+        if t.hour < h0:
+            t = t.replace(hour=h0, minute=0)
+        elif t.hour > h1:
+            t = (t + dt.timedelta(days=1)).replace(hour=h0, minute=0)
+            continue
+        dia = t.date().isoformat()
+        if c.get("max_dia") and por_dia.get(dia, 0) >= c["max_dia"]:
+            t = (t + dt.timedelta(days=1)).replace(hour=h0, minute=0)
+            continue
+        out.append(t)
+        por_dia[dia] = por_dia.get(dia, 0) + 1
+        t = t + dt.timedelta(minutes=c.get("intervalo_min", 80))
+    return out
+
+
+def agendados_por_dia(base, k):
+    """quantos vídeos já foram agendados no TikTok Studio em cada dia (para o máximo por dia)"""
+    cont = {}
+    for f in (Path(base) / "postados" / k).glob("*.json"):
+        d = le_json(f, {})
+        if d.get("agendado_para"):
+            dia = d["agendado_para"][:10]
+            cont[dia] = cont.get(dia, 0) + 1
+    return cont
+
+
+def marca_agendado(base, c, video, quando):
+    """você agendou no TikTok Studio: sai da fila e vai para postados com o horário"""
+    k = chave(c)
+    video = Path(video)
+    destino = Path(base) / "postados" / k
+    destino.mkdir(parents=True, exist_ok=True)
+    for f in [video, video.with_suffix(".txt")]:
+        if f.exists():
+            shutil.move(str(f), str(destino / f.name))
+    grava_json(destino / f"{video.stem}.json", {"quando": dt.datetime.now().isoformat(timespec="seconds"), "video": video.name,
+                                                "agendado_para": quando.isoformat(timespec="minutes"), "modo": "studio", "link": ""})
+    estado = le_json(Path(base) / "estado.json", {})
+    e = estado.setdefault(k, {})
+    if not e.get("ultimo") or e["ultimo"] < quando.isoformat(timespec="seconds"):
+        e["ultimo"] = quando.isoformat(timespec="seconds")
+    grava_json(Path(base) / "estado.json", estado)
+    log(f"{k}: {video.name} agendado no TikTok Studio para {quando:%d/%m %H:%M}")
+
+
 def posta_um(cfg, base, c, video):
+    if studio(cfg, c):
+        raise RuntimeError("esta conta do TikTok é pelo TikTok Studio: agende pelo painel (aba Postagem)")
     leg = legenda_de(video)
     if c["plataforma"] == "instagram":
         return ig_posta(cfg, base, c["conta"], video, leg, teste=bool(c.get("teste")), graduar=c.get("graduar", "manual"))
@@ -554,7 +624,7 @@ def rodada(cfg, base):
         estado = le_json(base / "estado.json", {})
         for c in cfg["contas"]:
             k = chave(c)
-            if c.get("ativo") is False:
+            if c.get("ativo") is False or studio(cfg, c):
                 continue
             fila = fila_de(base, k)
             if not fila or not na_hora(c, None, estado, k):
@@ -581,6 +651,8 @@ def status(cfg, base):
         if c["plataforma"] == "instagram":
             lim = ig_limite(cfg, base, c["conta"])
             extra = f" | limite hoje: {lim[0]}/{lim[1]}" if lim else " | sem login"
+        elif studio(cfg, c):
+            extra = " | pelo TikTok Studio (agende pelo painel)"
         elif cfg["tiktok"].get("modo") != "direto":
             try:
                 n, _ = tt_pendentes(cfg, base, c["conta"])

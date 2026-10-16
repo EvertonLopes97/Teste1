@@ -83,6 +83,8 @@ h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)
 .vid .vn div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .vid .vn small{color:var(--mut)}
 .vid .acoes{display:flex;gap:4px}
+.vid.dois{grid-template-columns:22px 1fr}
+.vid.dois .acoes{grid-column:2;justify-content:flex-end}
 .vazio{color:var(--mut);font-size:13px;text-align:center;padding:14px;background:var(--card2);border-radius:10px}
 details{margin-top:10px}
 summary{cursor:pointer;color:var(--mut);font-size:13px}
@@ -308,7 +310,7 @@ section.aba.on{display:block}
           </div>
           <div class="campos" style="margin-top:8px">
             <div><label>Modo do TikTok</label>
-              <select id="tt_modo"><option value="rascunho">Rascunho (até o app ser aprovado)</option><option value="direto">Direto (app aprovado)</option></select></div>
+              <select id="tt_modo"><option value="studio">TikTok Studio (você agenda no site) — recomendado</option><option value="rascunho">Rascunho pela API (precisa app)</option><option value="direto">Direto pela API (app aprovado)</option></select></div>
             <div><label>&nbsp;</label><label class="dest" style="width:max-content"><input type="checkbox" id="tt_ia"> marcar como feito com IA</label></div>
           </div>
           <div style="margin-top:12px"><label>PIN do celular (4 a 8 números)</label><input type="password" id="pin" inputmode="numeric" placeholder="vazio = não muda"></div>
@@ -418,8 +420,8 @@ function desenha(){
 function avisos(){
   const a = [];
   if(!E.instagram.chaves && E.contas.some(c => c.plataforma === "instagram")) a.push("Falta a chave do app da Meta (Instagram).");
-  if(!E.tiktok.chaves && E.contas.some(c => c.plataforma === "tiktok")) a.push("Falta a chave do app do TikTok.");
-  const sem = E.contas.filter(c => !c.login).map(nomeConta);
+  if(!E.tiktok.chaves && E.contas.some(c => c.plataforma === "tiktok" && !c.studio)) a.push("Falta a chave do app do TikTok.");
+  const sem = E.contas.filter(c => !c.login && !c.studio).map(nomeConta);
   if(sem.length) a.push("Sem login: " + sem.join(", ") + ".");
   if(E.disco_pouco) a.push("Pouco espaço no disco (" + E.disco + ").");
   $("#avisos").innerHTML = a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "";
@@ -487,7 +489,18 @@ function contas(){
     const ints = INTERVALOS.includes(c.intervalo_min) ? INTERVALOS : [...INTERVALOS, c.intervalo_min].sort((a,b) => a-b);
     const prox = !c.ativo ? "pausada" : !c.fila.length ? "—" : c.proximo_ja ? "agora" : c.proximo.slice(-5) + (c.proximo.slice(0,5) !== E.agora.slice(0,5) ? " (" + c.proximo.slice(0,5) + ")" : "");
     let extra = "";
-    if(c.plataforma === "tiktok" && E.tiktok.modo !== "direto"){
+    if(c.studio){
+      const n10 = c.plano.filter(Boolean).length;
+      extra += `<div class="teste">
+        <b>TikTok Studio</b> <small style="color:var(--mut)">— o TikTok agenda até 10 dias à frente</small>
+        <div class="linha">
+          <button class="pri" onclick="prepara(${ci})" ${n10 ? "" : "disabled"}>Preparar pasta (${n10} vídeo${n10 === 1 ? "" : "s"})</button>
+          <a href="https://www.tiktok.com/tiktokstudio/upload" target="_blank" rel="noopener"><button>Abrir o TikTok Studio</button></a>
+          ${c.preparados ? `<button onclick="agendeiPasta(${ci})">✔ Agendei os ${c.preparados} da pasta</button>` : ""}
+        </div>
+        <div class="info">Preparar = pasta com os vídeos numerados com dia e hora + LEGENDAS.txt. No Studio: Enviar → arquivo → cole a legenda → Agendar no horário do nome.</div>
+      </div>`;
+    } else if(c.plataforma === "tiktok" && E.tiktok.modo !== "direto"){
       if(c.pendentes){
         const n = c.pendentes.length;
         extra += `<div class="info ${n >= 5 ? "alerta" : ""}">Rascunhos esperando você publicar no app: <b>${n}/5</b>${n >= 5 ? " — publique um para liberar o próximo" : ""}</div>`;
@@ -526,26 +539,29 @@ function contas(){
     if(c.erro) extra += `<div class="info erro">⚠ ${esc(c.erro)}</div>`;
     const fila = c.fila.length ? c.fila.map((v, i) => {
       const t = c.tentativas[v.nome];
-      return `<div class="vid">
+      return `<div class="vid ${c.studio ? "dois" : ""}">
         <div class="pos">${i + 1}</div>
-        <div class="vn"><div title="${esc(v.nome)}">${esc(limpo(v.nome))}</div><small>${esc(v.quando)} · ${esc(v.tam)} · ${v.legenda ? esc(v.legenda.slice(0, 60)) : "<i>sem legenda</i>"}${t ? ` · <span style="color:var(--amar)">${t} erro(s)</span>` : ""}</small></div>
+        <div class="vn"><div title="${esc(v.nome)}">${esc(limpo(v.nome))}</div><small>${c.studio ? (c.plano[i] ? `<b style="color:var(--lima)">agendar: ${esc(diaHora(c.plano[i]))}</b>` : "depois (mais de 10 dias)") : esc(v.quando)} · ${esc(v.tam)} · ${v.legenda ? esc(v.legenda.slice(0, 60)) : "<i>sem legenda</i>"}${t ? ` · <span style="color:var(--amar)">${t} erro(s)</span>` : ""}</small></div>
         <div class="acoes">
           <button class="mini" title="Subir" onclick="move(${ci},${i},-1)" ${i ? "" : "disabled"}>↑</button>
           <button class="mini" title="Descer" onclick="move(${ci},${i},1)" ${i < c.fila.length - 1 ? "" : "disabled"}>↓</button>
           <button class="mini" title="Ver e editar a legenda" onclick="abre(${ci},${i})">✎</button>
-          <button class="mini" title="Postar agora" onclick="ja(${ci},${i})">🚀</button>
+          ${c.studio ? `<a href="/arquivo?${new URLSearchParams({k: c.k, nome: v.nome, onde: "entrada", baixar: 1, como: (c.plano[i] ? diaHora(c.plano[i]).replace(/[/:]/g, "-") + " - " : "") + limpo(v.nome) + ".mp4"})}"><button class="mini" title="Baixar">⬇</button></a>
+          <button class="mini" title="Copiar a legenda" onclick="copiaLeg(${ci},${i})">📋</button>
+          ${c.plano[i] ? `<button class="mini" title="Já agendei este no TikTok Studio" onclick="agendei(${ci},${i})">✔</button>` : ""}`
+          : `<button class="mini" title="Postar agora" onclick="ja(${ci},${i})">🚀</button>`}
           <button class="mini perigo" title="Tirar da fila" onclick="tira(${ci},${i})">✕</button>
         </div></div>`;
     }).join("") : `<div class="vazio">Fila vazia — mande vídeos aqui em cima</div>`;
     const falhas = c.falhas.length ? `<details open data-d="${c.k}-falhas"><summary style="color:var(--verm)">${c.falhas.length} com erro (3 tentativas)</summary><div class="lista">${c.falhas.map((v, i) =>
       `<div class="l"><span>${esc(limpo(v.nome))}</span><span><button class="mini" onclick="tenta(${ci},${i})">Tentar de novo</button> <button class="mini perigo" onclick="tiraF(${ci},${i})">✕</button></span></div>`).join("")}</div></details>` : "";
     const ult = c.ultimos.length ? `<details data-d="${c.k}-ult"><summary>Últimos postados</summary><div class="lista">${c.ultimos.map(u =>
-      `<div class="l"><span>${esc(u.quando)} · ${esc(limpo(u.nome))}</span>${u.link ? `<a href="${esc(u.link)}" target="_blank" rel="noopener">abrir</a>` : `<small style="color:var(--mut)">${u.modo === "rascunho" ? "rascunho" : ""}</small>`}</div>`).join("")}</div></details>` : "";
+      `<div class="l"><span>${esc(u.quando)} · ${esc(limpo(u.nome))}</span>${u.link ? `<a href="${esc(u.link)}" target="_blank" rel="noopener">abrir</a>` : `<small style="color:var(--mut)">${u.modo === "rascunho" ? "rascunho" : u.modo === "studio" ? "agendado" : ""}</small>`}</div>`).join("")}</div></details>` : "";
     return `<div class="card">
       <div class="ctop">
         <span class="plat ${c.plataforma}">${c.plataforma === "instagram" ? "IG" : "TT"}</span>
         <div style="flex:1"><div class="cnome">@${esc(c.conta)}</div>
-          <div class="login ${c.login ? "" : "off"}">${c.login ? "conectado" : "sem login — "}${c.login ? "" : `<a href="#" onclick="abreCfg();return false">conectar</a>`}</div></div>
+          <div class="login ${c.login || c.studio ? "" : "off"}">${c.studio ? "pelo TikTok Studio (você agenda)" : c.login ? "conectado" : "sem login — "}${c.login || c.studio ? "" : `<a href="#" onclick="abreCfg();return false">conectar</a>`}</div></div>
         <label class="sw" title="${c.ativo ? "Postando" : "Pausada"}"><input type="checkbox" ${c.ativo ? "checked" : ""} onchange="regra(${ci},{ativo:this.checked})"><span></span></label>
       </div>
       <div class="nums">
@@ -568,6 +584,13 @@ function contas(){
 }
 
 async function marcaT(ci, ti, como){ const c = E.contas[ci]; await api("teste_marca", {k: c.k, arq: c.testes[ti].arq, como}); carrega(true); }
+const DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+function diaHora(iso){ const d = new Date(iso); return DIAS[d.getDay()] + " " + String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0") + " " + iso.slice(11, 16); }
+async function prepara(ci){ const c = E.contas[ci]; const r = await api("studio_preparar", {k: c.k}); toast(`Pasta pronta: ${r.n} vídeos — ${r.pasta}`); carrega(true); }
+async function agendeiPasta(ci){ const c = E.contas[ci]; if(!confirm(`Você agendou os ${c.preparados} vídeos da pasta no TikTok Studio?`)) return; const r = await api("studio_agendei", {k: c.k, da_pasta: true}); toast(r.feitos + " marcados como agendados"); carrega(true); }
+async function agendei(ci, i){ const c = E.contas[ci]; await api("studio_agendei", {k: c.k, nomes: [c.fila[i].nome]}); toast("Marcado como agendado"); carrega(true); }
+function copiaLeg(ci, i){ const t = E.contas[ci].fila[i].legenda || "";
+  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast("Legenda copiada")).catch(() => prompt("Copie a legenda:", t)); }
 async function regra(ci, d){ const c = E.contas[ci]; await api("conta", {k: c.k, ...d}); toast("Salvo"); editando = false; carrega(true); }
 async function move(ci, i, dir){
   const c = E.contas[ci], nomes = c.fila.map(v => v.nome);
@@ -657,10 +680,10 @@ function configs(){
   $("#tt_client_secret").placeholder = E.tiktok.chaves ? "já preenchida" : "";
   $("#pin").placeholder = E.pin ? "já tem PIN (vazio = não muda)" : "crie um PIN para abrir pelo celular";
   $("#endCel").innerHTML = `No celular (mesmo Wi-Fi): <b>${esc(E.endereco)}</b>`;
-  const lg = $("#logins"), k = JSON.stringify(E.contas.map(c => [c.k, c.login, c.fila.length]));
+  const lg = $("#logins"), k = JSON.stringify(E.contas.map(c => [c.k, c.login, c.fila.length, c.studio]));
   if(lg.dataset.k !== k){
     lg.dataset.k = k;
-    lg.innerHTML = E.contas.map((c, ci) => `<div class="l"><span>${esc(nomeConta(c))} · ${c.login ? "✔ conectado" : "✖ sem login"}</span>
+    lg.innerHTML = E.contas.map((c, ci) => c.studio ? `<div class="l"><span>${esc(nomeConta(c))} · TikTok Studio (sem login)</span><span></span></div>` : `<div class="l"><span>${esc(nomeConta(c))} · ${c.login ? "✔ conectado" : "✖ sem login"}</span>
       <span><button class="mini ${c.login ? "" : "pri"}" onclick="loga(${ci})">${c.login ? "Refazer" : "Conectar"}</button>${c.fila.length ? "" : ` <button class="mini perigo" title="Tirar a conta" onclick="tiraConta(${ci})">✕</button>`}</span></div>`).join("");
     $("#tokConta").innerHTML = E.contas.filter(c => c.plataforma === "instagram").map(c => `<option>${esc(c.conta)}</option>`).join("");
   }

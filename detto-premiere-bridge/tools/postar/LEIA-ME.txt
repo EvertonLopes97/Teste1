@@ -28,24 +28,17 @@ Facebook (Instagram → Configurações → Central de contas, ou na Página: Co
  enquanto só VOCÊ usa (você é o administrador).
 
 =====================================================================
- 2) TIKTOK @detto.galo e @detto.tv  (vai como RASCUNHO até o app ser aprovado)
+ 2) TIKTOK @detto.galo e @detto.tv  →  pelo TIKTOK STUDIO (padrão, sem app)
 =====================================================================
- a) developers.tiktok.com → login → Manage apps → Connect an app (tipo "Desktop" / uso próprio).
- b) Adicione os produtos "Login Kit" e "Content Posting API". Escopos: user.info.basic e video.upload.
- c) Login Kit → Redirect URI (Desktop):  http://localhost:8723/callback/
- d) Aba "Sandbox": crie o sandbox e adicione @detto.galo e @detto.tv como "Target users".
- e) Copie "Client key" e "Client secret" (do sandbox) para "tiktok" no config.json.
- f) Login de cada conta (no navegador, entre na conta certa antes de autorizar):
-       python tools\postar\postar.py --login tiktok --conta detto.galo
-       python tools\postar\postar.py --login tiktok --conta detto.tv
- Como funciona no modo RASCUNHO:
-    - o vídeo cai na caixa de entrada do TikTok da conta (chega notificação no celular);
-    - abra, cole a legenda do arquivo  E:\DETTO\postar\legendas_tiktok_<conta>.txt  e toque em Publicar;
-    - o TikTok aceita no máximo 5 rascunhos esperando por conta: o sistema só manda o próximo quando
-      você publicar (ou apagar) um. Veja quantos estão esperando com --status.
- Postar 100% sozinho no TikTok: peça a aprovação ("Submit for review") do app com o escopo video.publish.
- Aprovado → no config.json, "tiktok": {"modo": "direto"} (e "ia": true se o vídeo for gerado por IA).
- Sem aprovação o TikTok só deixa a API postar como PRIVADO, por isso o padrão é rascunho.
+ As regras do TikTok para a API não aceitam app feito para postar nas próprias contas, e sem aprovação
+ a API só posta como PRIVADO. Por isso o padrão é o agendador oficial do TikTok Studio:
+ o painel planeja os horários, prepara a pasta com os vídeos + legendas e você agenda no site
+ (tiktok.com/tiktokstudio/upload, até 10 dias à frente). Passo a passo: tools\painel\LEIA-ME.txt.
+
+ (Opcional, não recomendado) API do TikTok: config.json → "tiktok": {"modo": "rascunho"} + app em
+ developers.tiktok.com (Login Kit + Content Posting API, redirect http://localhost:8723/callback/,
+ escopos user.info.basic e video.upload, sandbox com as contas) + --login tiktok --conta X.
+ O vídeo chega como rascunho na caixa do TikTok (máx. 5 pendentes).
 
 =====================================================================
  3) LIGAR SOZINHO
