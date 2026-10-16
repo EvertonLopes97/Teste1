@@ -297,7 +297,7 @@ def _multipart(url, campos, campo_arq, video, tempo=900):
 
 
 def normaliza_ig(video, pasta):
-    """cópia no padrão que o Instagram aceita sempre: H.264 High 4:2:0, ≤ 30 fps, GOP fechado de 2 s, até 1080x1920,
+    """cópia no padrão que o Instagram aceita sempre: H.264 High 4:2:0, mesmo fps (até 60), GOP fechado de 2 s, até 1080x1920,
     ~8 Mbit/s, AAC 128k 48 kHz estéreo, moov no começo (faststart), cor BT.709. Mesmo vídeo = reaproveita."""
     pasta = Path(pasta)
     pasta.mkdir(parents=True, exist_ok=True)
@@ -307,14 +307,14 @@ def normaliza_ig(video, pasta):
     r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", str(video)],
                        capture_output=True, text=True)
     tem_audio = bool(r.stdout.strip())
-    vf = ("scale='if(gt(iw,1080),1080,iw)':-2:flags=lanczos,scale=trunc(iw/2)*2:trunc(ih/2)*2,fps='min(30,source_fps)',"
+    vf = ("scale='if(gt(iw,1080),1080,iw)':-2:flags=lanczos,scale=trunc(iw/2)*2:trunc(ih/2)*2,fps='min(60,source_fps)',"
           "format=yuv420p")
     cmd = ["ffmpeg", "-v", "error", "-y", "-i", str(video)]
     if not tem_audio:
         cmd += ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"]
     cmd += ["-map", "0:v:0", "-map", "0:a:0" if tem_audio else "1:a:0", "-shortest",
-            "-vf", vf, "-c:v", "libx264", "-profile:v", "high", "-level", "4.1", "-preset", "medium", "-crf", "20",
-            "-maxrate", "8M", "-bufsize", "16M", "-g", "60", "-keyint_min", "60", "-sc_threshold", "0", "-bf", "2",
+            "-vf", vf, "-c:v", "libx264", "-profile:v", "high", "-level", "4.2", "-preset", "medium", "-crf", "20",
+            "-maxrate", "12M", "-bufsize", "24M", "-force_key_frames", "expr:gte(t,n_forced*2)", "-sc_threshold", "0", "-bf", "2",
             "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
             "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2", "-movflags", "+faststart", str(saida)]
     rr = subprocess.run(cmd, capture_output=True, text=True)
@@ -1080,6 +1080,16 @@ def main():
         return status(cfg, base)
     if a.teste_facebook:
         try:
+            tk = ig_token(cfg, base, a.teste_facebook) or {}
+            ic = cfg["instagram"]
+            if ic.get("app_id") and ic.get("app_secret") and tk.get("token"):
+                r = http("GET", f"{GRAPH}/{ic['versao']}/debug_token?" + urllib.parse.urlencode(
+                    {"input_token": tk["token"], "access_token": f"{ic['app_id']}|{ic['app_secret']}"}))
+                esc = sorted((r.get("data") or {}).get("scopes") or [])
+                print("Permissões do login salvo: " + (", ".join(esc) or "(nenhuma informada)"))
+                for falta in ("instagram_content_publish", "instagram_manage_insights", "pages_manage_posts"):
+                    if esc and falta not in esc:
+                        print(f"   FALTA: {falta} — adicione no app da Meta (Casos de uso → Permissões) e conecte de novo")
             pid, _, nome = fb_pagina(cfg, base, a.teste_facebook)
             fb_permissao(cfg, base, a.teste_facebook)
             print(f"OK: a página {nome} ({pid}) pode receber os vídeos.")
