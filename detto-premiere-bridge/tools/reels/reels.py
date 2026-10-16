@@ -925,14 +925,14 @@ def legenda_parada(clip, t0, t1, saida):
         t = t0 + (t1 - t0) * (k + 0.5) / 10
         r = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{t:.2f}", "-i", str(clip), "-frames:v", "1", "-f", "image2pipe", "-vcodec", "png", "-"],
                            capture_output=True)
-        q = cv2.imdecode(np.frombuffer(r.stdout, np.uint8), cv2.IMREAD_GRAYSCALE) if r.stdout else None
+        q = cv2.imdecode(np.frombuffer(r.stdout, np.uint8), cv2.IMREAD_COLOR) if r.stdout else None
         if q is not None:
-            fr.append(q)
+            fr.append(q.max(axis=2))  # o canal mais forte: letra branca, amarela, laranja ou verde conta igual
     if len(fr) < 4:
         return None
     mn = np.array(fr).min(axis=0)
     H, W = mn.shape
-    claro = (mn > 200).astype(np.uint8)
+    claro = (mn > 185).astype(np.uint8)
     borda = cv2.dilate((cv2.morphologyEx(mn, cv2.MORPH_GRADIENT, np.ones((3, 3), np.uint8)) > 60).astype(np.uint8), np.ones((3, 3), np.uint8))
     letra = claro & borda
     n, _, st, _ = cv2.connectedComponentsWithStats(letra, 8)
@@ -950,7 +950,14 @@ def legenda_parada(clip, t0, t1, saida):
             linhas[-1]["y"] = np.mean([x[1] + x[3] / 2 for x in linhas[-1]["c"]])
         else:
             linhas.append({"y": yc, "c": [c]})
-    linhas = [l for l in linhas if len(l["c"]) >= 4]
+    def centrada(l):
+        """legenda de meme: linha centralizada, letras de altura parecida (parede/grade/placar não passam)"""
+        xs0 = min(c[0] for c in l["c"])
+        xs1 = max(c[0] + c[2] for c in l["c"])
+        hs = np.array([c[3] for c in l["c"]], np.float32)
+        return (abs((xs0 + xs1) / 2 - W / 2) < W * 0.15 and xs1 - xs0 > W * 0.12
+                and float(hs.std() / max(1.0, hs.mean())) < 0.45)
+    linhas = [l for l in linhas if len(l["c"]) >= 4 and centrada(l)]
     if not linhas:
         return None
     blocos = [[linhas[0]]]

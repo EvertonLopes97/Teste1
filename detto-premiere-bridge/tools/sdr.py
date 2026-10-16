@@ -21,7 +21,7 @@ sys.path.insert(0, str(AQUI))
 from cor import PLACEBO, filtro_cor, info_cor, placebo_ok  # noqa: E402
 
 VIDEO_EXT = {".mov", ".mp4", ".m4v", ".mkv"}
-VERSAO = "detto_cor v2"  # muda quando a conversão muda: masters antigos são refeitos
+VERSAO = "detto_cor v3"  # v3: zscale natural sempre (o libplacebo da placa saiu estourado)  # muda quando a conversão muda: masters antigos são refeitos
 _NVENC = None
 
 

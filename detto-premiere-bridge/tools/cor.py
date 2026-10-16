@@ -13,7 +13,7 @@ Padrão (16/out/2026): SÓ CONVERTE, não "colore". Dois caminhos, o mesmo resul
      mobius, tira só o excesso de saturação dos brilhos (desat=1) e 12% de saturação (o tone mapping do zscale
      esquenta e satura a pele).
 O antigo (203 nits, mobius 0,6, desat 0) deixava a pele laranja e a parede estourada.
-DETTO_TONEMAP=natural (padrão) | 203 | antigo | clip | hable | 0 ; DETTO_PLACEBO=0 desliga o libplacebo.
+DETTO_TONEMAP=natural (padrão) | 203 | antigo | clip | hable | 0 ; DETTO_PLACEBO=1 liga o libplacebo (desligado por padrão).
 """
 import json
 import os
@@ -86,7 +86,9 @@ def placebo_ok(video=None):
     """o FFmpeg deste PC tem libplacebo e a placa (Vulkan) converte certo? Confere num quadro do próprio vídeo
     contra o zscale: mesmo brilho e sem riscos. Resultado guardado para o resto do processo."""
     global _PLACEBO_OK
-    if os.environ.get("DETTO_PLACEBO", "1") == "0":
+    # desligado por padrão (16/out): na placa dele o resultado não foi conferido e saiu estourado; o zscale "natural"
+    # foi conferido contra a gravação SDR do próprio iPhone. DETTO_PLACEBO=1 liga para testar.
+    if os.environ.get("DETTO_PLACEBO", "0") != "1":
         return False
     if _PLACEBO_OK is not None and (_PLACEBO_OK is False or video is None):
         return _PLACEBO_OK

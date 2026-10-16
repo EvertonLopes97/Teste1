@@ -56,7 +56,8 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   Cenas (`partes_da_pessoa`): o vídeo é dividido em cenas (corte seco ou fade pelo preto) e cada uma é "pessoa" ou
   "lance" (Gemini com uma foto de cada cena; sem Gemini: 1ª cena + as parecidas com ela). TODA cena da pessoa — no
   começo, no MEIO ou no fim — vira um pedaço do começo dele (seguido; acabou, volta do início), com a legenda daquela
-  cena (`legenda_parada`, copiada pixel a pixel) e o mesmo fade; os lances e o áudio ficam iguais (`troca_partes`).
+  cena (`legenda_parada`: letra clara em QUALQUER cor — canal mais forte —, linha centralizada e letras de altura parecida;
+  copiada pixel a pixel) e o mesmo fade; os lances e o áudio ficam iguais (`troca_partes`).
   Link DELE nunca cai no modo normal: sem pessoa/lance achados = "NÃO FIZ" no registro e o link vai como FALHOU.
   COMEÇOS PELO DRIVE (`importa_inicios`, `reels.py --importar`; o painel roda a cada 10 min): pasta "Começo"/"Começos"/
   "Inícios" na raiz do Meu Drive ou em DETTO (ou `"pastas_inicios_drive"` no config) → Gemini assiste e dá o NOME do que
@@ -96,12 +97,12 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   Studio e marca "Agendei" (vai para postados com `agendado_para`). "rascunho"/"direto" = API (opcional).
   REELS no painel: vários links de uma vez → `links.txt`; com `"auto_links"` (padrão) o painel roda
   `reels.py --so-links` sozinho (um por vez, cada pronto vai para a fila). yt-dlp atualiza 1x/dia.
-- COR: SÓ CONVERTE HDR→SDR, não "colore". `tools\sdr.py` = master SDR antes de editar: libplacebo (placa, Vulkan) com o
-  Dolby Vision que o iPhone grava = a conversão do iPhone/CapCut; conferido num quadro (brilho × zscale, sem riscos),
-  senão zscale "natural" ajustado para bater com ele (npl=350, mobius, desat=1, saturação 0,88). Lado maior até 1920
-  (`--4k` mantém); NVENC cq 16 ou x264 crf 14; áudio sem o APAC; mantém a data; tag `comment=detto_cor v2` (master
+- COR: SÓ CONVERTE HDR→SDR, não "colore". `tools\sdr.py` = master SDR antes de editar com o zscale "natural" (npl=350,
+  mobius, desat=1, saturação 0,88 — conferido contra a gravação SDR do próprio iPhone). libplacebo (placa, Dolby Vision)
+  só com `DETTO_PLACEBO=1`: na RTX dele saiu estourado (16/out); conferência em 3 quadros contra o zscale. Lado maior até 1920
+  (`--4k` mantém); NVENC cq 16 ou x264 crf 14; áudio sem o APAC; mantém a data; tag `comment=detto_cor v3` (master
   antigo é refeito). `editar.py`, vlog e o COMEÇO dos reels (`<reels>\sdr\`) usam o master (`--sem-sdr` desliga);
-  `cor.py`/`ffopts.js` usam o zscale natural (`DETTO_TONEMAP=203|antigo` volta os de antes; `DETTO_PLACEBO=0`).
+  `cor.py`/`ffopts.js` usam o zscale natural (`DETTO_TONEMAP=203|antigo` volta os de antes).
 - Reels TROCA: o texto do original é copiado PIXEL A PIXEL (mediana dos quadros onde fica parado: mesma fonte, cor e
   contorno; meme com faixa preta ganha só um contorno fino).
 - VLOG (`tools\vlog\vlog.py <pasta> [--titulo --estilo --formato --duracao --legendas --refazer]`, aba Edição tipo
