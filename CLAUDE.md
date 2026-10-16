@@ -69,6 +69,8 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   caminho no PC, hardlink) + roteiro (.txt/.docx/colado) + imagens → `E:\DETTO\edicao\<data título>\` → roda o
   `editar.py` (um por vez; `painel.json` = situação, `painel_log.txt` = registro); saídas para assistir/baixar/postar,
   "Ajustar roteiro e refazer" (grava o roteiro.txt do job), vertical completo pode ir sozinho para a fila.
+  Tipos de edição: roteiro (editar.py) | galo (passagem.py, jogo.json com "jogo") | react (react.py, 3 vídeos) |
+  vertical (vertical916.py); os não-roteiro saem em `<pasta>\saidas\`.
   Instagram = REELS TESTE por padrão (`trial_params` MANUAL; `"teste"`, `"graduar"` manual|automatico, `"meta_views"`
   na conta); views pelo insights (permissão instagram_manage_insights) a cada 30 min; mandar para os seguidores é no
   app (a API não faz) → painel avisa e tem "Já mandei". Roteiro sem linha de BLOCO vira um bloco só.
