@@ -87,9 +87,9 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   Tipos de edição: roteiro (editar.py) | galo (passagem.py, jogo.json com "jogo") | react (react.py, 3 vídeos) |
   vertical (vertical916.py); os não-roteiro saem em `<pasta>\saidas\`.
   Instagram = REELS TESTE por padrão (`trial_params` MANUAL; `"teste"`, `"graduar"` manual|automatico, `"meta_views"`
-  na conta; o TESTE só vale com `video_url`: o vídeo sobe NÃO PUBLICADO na página do Facebook e o IG baixa do fbcdn
+  na conta; o TESTE só vale com `video_url`: o vídeo sobe para o Catbox (link público) e o IG baixa de lá
   (`_link_facebook`, apagado depois; precisa de pages_manage_posts), senão Litterbox/tmpfiles; cada nova tentativa do
-  mesmo vídeo começa pelo próximo lugar (FB → Catbox → Litterbox → tmpfiles) — erro 2207082/2207076 = o IG não
+  mesmo vídeo começa pelo próximo lugar (Catbox — o que funcionou — → Litterbox → tmpfiles → FB não publicado) — erro 2207082/2207076 = o IG não
   baixou/processou; antes de subir o vídeo é padronizado (`normaliza_ig`: H.264 High, mesmo fps até 60, keyframe a cada 2 s, ≤1080x1920, ≤12 Mbit/s,
   AAC 48 kHz, faststart, em `tmp_ig\`); falha espera 15 min/45 min/2 h e vai para falhas na 4ª; o envio direto ignorava o teste); views pelo insights (permissão instagram_manage_insights) a cada 30 min; mandar para os seguidores é no
   app (a API não faz) → painel avisa e tem "Já mandei". Roteiro sem linha de BLOCO vira um bloco só.

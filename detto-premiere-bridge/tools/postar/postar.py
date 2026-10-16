@@ -370,13 +370,13 @@ def _link_facebook(cfg, base, conta, video):
 
 def link_temporario(video, cfg=None, base=None, conta=None, tentativa=0):
     """O Reels TESTE só funciona com o vídeo num link público (o envio direto do arquivo ignora o "teste" e posta
-    normal). Devolve (url, apagar). Ordem: a sua página do Facebook (não publicado, servidor da Meta), Litterbox,
-    tmpfiles — e a cada nova tentativa do mesmo vídeo começa pelo próximo (se um lugar falhou, tenta outro)."""
-    fontes = []
+    normal). Devolve (url, apagar). Ordem pelo que FUNCIONOU no PC dele (16/out): Catbox (o Instagram baixa),
+    Litterbox, tmpfiles (deram 2207082 = o IG não baixou) e por último a página do Facebook não publicada (deu 2207076).
+    A cada nova tentativa do mesmo vídeo começa pelo próximo."""
+    fontes = [("Catbox", lambda: (_link_catbox(video), None)), ("Litterbox", lambda: (_link_litterbox(video), None)),
+              ("tmpfiles", lambda: (_link_tmpfiles(video), None))]
     if cfg is not None and base is not None and conta:
         fontes.append(("página do Facebook (não publicado)", lambda: _link_facebook(cfg, base, conta, video)))
-    fontes += [("Catbox", lambda: (_link_catbox(video), None)), ("Litterbox", lambda: (_link_litterbox(video), None)),
-               ("tmpfiles", lambda: (_link_tmpfiles(video), None))]
     k = tentativa % len(fontes)
     fontes = fontes[k:] + fontes[:k]
     erros = []
