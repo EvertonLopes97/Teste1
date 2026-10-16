@@ -53,7 +53,10 @@ function corDaGravacao(video) {
   if (hdr && tm !== "0") {
     // HLG/PQ → linear → BT.709 com tone mapping, sem tirar saturação (desat=0)
     // reduz para Full HD ANTES (o tone mapping em 4K é 4x mais lento e o palco é 1920 de qualquer jeito)
-    filtro = `scale='min(1920,iw)':-2:flags=bicubic,zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=${tm}:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p`;
+    // branco de referência do HLG em 203 nits (BT.2408, como CapCut/iPhone); "antigo" = npl=100 (pele pálida)
+    const npl = tm === "antigo" ? 100 : 203;
+    const tmq = tm === "antigo" ? "mobius" : tm === "mobius" ? "mobius:param=0.6" : tm;
+    filtro = `scale='min(1920,iw)':-2:flags=bicubic,zscale=t=linear:npl=${npl},format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=${tmq}:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p`;
   } else if (/bt2020/.test(primaries)) {
     filtro = "zscale=p=bt709:t=bt709:m=bt709:r=tv,format=yuv420p";
   }
