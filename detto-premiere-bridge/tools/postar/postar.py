@@ -783,18 +783,50 @@ def posta_um(cfg, base, c, video):
     return tt_posta(cfg, base, c["conta"], video, leg)
 
 
+def processo_vivo(pid):
+    """o processo ainda existe? (trava deixada por um painel que foi fechado/atualizado no meio de uma postagem)"""
+    try:
+        pid = int(pid)
+    except (TypeError, ValueError):
+        return False
+    if pid == os.getpid():
+        return True
+    if os.name == "nt":
+        import ctypes
+
+        h = ctypes.windll.kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if not h:
+            return False
+        codigo = ctypes.c_ulong()
+        ctypes.windll.kernel32.GetExitCodeProcess(h, ctypes.byref(codigo))
+        ctypes.windll.kernel32.CloseHandle(h)
+        return codigo.value == 259  # STILL_ACTIVE
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
 class trava:
-    """impede duas postagens ao mesmo tempo (painel + tarefa do Windows)"""
+    """impede duas postagens ao mesmo tempo (painel + tarefa do Windows). Trava de um processo que já morreu
+    (painel fechado ou atualizado no meio de uma postagem) é ignorada na hora — antes segurava a fila por 45 min."""
 
     def __init__(self, base):
         self.f = Path(base) / ".postando"
         self.ok = False
+        self.dono = ""
 
     def __enter__(self):
         try:
-            if self.f.exists() and time.time() - self.f.stat().st_mtime < 45 * 60:
-                return self
-            self.f.write_text(str(os.getpid()))
+            if self.f.exists():
+                pid = (self.f.read_text(errors="replace").split() or [""])[0]
+                idade = time.time() - self.f.stat().st_mtime
+                if idade < 45 * 60 and processo_vivo(pid):
+                    self.dono = f"desde {dt.datetime.fromtimestamp(self.f.stat().st_mtime):%H:%M}"
+                    return self
+                log(f"trava antiga de postagem removida ({'processo fechado' if idade < 45 * 60 else 'mais de 45 min'})")
+            self.f.write_text(f"{os.getpid()} {int(time.time())}")
             self.ok = True
         except OSError:
             pass
@@ -846,6 +878,7 @@ def rodada(cfg, base):
         return
     with trava(base) as t:
         if not t.ok:
+            log(f"rodada: outra postagem ainda em andamento ({t.dono}); confiro de novo na próxima")
             return
         estado = le_json(base / "estado.json", {})
         try:
