@@ -296,29 +296,65 @@ def _multipart(url, campos, campo_arq, video, tempo=900):
         return r.read().decode("utf-8", "replace").strip()
 
 
-def link_temporario(video):
+def _link_litterbox(video):
+    url = _multipart("https://litterbox.catbox.moe/resources/internals/api.php", {"reqtype": "fileupload", "time": "1h"}, "fileToUpload", video)
+    if not url.startswith("https://"):
+        raise RuntimeError(f"litterbox: {url[:120]}")
+    return url
+
+
+def _link_tmpfiles(video):
+    r = json.loads(_multipart("https://tmpfiles.org/api/v1/upload", {}, "file", video))
+    url = (r.get("data") or {}).get("url", "")
+    if not url.startswith("http"):
+        raise RuntimeError(f"tmpfiles: {r}")
+    return url.replace("http://", "https://").replace("tmpfiles.org/", "tmpfiles.org/dl/", 1)
+
+
+def _link_facebook(cfg, base, conta, video):
+    """o vídeo sobe NÃO PUBLICADO na sua página do Facebook (ninguém vê) e o Instagram baixa do próprio servidor
+    da Meta — os sites de link temporário às vezes são bloqueados pelo Instagram (erro 2207082). Apagado depois."""
+    pid, token, _ = fb_pagina(cfg, base, conta)
+    v = cfg["instagram"]["versao"]
+    r = json.loads(_multipart(f"https://graph-video.facebook.com/{v}/{pid}/videos",
+                              {"published": "false", "description": "detto: reels teste (temporário)", "access_token": token},
+                              "source", video, tempo=1800))
+    vid = r.get("id")
+    if not vid:
+        raise RuntimeError(f"facebook: {r}")
+    for _ in range(40):  # até ~6 min processando
+        d = http("GET", f"{GRAPH}/{v}/{vid}?" + urllib.parse.urlencode({"fields": "source,status", "access_token": token}))
+        st = (d.get("status") or {}).get("video_status")
+        if d.get("source") and st in (None, "ready", "published"):
+            return d["source"], (lambda: http("DELETE", f"{GRAPH}/{v}/{vid}?" + urllib.parse.urlencode({"access_token": token})))
+        if st == "error":
+            raise RuntimeError(f"facebook: o vídeo deu erro no processamento ({d.get('status')})")
+        time.sleep(9)
+    raise RuntimeError("facebook: o vídeo demorou demais para processar")
+
+
+def link_temporario(video, cfg=None, base=None, conta=None, tentativa=0):
     """O Reels TESTE só funciona com o vídeo num link público (o envio direto do arquivo ignora o "teste" e posta
-    normal). Sobe para um serviço de link temporário (o vídeo some sozinho em ~1 hora; o Instagram baixa antes)."""
+    normal). Devolve (url, apagar). Ordem: a sua página do Facebook (não publicado, servidor da Meta), Litterbox,
+    tmpfiles — e a cada nova tentativa do mesmo vídeo começa pelo próximo (se um lugar falhou, tenta outro)."""
+    fontes = []
+    if cfg is not None and base is not None and conta:
+        fontes.append(("página do Facebook (não publicado)", lambda: _link_facebook(cfg, base, conta, video)))
+    fontes += [("Litterbox", lambda: (_link_litterbox(video), None)), ("tmpfiles", lambda: (_link_tmpfiles(video), None))]
+    k = tentativa % len(fontes)
+    fontes = fontes[k:] + fontes[:k]
     erros = []
-    try:  # Litterbox (catbox.moe): some em 1 h
-        url = _multipart("https://litterbox.catbox.moe/resources/internals/api.php", {"reqtype": "fileupload", "time": "1h"}, "fileToUpload", video)
-        if url.startswith("https://"):
-            return url
-        erros.append(f"litterbox: {url[:120]}")
-    except Exception as e:
-        erros.append(f"litterbox: {e}")
-    try:  # tmpfiles.org: some em 1 h; o link direto é o /dl/
-        r = json.loads(_multipart("https://tmpfiles.org/api/v1/upload", {}, "file", video))
-        url = (r.get("data") or {}).get("url", "")
-        if url.startswith("http"):
-            return url.replace("http://", "https://").replace("tmpfiles.org/", "tmpfiles.org/dl/", 1)
-        erros.append(f"tmpfiles: {r}")
-    except Exception as e:
-        erros.append(f"tmpfiles: {e}")
-    raise RuntimeError("não consegui o link temporário para o Reels TESTE (" + " | ".join(erros)[:300] + "). Tenta de novo na próxima rodada.")
+    for nome, f in fontes:
+        try:
+            url, apagar = f()
+            log(f"{conta or ''}: Reels TESTE — vídeo em {nome}")
+            return url, apagar
+        except Exception as e:
+            erros.append(f"{nome}: {str(e)[:150]}")
+    raise RuntimeError("não consegui o link para o Reels TESTE (" + " | ".join(erros)[:400] + "). Tenta de novo na próxima rodada.")
 
 
-def ig_posta(cfg, base, conta, video, legenda, teste=False, graduar="manual"):
+def ig_posta(cfg, base, conta, video, legenda, teste=False, graduar="manual", tentativa=0):
     tk = ig_token(cfg, base, conta)
     if not tk:
         raise RuntimeError(f"Instagram @{conta} sem login: python tools\\postar\\postar.py --login instagram --conta {conta}")
@@ -333,8 +369,20 @@ def ig_posta(cfg, base, conta, video, legenda, teste=False, graduar="manual"):
         params["trial_params"] = json.dumps({"graduation_strategy": "SS_PERFORMANCE" if graduar == "automatico" else "MANUAL"})
         params.pop("share_to_feed")
         params.pop("upload_type")
-        params["video_url"] = link_temporario(video)
-        log(f"{conta}: Reels TESTE — vídeo no link temporário (some em 1 h)")
+        params["video_url"], apagar = link_temporario(video, cfg, base, conta, tentativa)
+    else:
+        apagar = None
+    try:
+        return _ig_publica(cfg, base, conta, video, params, teste, graduar, G, v, igid, token)
+    finally:
+        if apagar:
+            try:
+                apagar()
+            except Exception as e:
+                log(f"{conta}: não apaguei o vídeo temporário da página ({e}) — ele está NÃO publicado, ninguém vê")
+
+
+def _ig_publica(cfg, base, conta, video, params, teste, graduar, G, v, igid, token):
     try:
         c = http("POST", f"{G}/{v}/{igid}/media", params)
     except RuntimeError as e:
@@ -356,7 +404,8 @@ def ig_posta(cfg, base, conta, video, legenda, teste=False, graduar="manual"):
         if sc == "FINISHED":
             break
         if sc in ("ERROR", "EXPIRED"):
-            raise RuntimeError(f"Instagram não aceitou o vídeo: {st.get('status')}")
+            dica = " (o Instagram não conseguiu baixar o vídeo do link; na próxima tentativa vai por outro lugar)" if "2207082" in str(st.get("status")) else ""
+            raise RuntimeError(f"Instagram não aceitou o vídeo: {st.get('status')}{dica}")
         time.sleep(10)
     else:
         raise RuntimeError("Instagram demorou demais para processar o vídeo")
@@ -779,7 +828,8 @@ def posta_um(cfg, base, c, video):
         raise RuntimeError("esta conta do TikTok é pelo TikTok Studio: agende pelo painel (aba Postagem)")
     leg = legenda_de(video)
     if c["plataforma"] == "instagram":
-        return ig_posta(cfg, base, c["conta"], video, leg, teste=bool(c.get("teste")), graduar=c.get("graduar", "manual"))
+        n = (le_json(base / "estado.json", {}).get(chave(c), {}).get("falhas") or {}).get(Path(video).name, 0)
+        return ig_posta(cfg, base, c["conta"], video, leg, teste=bool(c.get("teste")), graduar=c.get("graduar", "manual"), tentativa=n)
     return tt_posta(cfg, base, c["conta"], video, leg)
 
 

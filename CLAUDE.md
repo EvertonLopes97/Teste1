@@ -86,8 +86,9 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   Tipos de edição: roteiro (editar.py) | galo (passagem.py, jogo.json com "jogo") | react (react.py, 3 vídeos) |
   vertical (vertical916.py); os não-roteiro saem em `<pasta>\saidas\`.
   Instagram = REELS TESTE por padrão (`trial_params` MANUAL; `"teste"`, `"graduar"` manual|automatico, `"meta_views"`
-  na conta; o TESTE só vale com `video_url`: o vídeo sobe para link temporário de 1 h — Litterbox/tmpfiles —, o envio
-  direto ignorava o teste); views pelo insights (permissão instagram_manage_insights) a cada 30 min; mandar para os seguidores é no
+  na conta; o TESTE só vale com `video_url`: o vídeo sobe NÃO PUBLICADO na página do Facebook e o IG baixa do fbcdn
+  (`_link_facebook`, apagado depois; precisa de pages_manage_posts), senão Litterbox/tmpfiles; cada nova tentativa do
+  mesmo vídeo começa pelo próximo lugar — erro 2207082 = o IG não conseguiu baixar do link; o envio direto ignorava o teste); views pelo insights (permissão instagram_manage_insights) a cada 30 min; mandar para os seguidores é no
   app (a API não faz) → painel avisa e tem "Já mandei". Roteiro sem linha de BLOCO vira um bloco só.
   TIKTOK = modo "studio" (padrão; o TikTok não aprova app para as próprias contas): nada vai pela API; o painel
   planeja horários (`P.planeja`: intervalo/janela/máx. por dia, 20 min a 10 dias), "Preparar pasta" →

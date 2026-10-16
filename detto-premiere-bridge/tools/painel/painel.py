@@ -111,7 +111,10 @@ def atualiza_cache(forca=False):
     try:
         atualiza_views(c_)
     except Exception as e:
-        P.log(f"views dos reels teste: {e}")
+        # o mesmo aviso no máximo a cada 6 h (antes enchia o registro a cada 3 min)
+        if CACHE.get("erro_views") != str(e) or time.time() - CACHE.get("erro_views_quando", 0) > 6 * 3600:
+            P.log(f"views dos reels teste: {e}")
+            CACHE.update(erro_views=str(e), erro_views_quando=time.time())
     for c in c_["contas"]:
         k = P.chave(c)
         if not (BASE / "tokens" / f"{c['plataforma']}_{c['conta']}.json").exists():
