@@ -70,13 +70,16 @@ def _quadro(video, t, vf, vulkan=False, w=320):
     return a.reshape(-1, w) if a.size % w == 0 else None
 
 
-def _riscos(img):
-    """linhas/colunas "riscadas" (defeito de placa/driver no libplacebo)"""
+def _riscos(p, z):
+    """linhas/colunas "riscadas" (defeito de placa/driver no libplacebo): a diferença entre o libplacebo e o zscale,
+    linha a linha e coluna a coluna, tem degraus finos. Conversão boa = diferença lisa (≤ 0,11)."""
     import numpy as np
-    def k(v):
-        m = np.array([np.median(v[max(0, i - 2):i + 3]) for i in range(len(v))])
-        return float(np.abs(v - m).mean())
-    return k(img.mean(1)) + k(img.mean(0))
+
+    def deg(v):
+        w = np.lib.stride_tricks.sliding_window_view(np.pad(v, 4, mode="edge"), 9)
+        return float(np.abs(v - np.median(w, axis=1)).mean())
+    d = p - z
+    return max(deg(d.mean(1)), deg(d.mean(0)))
 
 
 def placebo_ok(video=None):
@@ -97,14 +100,14 @@ def placebo_ok(video=None):
     try:
         d = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(video)],
                                  capture_output=True, text=True).stdout.strip() or 2)
-        t = min(d * 0.4, max(0.0, d - 0.5))
-        p = _quadro(video, t, PLACEBO, vulkan=True)
-        z = _quadro(video, t, cadeia_hdr("natural"))
-        if p is None or z is None or p.shape != z.shape:
-            _PLACEBO_OK = False
-        else:
-            brilho = abs(p.mean() - z.mean())
-            _PLACEBO_OK = brilho < 30 and _riscos(p) < 1.6 * _riscos(z) + 0.3
+        _PLACEBO_OK = True
+        for frac in (0.2, 0.5, 0.8):  # o defeito aparece em alguns quadros e não em outros: confere 3
+            t = min(d * frac, max(0.0, d - 0.5))
+            p = _quadro(video, t, PLACEBO, vulkan=True, w=640)
+            z = _quadro(video, t, cadeia_hdr("natural"), w=640)
+            if p is None or z is None or p.shape != z.shape or abs(p.mean() - z.mean()) > 30 or _riscos(p, z) > 0.16:
+                _PLACEBO_OK = False
+                break
     except Exception:
         _PLACEBO_OK = False
     if not _PLACEBO_OK:

@@ -340,7 +340,7 @@ def pastas_inicios_drive(cfg):
 
 
 def nome_valido(t):
-    t = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", str(t)).strip().strip(".")
+    t = re.sub(r"[^\w\s-]", " ", str(t)).replace("_", " ").strip(" .-")
     return re.sub(r"\s+", " ", t)[:70] or "começo"
 
 
