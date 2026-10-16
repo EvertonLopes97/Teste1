@@ -36,6 +36,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import unicodedata
 from pathlib import Path
 
@@ -312,6 +313,106 @@ def video_pequeno(f, saida, segundos=40, altura=360):
 
 def parte_video(f):
     return {"inline_data": {"mime_type": "video/mp4", "data": base64.b64encode(Path(f).read_bytes()).decode()}}
+
+
+# ------------------------------------------------------------------ começos que você sobe no Google Drive
+NOMES_PASTA_INICIOS = {"comeco", "comecos", "inicio", "inicios", "comeco de reel", "comecos de reel"}
+
+
+def pastas_inicios_drive(cfg):
+    """as pastas de começos no Drive: a do config ("pastas_inicios_drive") ou "Começo"/"Começos"/"Inícios" na raiz do
+    Meu Drive ou dentro de DETTO (o Google Drive para computador deixa o Drive como uma pasta do PC)"""
+    out = [Path(x) for x in cfg.get("pastas_inicios_drive", []) if Path(x).is_dir()]
+    raiz = Path(os.environ["DETTO_DRIVE"]) if os.environ.get("DETTO_DRIVE") and Path(os.environ["DETTO_DRIVE"]).is_dir() else None
+    if not raiz:
+        try:
+            sys.path.insert(0, str(TOOLS / "painel"))
+            from edicao import drive_raiz
+
+            raiz = drive_raiz()
+        except Exception:
+            raiz = None
+    if raiz:
+        for onde in (raiz, raiz / "DETTO"):
+            if onde.is_dir():
+                out += [d for d in onde.iterdir() if d.is_dir() and norm(d.name.strip()).replace("_", " ") in NOMES_PASTA_INICIOS]
+    return list(dict.fromkeys(out))
+
+
+def nome_valido(t):
+    t = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", str(t)).strip().strip(".")
+    return re.sub(r"\s+", " ", t)[:70] or "começo"
+
+
+def importa_inicios(base, cfg, hist, tmp):
+    """Começos que você subiu numa pasta do Drive ("Começo"): o Gemini assiste, dá o NOME do que você faz
+    ("cruzando os braços desconfiado") e acha o melhor trecho se a gravação for longa; o arquivo é renomeado no
+    Drive e copiado para inicios\\ (já com a cor convertida), pronto para os reels."""
+    feitos = hist.setdefault("importados", {})
+    novos = 0
+    for pasta in pastas_inicios_drive(cfg):
+        for f in sorted(pasta.iterdir()):
+            if not f.is_file() or f.suffix.lower() not in VIDEO_EXT or f.name.startswith("~"):
+                continue
+            try:
+                chave = f"{f.stat().st_size}:{int(f.stat().st_mtime)}"  # renomear não muda tamanho nem data
+            except OSError:
+                continue
+            if chave in feitos:
+                continue
+            if time.time() - f.stat().st_mtime < 60:
+                continue  # ainda chegando
+            log(f"começo novo no Drive: {f.name}")
+            d = dur(f)
+            nome, descr, trecho = f.stem.strip(), "", None
+            ja_tem_nome = len(re.findall(r"[a-zA-ZÀ-ÿ]{3,}", nome)) >= 2 and not re.match(r"^(img|vid|mov|dsc|pxl|whatsapp|copy|trim)", nome, re.I) \
+                and not re.search(r"[0-9a-f]{16}", nome)
+            p = video_pequeno(f, tmp / "comeco_novo.mp4", 90, 240)
+            g = gemini_json([{"text": f"""Este é um "começo" de meme de futebol gravado pelo criador @detto.galo ({d:.1f} s): ele faz uma reação
+que depois é seguida por um lance. Responda SÓ JSON:
+{{"nome": "<o que ele faz, 2 a 6 palavras em português, minúsculas, sem pontuação — ex.: cruzando os braços desconfiado,
+rindo e batendo palma, olhando sério para a câmera>",
+ "descricao": "<1 frase: o que ele faz e a expressão>",
+ "ini": <segundo em que a melhor reação começa>, "fim": <segundo em que termina (2 a 8 s depois)>}}"""}, parte_video(p)],
+                            temperatura=0.3) if p else None
+            if g and g.get("nome") and not ja_tem_nome:
+                nome = nome_valido(g["nome"].lower())
+            descr = (g or {}).get("descricao", "")
+            try:
+                a_, b_ = float(g["ini"]), float(g["fim"])
+                if d > 10 and 0 <= a_ < b_ <= d + 0.5 and b_ - a_ >= 1.5:
+                    trecho = (round(a_, 2), round(min(b_, d), 2))
+            except (TypeError, ValueError, KeyError):
+                pass
+            alvo = base / "inicios" / f"{nome}{f.suffix.lower()}"
+            k = 2
+            while alvo.exists():
+                alvo = base / "inicios" / f"{nome} {k}{f.suffix.lower()}"
+                k += 1
+            shutil.copyfile(f, alvo)
+            linhas = [descr] if descr else []
+            if trecho:
+                linhas.append(f"trecho: {trecho[0]}-{trecho[1]}")
+            if linhas:
+                alvo.with_suffix(".txt").write_text("\n".join(linhas) + "\n", encoding="utf-8")
+            # o nome novo também no Drive (você vê o que é cada um)
+            if alvo.stem != f.stem:
+                novo = f.with_name(alvo.stem + f.suffix)
+                try:
+                    if not novo.exists():
+                        f.rename(novo)
+                        f = novo
+                except OSError as e:
+                    log(f"   (não renomeei no Drive: {e})")
+            feitos[chave] = {"drive": str(f), "inicio": alvo.name, "dia": dt.date.today().isoformat()}
+            grava_json(base / "historico.json", hist)
+            try:
+                inicio_sdr(alvo)  # já deixa a cor convertida (o 1º reel com ele sai mais rápido)
+            except Exception:
+                pass
+            log(f"   → inicios\\{alvo.name}" + (f"  (trecho {trecho[0]}–{trecho[1]} s)" if trecho else ""))
+            novos += 1
+    return novos
 
 
 def descricao_inicio(f, cache, tmp):
@@ -948,6 +1049,7 @@ def main():
     ap.add_argument("--pasta", default=str(pasta_padrao()))
     ap.add_argument("--quantos", type=int, default=10)
     ap.add_argument("--so-links", action="store_true", help="só os links do links.txt (não busca virais); o painel usa")
+    ap.add_argument("--importar", action="store_true", help="só puxa os começos novos da pasta do Drive (Começo) e sai")
     ap.add_argument("--cookies", default=None, help="chrome, edge ou firefox (Instagram/TikTok/YouTube pedindo login)")
     ap.add_argument("--agendar", metavar="HH:MM", help="cria a tarefa diária no Windows")
     ap.add_argument("--clip", help="usa este vídeo (arquivo ou link) como viral em vez de buscar")
@@ -965,6 +1067,18 @@ def main():
     cfg = prepara_pasta(base)
     if a.agendar:
         return agendar(a.agendar, base, a.quantos)
+    global SDR_DIR
+    SDR_DIR = base / "sdr"
+    (base / "tmp").mkdir(exist_ok=True)
+    h_ = le_json(base / "historico.json", {"usados": {}, "inicios": {}, "descricoes": {}})
+    try:
+        n_ = importa_inicios(base, cfg, h_, base / "tmp")
+        if n_:
+            log(f"{n_} começo(s) novo(s) do Drive prontos em inicios\\")
+    except Exception as e:
+        log(f"começos do Drive: {e}")
+    if a.importar:
+        return
     inicios = sorted(p for p in (base / "inicios").iterdir() if p.suffix.lower() in VIDEO_EXT)
     if not inicios:
         sys.exit(f"Grave seus começos e coloque em {base / 'inicios'} (o nome do arquivo diz o que você faz).")
@@ -973,8 +1087,6 @@ def main():
     destino = base / "prontos" / hoje
     destino.mkdir(parents=True, exist_ok=True)
     tmp = base / "tmp"
-    global SDR_DIR
-    SDR_DIR = base / "sdr"
     tmp.mkdir(exist_ok=True)
     feitos_hoje = len([p for p in destino.glob("*.mp4")])
     descr = [(p.stem, descricao_inicio(p, hist["descricoes"], tmp)) for p in inicios]

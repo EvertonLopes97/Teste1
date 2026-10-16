@@ -73,6 +73,9 @@ fila das contas marcadas. A lista e os "Links já feitos" (✔/✖) aparecem ao 
 com o começo e o modo que você escolher. "Gerar N reels" busca virais sozinho.
 Começos com nome do que você faz ("cruzando os braços.mov") são mais rápidos que "IMG_7442" (o Gemini precisa assistir).
 Começos novos: aba Postagem → Enviar vídeos → "Começo de reel" (o nome diz o que você faz).
+Ou pelo celular: suba as gravações numa pasta "Começo" no Google Drive (raiz do Meu Drive). A cada 10 min o PC puxa
+as novas, o Gemini dá o nome do que você faz (e o melhor trecho, se a gravação for longa), renomeia no Drive também
+e deixa em inicios\ prontas para os reels.
 
 ==================== ABA CANAIS (YouTube automático) ====================
 Dois canais: NOTÍCIAS (Galo da imprensa + sua voz clonada + máscara; PAUTAS = outras notícias quando quiser: link,

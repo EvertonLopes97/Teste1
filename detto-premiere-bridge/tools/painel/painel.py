@@ -835,10 +835,22 @@ def feitos_links():
 
 
 def laco_links():
-    """links colados no painel: o PC vai fazendo um atrás do outro e cada reel pronto já entra na fila"""
+    """links colados no painel: o PC vai fazendo um atrás do outro e cada reel pronto já entra na fila.
+    A cada 10 min também puxa os começos novos da pasta "Começo" do Drive (renomeia e põe em inicios\\)."""
     time.sleep(30)
+    ultimo_import = 0.0
     while True:
         try:
+            t = TRABALHO["reels"]
+            if time.time() - ultimo_import > 600 and not (t and t.poll() is None):
+                ultimo_import = time.time()
+                exe, extra = py_filho()
+                logf = open(REELS / "painel_reels.log", "a", encoding="utf-8")
+                TRABALHO["reels"] = subprocess.Popen([exe, "-u", str(TOOLS / "reels" / "reels.py"), "--pasta", str(REELS), "--importar"],
+                                                     stdout=logf, stderr=subprocess.STDOUT, text=True, cwd=str(TOOLS.parent),
+                                                     env={**os.environ, "PYTHONIOENCODING": "utf-8"}, **extra)
+                time.sleep(45)
+                continue
             rc = P.le_json(REELS / "config.json", {})
             f = REELS / "links.txt"
             t = TRABALHO["reels"]

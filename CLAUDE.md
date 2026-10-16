@@ -58,6 +58,10 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   começo, no MEIO ou no fim — vira um pedaço do começo dele (seguido; acabou, volta do início), com a legenda daquela
   cena (`legenda_parada`, copiada pixel a pixel) e o mesmo fade; os lances e o áudio ficam iguais (`troca_partes`).
   Link DELE nunca cai no modo normal: sem pessoa/lance achados = "NÃO FIZ" no registro e o link vai como FALHOU.
+  COMEÇOS PELO DRIVE (`importa_inicios`, `reels.py --importar`; o painel roda a cada 10 min): pasta "Começo"/"Começos"/
+  "Inícios" na raiz do Meu Drive ou em DETTO (ou `"pastas_inicios_drive"` no config) → Gemini assiste e dá o NOME do que
+  ele faz + o melhor trecho (`.txt` com `trecho:` se > 10 s) → copiado para `inicios\` (master SDR já feito) e o arquivo
+  é renomeado no Drive também. Já importados: `historico.json` → `importados` (tamanho:data). Sem Gemini: nome original.
 - POSTAGEM AUTOMÁTICA: `python tools\postar\postar.py` (APIs oficiais; setup em `tools\postar\LEIA-ME.txt`). Pasta
   `E:\DETTO\postar`: `entrada\<plat>_<conta>\` = fila (mp4 + .txt mesmo nome; texto após "---" não vai), `postados\`,
   `falhas\` (3 erros), `tokens\`, `config.json` (chaves Meta/TikTok, intervalo e horário por conta). Contas: Instagram
