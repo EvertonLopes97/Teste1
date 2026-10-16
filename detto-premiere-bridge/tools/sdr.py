@@ -5,8 +5,8 @@
     python tools\\sdr.py "pasta"                   → todos os vídeos HDR da pasta
     python tools\\sdr.py "gravação.MOV" --placa 0  → sem a placa de vídeo (mais lento)
 
-Cor: branco de referência do HLG em 203 nits (BT.2408, o mesmo critério do CapCut/iPhone) + compressão suave só dos
-brilhos fortes. Qualidade: lado maior até 1920 (o tamanho da edição; --4k mantém tudo), mesmo fps, H.264 alta qualidade na RTX (NVENC, cq 16) ou x264 crf 14 —
+Cor: SÓ converte (não "colore"): libplacebo na placa de vídeo usando o Dolby Vision que o iPhone grava junto — a mesma
+conversão do iPhone/CapCut para tela comum. Sem libplacebo: zscale ajustado para dar o mesmo resultado (cor.py). Qualidade: lado maior até 1920 (o tamanho da edição; --4k mantém tudo), mesmo fps, H.264 alta qualidade na RTX (NVENC, cq 16) ou x264 crf 14 —
 visualmente igual ao original. Áudio copiado (o "áudio espacial" do iPhone, que o FFmpeg não abre, fica de fora).
 Mantém a data de gravação (os vlogs usam para pôr os clipes em ordem). Já convertido = reaproveita.
 """
@@ -18,9 +18,10 @@ from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
-from cor import filtro_cor, info_cor  # noqa: E402
+from cor import PLACEBO, filtro_cor, info_cor, placebo_ok  # noqa: E402
 
 VIDEO_EXT = {".mov", ".mp4", ".m4v", ".mkv"}
+VERSAO = "detto_cor v2"  # muda quando a conversão muda: masters antigos são refeitos
 _NVENC = None
 
 
@@ -46,6 +47,11 @@ def audio_bom(f):
     return None
 
 
+def _versao(f):
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format_tags=comment", "-of", "csv=p=0", str(f)], capture_output=True, text=True)
+    return (r.stdout or "").strip()
+
+
 def master_sdr(video, saida=None, placa=True, log=print, full=None):
     """devolve o caminho do vídeo SDR (o próprio vídeo se já for SDR). full=True mantém o 4K (padrão: lado maior até
     1920 — o tamanho em que tudo é editado e exportado; 4x mais rápido)"""
@@ -56,7 +62,7 @@ def master_sdr(video, saida=None, placa=True, log=print, full=None):
     if not filtro:
         return video
     saida = Path(saida) if saida else video.with_name(f"{video.stem} SDR.mp4")
-    if saida.exists() and saida.stat().st_mtime >= video.stat().st_mtime and saida.stat().st_size > 1000:
+    if saida.exists() and saida.stat().st_mtime >= video.stat().st_mtime and saida.stat().st_size > 1000 and _versao(saida) == VERSAO:
         return saida
     log(f"Cor: {video.name} é HDR ({info_cor(video)['transfer']}) → convertendo para SDR antes de editar: {saida.name}")
     a = audio_bom(video)
@@ -65,16 +71,24 @@ def master_sdr(video, saida=None, placa=True, log=print, full=None):
     else:
         enc = ["-c:v", "libx264", "-preset", "medium", "-crf", "14"]
     tmp = saida.with_name(saida.stem + ".parcial.mp4")
-    cmd = ["ffmpeg", "-y", "-v", "error", "-i", str(video), "-map", "0:v:0"] + (["-map", f"0:a:{a}", "-c:a", "copy"] if a is not None else [])
+    placebo = info_cor(video)["hdr"] and placebo_ok(video)
+    cmd = ["ffmpeg", "-y", "-v", "error"] + (["-init_hw_device", "vulkan"] if placebo else []) + ["-i", str(video), "-map", "0:v:0"]
+    cmd += (["-map", f"0:a:{a}", "-c:a", "copy"] if a is not None else [])
     reduz = "" if full else "scale='if(gt(iw,ih),min(1920,iw),-2)':'if(gt(iw,ih),-2,min(1920,ih))':flags=lanczos,"
-    cmd += ["-vf", reduz + filtro] + enc + ["-pix_fmt", "yuv420p", "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
-                                    "-color_range", "tv", "-map_metadata", "0", "-movflags", "+faststart", str(tmp)]
+    log(f"   conversão: {'libplacebo + Dolby Vision (placa de vídeo)' if placebo else 'zscale'}")
+    cmd += ["-vf", reduz + (PLACEBO if placebo else filtro)] + enc + ["-pix_fmt", "yuv420p", "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
+                                    "-color_range", "tv", "-map_metadata", "0", "-metadata", f"comment={VERSAO}", "-movflags", "+faststart", str(tmp)]
     r = subprocess.run(cmd)
     if r.returncode != 0 and "h264_nvenc" in enc:
         log("   a placa de vídeo recusou; convertendo pelo processador")
         cmd = [x for x in cmd]
         i = cmd.index("-c:v")
         cmd[i:i + len(enc)] = ["-c:v", "libx264", "-preset", "medium", "-crf", "14"]
+        r = subprocess.run(cmd)
+    if r.returncode != 0 and placebo:
+        log("   libplacebo falhou; convertendo pelo zscale")
+        cmd = [x for x in cmd if x not in ("-init_hw_device", "vulkan")]
+        cmd[cmd.index("-vf") + 1] = reduz + filtro
         r = subprocess.run(cmd)
     if r.returncode != 0 or not tmp.exists():
         tmp.unlink(missing_ok=True)

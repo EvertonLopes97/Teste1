@@ -27,8 +27,8 @@ const filtroComplexo = (arq) => (novo() ? ["-/filter_complex", arq] : ["-filter_
  * Cor da gravação. iPhone grava em HDR (HLG / Dolby Vision, BT.2020, 10 bits): convertido direto
  * para JPG/H.264 sem "tone mapping" fica lavado e sem cor. Aqui vem o filtro que converte
  * para SDR BT.709 do jeito certo (ou "" quando a gravação já é SDR).
- * Tone mapping "mobius": meios-tons e cor iguais aos do iPhone, só os brilhos fortes são
- * comprimidos (hable escurece; clip estoura o céu/janela). DETTO_TONEMAP=clip|hable|0 troca.
+ * Padrão "natural": ajustado para bater com a conversão Dolby Vision do iPhone (só converte, não colore).
+ * DETTO_TONEMAP=203|antigo|clip|hable|0 troca.
  * @param {string} video
  * @returns {{hdr: boolean, transfer: string, primaries: string, filtro: string}}
  */
@@ -44,19 +44,22 @@ function corDaGravacao(video) {
   const primaries = s.color_primaries || "";
   const hdr = /arib-std-b67|smpte2084/.test(transfer);
   let filtro = "";
-  const tm = (process.env.DETTO_TONEMAP || "mobius").toLowerCase();
+  const tm = (process.env.DETTO_TONEMAP || "natural").toLowerCase();
   const temZscale = /\bzscale\b/.test(spawnSync("ffmpeg", ["-hide_banner", "-filters"], { encoding: "utf-8" }).stdout || "");
   if ((hdr || /bt2020/.test(primaries)) && !temZscale) {
     console.error("AVISO: gravação em HDR, mas este FFmpeg não tem o filtro zscale; a cor pode sair lavada (instale o FFmpeg 'full' do gyan.dev).");
     return { hdr, transfer, primaries, filtro: "" };
   }
   if (hdr && tm !== "0") {
-    // HLG/PQ → linear → BT.709 com tone mapping, sem tirar saturação (desat=0)
+    // HLG/PQ → linear → BT.709 com tone mapping
     // reduz para Full HD ANTES (o tone mapping em 4K é 4x mais lento e o palco é 1920 de qualquer jeito)
-    // branco de referência do HLG em 203 nits (BT.2408, como CapCut/iPhone); "antigo" = npl=100 (pele pálida)
-    const npl = tm === "antigo" ? 100 : 203;
-    const tmq = tm === "antigo" ? "mobius" : tm === "mobius" ? "mobius:param=0.6" : tm;
-    filtro = `scale='min(1920,iw)':-2:flags=bicubic,zscale=t=linear:npl=${npl},format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=${tmq}:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p`;
+    // natural (padrão): igual à conversão Dolby Vision do iPhone (libplacebo) — branco em 350 nits, mobius,
+    // desat=1 e 12% menos saturação (o zscale esquenta a pele). "203" = o de antes (pele laranja); "antigo" = npl=100
+    const base = "scale='min(1920,iw)':-2:flags=bicubic,";
+    if (tm === "antigo") filtro = base + "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=mobius:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p";
+    else if (tm === "203" || tm === "mobius") filtro = base + "zscale=t=linear:npl=203,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=mobius:param=0.6:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p";
+    else if (["clip", "hable", "reinhard"].includes(tm)) filtro = base + `zscale=t=linear:npl=203,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=${tm}:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p`;
+    else filtro = base + "zscale=t=linear:npl=350,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=mobius:desat=1,zscale=t=bt709:m=bt709:r=tv,format=yuv420p,eq=saturation=0.88";
   } else if (/bt2020/.test(primaries)) {
     filtro = "zscale=p=bt709:t=bt709:m=bt709:r=tv,format=yuv420p";
   }

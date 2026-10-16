@@ -142,6 +142,24 @@ def audio_bom(f):
     return None
 
 
+SDR_DIR = None  # <pasta reels>/sdr: o começo convertido de HDR para SDR uma vez só
+
+
+def inicio_sdr(f):
+    """o seu começo (iPhone HDR) convertido para SDR UMA vez, pelo master (libplacebo/Dolby Vision = a cor do iPhone).
+    Já SDR ou sem conversão possível: o próprio arquivo (aí o filtro do cor.py converte na hora)."""
+    try:
+        sys.path.insert(0, str(TOOLS))
+        from sdr import master_sdr
+
+        d = SDR_DIR or Path(f).parent / "sdr"
+        d.mkdir(parents=True, exist_ok=True)
+        return master_sdr(f, saida=d / f"{Path(f).stem}.mp4", log=log)
+    except Exception as e:
+        log(f"   (master SDR do começo falhou: {e}; convertendo na hora)")
+        return f
+
+
 def cor_sdr(f):
     """iPhone grava em HDR (HLG): converte para SDR (cor certa), igual ao editor"""
     try:
@@ -457,6 +475,7 @@ def monta(inicio, clip, ini, fim, texto, saida, tmp, i_ini=0.0, i_fim=None, zoom
     """começo (tela cheia) → flash → viral (vertical cheio; horizontal ampliado com faixa preta) + texto no topo.
     i_ini/i_fim: trecho do começo (gravação longa); zoom: ampliação do viral horizontal (1 = largura toda, sem cortar;
     padrão até 1,33); foco: onde fica o corte lateral (0 = esquerda, 0,5 = meio, 1 = direita)."""
+    inicio = inicio_sdr(inicio)
     W, H, FPS = 1080, 1920, 30
     di_total = dur(inicio)
     i_fim = min(di_total, i_fim) if i_fim else di_total
@@ -512,6 +531,50 @@ def fps_de(f):
         return 30
 
 
+def _quadros_cor(clip, t0, t1, n):
+    import cv2
+    import numpy as np
+
+    fr = []
+    for k in range(n):
+        t = t0 + (t1 - t0) * (k + 0.5) / n
+        r = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{t:.2f}", "-i", str(clip), "-frames:v", "1", "-f", "image2pipe", "-vcodec", "png", "-"],
+                           capture_output=True)
+        q = cv2.imdecode(np.frombuffer(r.stdout, np.uint8), cv2.IMREAD_COLOR) if r.stdout else None
+        if q is not None:
+            fr.append(q)
+    return fr
+
+
+def _copia_texto(fr, letra, caixa, saida, raio_max=10):
+    """recorta o texto do original PIXEL A PIXEL (mesma fonte, cor, contorno e sombra): mediana dos quadros, só onde a
+    imagem fica parada perto das letras e é letra ou contorno (claro ou escuro) — o fundo que mexe fica de fora."""
+    import cv2
+    import numpy as np
+
+    a = np.array(fr)
+    med = np.median(a, axis=0).astype(np.uint8)
+    cinza = a.astype(np.float32).mean(axis=3)
+    desvio = cinza.std(axis=0)
+    gm = cinza.mean(axis=0)
+    H, W = letra.shape
+    x0, y0, x1, y1 = caixa
+    n, _, st, _ = cv2.connectedComponentsWithStats(letra, 8)
+    alt = float(np.median([st[i, 3] for i in range(1, n)])) if n > 1 else 20.0
+    raio = int(max(2, min(raio_max, round(alt * 0.14))))
+    perto = cv2.dilate(letra, cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * raio + 1, 2 * raio + 1))).astype(bool)
+    colado = cv2.dilate(letra, np.ones((3, 3), np.uint8)).astype(bool)  # borda antisserrilhada da própria letra
+    parado = desvio < 16
+    tom = (gm < 95) | (gm > 165) | colado
+    m = np.zeros((H, W), np.float32)
+    sel = perto & parado & tom
+    m[y0:y1, x0:x1] = sel[y0:y1, x0:x1]
+    m = cv2.morphologyEx(m, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+    m = np.minimum(m, cv2.GaussianBlur(m, (0, 0), 0.7) * 1.4).clip(0, 1)
+    cv2.imwrite(str(saida), np.dstack([med, (m * 255).astype(np.uint8)]))
+    return saida
+
+
 def texto_do_original(clip, t0, t1, saida):
     """O texto do meme EXATAMENTE como no original (mesma fonte, tamanho e lugar): ele fica parado sobre o lance
     que se mexe, então o mínimo de vários quadros guarda só o que é fixo. Ficam as linhas centralizadas do topo
@@ -556,14 +619,18 @@ def texto_do_original(clip, t0, t1, saida):
         return None
     y0, y1 = max(0, bloco[0][0] - 8), min(H, bloco[-1][1] + 8)
     x0, x1 = max(0, min(b[2] for b in bloco) - 10), min(W, max(b[3] for b in bloco) + 10)
+    cores = _quadros_cor(clip, t0, t1, 8)
+    if len(cores) >= 3:
+        letra = np.zeros((H, W), np.uint8)
+        letra[y0:y1, x0:x1] = claro[y0:y1, x0:x1]
+        # faixa preta do original: só um contorno fino dela (lê na parede clara do seu começo)
+        return _copia_texto(cores, letra, (x0, y0, x1, y1), saida, raio_max=2)
     alfa = np.zeros((H, W), np.float32)
     alfa[y0:y1, x0:x1] = np.clip((mn[y0:y1, x0:x1].astype(np.float32) - 60) / 140, 0, 1)
-    # sombra escura por baixo (lê na parede branca do seu começo)
     sombra = cv2.GaussianBlur(cv2.dilate(alfa, np.ones((5, 5), np.uint8)), (0, 0), 5) * 0.85
     a_final = np.maximum(alfa, sombra)
     cor = (alfa / np.maximum(a_final, 1e-3) * 255).clip(0, 255).astype(np.uint8)
-    rgba = np.dstack([cor, cor, cor, (a_final * 255).astype(np.uint8)])
-    cv2.imwrite(str(saida), rgba)
+    cv2.imwrite(str(saida), np.dstack([cor, cor, cor, (a_final * 255).astype(np.uint8)]))
     return saida
 
 
@@ -639,6 +706,9 @@ def legenda_parada(clip, t0, t1, saida):
     cs = [c for l in bloco for c in l["c"]]
     x0, x1 = max(0, min(c[0] for c in cs) - 12), min(W, max(c[0] + c[2] for c in cs) + 12)
     y0, y1 = max(0, min(c[1] for c in cs) - 12), min(H, max(c[1] + c[3] for c in cs) + 12)
+    cores = _quadros_cor(clip, t0, t1, 10)
+    if len(cores) >= 4:
+        return _copia_texto(cores, letra, (x0, y0, x1, y1), saida)
     alfa = np.zeros((H, W), np.float32)
     perto = cv2.dilate(letra, np.ones((7, 7), np.uint8)).astype(bool)
     reg = np.clip((mn.astype(np.float32) - 150) / 70, 0, 1)
@@ -666,7 +736,10 @@ def ler_texto(png):
     img = cv2.imread(str(png), cv2.IMREAD_UNCHANGED)
     if img is None:
         return ""
-    preto = 255 - img[:, :, 3]
+    import numpy as np
+
+    cinza = cv2.cvtColor(img[:, :, :3], cv2.COLOR_BGR2GRAY)
+    preto = np.where(img[:, :, 3] > 128, 255 - cinza, 255).astype(np.uint8)  # letra clara → preta no branco (contorno some)
     tmp = Path(png).with_name("ocr.png")
     cv2.imwrite(str(tmp), preto)
     if shutil.which("tesseract"):
@@ -682,6 +755,7 @@ def ler_texto(png):
 
 def troca(inicio, i_ini, i_fim, clip, corte, png, saida):
     """Igual ao original (mesmo texto, música inteira, mesmo lance); só a parte da outra pessoa vira o seu começo."""
+    inicio = inicio_sdr(inicio)
     W, H = tamanho(clip)
     W, H = W // 2 * 2, H // 2 * 2
     F = fps_de(clip)
@@ -769,6 +843,8 @@ def main():
     destino = base / "prontos" / hoje
     destino.mkdir(parents=True, exist_ok=True)
     tmp = base / "tmp"
+    global SDR_DIR
+    SDR_DIR = base / "sdr"
     tmp.mkdir(exist_ok=True)
     feitos_hoje = len([p for p in destino.glob("*.mp4")])
     descr = [(p.stem, descricao_inicio(p, hist["descricoes"], tmp)) for p in inicios]
