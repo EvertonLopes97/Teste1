@@ -1,5 +1,6 @@
 POSTAGEM AUTOMÁTICA — Instagram @detto.galo + TikTok @detto.galo e @detto.tv
 (configuração UMA VEZ SÓ; depois o PC posta sozinho)
+O jeito fácil de usar tudo isto é o PAINEL: tools\painel\LEIA-ME.txt (chaves, logins, fila e horários pelo navegador).
 
 =====================================================================
  1) INSTAGRAM @detto.galo  (posta de verdade, com legenda)
@@ -49,9 +50,10 @@ Facebook (Instagram → Configurações → Central de contas, ou na Página: Co
 =====================================================================
  3) LIGAR SOZINHO
 =====================================================================
+ Com o painel instalado (python tools\painel\painel.py --instalar) ele mesmo posta. Sem o painel:
        python tools\postar\postar.py --agendar
- O Windows roda a cada 20 min (com o PC ligado e você logado). Cada conta respeita o seu intervalo e
- horário (config.json → "contas": intervalo_min, horas "08-23").
+ O Windows roda a cada 20 min (com o PC ligado e você logado). Cada conta respeita o seu intervalo,
+ horário e máximo por dia (config.json → "contas": intervalo_min, horas "08-23", max_dia, ativo).
 
 =====================================================================
  USO NO DIA A DIA
@@ -59,7 +61,7 @@ Facebook (Instagram → Configurações → Central de contas, ou na Página: Co
  - Reels automáticos (tools\reels\reels.py): já entram na fila do Instagram e do TikTok do @detto.galo.
    Para não entrar: no config.json dos reels, "postar": [].
  - @detto.tv: jogue o .mp4 em  E:\DETTO\postar\entrada\tiktok_detto.tv\  (se quiser, um .txt com o
-   MESMO NOME com a legenda + tags). Sai na ordem do nome do arquivo.
+   MESMO NOME com a legenda + tags). Sai na ordem do nome do arquivo (ou a que você arrumar no painel).
  - Qualquer vídeo em qualquer conta: jogue na pasta  entrada\<plataforma>_<conta>\ .
    Texto depois de uma linha "---" no .txt NÃO vai para a legenda (anotações).
  - Ver a situação:    python tools\postar\postar.py --status

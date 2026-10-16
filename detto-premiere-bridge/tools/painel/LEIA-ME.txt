@@ -1,0 +1,45 @@
+PAINEL DETTO — colocar tudo no ar (uma vez só)
+
+0) Atualizar o código no PC (Prompt de Comando):
+     cd C:\Users\guebe\Teste1
+     git pull
+     cd detto-premiere-bridge
+
+1) Abrir o painel e deixar ligado sempre:
+     python tools\painel\painel.py --instalar
+   → o painel liga sozinho toda vez que o Windows inicia (sem janela) e aparece o atalho
+     "Painel DETTO" na Área de Trabalho. Abre em http://localhost:8730
+   Se o Windows perguntar sobre o Firewall do Python: marque "Redes privadas" e Permitir
+   (é o que deixa abrir pelo celular).
+
+2) Chaves dos apps (painel → Configurações). Como criar cada app: tools\postar\LEIA-ME.txt
+     Meta (Instagram): ID do app + Chave secreta
+     TikTok: Client key + Client secret
+   → Salvar.
+
+3) Login das contas (painel → Configurações → Login das contas → Conectar):
+   o navegador abre NO PC; entre na conta certa e autorize. Uma vez por conta:
+   Instagram @detto.galo, TikTok @detto.galo, TikTok @detto.tv.
+   (No TikTok, saia de uma conta e entre na outra antes de conectar a segunda.)
+
+4) Celular: painel → Configurações → PIN do celular (4 a 8 números) → Salvar.
+   No celular, no MESMO Wi-Fi da casa, abra o endereço que aparece ali (ex.: http://192.168.0.15:8730),
+   digite o PIN e "Adicionar à tela inicial". Fora de casa: instale o Tailscale (grátis) no PC e no
+   celular, entre com a mesma conta e use o endereço do PC no Tailscale (http://100.x.x.x:8730).
+
+5) Reels automáticos todo dia (opcional):
+     python tools\reels\reels.py --agendar 07:00
+   ou pelo painel: "Gerar N reels agora". Os prontos entram sozinhos na fila das contas marcadas.
+
+NO DIA A DIA (tudo pelo painel):
+  - Enviar vídeos: arraste (PC) ou toque e escolha (celular), marque para onde vai e a legenda.
+    "Começo de reel" vai para a pasta dos começos com o nome que você escrever.
+  - Cada conta: liga/desliga, de quanto em quanto tempo posta, das X às Y horas, máximo por dia.
+  - Fila: ↑ ↓ muda a ordem, ✎ vê o vídeo e edita a legenda (e manda para outra conta), 🚀 posta já, ✕ tira.
+  - TikTok em rascunho: "Legendas para colar no TikTok" → Copiar → cola no app e publica.
+  - Pausar tudo: botão "Pausar" lá em cima.
+  - O PC precisa estar LIGADO (e não hibernando) para postar. Configurações do Windows → Sistema →
+    Energia → "Suspender" = Nunca (na tomada).
+
+Desligar o início automático:  python tools\painel\painel.py --desinstalar
+Se usou antes o "postar.py --agendar", pode tirar (o painel já posta):  schtasks /Delete /TN "DETTO postar" /F

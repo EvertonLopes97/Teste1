@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel DETTO</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%23c8ff3d%22/%3E%3Cpath d=%22M9 8h7a8 8 0 010 16H9z%22 fill=%22%230c0f0e%22/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#0c0f0e; --card:#141917; --card2:#1a201d; --line:#26302b; --txt:#e9f1eb; --mut:#93a39a;
+  --lima:#c8ff3d; --lima2:#a6dd1c; --verm:#ff5c5c; --amar:#ffc93d; --azul:#5cc8ff; --ig:#ff4f9a; --tt:#38e1d8;
+  --r:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.4 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+a{color:var(--lima)}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--card2);border-radius:10px;padding:8px 12px}
+button:hover{border-color:var(--mut)}
+button.pri{background:var(--lima);color:#101400;border-color:var(--lima);font-weight:700}
+button.pri:hover{background:var(--lima2)}
+button.mini{padding:4px 8px;border-radius:8px;font-size:13px;min-width:30px}
+button.perigo{color:var(--verm)}
+button:disabled{opacity:.45;cursor:default}
+select,input[type=text],input[type=number],input[type=password],textarea{background:#0f1311;border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:100%}
+textarea{resize:vertical;min-height:70px}
+label{color:var(--mut);font-size:13px}
+.wrap{max-width:1240px;margin:0 auto;padding:16px}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(12,15,14,.92);backdrop-filter:blur(8px);z-index:5}
+.logo{font-weight:900;letter-spacing:.06em;font-size:20px}
+.logo b{color:var(--lima)}
+.sub{color:var(--mut);font-size:13px}
+.esp{flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;border:1px solid var(--line);background:var(--card2)}
+.chip .bol{width:9px;height:9px;border-radius:50%;background:var(--lima);box-shadow:0 0 8px var(--lima)}
+.chip.pausa .bol{background:var(--amar);box-shadow:none}
+.chip.alerta{color:var(--amar)}
+h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin:26px 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.aviso{background:#2a2410;border:1px solid #5a4a12;color:#ffe08a;border-radius:var(--r);padding:10px 14px;margin-top:14px}
+.aviso button{margin-left:8px}
+/* envio */
+.envio{display:grid;grid-template-columns:1.1fr 1fr;gap:14px}
+.drop{border:2px dashed #3a4a40;border-radius:var(--r);padding:26px 14px;text-align:center;color:var(--mut);cursor:pointer;transition:.15s;display:flex;flex-direction:column;justify-content:center;min-height:170px}
+.drop.on,.drop:hover{border-color:var(--lima);color:var(--txt);background:#141c12}
+.drop strong{display:block;font-size:18px;color:var(--txt);margin-bottom:4px}
+.destinos{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
+.dest{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;user-select:none;font-size:14px;background:var(--card2)}
+.dest input{accent-color:var(--lima)}
+.dest.sel{border-color:var(--lima);background:#1b2414}
+.envios{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.up{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:13px;background:var(--card2);border-radius:10px;padding:8px 10px}
+.barra{grid-column:1/-1;height:5px;background:#26302b;border-radius:3px;overflow:hidden}
+.barra i{display:block;height:100%;background:var(--lima);width:0}
+/* contas */
+.contas{display:grid;grid-template-columns:repeat(auto-fill,minmax(370px,1fr));gap:14px}
+.ctop{display:flex;align-items:center;gap:10px}
+.plat{font-weight:800;font-size:12px;border-radius:8px;padding:4px 7px;color:#0c0f0e}
+.plat.instagram{background:var(--ig)}
+.plat.tiktok{background:var(--tt)}
+.cnome{font-weight:700;font-size:17px}
+.login{font-size:12px;color:var(--mut)}
+.login.off{color:var(--verm)}
+.sw{position:relative;width:44px;height:24px;flex:none}
+.sw input{opacity:0;width:0;height:0}
+.sw span{position:absolute;inset:0;background:#3a443e;border-radius:99px;transition:.15s;cursor:pointer}
+.sw span:before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s}
+.sw input:checked+span{background:var(--lima)}
+.sw input:checked+span:before{transform:translateX(20px);background:#101400}
+.nums{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.num{background:var(--card2);border-radius:10px;padding:8px;text-align:center}
+.num b{display:block;font-size:22px;line-height:1.1}
+.num small{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+.num.lima b{color:var(--lima)}
+.regras{display:grid;grid-template-columns:1.2fr 1fr 1fr .8fr;gap:8px;align-items:end;margin-bottom:10px}
+.info{font-size:13px;color:var(--mut);margin:6px 0}
+.info.alerta{color:var(--amar)}
+.info.erro{color:var(--verm)}
+.fila{display:flex;flex-direction:column;gap:6px;max-height:360px;overflow:auto;padding-right:2px}
+.vid{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;background:var(--card2);border-radius:10px;padding:7px 8px}
+.vid .pos{color:var(--mut);font-size:12px;text-align:center}
+.vid .vn{font-size:13px;overflow:hidden}
+.vid .vn div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vid .vn small{color:var(--mut)}
+.vid .acoes{display:flex;gap:4px}
+.vazio{color:var(--mut);font-size:13px;text-align:center;padding:14px;background:var(--card2);border-radius:10px}
+details{margin-top:10px}
+summary{cursor:pointer;color:var(--mut);font-size:13px}
+.lista{display:flex;flex-direction:column;gap:5px;margin-top:8px;font-size:13px}
+.lista .l{display:flex;gap:8px;justify-content:space-between;align-items:center;background:var(--card2);border-radius:8px;padding:6px 8px}
+.lista .l span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* reels / config */
+.duas{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.campos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.linha{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+pre.log{background:#090b0a;border:1px solid var(--line);border-radius:10px;padding:10px;font:12px/1.45 Consolas,monospace;max-height:300px;overflow:auto;white-space:pre-wrap;margin:0;color:#b9c7be}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tag{font-size:12px;background:var(--card2);border:1px solid var(--line);border-radius:99px;padding:3px 9px}
+/* modal + toast */
+.fundo{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+.fundo.on{display:flex}
+.modal{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;width:min(560px,100%);max-height:92vh;overflow:auto}
+.modal video{width:100%;max-height:52vh;background:#000;border-radius:10px}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#202a24;border:1px solid var(--line);padding:10px 16px;border-radius:12px;display:none;z-index:30;max-width:90vw}
+#toast.erro{border-color:var(--verm);color:#ffb3b3}
+@media (max-width:820px){
+  .envio,.duas,.campos{grid-template-columns:1fr}
+  .contas{grid-template-columns:1fr}
+  .regras{grid-template-columns:1fr 1fr}
+  .fila{max-height:none}
+  .vid{grid-template-columns:22px 1fr}
+  .vid .acoes{grid-column:2;justify-content:flex-end}
+  .vid .acoes .mini{min-width:40px;padding:7px 10px}
+  header{gap:8px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div><div class="logo">DET<b>TO</b> · central</div><div class="sub" id="agora">carregando…</div></div>
+  <div class="esp"></div>
+  <span class="chip" id="chipAuto"><span class="bol"></span><span id="txtAuto">…</span></span>
+  <button id="btPausa">Pausar</button>
+  <button id="btRodada" title="Confere a fila agora e posta quem estiver na hora">Conferir fila agora</button>
+  <span class="chip" id="chipDisco" title="Espaço livre no disco E:">💾 …</span>
+</header>
+
+<div class="wrap">
+  <div id="avisos"></div>
+
+  <h2>Enviar vídeos</h2>
+  <div class="envio">
+    <label class="drop" id="drop">
+      <input type="file" id="arq" accept="video/*,.mov,.mp4,.mkv,.webm" multiple hidden>
+      <strong>Arraste os vídeos aqui</strong>
+      ou toque para escolher (dá para mandar vários de uma vez, do PC ou do celular)
+    </label>
+    <div class="card">
+      <label>Para onde vai</label>
+      <div class="destinos" id="destinos"></div>
+      <div id="campoApelido" style="display:none;margin-bottom:10px">
+        <label>Começo de reel: o que você faz no vídeo (vira o nome do arquivo)</label>
+        <input type="text" id="apelido" placeholder="ex.: cruzando os braços desconfiado">
+      </div>
+      <label>Legenda + tags (opcional, vale para todos deste envio)</label>
+      <textarea id="legEnvio" placeholder="Legenda do post…&#10;&#10;#futebol #humor"></textarea>
+      <div class="envios" id="envios"></div>
+    </div>
+  </div>
+
+  <h2>Contas</h2>
+  <div class="contas" id="contas"></div>
+
+  <h2>Reels automáticos</h2>
+  <div class="duas">
+    <div class="card" id="reelsInfo"></div>
+    <div class="card">
+      <label>Link de um vídeo para virar reel (TikTok, Instagram, YouTube)</label>
+      <div class="linha"><input type="text" id="link" placeholder="https://…" style="flex:1"><button id="btLink">Adicionar</button></div>
+      <div class="linha">
+        <label>Fazer</label>
+        <select id="quantos" style="width:80px"><option>1</option><option>3</option><option selected>5</option><option>10</option><option>15</option><option>20</option></select>
+        <label>reels agora</label>
+        <button class="pri" id="btReels">Gerar</button>
+        <button id="btReelsParar" style="display:none">Parar</button>
+      </div>
+      <div class="info">Os reels prontos entram sozinhos na fila destas contas:</div>
+      <div class="destinos" id="reelsPara"></div>
+      <pre class="log" id="reelsLog" style="display:none;max-height:180px"></pre>
+    </div>
+  </div>
+
+  <h2>Configurações</h2>
+  <div class="card">
+    <details id="detCfg">
+      <summary>Chaves dos apps, login das contas, PIN do celular, contas novas</summary>
+      <div class="duas" style="margin-top:12px">
+        <div>
+          <b>Instagram (app da Meta)</b>
+          <div class="campos" style="margin-top:8px">
+            <div><label>ID do app</label><input type="text" id="ig_app_id"></div>
+            <div><label>Chave secreta do app</label><input type="password" id="ig_app_secret"></div>
+          </div>
+          <div style="margin-top:8px"><label>config_id (opcional)</label><input type="text" id="ig_config_id"></div>
+          <b style="display:block;margin-top:16px">TikTok (app de desenvolvedor)</b>
+          <div class="campos" style="margin-top:8px">
+            <div><label>Client key</label><input type="text" id="tt_client_key"></div>
+            <div><label>Client secret</label><input type="password" id="tt_client_secret"></div>
+          </div>
+          <div class="campos" style="margin-top:8px">
+            <div><label>Modo do TikTok</label>
+              <select id="tt_modo"><option value="rascunho">Rascunho (até o app ser aprovado)</option><option value="direto">Direto (app aprovado)</option></select></div>
+            <div><label>&nbsp;</label><label class="dest" style="width:max-content"><input type="checkbox" id="tt_ia"> marcar como feito com IA</label></div>
+          </div>
+          <div style="margin-top:12px"><label>PIN do celular (4 a 8 números)</label><input type="password" id="pin" inputmode="numeric" placeholder="vazio = não muda"></div>
+          <div class="linha"><button class="pri" id="btSalvarCfg">Salvar</button><span class="info">Chaves em branco não mudam o que já está salvo.</span></div>
+        </div>
+        <div>
+          <b>Login das contas</b>
+          <div class="info">O navegador abre <b>no PC</b>: entre na conta certa e autorize.</div>
+          <div class="lista" id="logins"></div>
+          <details><summary>Instagram plano B: colar token do Graph API Explorer</summary>
+            <div class="linha"><select id="tokConta" style="width:auto"></select><input type="text" id="tokIg" placeholder="token" style="flex:1"><button id="btTok">Ligar</button></div>
+          </details>
+          <pre class="log" id="loginLog" style="display:none;margin-top:8px;max-height:160px"></pre>
+          <b style="display:block;margin-top:16px">Conta nova</b>
+          <div class="linha">
+            <select id="novaPlat" style="width:auto"><option value="tiktok">TikTok</option><option value="instagram">Instagram</option></select>
+            <input type="text" id="novaConta" placeholder="@usuario" style="flex:1">
+            <button id="btNova">Adicionar</button>
+          </div>
+          <div class="info" id="endCel"></div>
+          <div class="linha"><button id="btPastaP">Abrir pasta da postagem</button><button id="btPastaR">Abrir pasta dos reels</button></div>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <h2>Registro</h2>
+  <pre class="log" id="log"></pre>
+  <div style="height:40px"></div>
+</div>
+
+<div class="fundo" id="fundo"><div class="modal" id="modal"></div></div>
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let E = null, destSel = JSON.parse(localStorageGet("destinos") || "null");
+function localStorageGet(k){ try { return localStorage.getItem(k) } catch(e){ return null } }
+function localStorageSet(k,v){ try { localStorage.setItem(k,v) } catch(e){} }
+
+function toast(m, erro){
+  const t = $("#toast"); t.textContent = m; t.className = erro ? "erro" : ""; t.style.display = "block";
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", erro ? 6000 : 2500);
+}
+async function api(acao, dados){
+  const r = await fetch("/api/" + acao, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(dados || {})});
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok){ toast(j.erro || ("erro " + r.status), true); throw new Error(j.erro); }
+  return j;
+}
+const nomeConta = c => (c.plataforma === "instagram" ? "Instagram" : "TikTok") + " @" + c.conta;
+// "2026-10-15 230846 gol do hulk.mp4" → "gol do hulk" (a data vai embaixo)
+const limpo = n => n.replace(/^\d{4}-\d{2}-\d{2}( \d{4,6})? ?(\d+ - )?/, "").replace(/\.[^.]+$/, "") || n;
+const durTxt = m => m < 60 ? m + " min" : (m % 60 ? Math.floor(m/60) + "h" + String(m%60).padStart(2,"0") : (m/60) + " h");
+
+/* ------------------------------------------------------------ estado */
+let editando = false;
+document.addEventListener("focusin", e => { if(e.target.matches("input,textarea,select")) editando = true; });
+document.addEventListener("focusout", () => setTimeout(() => editando = !!document.activeElement?.matches("input,textarea,select"), 50));
+
+async function carrega(forca){
+  if(editando && !forca) return;
+  try{
+    const r = await fetch("/api/estado", {cache:"no-store"});
+    if(r.status === 401){ location.reload(); return; }
+    E = await r.json(); desenha();
+  }catch(e){ $("#agora").textContent = "sem conexão com o PC…"; }
+}
+
+function desenha(){
+  $("#agora").textContent = "atualizado " + E.agora + (E.postando ? " · postando: " + E.postando : "");
+  $("#chipAuto").className = "chip" + (E.pausado ? " pausa" : "");
+  $("#txtAuto").textContent = E.pausado ? "Pausado" : "Postando sozinho";
+  $("#btPausa").textContent = E.pausado ? "Ligar" : "Pausar";
+  $("#btPausa").className = E.pausado ? "pri" : "";
+  $("#chipDisco").textContent = "💾 " + E.disco + " livres";
+  $("#chipDisco").className = "chip" + (E.disco_pouco ? " alerta" : "");
+  // mantém aberto o que você abriu (o painel se redesenha a cada 8 s)
+  const abertos = {}; document.querySelectorAll("details[data-d]").forEach(d => abertos[d.dataset.d] = d.open);
+  const rolagem = [...document.querySelectorAll(".fila")].map(f => f.scrollTop);
+  avisos(); destinos(); contas(); reels(); configs();
+  document.querySelectorAll("details[data-d]").forEach(d => { if(d.dataset.d in abertos) d.open = abertos[d.dataset.d]; });
+  document.querySelectorAll(".fila").forEach((f, i) => f.scrollTop = rolagem[i] || 0);
+  const lg = $("#log"), fim = lg.scrollTop + lg.clientHeight >= lg.scrollHeight - 10;
+  lg.textContent = E.log.join("\n") || "nada ainda";
+  if(fim) lg.scrollTop = lg.scrollHeight;
+}
+
+function avisos(){
+  const a = [];
+  if(!E.instagram.chaves && E.contas.some(c => c.plataforma === "instagram")) a.push("Falta a chave do app da Meta (Instagram).");
+  if(!E.tiktok.chaves && E.contas.some(c => c.plataforma === "tiktok")) a.push("Falta a chave do app do TikTok.");
+  const sem = E.contas.filter(c => !c.login).map(nomeConta);
+  if(sem.length) a.push("Sem login: " + sem.join(", ") + ".");
+  if(E.disco_pouco) a.push("Pouco espaço no disco (" + E.disco + ").");
+  $("#avisos").innerHTML = a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "";
+}
+function abreCfg(){ $("#detCfg").open = true; $("#detCfg").scrollIntoView({behavior:"smooth"}); }
+
+/* ------------------------------------------------------------ envio */
+function destinos(){
+  const ops = E.contas.map(c => ({v: c.plataforma + ":" + c.conta, t: nomeConta(c)})).concat([{v:"reels:inicios", t:"Começo de reel"}]);
+  if(!destSel) destSel = ops.filter(o => o.v !== "reels:inicios" && o.v.endsWith("detto.galo")).map(o => o.v);
+  const box = $("#destinos");
+  const chave = JSON.stringify(ops) + JSON.stringify(destSel);
+  if(box.dataset.k === chave) return;
+  box.dataset.k = chave;
+  box.innerHTML = ops.map(o => `<label class="dest ${destSel.includes(o.v) ? "sel" : ""}"><input type="checkbox" value="${esc(o.v)}" ${destSel.includes(o.v) ? "checked" : ""}> ${esc(o.t)}</label>`).join("");
+  box.querySelectorAll("input").forEach(i => i.onchange = () => {
+    destSel = [...box.querySelectorAll("input:checked")].map(x => x.value);
+    localStorageSet("destinos", JSON.stringify(destSel)); box.dataset.k = ""; destinos();
+  });
+  $("#campoApelido").style.display = destSel.includes("reels:inicios") ? "block" : "none";
+}
+
+const drop = $("#drop");
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("on"); }));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("on"); }));
+drop.addEventListener("drop", e => envia([...e.dataTransfer.files]));
+$("#arq").onchange = e => { envia([...e.target.files]); e.target.value = ""; };
+
+let filaEnvio = Promise.resolve();
+function envia(arqs){
+  arqs = arqs.filter(a => /\.(mp4|mov|m4v|mkv|webm)$/i.test(a.name));
+  if(!arqs.length) return toast("Só vídeos (.mp4, .mov…)", true);
+  if(!destSel || !destSel.length) return toast("Escolha para onde vai", true);
+  const dest = destSel.join(","), leg = $("#legEnvio").value, apelido = $("#apelido").value;
+  for(const a of arqs){
+    const linha = document.createElement("div"); linha.className = "up";
+    linha.innerHTML = `<span>${esc(a.name)}</span><span class="pc">esperando…</span><div class="barra"><i></i></div>`;
+    $("#envios").prepend(linha);
+    filaEnvio = filaEnvio.then(() => new Promise(ok => {
+      const x = new XMLHttpRequest();
+      const q = new URLSearchParams({nome: a.name, destinos: dest, legenda: leg, apelido});
+      x.open("POST", "/api/enviar?" + q);
+      x.upload.onprogress = e => { if(e.lengthComputable){ const p = Math.round(e.loaded / e.total * 100); linha.querySelector("i").style.width = p + "%"; linha.querySelector(".pc").textContent = p + "%"; } };
+      x.onload = () => {
+        let j = {}; try { j = JSON.parse(x.responseText) } catch(e){}
+        if(x.status === 200){ linha.querySelector(".pc").textContent = "✔ na fila"; linha.querySelector("i").style.width = "100%"; }
+        else { linha.querySelector(".pc").textContent = "✖ " + (j.erro || x.status); linha.querySelector("i").style.background = "var(--verm)"; }
+        carrega(true); ok();
+      };
+      x.onerror = () => { linha.querySelector(".pc").textContent = "✖ caiu a conexão"; ok(); };
+      x.send(a);
+    }));
+  }
+  filaEnvio.then(() => { $("#legEnvio").value = ""; $("#apelido").value = ""; });
+}
+
+/* ------------------------------------------------------------ contas */
+const INTERVALOS = [15,20,30,45,60,80,90,120,150,180,240,300,360,480,720,1440];
+function opcHoras(sel){ let s = ""; for(let h = 0; h < 24; h++) s += `<option value="${h}" ${h === sel ? "selected" : ""}>${String(h).padStart(2,"0")}h</option>`; return s; }
+
+function contas(){
+  const box = $("#contas");
+  box.innerHTML = E.contas.map((c, ci) => {
+    const [h0, h1] = c.horas.split("-").map(Number);
+    const ints = INTERVALOS.includes(c.intervalo_min) ? INTERVALOS : [...INTERVALOS, c.intervalo_min].sort((a,b) => a-b);
+    const prox = !c.ativo ? "pausada" : !c.fila.length ? "—" : c.proximo_ja ? "agora" : c.proximo.slice(-5) + (c.proximo.slice(0,5) !== E.agora.slice(0,5) ? " (" + c.proximo.slice(0,5) + ")" : "");
+    let extra = "";
+    if(c.plataforma === "tiktok" && E.tiktok.modo !== "direto"){
+      if(c.pendentes){
+        const n = c.pendentes.length;
+        extra += `<div class="info ${n >= 5 ? "alerta" : ""}">Rascunhos esperando você publicar no app: <b>${n}/5</b>${n >= 5 ? " — publique um para liberar o próximo" : ""}</div>`;
+        if(n) extra += `<details data-d="${c.k}-pend"><summary>Legendas para colar no TikTok</summary><div class="lista">${c.pendentes.map((p, i) =>
+          `<div class="l"><span title="${esc(p.legenda)}">${esc(p.quando)} · ${esc(p.legenda || p.nome)}</span><button class="mini" onclick="copia(${ci},${i})">Copiar</button></div>`).join("")}</div></details>`;
+      } else if(c.login) extra += `<div class="info">Rascunhos: conferindo…</div>`;
+    }
+    if(c.plataforma === "instagram" && c.limite) extra += `<div class="info">Limite da API nas últimas 24 h: ${c.limite[0]}/${c.limite[1]}</div>`;
+    if(c.erro) extra += `<div class="info erro">⚠ ${esc(c.erro)}</div>`;
+    const fila = c.fila.length ? c.fila.map((v, i) => {
+      const t = c.tentativas[v.nome];
+      return `<div class="vid">
+        <div class="pos">${i + 1}</div>
+        <div class="vn"><div title="${esc(v.nome)}">${esc(limpo(v.nome))}</div><small>${esc(v.quando)} · ${esc(v.tam)} · ${v.legenda ? esc(v.legenda.slice(0, 60)) : "<i>sem legenda</i>"}${t ? ` · <span style="color:var(--amar)">${t} erro(s)</span>` : ""}</small></div>
+        <div class="acoes">
+          <button class="mini" title="Subir" onclick="move(${ci},${i},-1)" ${i ? "" : "disabled"}>↑</button>
+          <button class="mini" title="Descer" onclick="move(${ci},${i},1)" ${i < c.fila.length - 1 ? "" : "disabled"}>↓</button>
+          <button class="mini" title="Ver e editar a legenda" onclick="abre(${ci},${i})">✎</button>
+          <button class="mini" title="Postar agora" onclick="ja(${ci},${i})">🚀</button>
+          <button class="mini perigo" title="Tirar da fila" onclick="tira(${ci},${i})">✕</button>
+        </div></div>`;
+    }).join("") : `<div class="vazio">Fila vazia — mande vídeos aqui em cima</div>`;
+    const falhas = c.falhas.length ? `<details open data-d="${c.k}-falhas"><summary style="color:var(--verm)">${c.falhas.length} com erro (3 tentativas)</summary><div class="lista">${c.falhas.map((v, i) =>
+      `<div class="l"><span>${esc(limpo(v.nome))}</span><span><button class="mini" onclick="tenta(${ci},${i})">Tentar de novo</button> <button class="mini perigo" onclick="tiraF(${ci},${i})">✕</button></span></div>`).join("")}</div></details>` : "";
+    const ult = c.ultimos.length ? `<details data-d="${c.k}-ult"><summary>Últimos postados</summary><div class="lista">${c.ultimos.map(u =>
+      `<div class="l"><span>${esc(u.quando)} · ${esc(limpo(u.nome))}</span>${u.link ? `<a href="${esc(u.link)}" target="_blank" rel="noopener">abrir</a>` : `<small style="color:var(--mut)">${u.modo === "rascunho" ? "rascunho" : ""}</small>`}</div>`).join("")}</div></details>` : "";
+    return `<div class="card">
+      <div class="ctop">
+        <span class="plat ${c.plataforma}">${c.plataforma === "instagram" ? "IG" : "TT"}</span>
+        <div style="flex:1"><div class="cnome">@${esc(c.conta)}</div>
+          <div class="login ${c.login ? "" : "off"}">${c.login ? "conectado" : "sem login — "}${c.login ? "" : `<a href="#" onclick="abreCfg();return false">conectar</a>`}</div></div>
+        <label class="sw" title="${c.ativo ? "Postando" : "Pausada"}"><input type="checkbox" ${c.ativo ? "checked" : ""} onchange="regra(${ci},{ativo:this.checked})"><span></span></label>
+      </div>
+      <div class="nums">
+        <div class="num lima"><b>${c.fila.length}</b><small>na fila</small></div>
+        <div class="num"><b>${c.hoje}${c.max_dia ? "/" + c.max_dia : ""}</b><small>hoje</small></div>
+        <div class="num"><b style="font-size:${prox.length > 6 ? 14 : 22}px">${esc(prox)}</b><small>próximo</small></div>
+        <div class="num"><b>${c.postados}</b><small>postados</small></div>
+      </div>
+      <div class="regras">
+        <div><label>Postar a cada</label><select onchange="regra(${ci},{intervalo_min:+this.value})">${ints.map(m => `<option value="${m}" ${m === c.intervalo_min ? "selected" : ""}>${durTxt(m)}</option>`).join("")}</select></div>
+        <div><label>Das</label><select onchange="regra(${ci},{horas:this.value+'-'+${h1}})">${opcHoras(h0)}</select></div>
+        <div><label>Até</label><select onchange="regra(${ci},{horas:${h0}+'-'+this.value})">${opcHoras(h1)}</select></div>
+        <div><label>Máx./dia</label><input type="number" min="0" max="100" value="${c.max_dia}" title="0 = sem limite" onchange="regra(${ci},{max_dia:+this.value||0})"></div>
+      </div>
+      ${extra}
+      <div class="fila">${fila}</div>
+      ${falhas}${ult}
+    </div>`;
+  }).join("");
+}
+
+async function regra(ci, d){ const c = E.contas[ci]; await api("conta", {k: c.k, ...d}); toast("Salvo"); editando = false; carrega(true); }
+async function move(ci, i, dir){
+  const c = E.contas[ci], nomes = c.fila.map(v => v.nome);
+  [nomes[i], nomes[i + dir]] = [nomes[i + dir], nomes[i]];
+  await api("ordem", {k: c.k, nomes}); carrega(true);
+}
+async function ja(ci, i){
+  const c = E.contas[ci], v = c.fila[i];
+  if(!confirm(`Postar agora em ${nomeConta(c)}?\n\n${v.nome}`)) return;
+  await api("agora", {k: c.k, nome: v.nome}); toast("Postando… acompanhe no registro"); setTimeout(() => carrega(true), 1500);
+}
+async function tira(ci, i){
+  const c = E.contas[ci], v = c.fila[i];
+  if(!confirm(`Tirar da fila de ${nomeConta(c)}?\n\n${v.nome}`)) return;
+  await api("apagar", {k: c.k, nome: v.nome}); carrega(true);
+}
+async function tenta(ci, i){ const c = E.contas[ci]; await api("tentar", {k: c.k, nome: c.falhas[i].nome}); carrega(true); }
+async function tiraF(ci, i){ const c = E.contas[ci]; if(!confirm("Apagar este vídeo com erro?")) return; await api("apagar", {k: c.k, nome: c.falhas[i].nome, onde: "falhas"}); carrega(true); }
+function copia(ci, i){
+  const t = E.contas[ci].pendentes[i].legenda;
+  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast("Legenda copiada")).catch(() => { prompt("Copie a legenda:", t); });
+}
+
+function abre(ci, i){
+  const c = E.contas[ci], v = c.fila[i];
+  const outras = E.contas.filter(x => x.k !== c.k);
+  const src = "/arquivo?" + new URLSearchParams({k: c.k, nome: v.nome, onde: "entrada"});
+  $("#modal").innerHTML = `
+    <div class="ctop" style="margin-bottom:10px"><span class="plat ${c.plataforma}">${c.plataforma === "instagram" ? "IG" : "TT"}</span><b style="flex:1;overflow:hidden;text-overflow:ellipsis">${esc(limpo(v.nome))}</b><button class="mini" onclick="fecha()">✕</button></div>
+    <video src="${src}" controls playsinline preload="metadata"></video>
+    <div style="margin-top:10px"><label>Legenda + tags</label><textarea id="mLeg" rows="6">${esc(v.legenda)}</textarea></div>
+    ${outras.length ? `<div class="info">Mandar também para:</div><div class="destinos" id="mPara">${outras.map(o => `<label class="dest"><input type="checkbox" value="${esc(o.k)}"> ${esc(nomeConta(o))}</label>`).join("")}</div>` : ""}
+    <div class="linha" style="justify-content:flex-end"><button onclick="fecha()">Cancelar</button><button class="pri" id="mSalvar">Salvar</button></div>`;
+  $("#fundo").classList.add("on");
+  $("#mSalvar").onclick = async () => {
+    await api("legenda", {k: c.k, nome: v.nome, legenda: $("#mLeg").value});
+    const para = [...document.querySelectorAll("#mPara input:checked")].map(x => x.value);
+    if(para.length) await api("copiar", {k: c.k, nome: v.nome, para});
+    toast("Salvo"); fecha(); carrega(true);
+  };
+}
+function fecha(){ $("#fundo").classList.remove("on"); $("#modal").innerHTML = ""; editando = false; }
+$("#fundo").onclick = e => { if(e.target.id === "fundo") fecha(); };
+document.addEventListener("keydown", e => { if(e.key === "Escape") fecha(); });
+
+/* ------------------------------------------------------------ reels */
+function reels(){
+  const r = E.reels;
+  $("#reelsInfo").innerHTML = `
+    <div class="nums" style="grid-template-columns:repeat(3,1fr);margin-top:0">
+      <div class="num lima"><b>${r.prontos_hoje}</b><small>prontos hoje</small></div>
+      <div class="num"><b>${r.inicios.length}</b><small>seus começos</small></div>
+      <div class="num"><b>${r.n_links}</b><small>links</small></div>
+    </div>
+    <div class="info">${r.rodando ? "⏳ Fazendo reels agora…" : "Mande começos novos em “Enviar vídeos” → “Começo de reel”."}</div>
+    ${r.inicios.length ? `<details data-d="r-ini"><summary>Seus começos</summary><div class="tags">${r.inicios.map(n => `<span class="tag">${esc(n)}</span>`).join("")}</div></details>` : `<div class="info alerta">Ainda não tem nenhum começo gravado.</div>`}
+    ${r.links.length ? `<details data-d="r-links"><summary>Últimos links</summary><div class="lista">${r.links.map(l => `<div class="l"><span>${esc(l)}</span></div>`).join("")}</div></details>` : ""}`;
+  $("#btReels").disabled = r.rodando; $("#btReelsParar").style.display = r.rodando ? "" : "none";
+  const rl = $("#reelsLog"); rl.style.display = r.log.length ? "block" : "none"; rl.textContent = r.log.join("\n"); rl.scrollTop = rl.scrollHeight;
+  const box = $("#reelsPara"), ops = E.contas.map(c => c.plataforma + ":" + c.conta), k = JSON.stringify([ops, r.postar]);
+  if(box.dataset.k !== k){
+    box.dataset.k = k;
+    box.innerHTML = E.contas.map(c => { const v = c.plataforma + ":" + c.conta, on = r.postar.includes(v);
+      return `<label class="dest ${on ? "sel" : ""}"><input type="checkbox" value="${esc(v)}" ${on ? "checked" : ""}> ${esc(nomeConta(c))}</label>`; }).join("");
+    box.querySelectorAll("input").forEach(i => i.onchange = async () => {
+      await api("reels_postar", {para: [...box.querySelectorAll("input:checked")].map(x => x.value)}); toast("Salvo"); carrega(true);
+    });
+  }
+}
+$("#btLink").onclick = async () => { await api("reels_link", {url: $("#link").value}); $("#link").value = ""; toast("Link adicionado"); carrega(true); };
+$("#btReels").onclick = async () => { await api("reels_gerar", {quantos: +$("#quantos").value}); toast("Começou — pode demorar alguns minutos por reel"); carrega(true); };
+$("#btReelsParar").onclick = async () => { await api("reels_parar"); carrega(true); };
+
+/* ------------------------------------------------------------ config */
+function configs(){
+  $("#tt_modo").value = E.tiktok.modo; $("#tt_ia").checked = E.tiktok.ia;
+  $("#ig_app_secret").placeholder = E.instagram.chaves ? "já preenchida" : "";
+  $("#ig_app_id").placeholder = E.instagram.chaves ? "já preenchido" : "";
+  $("#tt_client_key").placeholder = E.tiktok.chaves ? "já preenchido" : "";
+  $("#tt_client_secret").placeholder = E.tiktok.chaves ? "já preenchida" : "";
+  $("#pin").placeholder = E.pin ? "já tem PIN (vazio = não muda)" : "crie um PIN para abrir pelo celular";
+  $("#endCel").innerHTML = `No celular (mesmo Wi-Fi): <b>${esc(E.endereco)}</b>`;
+  const lg = $("#logins"), k = JSON.stringify(E.contas.map(c => [c.k, c.login, c.fila.length]));
+  if(lg.dataset.k !== k){
+    lg.dataset.k = k;
+    lg.innerHTML = E.contas.map((c, ci) => `<div class="l"><span>${esc(nomeConta(c))} · ${c.login ? "✔ conectado" : "✖ sem login"}</span>
+      <span><button class="mini ${c.login ? "" : "pri"}" onclick="loga(${ci})">${c.login ? "Refazer" : "Conectar"}</button>${c.fila.length ? "" : ` <button class="mini perigo" title="Tirar a conta" onclick="tiraConta(${ci})">✕</button>`}</span></div>`).join("");
+    $("#tokConta").innerHTML = E.contas.filter(c => c.plataforma === "instagram").map(c => `<option>${esc(c.conta)}</option>`).join("");
+  }
+}
+$("#btSalvarCfg").onclick = async () => {
+  const d = {tt_modo: $("#tt_modo").value, tt_ia: $("#tt_ia").checked};
+  for(const id of ["ig_app_id","ig_app_secret","ig_config_id","tt_client_key","tt_client_secret"]) d[id] = $("#" + id).value;
+  if($("#pin").value) d.pin = $("#pin").value;
+  await api("global", d);
+  for(const id of ["ig_app_id","ig_app_secret","ig_config_id","tt_client_key","tt_client_secret","pin"]) $("#" + id).value = "";
+  toast("Configurações salvas"); editando = false; carrega(true);
+};
+let vigiaLogin = null;
+async function loga(ci, token){
+  const c = E.contas[ci];
+  if(!token && !confirm(`Vai abrir o navegador NO PC para conectar ${nomeConta(c)}.\nEntre na conta certa antes de autorizar.`)) return;
+  await api("login", {plataforma: c.plataforma, conta: c.conta, token});
+  const box = $("#loginLog"); box.style.display = "block"; box.textContent = "esperando você autorizar no navegador do PC…";
+  clearInterval(vigiaLogin);
+  vigiaLogin = setInterval(async () => {
+    const r = await api("login_resultado");
+    box.textContent = r.texto || "esperando…";
+    if(!r.rodando){ clearInterval(vigiaLogin); carrega(true); }
+  }, 2000);
+}
+$("#btTok").onclick = () => {
+  const conta = $("#tokConta").value, ci = E.contas.findIndex(c => c.plataforma === "instagram" && c.conta === conta);
+  if(ci < 0 || !$("#tokIg").value.trim()) return toast("Escolha a conta e cole o token", true);
+  loga(ci, $("#tokIg").value.trim()); $("#tokIg").value = "";
+};
+async function tiraConta(ci){ const c = E.contas[ci]; if(!confirm("Tirar " + nomeConta(c) + " do painel?")) return; await api("tirar_conta", {k: c.k}); carrega(true); }
+$("#btNova").onclick = async () => { await api("nova_conta", {plataforma: $("#novaPlat").value, conta: $("#novaConta").value}); $("#novaConta").value = ""; toast("Conta adicionada — agora conecte"); carrega(true); };
+$("#btPastaP").onclick = () => api("abrir_pasta", {qual: "postar"});
+$("#btPastaR").onclick = () => api("abrir_pasta", {qual: "reels"});
+
+$("#btPausa").onclick = async () => { await api("pausar", {pausado: !E.pausado}); carrega(true); };
+$("#btRodada").onclick = async () => { await api("rodada"); await api("atualizar"); toast("Conferindo a fila…"); setTimeout(() => carrega(true), 2500); };
+
+carrega(true);
+setInterval(carrega, 8000);
+</script>
+</body>
+</html>

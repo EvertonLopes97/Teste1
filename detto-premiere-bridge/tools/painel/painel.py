@@ -1,0 +1,667 @@
+# -*- coding: utf-8 -*-
+"""PAINEL DETTO — cuida da postagem automática pelo navegador (no PC ou no celular, na mesma rede Wi-Fi).
+
+    python tools\\painel\\painel.py              → abre http://localhost:8730 (e mostra o endereço para o celular)
+    python tools\\painel\\painel.py --instalar   → liga o painel sozinho quando o Windows inicia + atalho na Área de Trabalho
+    python tools\\painel\\painel.py --desinstalar
+
+Enquanto o painel está aberto ele mesmo posta (confere a fila a cada 5 min). Não precisa de nada instalado além do Python.
+"""
+import argparse
+import datetime as dt
+import hmac
+import json
+import os
+import re
+import shutil
+import socket
+import subprocess
+import sys
+import threading
+import time
+import traceback
+import urllib.parse
+import webbrowser
+from http import server as hserver
+from pathlib import Path
+
+AQUI = Path(__file__).resolve().parent
+TOOLS = AQUI.parent
+sys.path.insert(0, str(TOOLS / "postar"))
+import postar as P  # noqa: E402
+
+VIDEO_EXT = P.VIDEO_EXT
+REELS = None  # pasta dos reels (E:\DETTO\reels)
+BASE = None  # pasta da postagem (E:\DETTO\postar)
+CACHE = {"pendentes": {}, "limite": {}, "quando": 0, "erro": {}}
+TRABALHO = {"postando": "", "reels": None, "login": None}
+TRAVA_CFG = threading.Lock()
+
+
+def reels_pasta():
+    if os.name == "nt" and Path("E:/").exists():
+        return Path("E:/DETTO/reels")
+    return Path.home() / "DETTO" / "reels"
+
+
+def py_filho():
+    """python para os processos filhos (login, reels): no Windows, python.exe sem janela (o pythonw abriria
+    uma janela preta a cada ffmpeg)"""
+    exe = Path(sys.executable)
+    if exe.name.lower() == "pythonw.exe" and exe.with_name("python.exe").exists():
+        exe = exe.with_name("python.exe")
+    return str(exe), ({"creationflags": 0x08000000} if os.name == "nt" else {})
+
+
+def cfg():
+    return P.prepara(BASE)
+
+
+def grava_cfg(muda):
+    """altera o config.json da postagem sem perder o resto"""
+    with TRAVA_CFG:
+        f = BASE / "config.json"
+        d = P.le_json(f, {})
+        muda(d)
+        P.grava_json(f, d)
+
+
+def nome_seguro(n):
+    n = Path(str(n)).name
+    n = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", n).strip(" .")
+    return n or "video.mp4"
+
+
+def conta_de(k):
+    for c in cfg()["contas"]:
+        if P.chave(c) == k:
+            return c
+    raise ValueError(f"conta desconhecida: {k}")
+
+
+def tam_txt(b):
+    for u in ("B", "KB", "MB", "GB"):
+        if b < 1024 or u == "GB":
+            return f"{b:.0f} {u}" if u in ("B", "KB") else f"{b:.1f} {u}"
+        b /= 1024
+
+
+def ip_local():
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except OSError:
+        return "127.0.0.1"
+
+
+# ------------------------------------------------------------------ o que o painel mostra
+def atualiza_cache(forca=False):
+    """rascunhos do TikTok e limite do Instagram (perguntam às APIs: no máximo a cada 3 min)"""
+    if not forca and time.time() - CACHE["quando"] < 180:
+        return
+    CACHE["quando"] = time.time()
+    c_ = cfg()
+    for c in c_["contas"]:
+        k = P.chave(c)
+        if not (BASE / "tokens" / f"{c['plataforma']}_{c['conta']}.json").exists():
+            continue
+        try:
+            if c["plataforma"] == "instagram":
+                CACHE["limite"][k] = P.ig_limite(c_, BASE, c["conta"])
+            elif c_["tiktok"].get("modo") != "direto":
+                CACHE["pendentes"][k] = P.tt_pendentes(c_, BASE, c["conta"])[1]
+            CACHE["erro"].pop(k, None)
+        except Exception as e:
+            CACHE["erro"][k] = str(e)[:200]
+
+
+def item(p):
+    st = p.stat()
+    leg = P.legenda_de(p)
+    return {"nome": p.name, "tam": tam_txt(st.st_size), "legenda": leg, "quando": dt.datetime.fromtimestamp(st.st_mtime).strftime("%d/%m %H:%M")}
+
+
+def estado_painel():
+    c_ = cfg()
+    est = P.le_json(BASE / "estado.json", {})
+    contas = []
+    for c in c_["contas"]:
+        k = P.chave(c)
+        fila = P.fila_de(BASE, k)
+        pasta_ok = BASE / "postados" / k
+        feitos = sorted((p for p in pasta_ok.glob("*.json") if not p.name.startswith("_")), key=lambda p: p.stat().st_mtime, reverse=True)
+        ult = []
+        for f in feitos[:8]:
+            d = P.le_json(f, {})
+            ult.append({"nome": d.get("video") or f.stem, "quando": (d.get("quando") or "")[:16].replace("T", " "), "link": d.get("link", ""),
+                        "modo": d.get("modo", "")})
+        falhas = [item(p) for p in sorted((BASE / "falhas" / k).glob("*")) if p.suffix.lower() in VIDEO_EXT]
+        pend = CACHE["pendentes"].get(k)
+        pend_l = []
+        for r in pend or []:
+            txt = (pasta_ok / r.get("video", "")).with_suffix(".txt")
+            pend_l.append({"nome": r.get("video", ""), "legenda": txt.read_text(encoding="utf-8").split("\n---")[0].strip() if txt.exists() else "",
+                           "quando": dt.datetime.fromtimestamp(r.get("quando", 0)).strftime("%d/%m %H:%M")})
+        prox = P.proximo(c, est, k)
+        lim = CACHE["limite"].get(k)
+        contas.append({
+            "k": k, "plataforma": c["plataforma"], "conta": c["conta"], "ativo": c.get("ativo", True) is not False,
+            "intervalo_min": c.get("intervalo_min", 80), "horas": c.get("horas", "08-23"), "max_dia": c.get("max_dia", 0),
+            "login": (BASE / "tokens" / f"{c['plataforma']}_{c['conta']}.json").exists(),
+            "fila": [item(p) for p in fila], "postados": len(feitos), "hoje": P.postados_hoje(est, k),
+            "ultimo": (est.get(k, {}).get("ultimo") or "")[:16].replace("T", " "),
+            "proximo": prox.strftime("%d/%m %H:%M"), "proximo_ja": prox <= dt.datetime.now(),
+            "falhas": falhas, "ultimos": ult, "pendentes": pend_l if pend is not None else None,
+            "limite": list(lim) if lim else None, "erro": CACHE["erro"].get(k, ""),
+            "tentativas": est.get(k, {}).get("falhas", {}),
+        })
+    hoje = dt.date.today().isoformat()
+    prontos = list((REELS / "prontos" / hoje).glob("*.mp4")) if (REELS / "prontos" / hoje).exists() else []
+    inicios = sorted(p.stem for p in (REELS / "inicios").glob("*") if p.suffix.lower() in VIDEO_EXT) if (REELS / "inicios").exists() else []
+    links = []
+    if (REELS / "links.txt").exists():
+        links = [l.strip() for l in (REELS / "links.txt").read_text(encoding="utf-8").splitlines() if l.strip().startswith("http")]
+    rcfg = P.le_json(REELS / "config.json", {})
+    log = []
+    if (BASE / "postar.log").exists():
+        with open(BASE / "postar.log", encoding="utf-8", errors="replace") as f:
+            log = f.readlines()[-80:]
+    rlog = []
+    if (REELS / "painel_reels.log").exists():
+        with open(REELS / "painel_reels.log", encoding="utf-8", errors="replace") as f:
+            rlog = f.readlines()[-30:]
+    livre = shutil.disk_usage(BASE).free
+    t = TRABALHO["reels"]
+    return {
+        "pausado": bool(c_.get("pausado")), "contas": contas, "postando": TRABALHO["postando"],
+        "tiktok": {"modo": c_["tiktok"].get("modo", "rascunho"), "ia": bool(c_["tiktok"].get("ia")),
+                   "chaves": bool(c_["tiktok"].get("client_key") and c_["tiktok"].get("client_secret"))},
+        "instagram": {"chaves": bool(c_["instagram"].get("app_id") and c_["instagram"].get("app_secret"))},
+        "reels": {"prontos_hoje": len(prontos), "inicios": inicios, "links": links[-10:], "n_links": len(links),
+                  "rodando": bool(t and t.poll() is None), "postar": rcfg.get("postar", ["instagram:detto.galo", "tiktok:detto.galo"]),
+                  "log": [l.rstrip() for l in rlog]},
+        "log": [l.rstrip() for l in log], "disco": tam_txt(livre), "disco_pouco": livre < 15 * 1024 ** 3,
+        "pin": bool((c_.get("painel") or {}).get("pin")), "endereco": f"http://{ip_local()}:{PORTA}",
+        "pastas": {"postar": str(BASE), "reels": str(REELS)},
+        "agora": dt.datetime.now().strftime("%d/%m %H:%M"),
+    }
+
+
+# ------------------------------------------------------------------ ações
+def posta_agora(k, nome):
+    if TRABALHO["postando"]:
+        raise ValueError(f"já estou postando: {TRABALHO['postando']}")
+    c_ = cfg()
+    c = conta_de(k)
+    video = BASE / "entrada" / k / nome_seguro(nome)
+    if not video.exists():
+        raise ValueError("vídeo não está mais na fila")
+
+    def vai():
+        TRABALHO["postando"] = f"{nome} → {k}"
+        try:
+            with P.trava(BASE) as t:
+                if not t.ok:
+                    P.log(f"{k}: já tem uma postagem em andamento; tente de novo em alguns minutos")
+                    return
+                est = P.le_json(BASE / "estado.json", {})
+                P.posta_da_fila(c_, BASE, c, video, est)
+        except Exception as e:
+            P.log(f"{k}: erro ao postar agora: {e}")
+        finally:
+            TRABALHO["postando"] = ""
+            CACHE["quando"] = 0
+
+    threading.Thread(target=vai, daemon=True).start()
+
+
+def rodada_ja():
+    def vai():
+        TRABALHO["postando"] = "conferindo a fila"
+        try:
+            P.rodada(cfg(), BASE)
+        except Exception as e:
+            P.log(f"erro na rodada: {e}")
+        finally:
+            TRABALHO["postando"] = ""
+    threading.Thread(target=vai, daemon=True).start()
+
+
+def acao(nome, d):
+    if nome == "pausar":
+        grava_cfg(lambda c: c.__setitem__("pausado", bool(d.get("pausado"))))
+        P.log("postagem automática " + ("PAUSADA pelo painel" if d.get("pausado") else "LIGADA pelo painel"))
+    elif nome == "conta":
+        k = d["k"]
+
+        def muda(c):
+            for x in c.setdefault("contas", json.loads(json.dumps(P.CONFIG_PADRAO["contas"]))):
+                if P.chave(x) == k:
+                    if "ativo" in d:
+                        x["ativo"] = bool(d["ativo"])
+                    if "intervalo_min" in d:
+                        x["intervalo_min"] = max(5, int(d["intervalo_min"]))
+                    if "horas" in d:
+                        h0, h1 = (int(v) for v in str(d["horas"]).split("-"))
+                        if not (0 <= h0 <= 23 and 0 <= h1 <= 23 and h0 <= h1):
+                            raise ValueError("horário inválido")
+                        x["horas"] = f"{h0:02d}-{h1:02d}"
+                    if "max_dia" in d:
+                        x["max_dia"] = max(0, int(d["max_dia"]))
+        grava_cfg(muda)
+    elif nome == "nova_conta":
+        plat, conta = d["plataforma"], d["conta"].strip().lstrip("@").lower()
+        if plat not in ("instagram", "tiktok") or not re.fullmatch(r"[\w.]{2,40}", conta):
+            raise ValueError("conta inválida")
+
+        def muda(c):
+            lista = c.setdefault("contas", json.loads(json.dumps(P.CONFIG_PADRAO["contas"])))
+            if any(P.chave(x) == f"{plat}_{conta}" for x in lista):
+                raise ValueError("essa conta já existe")
+            lista.append({"plataforma": plat, "conta": conta, "intervalo_min": 120, "horas": "08-23", "max_dia": 0, "ativo": True})
+        grava_cfg(muda)
+        cfg()
+    elif nome == "tirar_conta":
+        k = d["k"]
+        if P.fila_de(BASE, k):
+            raise ValueError("a fila dessa conta não está vazia")
+        grava_cfg(lambda c: c.__setitem__("contas", [x for x in c.get("contas", []) if P.chave(x) != k]))
+    elif nome == "ordem":
+        k = d["k"]
+        P.grava_json(BASE / "entrada" / k / "_ordem.json", [nome_seguro(n) for n in d["nomes"]])
+    elif nome == "legenda":
+        v = BASE / d.get("onde", "entrada") / d["k"] / nome_seguro(d["nome"])
+        txt = v.with_suffix(".txt")
+        resto = ""
+        if txt.exists():
+            partes = txt.read_text(encoding="utf-8").split("\n---", 1)
+            resto = "\n---" + partes[1] if len(partes) > 1 else ""
+        txt.write_text(d.get("legenda", "").strip() + resto, encoding="utf-8")
+    elif nome == "apagar":
+        v = BASE / d.get("onde", "entrada") / d["k"] / nome_seguro(d["nome"])
+        for f in (v, v.with_suffix(".txt")):
+            f.unlink(missing_ok=True)
+    elif nome == "tentar":
+        k, n = d["k"], nome_seguro(d["nome"])
+        for f in (BASE / "falhas" / k / n, (BASE / "falhas" / k / n).with_suffix(".txt")):
+            if f.exists():
+                shutil.move(str(f), str(BASE / "entrada" / k / f.name))
+        est = P.le_json(BASE / "estado.json", {})
+        est.get(k, {}).get("falhas", {}).pop(n, None)
+        P.grava_json(BASE / "estado.json", est)
+    elif nome == "copiar":
+        # manda um vídeo da fila de uma conta também para outras
+        k, n = d["k"], nome_seguro(d["nome"])
+        v = BASE / "entrada" / k / n
+        P.enfileira(BASE, v, [x.replace("_", ":", 1) for x in d["para"] if x != k], v.with_suffix(".txt") if v.with_suffix(".txt").exists() else None)
+    elif nome == "agora":
+        posta_agora(d["k"], d["nome"])
+    elif nome == "rodada":
+        rodada_ja()
+    elif nome == "atualizar":
+        CACHE["quando"] = 0
+        threading.Thread(target=atualiza_cache, args=(True,), daemon=True).start()
+    elif nome == "global":
+        def muda(c):
+            for chave_, sub, campo in (("ig_app_id", "instagram", "app_id"), ("ig_app_secret", "instagram", "app_secret"),
+                                       ("ig_config_id", "instagram", "config_id"),
+                                       ("tt_client_key", "tiktok", "client_key"), ("tt_client_secret", "tiktok", "client_secret")):
+                if str(d.get(chave_) or "").strip():
+                    c.setdefault(sub, {})[campo] = str(d[chave_]).strip()
+            if d.get("tt_modo") in ("rascunho", "direto"):
+                c.setdefault("tiktok", {})["modo"] = d["tt_modo"]
+            if "tt_ia" in d:
+                c.setdefault("tiktok", {})["ia"] = bool(d["tt_ia"])
+            if "pin" in d:
+                pin = str(d["pin"]).strip()
+                if pin and not re.fullmatch(r"\d{4,8}", pin):
+                    raise ValueError("o PIN precisa ter de 4 a 8 números")
+                c.setdefault("painel", {})["pin"] = pin
+        grava_cfg(muda)
+    elif nome == "login":
+        plat, conta = d["plataforma"], d["conta"]
+        exe, extra = py_filho()
+        cmd = [exe, str(TOOLS / "postar" / "postar.py"), "--pasta", str(BASE), "--login", plat, "--conta", conta]
+        if d.get("token"):
+            cmd += ["--token", d["token"]]
+        logf = open(BASE / "login.log", "w", encoding="utf-8")
+        TRABALHO["login"] = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT, text=True,
+                                             env={**os.environ, "PYTHONIOENCODING": "utf-8"}, **extra)
+        P.log(f"login {plat} @{conta}: abri o navegador NO PC — entre na conta e autorize")
+    elif nome == "login_resultado":
+        f = BASE / "login.log"
+        p = TRABALHO["login"]
+        return {"rodando": bool(p and p.poll() is None), "texto": f.read_text(encoding="utf-8", errors="replace")[-1500:] if f.exists() else ""}
+    elif nome == "reels_gerar":
+        t = TRABALHO["reels"]
+        if t and t.poll() is None:
+            raise ValueError("os reels já estão sendo feitos")
+        n = max(1, min(20, int(d.get("quantos", 5))))
+        logf = open(REELS / "painel_reels.log", "w", encoding="utf-8")
+        exe, extra = py_filho()
+        cmd = [exe, "-u", str(TOOLS / "reels" / "reels.py"), "--pasta", str(REELS), "--quantos", str(n)]
+        TRABALHO["reels"] = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT, text=True, cwd=str(TOOLS.parent),
+                                             env={**os.environ, "PYTHONIOENCODING": "utf-8"}, **extra)
+    elif nome == "reels_parar":
+        t = TRABALHO["reels"]
+        if t and t.poll() is None:
+            t.terminate()
+    elif nome == "reels_link":
+        url = str(d.get("url", "")).strip()
+        if not re.match(r"https?://\S+$", url):
+            raise ValueError("cole um link (https://...)")
+        REELS.mkdir(parents=True, exist_ok=True)
+        with open(REELS / "links.txt", "a", encoding="utf-8") as f:
+            f.write(url + "\n")
+    elif nome == "reels_postar":
+        f = REELS / "config.json"
+        rc = P.le_json(f, {})
+        rc["postar"] = [x for x in d.get("para", []) if re.fullmatch(r"(instagram|tiktok):[\w.]+", x)]
+        P.grava_json(f, rc)
+    elif nome == "abrir_pasta":
+        alvo = {"postar": BASE, "reels": REELS}.get(d.get("qual"), BASE)
+        if os.name == "nt":
+            os.startfile(str(alvo))  # noqa: S606 (só no PC)
+    else:
+        raise ValueError(f"ação desconhecida: {nome}")
+    return {"ok": True}
+
+
+def recebe_envio(h, q):
+    """recebe um vídeo do navegador (corpo cru, em pedaços: não enche a memória) e já põe nas pastas certas"""
+    nome = nome_seguro(q.get("nome", "video.mp4"))
+    destinos = [x for x in q.get("destinos", "").split(",") if x]
+    legenda = q.get("legenda", "")
+    tam = int(h.headers.get("Content-Length") or 0)
+    if not destinos:
+        raise ValueError("escolha pelo menos um destino")
+    if Path(nome).suffix.lower() not in VIDEO_EXT:
+        raise ValueError("só vídeo (.mp4, .mov ...)")
+    tmp_dir = BASE / "_envios"
+    tmp_dir.mkdir(exist_ok=True)
+    tmp = tmp_dir / f"{time.time_ns()}_{nome}"
+    with open(tmp, "wb") as f:
+        falta = tam
+        while falta > 0:
+            b = h.rfile.read(min(4 * 1024 * 1024, falta))
+            if not b:
+                break
+            f.write(b)
+            falta -= len(b)
+    if falta > 0:
+        tmp.unlink(missing_ok=True)
+        raise ValueError("envio interrompido")
+    feitos = []
+    contas = []
+    for dst in destinos:
+        if dst == "reels:inicios":
+            pasta = REELS / "inicios"
+            pasta.mkdir(parents=True, exist_ok=True)
+            apelido = nome_seguro(q.get("apelido") or Path(nome).stem)
+            alvo = pasta / f"{Path(apelido).stem}{Path(nome).suffix.lower()}"
+            i = 2
+            while alvo.exists():
+                alvo = pasta / f"{Path(apelido).stem} {i}{Path(nome).suffix.lower()}"
+                i += 1
+            try:
+                os.link(tmp, alvo)
+            except OSError:
+                shutil.copyfile(tmp, alvo)
+            feitos.append("começo de reel: " + alvo.stem)
+        else:
+            contas.append(dst)
+    if contas:
+        carimbo = dt.datetime.now().strftime("%Y-%m-%d %H%M%S")
+        leg_f = None
+        if legenda.strip():
+            leg_f = tmp.with_suffix(".txt")
+            leg_f.write_text(legenda.strip(), encoding="utf-8")
+        P.enfileira(BASE, tmp, contas, leg_f, nome=f"{carimbo} {Path(nome).stem}{Path(nome).suffix.lower()}")
+        if leg_f:
+            leg_f.unlink(missing_ok=True)
+        feitos += contas
+    tmp.unlink(missing_ok=True)
+    P.log(f"painel: recebi {nome} ({tam_txt(tam)}) → {', '.join(feitos)}")
+    return {"ok": True, "foi_para": feitos}
+
+
+# ------------------------------------------------------------------ servidor
+PORTA = 8730
+
+
+class Painel(hserver.BaseHTTPRequestHandler):
+    server_version = "DettoPainel/1"
+
+    def log_message(self, *a):
+        pass
+
+    def _caminho(self):
+        # o http.server lê a linha do pedido como latin-1; acento cru (sem %) volta para UTF-8
+        try:
+            return urllib.parse.urlparse(self.path.encode("latin-1").decode("utf-8"))
+        except (UnicodeEncodeError, UnicodeDecodeError):
+            return urllib.parse.urlparse(self.path)
+
+    def _local(self):
+        return self.client_address[0] in ("127.0.0.1", "::1", "::ffff:127.0.0.1")
+
+    def _pin_ok(self):
+        if self._local():
+            return True
+        pin = (cfg().get("painel") or {}).get("pin") or ""
+        if not pin:
+            return False
+        ck = self.headers.get("Cookie") or ""
+        m = re.search(r"detto_pin=([^;]+)", ck)
+        return bool(m and hmac.compare_digest(urllib.parse.unquote(m.group(1)), pin))
+
+    def _json(self, obj, code=200):
+        b = json.dumps(obj, ensure_ascii=False).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(b)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(b)
+
+    def _html(self, txt, code=200):
+        b = txt.encode()
+        self.send_response(code)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(b)))
+        self.send_header("Cache-Control", "no-store")
+        self.end_headers()
+        self.wfile.write(b)
+
+    def _barrado(self):
+        pin = (cfg().get("painel") or {}).get("pin")
+        msg = ("<p>Digite o PIN do painel.</p><form method=post action=/entrar><input name=pin inputmode=numeric autofocus "
+               "style='font-size:24px;padding:10px;width:160px'> <button style='font-size:20px;padding:10px 18px'>Entrar</button></form>"
+               if pin else "<p>Para abrir pelo celular, primeiro crie um PIN no painel <b>no PC</b> (Configurações → PIN do celular).</p>")
+        self._html(f"<meta name=viewport content='width=device-width'><body style='font-family:sans-serif;background:#0d1110;color:#e8f0ea;padding:24px'>"
+                   f"<h2>Painel DETTO</h2>{msg}</body>", 401)
+
+    def do_GET(self):  # noqa: N802
+        u = self._caminho()
+        q = {k: v[0] for k, v in urllib.parse.parse_qs(u.query).items()}
+        try:
+            if not self._pin_ok():
+                return self._barrado()
+            if u.path in ("/", "/index.html"):
+                return self._html((AQUI / "painel.html").read_text(encoding="utf-8"))
+            if u.path == "/api/estado":
+                atualiza_cache()
+                return self._json(estado_painel())
+            if u.path == "/arquivo":
+                return self._arquivo(q)
+            self._json({"erro": "não achei"}, 404)
+        except Exception as e:
+            traceback.print_exc()
+            self._json({"erro": str(e)}, 500)
+
+    def _arquivo(self, q):
+        onde = q.get("onde", "entrada")
+        if onde not in ("entrada", "postados", "falhas"):
+            return self._json({"erro": "pasta"}, 400)
+        f = BASE / onde / nome_seguro(q.get("k", "")) / nome_seguro(q.get("nome", ""))
+        if not f.exists():
+            return self._json({"erro": "não achei"}, 404)
+        tam = f.stat().st_size
+        ini, fim = 0, tam - 1
+        rg = re.match(r"bytes=(\d*)-(\d*)", self.headers.get("Range") or "")
+        if rg:
+            if rg.group(1):
+                ini = int(rg.group(1))
+                fim = int(rg.group(2)) if rg.group(2) else tam - 1
+            else:
+                ini = max(0, tam - int(rg.group(2)))
+            fim = min(fim, tam - 1)
+        self.send_response(206 if rg else 200)
+        tipo = {".mov": "video/quicktime", ".webm": "video/webm", ".mkv": "video/x-matroska"}.get(f.suffix.lower(), "video/mp4")
+        self.send_header("Content-Type", tipo)
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Content-Length", str(fim - ini + 1))
+        if rg:
+            self.send_header("Content-Range", f"bytes {ini}-{fim}/{tam}")
+        self.end_headers()
+        with open(f, "rb") as fh:
+            fh.seek(ini)
+            falta = fim - ini + 1
+            try:
+                while falta > 0:
+                    b = fh.read(min(1024 * 1024, falta))
+                    if not b:
+                        break
+                    self.wfile.write(b)
+                    falta -= len(b)
+            except (ConnectionError, OSError):
+                pass
+
+    def do_POST(self):  # noqa: N802
+        u = self._caminho()
+        try:
+            if u.path == "/entrar":
+                n = int(self.headers.get("Content-Length") or 0)
+                pin = urllib.parse.parse_qs(self.rfile.read(n).decode()).get("pin", [""])[0]
+                self.send_response(303)
+                self.send_header("Set-Cookie", f"detto_pin={urllib.parse.quote(pin)}; Max-Age=31536000; Path=/; SameSite=Strict; HttpOnly")
+                self.send_header("Location", "/")
+                self.end_headers()
+                return
+            if not self._pin_ok():
+                return self._json({"erro": "PIN"}, 401)
+            if u.path == "/api/enviar":
+                q = {k: v[0] for k, v in urllib.parse.parse_qs(u.query).items()}
+                return self._json(recebe_envio(self, q))
+            if u.path.startswith("/api/"):
+                n = int(self.headers.get("Content-Length") or 0)
+                d = json.loads(self.rfile.read(n) or b"{}")
+                return self._json(acao(u.path[5:], d) or {"ok": True})
+            self._json({"erro": "não achei"}, 404)
+        except ValueError as e:
+            self._json({"erro": str(e)}, 400)
+        except Exception as e:
+            traceback.print_exc()
+            self._json({"erro": str(e)}, 500)
+
+
+def laco_postagem():
+    """o painel aberto = postagem automática: confere a fila a cada 5 min"""
+    time.sleep(20)
+    while True:
+        try:
+            c_ = cfg()
+            if not c_.get("pausado"):
+                TRABALHO["postando"] = TRABALHO["postando"] or ""
+                P.rodada(c_, BASE)
+            atualiza_cache()
+        except Exception as e:
+            P.log(f"erro no painel: {e}")
+        time.sleep(300)
+
+
+# ------------------------------------------------------------------ instalar no Windows
+def area_de_trabalho():
+    for p in (Path.home() / "Desktop", Path.home() / "OneDrive" / "Desktop", Path.home() / "OneDrive" / "Área de Trabalho",
+              Path.home() / "Área de Trabalho"):
+        if p.exists():
+            return p
+    return Path.home()
+
+
+def inicializar():
+    return Path(os.environ.get("APPDATA", "")) / "Microsoft" / "Windows" / "Start Menu" / "Programs" / "Startup"
+
+
+def instalar():
+    if os.name != "nt":
+        sys.exit("--instalar é para o Windows.")
+    pyw = Path(sys.executable).with_name("pythonw.exe")
+    py = pyw if pyw.exists() else Path(sys.executable)
+    vbs = inicializar() / "DETTO painel.vbs"
+    vbs.write_text('Set s = CreateObject("WScript.Shell")\r\n'
+                   f's.CurrentDirectory = "{TOOLS.parent}"\r\n'
+                   f's.Run """{py}"" ""{Path(__file__).resolve()}"" --sem-navegador", 0, False\r\n', encoding="utf-8")
+    atalho = area_de_trabalho() / "Painel DETTO.url"
+    atalho.write_text(f"[InternetShortcut]\r\nURL=http://localhost:{PORTA}/\r\n", encoding="utf-8")
+    print(f"Pronto: o painel liga sozinho quando o Windows inicia ({vbs}).\nAtalho na Área de Trabalho: {atalho}")
+    subprocess.Popen(["wscript", str(vbs)])
+    time.sleep(3)
+    webbrowser.open(f"http://localhost:{PORTA}/")
+
+
+def desinstalar():
+    for f in (inicializar() / "DETTO painel.vbs", area_de_trabalho() / "Painel DETTO.url"):
+        if f.exists():
+            f.unlink()
+            print("removido:", f)
+    print("Se o painel estiver aberto, feche pelo Gerenciador de Tarefas (pythonw.exe) ou reinicie o PC.")
+
+
+def main():
+    global BASE, REELS, PORTA
+    ap = argparse.ArgumentParser(description="painel da postagem automática")
+    ap.add_argument("--pasta", default=str(P.pasta_padrao()), help="pasta da postagem (padrão E:\\DETTO\\postar)")
+    ap.add_argument("--reels", default=str(reels_pasta()), help="pasta dos reels (padrão E:\\DETTO\\reels)")
+    ap.add_argument("--porta", type=int, default=8730)
+    ap.add_argument("--so-pc", action="store_true", help="não deixa abrir pelo celular")
+    ap.add_argument("--sem-navegador", action="store_true")
+    ap.add_argument("--sem-postar", action="store_true", help="só o painel, sem postar sozinho")
+    ap.add_argument("--instalar", action="store_true")
+    ap.add_argument("--desinstalar", action="store_true")
+    a = ap.parse_args()
+    BASE, REELS, PORTA = Path(a.pasta), Path(a.reels), a.porta
+    if a.instalar:
+        return instalar()
+    if a.desinstalar:
+        return desinstalar()
+    if os.name == "nt" and sys.executable.lower().endswith("pythonw.exe"):
+        # sem janela: o print iria para lugar nenhum
+        sys.stdout = sys.stderr = open(Path(a.pasta) / "painel.log", "a", encoding="utf-8", buffering=1)
+    cfg()
+    REELS.mkdir(parents=True, exist_ok=True)
+    try:
+        srv = hserver.ThreadingHTTPServer(("127.0.0.1" if a.so_pc else "0.0.0.0", PORTA), Painel)
+    except OSError:
+        print(f"O painel já está aberto (porta {PORTA}). Abrindo no navegador.")
+        webbrowser.open(f"http://localhost:{PORTA}/")
+        return
+    srv.daemon_threads = True
+    if not a.sem_postar:
+        threading.Thread(target=laco_postagem, daemon=True).start()
+    print(f"PAINEL DETTO no ar:\n  no PC:      http://localhost:{PORTA}\n"
+          f"  no celular: http://{ip_local()}:{PORTA}  (mesmo Wi-Fi; crie o PIN no painel)\n"
+          f"  pastas: {BASE}  |  {REELS}\nFeche esta janela para desligar.")
+    if not a.sem_navegador:
+        threading.Timer(1.0, lambda: webbrowser.open(f"http://localhost:{PORTA}/")).start()
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+
+if __name__ == "__main__":
+    main()

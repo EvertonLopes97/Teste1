@@ -60,6 +60,11 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   aprovado: máx. 5 pendentes, legenda em `legendas_tiktok_<conta>.txt`; aprovado → `"modo": "direto"`). Reels entram
   na fila sozinhos (`"postar"` no config dos reels; `[]` desliga). `--login instagram|tiktok --conta X [--token]`,
   `--agendar` (a cada 20 min), `--status`, `--agora video --para plat:conta`.
+- PAINEL (`tools\painel\painel.py`, só Python, http://localhost:8730; `--instalar` = liga com o Windows + atalho;
+  celular no mesmo Wi-Fi com PIN; setup em `tools\painel\LEIA-ME.txt`): enviar vídeos (vão para `entrada\<conta>\`
+  ou `reels\inicios\`), fila com ordem (`_ordem.json`), legenda, postar já, falhas, liga/desliga por conta, intervalo,
+  horário, máx./dia, pausa geral, chaves e login das contas, legendas de rascunho do TikTok, gerar reels, links.
+  Aberto = posta sozinho (rodada a cada 5 min, trava `.postando` contra post duplo com a tarefa do Windows).
 - CANAL AUTOMÁTICO YouTube (`tools\canal\`, voz clonada + máscara): em construção, não testado de ponta a ponta.
 - TESTES: `npm run check` (tipos + testes + teste VISUAL `test/visual.test.js`: quadros do palco × `test/visual/ref_*.png`).
   Mudou o visual de propósito → `npm run visual:aprovar`. GitHub Actions roda tudo a cada push (`.github/workflows/testes.yml`).

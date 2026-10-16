@@ -47,18 +47,30 @@ TT = "https://open.tiktokapis.com"
 VIDEO_EXT = {".mp4", ".mov", ".m4v", ".webm"}
 
 CONFIG_PADRAO = {
+    "pausado": False,  # true = não posta nada (o painel tem o botão)
     "instagram": {"app_id": "", "app_secret": "", "config_id": "", "versao": "v23.0", "porta_login": 8724},
     "tiktok": {"client_key": "", "client_secret": "", "redirect": "http://localhost:8723/callback/", "modo": "rascunho", "ia": False},
     "contas": [
-        {"plataforma": "instagram", "conta": "detto.galo", "intervalo_min": 80, "horas": "08-23"},
-        {"plataforma": "tiktok", "conta": "detto.galo", "intervalo_min": 80, "horas": "08-23"},
-        {"plataforma": "tiktok", "conta": "detto.tv", "intervalo_min": 120, "horas": "08-23"},
+        # intervalo_min = minutos entre posts; horas = janela do dia; max_dia = 0 sem limite; ativo = false pausa só esta conta
+        {"plataforma": "instagram", "conta": "detto.galo", "intervalo_min": 80, "horas": "08-23", "max_dia": 0, "ativo": True},
+        {"plataforma": "tiktok", "conta": "detto.galo", "intervalo_min": 80, "horas": "08-23", "max_dia": 0, "ativo": True},
+        {"plataforma": "tiktok", "conta": "detto.tv", "intervalo_min": 120, "horas": "08-23", "max_dia": 0, "ativo": True},
     ],
 }
 
 
+LOG_F = None  # prepara() aponta para <pasta>/postar.log (o painel mostra)
+
+
 def log(m):
-    print(f"[{dt.datetime.now():%H:%M}] {m}", flush=True)
+    linha = f"[{dt.datetime.now():%d/%m %H:%M}] {m}"
+    print(linha, flush=True)
+    if LOG_F:
+        try:
+            with open(LOG_F, "a", encoding="utf-8") as f:
+                f.write(linha + "\n")
+        except OSError:
+            pass
 
 
 def le_json(f, padrao):
@@ -80,6 +92,10 @@ def pasta_padrao():
 
 
 def prepara(base):
+    global LOG_F
+    base = Path(base)
+    base.mkdir(parents=True, exist_ok=True)
+    LOG_F = base / "postar.log"
     cfg_f = base / "config.json"
     if not cfg_f.exists():
         grava_json(cfg_f, CONFIG_PADRAO)
@@ -88,6 +104,8 @@ def prepara(base):
     for k, v in lido.items():
         cfg[k] = {**cfg.get(k, {}), **v} if isinstance(v, dict) and isinstance(cfg.get(k), dict) else v
     for c in cfg["contas"]:
+        for k_, v_ in CONFIG_PADRAO["contas"][0].items():
+            c.setdefault(k_, v_ if k_ not in ("plataforma", "conta") else c.get(k_))
         for p in ("entrada", "postados", "falhas"):
             (base / p / chave(c)).mkdir(parents=True, exist_ok=True)
     (base / "tokens").mkdir(exist_ok=True)
@@ -376,8 +394,51 @@ def legenda_de(video):
     return ""
 
 
-def na_hora(c, ultimo):
-    h0, h1 = (int(x) for x in str(c.get("horas", "08-23")).split("-"))
+def fila_de(base, k):
+    """vídeos esperando na conta, na ordem de saída: a ordem arrumada no painel (_ordem.json) e depois o nome"""
+    pasta = Path(base) / "entrada" / k
+    if not pasta.exists():
+        return []
+    vids = [p for p in pasta.iterdir() if p.suffix.lower() in VIDEO_EXT]
+    ordem = le_json(pasta / "_ordem.json", [])
+    pos = {n: i for i, n in enumerate(ordem)}
+    return sorted(vids, key=lambda p: (pos.get(p.name, 10 ** 6), p.name.lower()))
+
+
+def janela(c):
+    try:
+        h0, h1 = (int(x) for x in str(c.get("horas", "08-23")).split("-"))
+    except ValueError:
+        h0, h1 = 8, 23
+    return h0, h1
+
+
+def postados_hoje(estado, k):
+    h = estado.get(k, {}).get("hoje", {})
+    return h.get("n", 0) if h.get("dia") == dt.date.today().isoformat() else 0
+
+
+def proximo(c, estado, k):
+    """quando esta conta pode postar de novo (datetime), pelo intervalo, horário e limite do dia"""
+    agora = dt.datetime.now().replace(second=0, microsecond=0)
+    ult = estado.get(k, {}).get("ultimo")
+    t = agora
+    if ult:
+        t = max(t, dt.datetime.fromisoformat(ult) + dt.timedelta(minutes=c.get("intervalo_min", 80)))
+    h0, h1 = janela(c)
+    if c.get("max_dia") and postados_hoje(estado, k) >= c["max_dia"]:
+        t = max(t, (agora + dt.timedelta(days=1)).replace(hour=h0, minute=0))
+    if t.hour < h0:
+        t = t.replace(hour=h0, minute=0)
+    elif t.hour > h1:
+        t = (t + dt.timedelta(days=1)).replace(hour=h0, minute=0)
+    return t
+
+
+def na_hora(c, ultimo, estado=None, k=None):
+    if estado is not None:
+        return proximo(c, estado, k) <= dt.datetime.now()
+    h0, h1 = janela(c)
     agora = dt.datetime.now()
     if not (h0 <= agora.hour <= h1):
         return False
@@ -391,56 +452,93 @@ def posta_um(cfg, base, c, video):
     return tt_posta(cfg, base, c["conta"], video, leg)
 
 
-def rodada(cfg, base):
-    estado = le_json(base / "estado.json", {})
-    for c in cfg["contas"]:
-        k = chave(c)
-        fila = sorted(p for p in (base / "entrada" / k).iterdir() if p.suffix.lower() in VIDEO_EXT)
-        if not fila:
-            continue
-        ultimo = dt.datetime.fromisoformat(estado[k]["ultimo"]) if estado.get(k, {}).get("ultimo") else None
-        if not na_hora(c, ultimo):
-            continue
-        if c["plataforma"] == "tiktok" and cfg["tiktok"].get("modo") != "direto":
-            try:
-                n, _ = tt_pendentes(cfg, base, c["conta"])
-            except Exception as e:
-                log(f"{k}: não consegui ver os rascunhos ({e})")
-                continue
-            if n >= 5:
-                log(f"{k}: 5 rascunhos esperando você publicar no app — o próximo vai quando liberar")
-                continue
-        video = fila[0]
-        log(f"{k}: postando {video.name} ({len(fila)} na fila)")
+class trava:
+    """impede duas postagens ao mesmo tempo (painel + tarefa do Windows)"""
+
+    def __init__(self, base):
+        self.f = Path(base) / ".postando"
+        self.ok = False
+
+    def __enter__(self):
         try:
-            r = posta_um(cfg, base, c, video)
-        except Exception as e:
-            falhas = estado.setdefault(k, {}).setdefault("falhas", {})
-            falhas[video.name] = falhas.get(video.name, 0) + 1
-            log(f"{k}: ERRO ({falhas[video.name]}/3): {e}")
-            if falhas[video.name] >= 3:
-                for f in [video, video.with_suffix(".txt")]:
-                    if f.exists():
-                        shutil.move(str(f), str(base / "falhas" / k / f.name))
-                log(f"{k}: {video.name} foi para falhas\\ (3 erros seguidos)")
-            grava_json(base / "estado.json", estado)
-            continue
-        destino = base / "postados" / k
-        for f in [video, video.with_suffix(".txt")]:
-            if f.exists():
-                shutil.move(str(f), str(destino / f.name))
-        grava_json(destino / f"{video.stem}.json", {"quando": dt.datetime.now().isoformat(timespec="seconds"), **r})
-        estado.setdefault(k, {})["ultimo"] = dt.datetime.now().isoformat(timespec="seconds")
-        estado[k].setdefault("falhas", {}).pop(video.name, None)
+            if self.f.exists() and time.time() - self.f.stat().st_mtime < 45 * 60:
+                return self
+            self.f.write_text(str(os.getpid()))
+            self.ok = True
+        except OSError:
+            pass
+        return self
+
+    def __exit__(self, *a):
+        if self.ok:
+            self.f.unlink(missing_ok=True)
+
+
+def posta_da_fila(cfg, base, c, video, estado):
+    """posta um vídeo da fila da conta e move para postados (ou conta a falha). Devolve o resultado ou None."""
+    k = chave(c)
+    log(f"{k}: postando {video.name}")
+    try:
+        r = posta_um(cfg, base, c, video)
+    except Exception as e:
+        falhas = estado.setdefault(k, {}).setdefault("falhas", {})
+        falhas[video.name] = falhas.get(video.name, 0) + 1
+        log(f"{k}: ERRO ({falhas[video.name]}/3): {e}")
+        if falhas[video.name] >= 3:
+            for f in [video, video.with_suffix(".txt")]:
+                if f.exists():
+                    shutil.move(str(f), str(base / "falhas" / k / f.name))
+            log(f"{k}: {video.name} foi para falhas\\ (3 erros seguidos)")
         grava_json(base / "estado.json", estado)
-        log(f"{k}: OK {'(rascunho no app do TikTok: abra a notificação e publique)' if r.get('modo') == 'rascunho' else r.get('link', '')}")
+        return None
+    destino = base / "postados" / k
+    destino.mkdir(parents=True, exist_ok=True)
+    for f in [video, video.with_suffix(".txt")]:
+        if f.exists():
+            shutil.move(str(f), str(destino / f.name))
+    grava_json(destino / f"{video.stem}.json", {"quando": dt.datetime.now().isoformat(timespec="seconds"), "video": video.name, **r})
+    e = estado.setdefault(k, {})
+    e["ultimo"] = dt.datetime.now().isoformat(timespec="seconds")
+    e.setdefault("falhas", {}).pop(video.name, None)
+    hoje = dt.date.today().isoformat()
+    e["hoje"] = {"dia": hoje, "n": postados_hoje(estado, k) + 1}
+    grava_json(base / "estado.json", estado)
+    log(f"{k}: OK {'(rascunho no app do TikTok: abra a notificação e publique)' if r.get('modo') == 'rascunho' else r.get('link', '')}")
+    return r
+
+
+def rodada(cfg, base):
+    base = Path(base)
+    if cfg.get("pausado"):
+        return
+    with trava(base) as t:
+        if not t.ok:
+            return
+        estado = le_json(base / "estado.json", {})
+        for c in cfg["contas"]:
+            k = chave(c)
+            if c.get("ativo") is False:
+                continue
+            fila = fila_de(base, k)
+            if not fila or not na_hora(c, None, estado, k):
+                continue
+            if c["plataforma"] == "tiktok" and cfg["tiktok"].get("modo") != "direto":
+                try:
+                    n, _ = tt_pendentes(cfg, base, c["conta"])
+                except Exception as e:
+                    log(f"{k}: não consegui ver os rascunhos ({e})")
+                    continue
+                if n >= 5:
+                    log(f"{k}: 5 rascunhos esperando você publicar no app — o próximo vai quando liberar")
+                    continue
+            posta_da_fila(cfg, base, c, fila[0], estado)
 
 
 def status(cfg, base):
     estado = le_json(base / "estado.json", {})
     for c in cfg["contas"]:
         k = chave(c)
-        fila = [p for p in (base / "entrada" / k).iterdir() if p.suffix.lower() in VIDEO_EXT]
+        fila = fila_de(base, k)
         feitos = [p for p in (base / "postados" / k).glob("*.json") if not p.name.startswith("_")]
         extra = ""
         if c["plataforma"] == "instagram":
@@ -459,7 +557,7 @@ def agendar(base):
     if os.name != "nt":
         sys.exit("O agendamento é do Windows. Aqui use o cron.")
     bat = base / "postar.bat"
-    bat.write_text(f'@echo off\n"{sys.executable}" "{Path(__file__).resolve()}" --pasta "{base}" >> "{base / "postar.log"}" 2>&1\n', encoding="utf-8")
+    bat.write_text(f'@echo off\n"{sys.executable}" "{Path(__file__).resolve()}" --pasta "{base}" >> "{base / "erros.log"}" 2>&1\n', encoding="utf-8")
     r = subprocess.run(["schtasks", "/Create", "/F", "/SC", "MINUTE", "/MO", "20", "/TN", "DETTO postar", "/TR", f'"{bat}"'], capture_output=True, text=True)
     print(r.stdout or r.stderr)
     if r.returncode == 0:
