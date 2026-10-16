@@ -246,7 +246,8 @@ def estado_painel():
         "tiktok": {"modo": c_["tiktok"].get("modo", "studio"), "ia": bool(c_["tiktok"].get("ia")),
                    "chaves": bool(c_["tiktok"].get("client_key") and c_["tiktok"].get("client_secret"))},
         "instagram": {"chaves": bool(c_["instagram"].get("app_id") and c_["instagram"].get("app_secret"))},
-        "reels": {"prontos_hoje": len(prontos), "inicios": inicios, "links": links[-10:], "n_links": len(links),
+        "reels": {"prontos_hoje": len(prontos), "inicios": inicios, "links": links[:30], "n_links": len(links),
+                  "auto_links": rcfg.get("auto_links", True), "feitos": feitos_links(),
                   "rodando": bool(t and t.poll() is None), "postar": rcfg.get("postar", ["instagram:detto.galo", "tiktok:detto.galo"]),
                   "log": [l.rstrip() for l in rlog]},
         "log": [l.rstrip() for l in log], "disco": tam_txt(livre), "disco_pouco": livre < 15 * 1024 ** 3,
@@ -423,12 +424,28 @@ def acao(nome, d):
         if t and t.poll() is None:
             t.terminate()
     elif nome == "reels_link":
-        url = str(d.get("url", "")).strip()
-        if not re.match(r"https?://\S+$", url):
+        # um ou vários links (um por linha, ou separados por espaço): vão para a lista e são feitos sozinhos
+        novos = re.findall(r"https?://\S+", str(d.get("url", "")))
+        if not novos:
             raise ValueError("cole um link (https://...)")
         REELS.mkdir(parents=True, exist_ok=True)
-        with open(REELS / "links.txt", "a", encoding="utf-8") as f:
-            f.write(url + "\n")
+        f = REELS / "links.txt"
+        ja = set(l.strip() for l in f.read_text(encoding="utf-8").splitlines()) if f.exists() else set()
+        novos = [u for u in dict.fromkeys(novos) if u not in ja]
+        with open(f, "a", encoding="utf-8") as g:
+            for u in novos:
+                g.write(u + "\n")
+        return {"ok": True, "n": len(novos)}
+    elif nome == "reels_auto":
+        f = REELS / "config.json"
+        rc = P.le_json(f, {})
+        rc["auto_links"] = bool(d.get("on"))
+        P.grava_json(f, rc)
+    elif nome == "reels_tira_link":
+        f = REELS / "links.txt"
+        if f.exists():
+            alvo = str(d.get("url", "")).strip()
+            f.write_text("\n".join(l for l in f.read_text(encoding="utf-8").splitlines() if l.strip() != alvo) + "\n", encoding="utf-8")
     elif nome == "reels_postar":
         f = REELS / "config.json"
         rc = P.le_json(f, {})
@@ -789,6 +806,40 @@ class Painel(hserver.BaseHTTPRequestHandler):
             self._json({"erro": str(e)}, 500)
 
 
+def feitos_links():
+    """últimos links processados (links_feitos.txt: "data ok|FALHOU link")"""
+    f = REELS / "links_feitos.txt"
+    if not f.exists():
+        return []
+    out = []
+    for l in f.read_text(encoding="utf-8", errors="replace").splitlines()[-12:][::-1]:
+        p = l.split(" ", 2)
+        if len(p) == 3:
+            out.append({"dia": p[0], "ok": p[1] == "ok", "url": p[2]})
+    return out
+
+
+def laco_links():
+    """links colados no painel: o PC vai fazendo um atrás do outro e cada reel pronto já entra na fila"""
+    time.sleep(30)
+    while True:
+        try:
+            rc = P.le_json(REELS / "config.json", {})
+            f = REELS / "links.txt"
+            t = TRABALHO["reels"]
+            tem = f.exists() and any(l.strip().startswith("http") for l in f.read_text(encoding="utf-8").splitlines())
+            if rc.get("auto_links", True) and tem and not (t and t.poll() is None) and not cfg().get("pausado"):
+                exe, extra = py_filho()
+                cmd = [exe, "-u", str(TOOLS / "reels" / "reels.py"), "--pasta", str(REELS), "--so-links", "--quantos", "0"]
+                logf = open(REELS / "painel_reels.log", "w", encoding="utf-8")
+                TRABALHO["reels"] = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT, text=True, cwd=str(TOOLS.parent),
+                                                     env={**os.environ, "PYTHONIOENCODING": "utf-8"}, **extra)
+                P.log("reels: fazendo os links da lista")
+        except Exception as e:
+            P.log(f"reels: erro no laço dos links ({e})")
+        time.sleep(45)
+
+
 def laco_postagem():
     """o painel aberto = postagem automática: confere a fila a cada 5 min"""
     time.sleep(20)
@@ -890,6 +941,7 @@ def main():
     srv.daemon_threads = True
     if not a.sem_postar:
         threading.Thread(target=laco_postagem, daemon=True).start()
+        threading.Thread(target=laco_links, daemon=True).start()
     threading.Thread(target=EDI.laco, kwargs={"log": P.log, "ao_terminar": edicao_pronta}, daemon=True).start()
     print(f"PAINEL DETTO no ar:\n  no PC:      http://localhost:{PORTA}\n"
           f"  no celular: http://{ip_local()}:{PORTA}  (mesmo Wi-Fi; crie o PIN no painel)\n"

@@ -169,11 +169,24 @@ _atualizou = False
 
 
 def atualiza_ytdlp():
+    """atualiza o yt-dlp no máximo uma vez por dia (antes atualizava a cada rodada e demorava)"""
     global _atualizou
-    if not _atualizou:
-        _atualizou = True
-        log("atualizando o yt-dlp...")
-        subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-U", "yt-dlp"], capture_output=True)
+    if _atualizou:
+        return
+    _atualizou = True
+    marca = Path.home() / ".detto_ytdlp_atualizado"
+    hoje = dt.date.today().isoformat()
+    try:
+        if marca.exists() and marca.read_text().strip() == hoje:
+            return
+    except OSError:
+        pass
+    log("atualizando o yt-dlp (uma vez por dia)...")
+    subprocess.run([sys.executable, "-m", "pip", "install", "-q", "-U", "yt-dlp"], capture_output=True)
+    try:
+        marca.write_text(hoje)
+    except OSError:
+        pass
 
 
 def baixa(url, pasta, cookies=None, txt=None):
@@ -273,8 +286,11 @@ def gemini_json(partes):
 
 def video_pequeno(f, saida, segundos=40, altura=360):
     """cópia leve para o Gemini assistir (cabe na requisição)"""
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(f), "-t", str(segundos), "-vf", f"scale=-2:{altura},fps=10", "-c:v", "libx264",
-                    "-preset", "veryfast", "-crf", "34", "-c:a", "aac", "-b:a", "48k", "-ac", "1", str(saida)], check=False)
+    # iPhone novo: o 1º áudio é o "espacial" (APAC), que o FFmpeg não abre → escolhe o áudio normal
+    k = audio_bom(f)
+    mapa = ["-map", "0:v:0"] + (["-map", f"0:a:{k}", "-c:a", "aac", "-b:a", "48k", "-ac", "1"] if k is not None else ["-an"])
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(f), "-t", str(segundos)] + mapa +
+                   ["-vf", f"scale=-2:{altura},fps=10", "-c:v", "libx264", "-preset", "veryfast", "-crf", "34", str(saida)], check=False)
     return saida if saida.exists() and saida.stat().st_size < 18_000_000 else None
 
 
@@ -637,6 +653,7 @@ def main():
     ap = argparse.ArgumentParser(description="reels automáticos: seu começo + viral de futebol + texto")
     ap.add_argument("--pasta", default=str(pasta_padrao()))
     ap.add_argument("--quantos", type=int, default=10)
+    ap.add_argument("--so-links", action="store_true", help="só os links do links.txt (não busca virais); o painel usa")
     ap.add_argument("--cookies", default=None, help="chrome, edge ou firefox (Instagram/TikTok/YouTube pedindo login)")
     ap.add_argument("--agendar", metavar="HH:MM", help="cria a tarefa diária no Windows")
     ap.add_argument("--clip", help="usa este vídeo (arquivo ou link) como viral em vez de buscar")
@@ -672,13 +689,18 @@ def main():
     # fila: links seus primeiro, depois os virais das hashtags
     links = [l.strip() for l in (base / "links.txt").read_text(encoding="utf-8").splitlines() if re.match(r"https?://", l.strip())]
     fila = [{"url": u, "chave": None, "seu": True} for u in links]
+    if a.so_links:
+        if not links:
+            log("nenhum link no links.txt")
+            return
+        a.quantos = max(a.quantos, len(links))
     if a.clip:
         fila = [{"url": a.clip, "chave": None, "seu": True}] if re.match(r"https?://", a.clip) else [{"arquivo": a.clip, "chave": f"arquivo:{Path(a.clip).name}", "seu": True}]
     buscou = False
     feitos = 0
     while feitos < a.quantos:
         if not fila:
-            if buscou or a.clip:
+            if buscou or a.clip or a.so_links:
                 break
             log("procurando virais de futebol (Shorts mais vistos)...")
             fila = candidatos_youtube(cfg, hist["usados"])

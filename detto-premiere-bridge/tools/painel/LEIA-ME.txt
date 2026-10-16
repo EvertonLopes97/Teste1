@@ -54,8 +54,11 @@ TIKTOK (@detto.galo e @detto.tv) = pelo TIKTOK STUDIO (o TikTok não aprova app 
   Também dá para baixar (⬇) e copiar a legenda (📋) de cada vídeo direto pelo celular.
 
 ==================== ABA REELS AUTOMÁTICOS ====================
-Link de um vídeo (TikTok/Insta/YouTube) → "Fazer agora" (igual ao original, só a pessoa vira você; escolha o começo
-ou deixe o Gemini) ou "Pôr na lista" (próxima rodada). "Gerar N reels" busca virais sozinho.
+LINKS: cole um ou VÁRIOS links (TikTok/Insta/YouTube, um por linha) → "Pôr na lista". Com "Fazer os links da lista
+sozinho" ligado, o PC faz um atrás do outro (igual ao original, só a pessoa vira você) e cada reel pronto já entra na
+fila das contas marcadas. A lista e os "Links já feitos" (✔/✖) aparecem ao lado. "Fazer o 1º agora" = só o primeiro,
+com o começo e o modo que você escolher. "Gerar N reels" busca virais sozinho.
+Começos com nome do que você faz ("cruzando os braços.mov") são mais rápidos que "IMG_7442" (o Gemini precisa assistir).
 Começos novos: aba Postagem → Enviar vídeos → "Começo de reel" (o nome diz o que você faz).
 
 ==================== DEU PROBLEMA ====================

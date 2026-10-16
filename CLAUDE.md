@@ -78,6 +78,8 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   planeja horários (`P.planeja`: intervalo/janela/máx. por dia, 20 min a 10 dias), "Preparar pasta" →
   `E:\DETTO\postar\tiktok_studio\<conta>\` (vídeos "01 - 16-10 08h00 - nome" + LEGENDAS.txt), ele agenda no TikTok
   Studio e marca "Agendei" (vai para postados com `agendado_para`). "rascunho"/"direto" = API (opcional).
+  REELS no painel: vários links de uma vez → `links.txt`; com `"auto_links"` (padrão) o painel roda
+  `reels.py --so-links` sozinho (um por vez, cada pronto vai para a fila). yt-dlp atualiza 1x/dia.
 - CANAL AUTOMÁTICO YouTube (`tools\canal\`, voz clonada + máscara): em construção, não testado de ponta a ponta.
 - TESTES: `npm run check` (tipos + testes + teste VISUAL `test/visual.test.js`: quadros do palco × `test/visual/ref_*.png`).
   Mudou o visual de propósito → `npm run visual:aprovar`. GitHub Actions roda tudo a cada push (`.github/workflows/testes.yml`).

@@ -268,13 +268,14 @@ section.aba.on{display:block}
   <div class="duas">
     <div class="card" id="reelsInfo"></div>
     <div class="card">
-      <label>Link de um vídeo para virar reel (TikTok, Instagram, YouTube)</label>
-      <div class="linha"><input type="text" id="link" placeholder="https://…" style="flex:1"></div>
+      <label>Links de vídeos para virar reel (TikTok, Instagram, YouTube) — pode colar vários, um por linha</label>
+      <textarea id="link" rows="4" placeholder="https://www.instagram.com/reel/…&#10;https://www.tiktok.com/@…/video/…&#10;…"></textarea>
       <div class="linha">
         <select id="linkInicio" style="width:auto;flex:1"><option value="">Começo: o Gemini escolhe</option></select>
         <select id="linkModo" style="width:auto"><option value="troca">Igual ao original (troca)</option><option value="novo">Texto novo</option></select>
       </div>
-      <div class="linha"><button class="pri" id="btLinkJa">Fazer agora</button><button id="btLink">Pôr na lista (faz na próxima rodada)</button></div>
+      <div class="linha"><button class="pri" id="btLink">Pôr na lista</button><button id="btLinkJa" title="Só o primeiro link, com o começo e o modo escolhidos">Fazer o 1º agora</button></div>
+      <div class="linha"><label class="dest" id="lbAuto"><input type="checkbox" id="autoLinks"> Fazer os links da lista sozinho (um atrás do outro, já entram na fila)</label></div>
       <div class="linha">
         <label>Fazer</label>
         <select id="quantos" style="width:80px"><option>1</option><option>3</option><option selected>5</option><option>10</option><option>15</option><option>20</option></select>
@@ -647,7 +648,9 @@ function reels(){
     </div>
     <div class="info">${r.rodando ? "⏳ Fazendo reels agora…" : "Mande começos novos em “Enviar vídeos” → “Começo de reel”."}</div>
     ${r.inicios.length ? `<details data-d="r-ini"><summary>Seus começos</summary><div class="tags">${r.inicios.map(n => `<span class="tag">${esc(n)}</span>`).join("")}</div></details>` : `<div class="info alerta">Ainda não tem nenhum começo gravado.</div>`}
-    ${r.links.length ? `<details data-d="r-links"><summary>Últimos links</summary><div class="lista">${r.links.map(l => `<div class="l"><span>${esc(l)}</span></div>`).join("")}</div></details>` : ""}`;
+    ${r.links.length ? `<details data-d="r-links" open><summary>Na lista para fazer (${r.n_links})</summary><div class="lista">${r.links.map((l, li) => `<div class="l"><span>${esc(l)}</span><button class="mini" title="Tirar da lista" onclick="tiraLink(${li})">✕</button></div>`).join("")}</div></details>` : ""}
+    ${r.feitos.length ? `<details data-d="r-feitos"><summary>Links já feitos</summary><div class="lista">${r.feitos.map(f => `<div class="l"><span>${f.ok ? "✔" : "✖"} ${esc(f.dia)} · ${esc(f.url)}</span></div>`).join("")}</div></details>` : ""}`;
+  $("#autoLinks").checked = !!r.auto_links; $("#lbAuto").classList.toggle("sel", !!r.auto_links);
   $("#btReels").disabled = r.rodando; $("#btLinkJa").disabled = r.rodando; $("#btReelsParar").style.display = r.rodando ? "" : "none";
   const li = $("#linkInicio"), kI = JSON.stringify(r.inicios);
   if(li.dataset.k !== kI){ const v = li.value; li.dataset.k = kI;
@@ -663,9 +666,13 @@ function reels(){
     });
   }
 }
-$("#btLink").onclick = async () => { await api("reels_link", {url: $("#link").value}); $("#link").value = ""; toast("Link na lista"); carrega(true); };
+$("#btLink").onclick = async () => { const r = await api("reels_link", {url: $("#link").value}); $("#link").value = ""; editando = false;
+  toast(r.n ? `${r.n} link(s) na lista — ${E.reels.auto_links ? "o PC já vai fazendo" : "ligue “fazer sozinho” ou clique em Gerar"}` : "Esses links já estavam na lista"); carrega(true); };
+$("#autoLinks").onchange = async e => { await api("reels_auto", {on: e.target.checked}); carrega(true); };
+async function tiraLink(li){ await api("reels_tira_link", {url: E.reels.links[li]}); carrega(true); }
 $("#btLinkJa").onclick = async () => {
-  await api("reels_um", {url: $("#link").value, inicio: $("#linkInicio").value, modo: $("#linkModo").value});
+  const u = ($("#link").value.match(/https?:\/\/\S+/) || [""])[0];
+  await api("reels_um", {url: u, inicio: $("#linkInicio").value, modo: $("#linkModo").value});
   $("#link").value = ""; toast("Fazendo o reel — ele entra na fila de postagem quando ficar pronto"); carrega(true);
 };
 $("#btReels").onclick = async () => { await api("reels_gerar", {quantos: +$("#quantos").value}); toast("Começou — pode demorar alguns minutos por reel"); carrega(true); };
