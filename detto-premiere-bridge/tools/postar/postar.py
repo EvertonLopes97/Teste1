@@ -240,16 +240,35 @@ def ig_login(cfg, base, conta, token_colado=None):
             sys.exit(f"Login cancelado ou inválido: {r}\nPlano B: --login instagram --conta {conta} --token <token do Graph API Explorer>")
         curto = http("GET", f"{GRAPH}/{v}/oauth/access_token?" + urllib.parse.urlencode(
             {"client_id": ic["app_id"], "client_secret": ic["app_secret"], "redirect_uri": redir, "code": r["code"]}))["access_token"]
-    longo = http("GET", f"{GRAPH}/{v}/oauth/access_token?" + urllib.parse.urlencode(
-        {"grant_type": "fb_exchange_token", "client_id": ic["app_id"], "client_secret": ic["app_secret"], "fb_exchange_token": curto}))["access_token"]
-    pags = http("GET", f"{GRAPH}/{v}/me/accounts?" + urllib.parse.urlencode(
-        {"fields": "name,access_token,instagram_business_account{id,username}", "access_token": longo}))
+    try:
+        longo = http("GET", f"{GRAPH}/{v}/oauth/access_token?" + urllib.parse.urlencode(
+            {"grant_type": "fb_exchange_token", "client_id": ic["app_id"], "client_secret": ic["app_secret"], "fb_exchange_token": curto}))["access_token"]
+    except Exception as e:
+        print(f"   (não troquei por token longo: {e}; sigo com o token colado)")
+        longo = curto
     achou = None
+    try:
+        pags = http("GET", f"{GRAPH}/{v}/me/accounts?" + urllib.parse.urlencode(
+            {"fields": "name,access_token,instagram_business_account{id,username}", "access_token": longo}))
+    except Exception as e:
+        print(f"   (lista de páginas: {e})")
+        pags = {}
     for p in pags.get("data", []):
         ig = p.get("instagram_business_account") or {}
         print(f"   página {p.get('name')}: Instagram @{ig.get('username', '-')}")
         if ig.get("username", "").lower() == conta.lower().lstrip("@"):
             achou = (p, ig)
+    if not achou:
+        # token gerado já como token da PÁGINA (Explorer com "Usuário ou Página" = a página)
+        try:
+            me = http("GET", f"{GRAPH}/{v}/me?" + urllib.parse.urlencode(
+                {"fields": "id,name,instagram_business_account{id,username}", "access_token": longo}))
+            ig = me.get("instagram_business_account") or {}
+            print(f"   token da página {me.get('name')}: Instagram @{ig.get('username', '-')}")
+            if ig.get("username", "").lower() == conta.lower().lstrip("@"):
+                achou = ({"name": me.get("name"), "access_token": longo}, ig)
+        except Exception as e:
+            print(f"   (token como página: {e})")
     if not achou:
         sys.exit(f"Não achei o Instagram @{conta} ligado a uma página sua. Confira: Instagram profissional + ligado à página do Facebook (LEIA-ME).")
     p, ig = achou
