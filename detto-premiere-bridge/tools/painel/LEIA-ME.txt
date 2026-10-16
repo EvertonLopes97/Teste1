@@ -74,6 +74,13 @@ com o começo e o modo que você escolher. "Gerar N reels" busca virais sozinho.
 Começos com nome do que você faz ("cruzando os braços.mov") são mais rápidos que "IMG_7442" (o Gemini precisa assistir).
 Começos novos: aba Postagem → Enviar vídeos → "Começo de reel" (o nome diz o que você faz).
 
+==================== ABA CANAIS (YouTube automático) ====================
+Dois canais: NOTÍCIAS (Galo da imprensa + sua voz clonada + máscara; PAUTAS = outras notícias quando quiser: link,
+arquivo do PC ou assunto) e VLOGS (pasta no Drive Meu Drive\DETTO\canal_vlogs\<vlog> → editor de vlog). Os dois fazem
+vídeo longo + Shorts. Uma vez: credencial do Google ("Mande o arquivo aqui") e "Conectar" em cada canal (escolha o
+canal certo no login). "Ligado" = roda sozinho; "Postar sozinho" desligado = espera você assistir e "Aprovar e
+postar" (dá para mudar título, descrição e tags). Passo a passo: tools\canal\LEIA-ME.txt.
+
 ==================== DEU PROBLEMA ====================
 Não abre (conexão recusada): rode  python tools\painel\painel.py  e mande o print do erro.
 Desligar o início automático:  python tools\painel\painel.py --desinstalar

@@ -1,21 +1,54 @@
-CANAL AUTOMÁTICO DO GALO — como ligar (uma vez só)
-(em construção: ainda não foi testado de ponta a ponta no seu PC)
+CANAIS AUTOMÁTICOS DO YOUTUBE — NOTÍCIAS e VLOGS
+(tudo pelo painel, aba CANAIS; os comandos abaixo são o mesmo, sem o painel)
 
-1) GRAVAÇÕES DE MÁSCARA  →  pasta mascara\
-   5 a 10 s cada, o nome diz o clima: rindo.mov, bravo.mov, comemorando.mov, pensativo.mov,
-   concordando.mov, surpreso.mov, falando.mov (pode ter vários: rindo 2.mov).
+=====================================================================
+ 0) UMA VEZ SÓ: a credencial do Google (vale para os dois canais)
+=====================================================================
+ a) console.cloud.google.com → criar projeto "DETTO canais".
+ b) APIs e serviços → Biblioteca → "YouTube Data API v3" → Ativar.
+ c) Tela de consentimento OAuth → Externo → adicione o seu e-mail em "Usuários de teste".
+ d) Credenciais → Criar credenciais → ID do cliente OAuth → tipo "App para computador" → baixar o JSON.
+ e) Painel → Canais → "Mande o arquivo aqui" (ou salve como E:\DETTO\youtube\client_secret.json).
+ f) Em cada canal: botão "Conectar" → no navegador do PC entre na conta do Google e ESCOLHA O CANAL CERTO
+    (o de notícias no card Notícias, o de vlogs no card Vlogs) → Permitir.
+    Sem painel: python tools\canal\canal.py --login   |   python tools\canal\canal_vlog.py --login
+ Enquanto o app do Google está "em teste", o login vale 7 dias; para não expirar, na Tela de consentimento
+ clique em "Publicar app" (não precisa de verificação para uso próprio; aparece um aviso de app não verificado
+ no login — clique em Avançado → continuar).
 
-2) SUA VOZ  →  voz\minha_voz.wav
-   20 a 30 s falando normal, sem música. É a voz que a narração vai imitar.
+=====================================================================
+ 1) CANAL DE NOTÍCIAS (E:\DETTO\canal_galo)
+=====================================================================
+ Notícias do Galo tiradas da imprensa (Jogo Aberto, Band Minas, ESPN, TV Galo) + a sua narração com voz
+ clonada + você de máscara. Vídeo longo (~12 min) + Shorts das melhores notícias.
+ Precisa (uma vez):
+   mascara\   você de máscara, 5–10 s cada, o NOME diz o clima: rindo.mov, bravo.mov, comemorando.mov,
+              pensativo.mov, concordando.mov, surpreso.mov, falando.mov (pode ter vários: rindo 2.mov)
+   voz\minha_voz.wav   20–30 s da sua voz falando normal, sem música (a primeira vez baixa o modelo, ~3 GB)
+ PAUTAS (outras notícias quando quiser): no painel, cole um LINK de vídeo, o caminho de um ARQUIVO do PC ou
+ escreva o ASSUNTO ("Cruzeiro demite o técnico" — ele procura os vídeos no YouTube). Entram no próximo vídeo,
+ antes das do Galo. "Pôr e fazer o vídeo agora" monta na hora. (Arquivo: pautas.txt, uma por linha.)
+ Ajustes: config.json (fontes, nome do canal, duração, vídeos por dia, shorts) — os principais estão no painel.
 
-3) LIGAR O CANAL NOVO NO YOUTUBE
-   a) console.cloud.google.com → criar projeto → "APIs e serviços" → ativar "YouTube Data API v3"
-   b) "Tela de consentimento OAuth": tipo Externo, adicione o seu e-mail como usuário de teste
-   c) "Credenciais" → Criar → "ID do cliente OAuth" → tipo "App para computador" → baixar o JSON
-   d) salvar como client_secret.json nesta pasta
-   e) rodar:  python tools\canal\canal.py --login   → escolher o CANAL NOVO → Permitir
+=====================================================================
+ 2) CANAL DE VLOGS (E:\DETTO\canal_vlogs)
+=====================================================================
+ No Google Drive: Meu Drive\DETTO\canal_vlogs\<nome do vlog>\ com os clipes. Quando a pasta fica 20 min sem
+ arquivo novo (upload terminou), o editor de vlog monta (cor, cortes, transições, textos, efeitos, trilha) +
+ thumb com a sua melhor reação + Shorts dos trechos com mais vida (9:16 com recorte no rosto).
+ Opcional na pasta do vlog: info.txt com  titulo: ...   estilo: ...   duracao: 12
+ Montar de novo: painel → ↻ ao lado do vlog.
 
-4) TESTAR SEM POSTAR:  python tools\canal\canal.py --nao-postar --forcar
-5) LIGAR SOZINHO:      python tools\canal\canal.py --agendar   (a cada 2 h, das 8h às 23h)
+=====================================================================
+ 3) LIGADO e POSTAR SOZINHO (os dois canais)
+=====================================================================
+ Ligado = o painel roda o canal sozinho (notícias a cada 2 h das 8h às 23h; vlogs olham o Drive a cada 10 min).
+ Postar sozinho DESLIGADO = o vídeo fica "esperando você": assista no painel, ajuste título/descrição/tags e
+ clique "Aprovar e postar". Quando gostar das edições, ligue "Postar sozinho" — dá para desligar quando quiser.
+ Postagem: o vídeo vai na hora; cada Short é agendado (um a cada 3 h). O canal de notícias marca "conteúdo
+ alterado/sintético" (voz por IA), como o YouTube pede.
+ Um trabalho pesado por vez: o canal não monta enquanto uma edição roda (e a edição espera o canal).
+ Thumb personalizada: o canal do YouTube precisa estar verificado (telefone) — senão o YouTube escolhe um quadro.
 
-config.json: fontes (canais da imprensa), nome do canal, duração do vídeo, vídeos por dia.
+ Sem o painel: python tools\canal\canal.py [--forcar] [--nao-postar] | --postar "<pasta do pronto>"
+               python tools\canal\canal_vlog.py [--vlog "<pasta de clipes>"] | --postar "<pasta do pronto>"

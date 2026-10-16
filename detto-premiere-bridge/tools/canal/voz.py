@@ -11,6 +11,7 @@ Primeira vez: instala o chatterbox-tts e baixa o modelo (~3 GB).
 import argparse
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
@@ -65,6 +66,13 @@ def main():
         f["arquivo"] = str(out / f"{f['id']}_{h}.wav")
         if not Path(f["arquivo"]).exists():
             falta.append(f)
+    if falta and os.environ.get("DETTO_VOZ_FALSA"):
+        # só para testar a montagem sem baixar o modelo: um tom baixo com o tempo da fala
+        for f in falta:
+            d = max(1.0, len(f["texto"].split()) * 0.36)
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"sine=f=200:d={d:.2f}", "-af", "volume=0.05",
+                            "-ar", "24000", f["arquivo"]], check=True)
+        falta = []
     if falta:
         instala()
         import torch

@@ -109,7 +109,10 @@ def transcreve(video, saida):
         except Exception:
             _MODELO = WhisperModel(os.environ.get("DETTO_WHISPER", "small"), device="cpu", compute_type="int8")
     try:
-        segs, _ = _MODELO.transcribe(str(video), language="pt", word_timestamps=True, vad_filter=True)
+        aud = T.audio_16k(video)
+        if aud is None:
+            raise RuntimeError("sem áudio")
+        segs, _ = _MODELO.transcribe(aud, language="pt", word_timestamps=True, vad_filter=True)
         palavras = [{"w": w.word.strip(), "s": round(w.start, 3), "e": round(w.end, 3)} for seg in segs for w in (seg.words or [])]
     except Exception as e:
         log(f"   (sem fala ou erro na transcrição: {str(e)[:80]})")

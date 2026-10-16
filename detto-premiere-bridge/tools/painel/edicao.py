@@ -508,6 +508,9 @@ def proximo_da_fila():
     return min(fila, key=lambda p: info(p).get("pedido", 0)) if fila else None
 
 
+OCUPADO = lambda: False  # noqa: E731  (o painel troca: um canal montando = a próxima edição espera)
+
+
 def laco(log=print, ao_terminar=None):
     """roda as edições da fila, uma por vez"""
     # o painel foi fechado no meio de uma edição: ela fica "interrompida" (botão Refazer)
@@ -532,7 +535,7 @@ def laco(log=print, ao_terminar=None):
                         except Exception as e:
                             log(f"edição {p.name}: não entrou na fila de postagem ({e})")
                 PROC.update(id=None, p=None)
-            if PROC["p"] is None:
+            if PROC["p"] is None and not OCUPADO():
                 p = proximo_da_fila()
                 if p:
                     prepara_roteiro(p)

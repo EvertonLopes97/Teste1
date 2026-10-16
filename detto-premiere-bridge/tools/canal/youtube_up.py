@@ -40,12 +40,25 @@ def credenciais(pasta, abrir_navegador=False):
     if not cred or not cred.valid:
         if not abrir_navegador:
             raise SystemExit("YouTube sem login: rode  python tools\\canal\\canal.py --login  (uma vez).")
-        segredo = pasta / "client_secret.json"
-        if not segredo.exists():
-            raise SystemExit(f"Falta o {segredo} (credencial 'App para computador' do Google Cloud — veja o LEIA-ME.txt).")
+        segredo = segredo_de(pasta)
+        if not segredo:
+            raise SystemExit(f"Falta o client_secret.json (credencial 'App para computador' do Google Cloud) em {pasta} "
+                             f"ou em {pasta.parent / 'youtube'} — veja o LEIA-ME.txt.")
         cred = InstalledAppFlow.from_client_secrets_file(str(segredo), ESCOPOS).run_local_server(port=0, prompt="consent")
     token.write_text(cred.to_json(), encoding="utf-8")
     return cred
+
+
+def segredo_de(pasta):
+    """a credencial do Google Cloud: na pasta do canal ou a compartilhada (E:\\DETTO\\youtube) — vale para os dois canais"""
+    for f in (Path(pasta) / "client_secret.json", Path(pasta).parent / "youtube" / "client_secret.json"):
+        if f.exists():
+            return f
+    return None
+
+
+def tem_login(pasta):
+    return (Path(pasta) / "token.json").exists()
 
 
 def canal_logado(pasta):
@@ -57,7 +70,7 @@ def canal_logado(pasta):
     return it.get("snippet", {}).get("title", "?"), it.get("id", "?")
 
 
-def posta(pasta, video, titulo, descricao, tags, thumb=None, privacidade="public", publicar_em=None, sintetico=True, log=print):
+def posta(pasta, video, titulo, descricao, tags, thumb=None, privacidade="public", publicar_em=None, sintetico=True, log=print, categoria="17"):
     """sobe o vídeo; devolve o id. publicar_em = ISO 8601 (ex.: 2026-10-16T18:00:00-03:00) agenda a estreia."""
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError
@@ -69,7 +82,7 @@ def posta(pasta, video, titulo, descricao, tags, thumb=None, privacidade="public
               "containsSyntheticMedia": bool(sintetico)}
     if publicar_em:
         status["publishAt"] = publicar_em
-    corpo = {"snippet": {"title": titulo[:100], "description": descricao[:4900], "tags": tags[:30], "categoryId": "17",
+    corpo = {"snippet": {"title": titulo[:100], "description": descricao[:4900], "tags": tags[:30], "categoryId": categoria,
                          "defaultLanguage": "pt-BR", "defaultAudioLanguage": "pt-BR"}, "status": status}
     media = MediaFileUpload(str(video), mimetype="video/mp4", chunksize=8 * 1024 * 1024, resumable=True)
     req = yt.videos().insert(part="snippet,status", body=corpo, media_body=media)

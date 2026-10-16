@@ -27,10 +27,28 @@ def dlls_nvidia():
                     pass
 
 
+def audio_16k(video):
+    """o áudio já em 16 kHz mono pelo FFmpeg (o PyAV novo quebrou o leitor do faster-whisper, e o "áudio espacial"
+    do iPhone não abre): tenta cada faixa de áudio até uma que decodifique. None = deixa o faster-whisper ler."""
+    import subprocess
+
+    import numpy as np
+    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", str(video)],
+                       capture_output=True, text=True)
+    n = len([x for x in (r.stdout or "").split() if x.strip()])
+    for k in range(max(n, 1)):
+        r = subprocess.run(["ffmpeg", "-v", "error", "-i", str(video), "-map", f"0:a:{k}", "-ac", "1", "-ar", "16000", "-f", "f32le", "-"],
+                           capture_output=True)
+        if r.returncode == 0 and len(r.stdout) > 16000 * 4 * 0.5:
+            return np.frombuffer(r.stdout, np.float32).copy()
+    return None
+
+
 def transcrever(video, modelo, device):
     from faster_whisper import WhisperModel
     m = WhisperModel(modelo, device=device, compute_type="int8_float16" if device == "cuda" else "int8")
-    segs, _ = m.transcribe(video, language="pt", word_timestamps=True, vad_filter=True)
+    aud = audio_16k(video)
+    segs, _ = m.transcribe(aud if aud is not None else video, language="pt", word_timestamps=True, vad_filter=True)
     palavras = []
     for seg in segs:  # a transcrição acontece aqui (é preguiçosa)
         for w in seg.words or []:

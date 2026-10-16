@@ -32,6 +32,7 @@ import postar as P  # noqa: E402
 
 sys.path.insert(0, str(AQUI))
 import edicao as EDI  # noqa: E402
+import canais as CAN  # noqa: E402
 
 VIDEO_EXT = P.VIDEO_EXT
 REELS = None  # pasta dos reels (E:\DETTO\reels)
@@ -257,6 +258,7 @@ def estado_painel():
         "pin": bool((c_.get("painel") or {}).get("pin")), "drive": str(EDI.drive_raiz() or ""), "endereco": f"http://{ip_local()}:{PORTA}",
         "pastas": {"postar": str(BASE), "reels": str(REELS), "edicao": str(EDI.ED)},
         "agora": dt.datetime.now().strftime("%d/%m %H:%M"),
+        "canais": CAN.estado(),
     }
 
 
@@ -301,6 +303,8 @@ def rodada_ja():
 
 
 def acao(nome, d):
+    if nome.startswith("canal_"):
+        return CAN.acao(nome, d)
     if nome == "pausar":
         grava_cfg(lambda c: c.__setitem__("pausado", bool(d.get("pausado"))))
         P.log("postagem automática " + ("PAUSADA pelo painel" if d.get("pausado") else "LIGADA pelo painel"))
@@ -396,6 +400,8 @@ def acao(nome, d):
             if "drive" in d:
                 c.setdefault("painel", {})["drive"] = str(d["drive"]).strip()
                 EDI.DRIVE = c["painel"]["drive"] or None
+                if EDI.DRIVE:
+                    os.environ["DETTO_DRIVE"] = str(EDI.DRIVE)
             if "pin" in d:
                 pin = str(d["pin"]).strip()
                 if pin and not re.fullmatch(r"\d{4,8}", pin):
@@ -731,6 +737,8 @@ class Painel(hserver.BaseHTTPRequestHandler):
                 return self._json(estado_painel())
             if u.path == "/arquivo":
                 return self._arquivo(q)
+            if u.path == "/canal_arquivo":
+                return self._manda(CAN.arquivo(q.get("c", ""), q.get("id", ""), q.get("nome", "")), baixar=q.get("baixar") == "1")
             if u.path == "/ed_arquivo":
                 return self._manda(EDI.arquivo(q.get("id", ""), q.get("rel", "")), baixar=q.get("baixar") == "1")
             self._json({"erro": "não achei"}, 404)
@@ -950,7 +958,12 @@ def main():
     if not a.sem_postar:
         threading.Thread(target=laco_postagem, daemon=True).start()
         threading.Thread(target=laco_links, daemon=True).start()
+    EDI.OCUPADO = CAN.ocupado  # a edição espera o canal terminar de montar (e o canal espera a edição)
+    if EDI.DRIVE:
+        os.environ["DETTO_DRIVE"] = str(EDI.DRIVE)
     threading.Thread(target=EDI.laco, kwargs={"log": P.log, "ao_terminar": edicao_pronta}, daemon=True).start()
+    threading.Thread(target=CAN.laco, kwargs={"log": P.log, "edicao_ocupada": lambda: bool(EDI.PROC["p"] and EDI.PROC["p"].poll() is None)},
+                     daemon=True).start()
     print(f"PAINEL DETTO no ar:\n  no PC:      http://localhost:{PORTA}\n"
           f"  no celular: http://{ip_local()}:{PORTA}  (mesmo Wi-Fi; crie o PIN no painel)\n"
           f"  pastas: {BASE}  |  {REELS}\nFeche esta janela para desligar.")

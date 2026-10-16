@@ -67,6 +67,10 @@ CONFIG_PADRAO = {
     "voz_ref": "voz/minha_voz.wav",
     "exagero_voz": 0.6,
     "cor": "#FFD400",
+    "auto_postar": False,  # False = monta e espera você aprovar no painel (aba Canais); True = posta sozinho
+    "shorts": 2,  # Shorts (9:16) por vídeo: as melhores notícias, cada uma com a sua fala antes
+    "horas_entre_shorts": 3,
+    "short_max_s": 55,
 }
 
 
@@ -143,19 +147,25 @@ def linhas_tempo(words, passo=8.0):
     return "\n".join(out)
 
 
-def acha_trechos(words, info, cfg):
-    """trechos que falam do time: Gemini (começo/fim certos, manchete, clima); sem chave: janelas pela palavra"""
+def acha_trechos(words, info, cfg, assunto=None):
+    """trechos que falam do time (ou do ASSUNTO de uma pauta sua): Gemini (começo/fim certos, manchete, clima);
+    sem chave: janelas pela palavra (pauta sem chave: o começo do vídeo)"""
     _, _, t = apelidos(cfg)
+    alvo = (f"em que falam de: {assunto}" if assunto and assunto != "*" else "com a notícia/assunto principal deste vídeo") if assunto \
+        else f"em que falam do {t.get('nome', cfg['time'])} (o Galo): análise, elogio, crítica, polêmica, notícia, entrevista"
     g = gemini_json([{"text": f"""Transcrição (segundos entre colchetes) de "{info['titulo']}" ({info['fonte']}).
-Marque os trechos em que falam do {t.get('nome', cfg['time'])} (o Galo): análise, elogio, crítica, polêmica, notícia, entrevista.
+Marque os trechos {alvo}.
 Cada trecho deve ter começo e fim NATURAIS (frase completa, sem cortar no meio), entre 20 e 150 segundos.
-Ignore trechos sobre outros times. Responda SÓ JSON:
+{"Ignore o resto." if assunto else "Ignore trechos sobre outros times."} Responda SÓ JSON:
 {{"trechos": [{{"ini": <s>, "fim": <s>, "manchete": "<MANCHETE CURTA EM MAIÚSCULAS, até 60 letras>", "resumo": "<1 frase>",
  "clima": "<um de: {', '.join(CLIMAS)}>", "nota": <1 a 10, o quanto prende o torcedor>}}]}}
 
 {linhas_tempo(words)[:60000]}"""}])
     trechos = (g or {}).get("trechos") or []
-    if not trechos and not os.environ.get("GEMINI_API_KEY"):
+    if not trechos and assunto and not os.environ.get("GEMINI_API_KEY") and words:
+        fim = min(words[-1]["e"], 90.0)
+        trechos = [{"ini": words[0]["s"], "fim": fim, "manchete": info["titulo"][:60].upper(), "resumo": "", "clima": "falando", "nota": 8}]
+    elif not trechos and not os.environ.get("GEMINI_API_KEY"):
         aps, _, _ = apelidos(cfg)
         hits = [w["s"] for w in words if any(norm(w["w"]) == a for a in aps)]
         janelas = []
@@ -180,7 +190,8 @@ Ignore trechos sobre outros times. Responda SÓ JSON:
 def roteiro(sel, cfg):
     lista = "\n".join(f"{i + 1}. [{x['fonte']}] {x['manchete']} — {x.get('resumo', '')} (clima: {x['clima']})" for i, x in enumerate(sel))
     g = gemini_json([{"text": f"""Você narra o canal "{cfg['nome_canal']}", de notícias do Atlético-MG (o Galo), como um torcedor apaixonado
-e engraçado de BH (gírias leves, "Massa", "Galo doido"), opinando sobre o que a imprensa falou. Os trechos, em ordem:
+e engraçado de BH (gírias leves, "Massa", "Galo doido"), opinando sobre o que a imprensa falou (alguns trechos podem ser de OUTROS assuntos do futebol que você escolheu
+comentar: fale deles com o mesmo jeito, sempre como torcedor do Galo). Os trechos, em ordem:
 {lista}
 
 Escreva a narração que liga os trechos. Responda SÓ JSON:
@@ -262,7 +273,13 @@ def mascara_de(clima, pasta):
     if not vs:
         return None
     certas = [p for p in vs if clima in norm(p.stem)]
-    return random.choice(certas or [p for p in vs if "falando" in norm(p.stem)] or vs)
+    esc = random.choice(certas or [p for p in vs if "falando" in norm(p.stem)] or vs)
+    try:  # iPhone em HDR: converte UMA vez (o tone mapping a cada peça deixava a montagem lenta)
+        from sdr import master_sdr
+
+        return master_sdr(esc, saida=pasta / "mascara" / "sdr" / f"{esc.stem}.mp4", log=log)
+    except Exception:
+        return esc
 
 
 def cobre(w, h):
@@ -425,6 +442,185 @@ def thumb(video, rot, cfg, pasta_saida):
         return None
 
 
+# ------------------------------------------------------------------ pautas suas (outras notícias quando quiser)
+def le_pautas(pasta):
+    """pautas.txt: uma por linha — um LINK (vídeo da notícia), um ARQUIVO do PC ou um ASSUNTO ("Cruzeiro demite técnico").
+    Entram no próximo vídeo, na frente das notícias do Galo."""
+    f = pasta / "pautas.txt"
+    if not f.exists():
+        f.write_text("# uma pauta por linha: link de um vídeo da notícia OU o assunto (ex.: Cruzeiro demite o técnico)\n", encoding="utf-8")
+        return []
+    return list(dict.fromkeys(l.strip() for l in f.read_text(encoding="utf-8").splitlines() if l.strip() and not l.strip().startswith("#")))
+
+
+def tira_pauta(pasta, linha, ok):
+    f = pasta / "pautas.txt"
+    linhas = [l for l in f.read_text(encoding="utf-8").splitlines() if l.strip() != linha]
+    f.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+    with open(pasta / "pautas_feitas.txt", "a", encoding="utf-8") as g:
+        g.write(f"{dt.date.today()} {'ok' if ok else 'NÃO ACHEI'} {linha}\n")
+
+
+def busca_pauta(assunto, cfg, quantos=2):
+    """vídeos recentes no YouTube sobre o assunto (os mais relevantes, até max_min_fonte)"""
+    r = ytdlp(["--flat-playlist", "--dump-json", f"ytsearch10:{assunto}"])
+    out = []
+    for linha in (r.stdout or "").splitlines():
+        try:
+            v = json.loads(linha)
+        except ValueError:
+            continue
+        durm = (v.get("duration") or 0) / 60
+        if not v.get("id") or durm < 0.5 or durm > cfg["max_min_fonte"] or v.get("live_status") in ("is_live", "is_upcoming"):
+            continue
+        out.append({"id": v["id"], "url": f"https://www.youtube.com/watch?v={v['id']}", "titulo": v.get("title", ""),
+                    "fonte": v.get("channel") or v.get("uploader") or "YouTube", "canal": v.get("channel_url", "").split("/")[-1] if v.get("channel_url") else "",
+                    "dur": v.get("duration") or 0})
+        if len(out) >= quantos:
+            break
+    return out
+
+
+def pautas(pasta, cfg, hist, log=log):
+    """processa as pautas do pautas.txt → trechos marcados como pauta (entram primeiro)"""
+    hoje = dt.date.today().isoformat()
+    n = 0
+    for linha in le_pautas(pasta):
+        arquivo = Path(linha.strip('"')) if not linha.startswith("http") and Path(linha.strip('"')).is_file() else None
+        link = linha.startswith("http") or arquivo is not None
+        vids = [{"id": "pauta_" + hashlib.sha1(linha.encode()).hexdigest()[:10], "url": linha, "titulo": linha, "fonte": "", "canal": "",
+                 **({"arquivo": arquivo} if arquivo else {})}] if link else busca_pauta(linha, cfg)
+        achou = 0
+        for v in vids:
+            log(f"\npauta: {v['titulo'][:80]}")
+            arq, info = (v["arquivo"], {"title": v["arquivo"].stem, "channel": "arquivo seu"}) if v.get("arquivo") else baixa(v["url"], pasta / "fontes")
+            if not arq:
+                log(f"   não baixou: {info}")
+                continue
+            if link:
+                v.update(titulo=info.get("title") or linha, fonte=info.get("channel") or info.get("uploader") or "vídeo",
+                         canal=(info.get("channel_url") or "").split("/")[-1])
+            words = transcreve(arq)
+            tr = acha_trechos(words, v, cfg, assunto="*" if link else linha)
+            log(f"   {len(tr)} trecho(s) da pauta")
+            for x in tr:
+                hist["trechos"].append({**x, "nota": max(9.0, float(x.get("nota", 8))), "pauta": linha, "video": v["id"], "arquivo": str(arq),
+                                        "fonte": v["fonte"], "canal": v.get("canal", ""), "data": hoje, "usado": False})
+            achou += len(tr)
+        tira_pauta(pasta, linha, achou > 0)
+        n += achou
+        grava_json(pasta / "historico.json", hist)
+    return n
+
+
+# ------------------------------------------------------------------ Shorts (9:16)
+VW, VH = 1080, 1920
+
+
+def cabeca_v(cfg, texto, saida):
+    """moldura do Short: nome do canal + manchete em cima (transparente)"""
+    from PIL import Image, ImageDraw
+
+    img = Image.new("RGBA", (VW, VH), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.rectangle([0, 0, VW, 150], fill="#000000")
+    d.text((VW // 2, 75), cfg["nome_canal"], font=fonte_pil(70), fill=cfg["cor"], anchor="mm")
+    linhas, atual, f = [], "", fonte_pil(80)
+    for w in texto.upper().split():
+        t = (atual + " " + w).strip()
+        if d.textlength(t, font=f) > VW - 100 and atual:
+            linhas.append(atual)
+            atual = w
+        else:
+            atual = t
+    linhas.append(atual)
+    y = 230
+    for l in linhas[:3]:
+        d.text((VW // 2, y), l, font=f, fill="#ffffff", anchor="mt", stroke_width=5, stroke_fill="#000000")
+        y += 95
+    img.save(saida)
+    return saida
+
+
+def legendas_v(texto, dur_audio, pasta, idx, cor):
+    from PIL import Image, ImageDraw
+
+    ws = texto.split()
+    pedacos = [" ".join(ws[i:i + 4]) for i in range(0, len(ws), 4)] or [""]
+    tot = sum(len(p) for p in pedacos) or 1
+    out, t = [], 0.0
+    for k, p in enumerate(pedacos):
+        dd = dur_audio * len(p) / tot
+        img = Image.new("RGBA", (VW, VH), (0, 0, 0, 0))
+        ImageDraw.Draw(img).text((VW // 2, 1560), p.upper(), font=fonte_pil(84), fill=cor, anchor="mm", stroke_width=6, stroke_fill="#000000")
+        f = pasta / f"legv_{idx}_{k}.png"
+        img.save(f)
+        out.append((f, t, t + dd))
+        t += dd
+    return out
+
+
+def short(cfg, pasta, fala, trecho, tmp, idx, saida):
+    """Short = a sua fala (você de máscara grande + legenda) → a notícia (vídeo da imprensa no meio, fundo desfocado,
+    você pequeno embaixo). Manchete em cima o tempo todo."""
+    cab = cabeca_v(cfg, trecho["manchete"], tmp / f"cabv_{idx}.png")
+    pecas = []
+    if fala and fala.get("arquivo") and Path(fala["arquivo"]).exists():
+        da = dur(fala["arquivo"]) + 0.2
+        masc = mascara_de(fala.get("clima", "falando"), pasta)
+        legs = legendas_v(fala["texto"], da - 0.2, tmp, idx, cfg["cor"])
+        ins = ["-i", str(fala["arquivo"])]
+        if masc:
+            ins += ["-stream_loop", "-1", "-i", str(masc)]
+            f = f"[1:v]{cor_sdr(masc)}split[m1][m2];[m1]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,boxblur=8:2,scale={VW}:{VH},eq=brightness=-0.15[bg];[m2]{cobre(1000, 1000)}[fg];[bg][fg]overlay=40:470[b0];"
+        else:
+            ins += ["-f", "lavfi", "-i", f"color=c=0x111111:s={VW}x{VH}:r={FPS}"]
+            f = "[1:v]null[b0];"
+        ins += ["-loop", "1", "-i", str(cab)]
+        f += "[b0][2:v]overlay=0:0[b1];"
+        ult = "b1"
+        for k, (png, a, b) in enumerate(legs):
+            ins += ["-loop", "1", "-i", str(png)]
+            f += f"[{ult}][{3 + k}:v]overlay=0:0:enable='between(t,{a:.2f},{b:.2f})'[c{k}];"
+            ult = f"c{k}"
+        f += f"[{ult}]fps={FPS},format=yuv420p[vo];[0:a]atempo=1.05,loudnorm=I=-16:TP=-1.5,aresample=48000,apad=pad_dur=0.3[ao]"
+        p = tmp / f"sv_{idx}_a.mp4"
+        r = subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", f, "-map", "[vo]", "-map", "[ao]", "-t", f"{da / 1.05 + 0.3:.2f}",
+                            *enc(), str(p)])
+        if r.returncode == 0:
+            pecas.append(p)
+    ini = trecho["ini"]
+    fim = min(trecho["fim"], ini + float(cfg.get("short_max_s", 55)) - sum(dur(x) for x in pecas))
+    if fim - ini < 8:
+        fim = min(trecho["fim"], ini + 15)
+    clip = trecho["arquivo"]
+    masc = mascara_de(trecho.get("clima", "falando"), pasta)
+    ins = ["-ss", f"{ini:.2f}", "-t", f"{fim - ini:.2f}", "-i", str(clip), "-loop", "1", "-i", str(cab)]
+    f = (f"[0:v]{cor_sdr(clip)}split[v1][v2];[v1]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,boxblur=8:2,scale={VW}:{VH},eq=brightness=-0.25[bg];"
+         f"[v2]scale={VW}:-2[fg];[bg][fg]overlay=0:(H-h)/2-60[b0];")
+    if masc:
+        ins += ["-stream_loop", "-1", "-i", str(masc)]
+        f += f"[2:v]{cor_sdr(masc)}{cobre(380, 380)}[m];[b0][m]overlay=(W-w)/2:1330[b1];"
+    else:
+        f += "[b0]null[b1];"
+    f += f"[b1][1:v]overlay=0:0,fps={FPS},format=yuv420p[vo]"
+    ac = audio_bom(clip)
+    af = ["-map", f"0:a:{ac}", "-af", "loudnorm=I=-16:TP=-1.5,aresample=48000"] if ac is not None else []
+    p = tmp / f"sv_{idx}_b.mp4"
+    r = subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", f, "-map", "[vo]", *af, "-t", f"{fim - ini:.2f}", *enc(), str(p)])
+    if r.returncode == 0:
+        pecas.append(p)
+    if not pecas:
+        return None
+    lista = tmp / f"sv_{idx}.txt"
+    lista.write_text("".join(f"file '{x.as_posix()}'\n" for x in pecas), encoding="utf-8")
+    bruto = tmp / f"sv_{idx}_bruto.mp4"
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lista), "-c", "copy", str(bruto)], check=True)
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(bruto), "-c:v", "copy", "-af", "loudnorm=I=-14:TP=-1", "-c:a", "aac", "-b:a", "192k",
+                    "-movflags", "+faststart", str(saida)], check=True)
+    return saida
+
+
 # ------------------------------------------------------------------ principal
 def pasta_padrao():
     if os.name == "nt" and Path("E:/").exists():
@@ -462,13 +658,19 @@ def main():
     ap = argparse.ArgumentParser(description="canal automático do Galo")
     ap.add_argument("--pasta", default=str(pasta_padrao()))
     ap.add_argument("--login", action="store_true")
+    ap.add_argument("--preparar", action="store_true", help="só cria as pastas e o config.json")
     ap.add_argument("--agendar", action="store_true")
     ap.add_argument("--nao-postar", action="store_true", help="monta e deixa em prontos\\ (não sobe)")
     ap.add_argument("--forcar", action="store_true", help="monta agora mesmo com poucos trechos / fora do intervalo")
     ap.add_argument("--video", action="append", default=[], help="(teste) arquivo local da imprensa em vez de buscar; pode repetir")
+    ap.add_argument("--postar", metavar="PASTA_DO_PRONTO", help="posta um vídeo pronto que estava esperando aprovação")
+    ap.add_argument("--sem-coleta", action="store_true", help="não busca vídeos novos da imprensa (só pautas / o que já tem)")
     a = ap.parse_args()
     pasta = Path(a.pasta)
     cfg = prepara(pasta)
+    le_pautas(pasta)
+    if a.preparar:
+        return
     if a.agendar:
         return agendar(pasta)
     sys.path.insert(0, str(AQUI))
@@ -479,12 +681,22 @@ def main():
         nome, cid = youtube_up.canal_logado(pasta)
         print(f"Ligado ao canal: {nome} ({cid}). Pronto: o sistema posta sozinho nesse canal.")
         return
+    import comum
+
+    if a.postar:
+        comum.publica(pasta, Path(a.postar), cfg, log=log)
+        return
     hist = le_json(pasta / "historico.json", {"vistos": {}, "trechos": [], "postados": []})
     hoje = dt.date.today().isoformat()
 
     # 1-2) coleta → baixa → transcreve → trechos
-    novos = [{"id": "local_" + hashlib.sha1(v.encode()).hexdigest()[:8], "arquivo": v, "titulo": Path(v).stem, "fonte": "teste", "canal": ""} for v in a.video] if a.video else coleta(cfg, hist)
+    novos = [{"id": "local_" + hashlib.sha1(v.encode()).hexdigest()[:8], "arquivo": v, "titulo": Path(v).stem, "fonte": "teste", "canal": ""} for v in a.video] \
+        if a.video else ([] if a.sem_coleta else coleta(cfg, hist))
     grava_json(pasta / "historico.json", hist)
+    try:
+        pautas(pasta, cfg, hist)
+    except Exception as e:
+        log(f"pautas: {e}")
     for v in novos:
         if not v.get("arquivo"):
             log(f"\nbaixando: {v['titulo']} ({v['fonte']})")
@@ -503,11 +715,16 @@ def main():
 
     # 3) hora de montar?
     recentes = [x for x in hist["trechos"] if not x["usado"] and Path(x["arquivo"]).exists()
-                and (dt.date.today() - dt.date.fromisoformat(x["data"])).days <= 2]
+                and (dt.date.today() - dt.date.fromisoformat(x["data"])).days <= (5 if x.get("pauta") else 2)]
+    tem_pauta = any(x.get("pauta") for x in recentes)
+    esperando = [d for _, d in comum.prontos(pasta) if d.get("status") == "aguardando"]
     postados_hoje = [p for p in hist["postados"] if p["data"] == hoje]
     ultimo = max((dt.datetime.fromisoformat(p["quando"]) for p in hist["postados"]), default=None)
     if not a.forcar:
-        if len(recentes) < cfg["min_trechos"]:
+        if len(esperando) >= 2:
+            log(f"{len(esperando)} vídeos esperando você aprovar no painel (aba Canais); não monto mais até lá")
+            return
+        if len(recentes) < cfg["min_trechos"] and not tem_pauta:
             log(f"ainda poucos trechos ({len(recentes)}/{cfg['min_trechos']}); espera a próxima rodada")
             return
         if len(postados_hoje) >= cfg["max_videos_dia"]:
@@ -522,7 +739,7 @@ def main():
     # os melhores (nota) até o tamanho do vídeo, sem repetir muito a mesma fonte seguida
     alvo = cfg["duracao_alvo_min"] * 60
     sel, tot = [], 0.0
-    for x in sorted(recentes, key=lambda x: (-float(x.get("nota", 5)), x["data"])):
+    for x in sorted(recentes, key=lambda x: (not x.get("pauta"), -float(x.get("nota", 5)), x["data"])):
         if tot >= alvo:
             break
         sel.append(x)
@@ -542,16 +759,28 @@ def main():
     descricao = (f"{rot.get('descricao', '')}\n\n{hashtags}\n\nCréditos das imagens:\n"
                  + "\n".join(f"• {c}" for c in creditos) + "\n\nNarração com voz gerada por inteligência artificial.")
     (pronto / "post.txt").write_text(f"{rot['titulo']}\n\n{descricao}\n\nTags: {', '.join(tags)}\n", encoding="utf-8")
+    # Shorts: as melhores notícias (pautas primeiro), cada uma com a sua fala antes
+    falas = le_json(tmp / "falas.json", [])
+    fala_antes = {f["antes"]: f for f in falas if "antes" in f}
+    ordem = sorted(range(len(sel)), key=lambda i: (not sel[i].get("pauta"), -float(sel[i].get("nota", 5))))
+    shorts = []
+    for n, i in enumerate(ordem[: int(cfg.get("shorts", 0))]):
+        log(f"   short {n + 1}: {sel[i]['manchete']}")
+        sv = short(cfg, pasta, fala_antes.get(i), sel[i], tmp, n, pronto / f"short_{n + 1}.mp4")
+        if sv:
+            shorts.append({"arquivo": sv.name, "titulo": sel[i]["manchete"].title(), "descricao": sel[i].get("resumo", "")})
     for x in sel:
         x["usado"] = True
+    post = {"titulo": rot["titulo"], "descricao": descricao, "tags": tags, "video": "video.mp4", "thumb": th.name if th else "",
+            "shorts": shorts, "status": "aguardando", "criado": dt.datetime.now().isoformat(timespec="seconds"),
+            "trechos": [{"fonte": x["fonte"], "manchete": x["manchete"], "pauta": x.get("pauta", "")} for x in sel]}
+    comum.grava(pronto / "post.json", post)
     reg = {"data": hoje, "quando": dt.datetime.now().isoformat(timespec="seconds"), "titulo": rot["titulo"], "pasta": str(pronto)}
-    if a.nao_postar:
-        log(f"pronto (sem postar): {pronto}")
+    if a.nao_postar or not cfg.get("auto_postar"):
+        log(f"PRONTO, esperando você aprovar (painel → Canais): {pronto}")
     else:
-        log("postando no YouTube...")
-        vid = youtube_up.posta(pasta, video, rot["titulo"], descricao, tags, th, cfg["privacidade"], log=log)
-        reg["youtube"] = f"https://youtu.be/{vid}"
-        log(f"POSTADO: {reg['youtube']}")
+        post = comum.publica(pasta, pronto, cfg, log=log)
+        reg["youtube"] = post.get("youtube")
     hist["postados"].append(reg)
     grava_json(pasta / "historico.json", hist)
     # fontes já usadas por inteiro saem do disco (disco cheio)

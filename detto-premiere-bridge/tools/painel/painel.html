@@ -151,6 +151,19 @@ section.aba.on{display:block}
   .vid .acoes .mini{min-width:40px;padding:7px 10px}
   header{gap:8px}
 }
+.st.aguardando{color:var(--amar);border-color:#5a4a12}
+.st.postando,.st.montando{color:#101400;background:var(--lima);border-color:var(--lima)}
+.st.postado{color:var(--lima);border-color:var(--lima2)}
+.st.descartado{color:var(--mut)}
+.can .topo{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.can .titulo{font-weight:800;font-size:18px;flex:1}
+.can .chave{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--card2);border-radius:10px;padding:8px 10px;margin-top:8px}
+.can .chave small{color:var(--mut);display:block;font-size:12px}
+.pr{background:var(--card2);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+.pr .t{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.pr .t b{font-size:14px;overflow:hidden;text-overflow:ellipsis}
+.pr img{width:120px;border-radius:6px;flex:none}
+@media (max-width:820px){ .pr img{width:90px} }
 </style>
 </head>
 <body>
@@ -165,6 +178,7 @@ section.aba.on{display:block}
     <button data-aba="postagem">Postagem</button>
     <button data-aba="edicao">Edição<span class="bolha" id="bEd" style="display:none"></span></button>
     <button data-aba="reels">Reels automáticos</button>
+    <button data-aba="canais">Canais<span class="bolha" id="bCan" style="display:none"></span></button>
     <button data-aba="config">Configurações</button>
   </nav>
 </header>
@@ -309,6 +323,12 @@ section.aba.on{display:block}
 
   </section>
 
+  <section class="aba" id="aba-canais">
+  <h2>Canais automáticos do YouTube</h2>
+  <div id="canSetup"></div>
+  <div class="duas" id="canCards"></div>
+  </section>
+
   <section class="aba" id="aba-config">
   <h2>Configurações</h2>
   <div class="card">
@@ -429,7 +449,7 @@ function desenha(){
   // mantém aberto o que você abriu (o painel se redesenha a cada 8 s)
   const abertos = {}; document.querySelectorAll("details[data-d]").forEach(d => abertos[d.dataset.d] = d.open);
   const rolagem = [...document.querySelectorAll(".fila")].map(f => f.scrollTop);
-  avisos(); destinos(); contas(); reels(); configs(); edicao();
+  avisos(); destinos(); contas(); reels(); configs(); edicao(); canais();
   document.querySelectorAll("details[data-d]").forEach(d => { if(d.dataset.d in abertos) d.open = abertos[d.dataset.d]; });
   document.querySelectorAll(".fila").forEach((f, i) => f.scrollTop = rolagem[i] || 0);
   const lg = $("#log"), fim = lg.scrollTop + lg.clientHeight >= lg.scrollHeight - 10;
@@ -706,6 +726,118 @@ $("#btLinkJa").onclick = async () => {
 $("#btReels").onclick = async () => { await api("reels_gerar", {quantos: +$("#quantos").value}); toast("Começou — pode demorar alguns minutos por reel"); carrega(true); };
 $("#btReelsParar").onclick = async () => { await api("reels_parar"); carrega(true); };
 
+
+/* ------------------------------------------------------------ canais */
+const ST_CAN = {aguardando: "esperando você", na_fila: "na fila p/ postar", postando: "postando", postado: "postado", erro: "erro", descartado: "descartado", montando: "montando"};
+function canais(){
+  const C = E.canais; if(!C) return;
+  const esperando = C.noticias.esperando + C.vlogs.esperando;
+  $("#bCan").style.display = esperando ? "" : "none"; $("#bCan").textContent = esperando;
+  $("#canSetup").innerHTML = C.segredo ? "" : `<div class="card" style="margin-bottom:14px">
+    <b>Passo 1 (uma vez, vale para os dois canais): a credencial do Google</b>
+    <ol class="info" style="padding-left:18px;line-height:1.6">
+      <li><a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">console.cloud.google.com</a> → criar projeto “DETTO canais”.</li>
+      <li>APIs e serviços → Biblioteca → <b>YouTube Data API v3</b> → Ativar.</li>
+      <li>Tela de consentimento OAuth → Externo → seu e-mail como <b>usuário de teste</b>.</li>
+      <li>Credenciais → Criar → ID do cliente OAuth → <b>App para computador</b> → baixar o JSON.</li>
+      <li>Mande o arquivo aqui: <input type="file" id="canSeg" accept=".json,application/json" style="width:auto"></li>
+    </ol></div>`;
+  const s = $("#canSeg"); if(s) s.onchange = async () => { const t = await s.files[0].text(); await api("canal_segredo", {texto: t}); toast("Credencial salva"); carrega(true); };
+  const box = $("#canCards"), k = JSON.stringify(C);
+  if(box.dataset.k === k) return; box.dataset.k = k;
+  const abertos = {}; box.querySelectorAll("details[data-d]").forEach(d => abertos[d.dataset.d] = d.open);
+  box.innerHTML = ["noticias", "vlogs"].map(c => cardCanal(c, C[c])).join("");
+  box.querySelectorAll("details[data-d]").forEach(d => { if(d.dataset.d in abertos) d.open = abertos[d.dataset.d]; });
+}
+function sw(c, campo, on){ return `<label class="sw"><input type="checkbox" ${on ? "checked" : ""} onchange="canCfg('${c}',{${campo}:this.checked})"><span></span></label>`; }
+function cardCanal(c, x){
+  const login = x.login ? `<span class="login">✔ ${esc(x.canal_yt || "YouTube conectado")}</span> <button class="mini" onclick="canLogin('${c}')">Trocar</button>`
+                        : `<span class="login off">✖ YouTube não conectado</span> <button class="mini pri" onclick="canLogin('${c}')" ${E.canais.segredo ? "" : "disabled"}>Conectar</button>`;
+  let esp = "";
+  if(c === "noticias"){
+    esp = `<div class="chave" style="display:block"><b>Pautas</b> <small>Outras notícias quando quiser: cole o LINK de um vídeo, o caminho de um arquivo do PC ou escreva o ASSUNTO (um por linha). Entram no próximo vídeo, antes das do Galo.</small>
+      <textarea id="pauta_${c}" rows="3" placeholder="https://youtube.com/watch?v=…&#10;Cruzeiro demite o técnico"></textarea>
+      <div class="linha"><button class="pri" onclick="canPauta('${c}',false)">Pôr nas pautas</button><button onclick="canPauta('${c}',true)" ${x.rodando ? "disabled" : ""}>Pôr e fazer o vídeo agora</button></div>
+      ${x.pautas.length ? `<div class="lista">${x.pautas.map((l, i) => `<div class="l"><span>${esc(l)}</span><button class="mini" onclick="canTiraPauta('${c}',${i})">✕</button></div>`).join("")}</div>` : ""}
+      ${x.feitas.length ? `<details data-d="pf"><summary>Pautas já feitas</summary><div class="lista">${x.feitas.map(l => `<div class="l"><span>${esc(l)}</span></div>`).join("")}</div></details>` : ""}</div>
+    <details data-d="cfg-${c}"><summary>Ajustes do canal de notícias</summary><div class="campos" style="margin-top:8px">
+      <div><label>Nome do canal (na tela)</label><input type="text" value="${esc(x.nome_canal)}" onchange="canCfg('${c}',{nome_canal:this.value})"></div>
+      <div><label>Duração do vídeo (min)</label><input type="number" min="3" value="${x.duracao}" onchange="canCfg('${c}',{duracao_alvo_min:this.value})"></div>
+      <div><label>Vídeos por dia (máx.)</label><input type="number" min="1" value="${x.max_dia}" onchange="canCfg('${c}',{max_videos_dia:this.value})"></div>
+      <div><label>Shorts por vídeo</label><input type="number" min="0" max="5" value="${x.shorts}" onchange="canCfg('${c}',{shorts:this.value})"></div></div>
+      <div class="info">Máscara: ${x.mascaras.length ? x.mascaras.length + " gravações" : "<b style='color:var(--amar)'>nenhuma gravação</b>"} · Voz: ${x.voz ? "✔ minha_voz.wav" : "<b style='color:var(--amar)'>falta voz\\minha_voz.wav</b>"}
+      <div class="linha"><button class="mini" onclick="canAbrir('${c}','mascara')">Abrir pasta da máscara</button><button class="mini" onclick="canAbrir('${c}','voz')">Abrir pasta da voz</button></div></div></details>`;
+  } else {
+    esp = `<div class="chave" style="display:block"><b>Pasta no Drive</b> <small>Uma pasta por vlog, com os clipes dentro. Quando a pasta fica ${20} min sem arquivo novo, o vlog é montado.</small>
+      <div class="info">${x.drive ? "📁 " + esc(x.drive) : "<b style='color:var(--amar)'>Drive não encontrado</b> — Configurações → pasta do Google Drive"}</div>
+      ${x.pastas_drive.length ? `<div class="lista">${x.pastas_drive.map(pd => `<div class="l"><span>${esc(pd.nome)} · ${pd.clipes} clipes</span><span>${esc({novo: "novo", montando: "montando…", pronto: "feito", erro: "erro"}[pd.status] || pd.status)}
+        ${pd.status === "pronto" || pd.status === "erro" ? ` <button class="mini" title="Montar de novo" onclick="canRefazVlog('${c}','${esc(pd.nome).replace(/'/g, "\\'")}')">↻</button>` : ""}</span></div>`).join("")}</div>` : `<div class="info">Nenhuma pasta de vlog ainda.</div>`}</div>
+    <details data-d="cfg-${c}"><summary>Ajustes do canal de vlogs</summary><div class="campos" style="margin-top:8px">
+      <div style="grid-column:1/-1"><label>Estilo da edição</label><input type="text" value="${esc(x.estilo)}" onchange="canCfg('${c}',{estilo:this.value})"></div>
+      <div><label>Duração (min)</label><input type="number" min="3" value="${x.duracao}" onchange="canCfg('${c}',{duracao:this.value})"></div>
+      <div><label>Shorts por vlog</label><input type="number" min="0" max="5" value="${x.shorts}" onchange="canCfg('${c}',{shorts:this.value})"></div>
+      <div style="grid-column:1/-1"><label>Outra pasta do Drive (vazio = Meu Drive\\DETTO\\canal_vlogs)</label><input type="text" value="${esc(x.drive_cfg)}" onchange="canCfg('${c}',{drive:this.value})"></div></div></details>`;
+  }
+  const prs = x.prontos.map((p, i) => {
+    const q = n => "/canal_arquivo?" + new URLSearchParams({c, id: p.id, nome: n});
+    return `<div class="pr"><div class="t">${p.thumb ? `<img src="${q(p.thumb)}" alt="">` : ""}<div style="flex:1;min-width:0"><b>${esc(p.titulo)}</b><div class="info" style="margin:2px 0">${esc(p.criado)} ${p.shorts.length ? "· " + p.shorts.length + " shorts" : ""}</div></div>
+      <span class="st ${esc(p.status)}">${esc(ST_CAN[p.status] || p.status)}</span></div>
+      ${p.erro ? `<div class="info erro">⚠ ${esc(p.erro)}</div>` : ""}
+      <div class="linha" style="margin-top:0">
+        ${p.video ? `<button class="mini" onclick="canVer('${c}',${i},'${esc(p.video)}')">▶ Vídeo</button>` : ""}
+        ${p.shorts.map((sv, si) => `<button class="mini" onclick="canVer('${c}',${i},'${esc(sv)}')">▶ Short ${si + 1}</button>`).join("")}
+        ${p.video ? `<a class="mini" href="${q(p.video) + "&baixar=1"}" style="text-decoration:none"><button class="mini">⬇</button></a>` : ""}
+        ${["aguardando", "erro"].includes(p.status) && p.video ? `<button class="mini pri" onclick="canAprova('${c}',${i})">${p.status === "erro" ? "Tentar de novo" : "Aprovar e postar"}</button>` : ""}
+        ${["aguardando", "erro"].includes(p.status) ? `<button class="mini perigo" onclick="canDescarta('${c}',${i})">Descartar</button>` : ""}
+        ${p.youtube ? `<a href="${esc(p.youtube)}" target="_blank" rel="noopener">YouTube</a>` : ""}
+        ${p.shorts_youtube.map((u, si) => `<a href="${esc(u)}" target="_blank" rel="noopener">short ${si + 1}</a>`).join(" ")}
+      </div></div>`; }).join("");
+  return `<div class="card can">
+    <div class="topo"><span class="titulo">${esc(x.nome)}</span>${x.rodando ? `<span class="st montando">montando…</span><button class="mini" onclick="canParar('${c}')">Parar</button>` : `<button class="mini" onclick="canRodar('${c}')">Rodar agora</button>`}</div>
+    <div class="linha">${login}</div>
+    <div class="chave"><span><b>Ligado</b><small>${c === "noticias" ? "Monta sozinho a cada 2 h (8h às 23h), com as notícias do dia e as suas pautas" : "Olha a pasta do Drive a cada 10 min e monta os vlogs novos"}</small></span>${sw(c, "ligado", x.ligado)}</div>
+    <div class="chave"><span><b>Postar sozinho</b><small>${x.auto_postar ? "Posta assim que fica pronto (vídeo + Shorts a cada 3 h)" : "Desligado: espera você assistir e aprovar aqui embaixo"}</small></span>${sw(c, "auto_postar", x.auto_postar)}</div>
+    ${esp}
+    <h2 style="margin:16px 0 8px">Vídeos ${x.esperando ? `<span class="st aguardando">${x.esperando} esperando você</span>` : ""}</h2>
+    <div class="fila">${prs || `<div class="vazio">Nenhum vídeo montado ainda.</div>`}</div>
+    ${x.log.length ? `<details data-d="log-${c}"><summary>Registro</summary><pre class="log">${esc(x.log.join("\n"))}</pre></details>` : ""}
+  </div>`;
+}
+async function canCfg(c, d){ await api("canal_cfg", {c, ...d}); toast("Salvo"); editando = false; carrega(true); }
+async function canRodar(c){ await api("canal_rodar", {c}); toast("Começou — acompanhe no registro"); carrega(true); }
+async function canParar(c){ if(!confirm("Parar a montagem?")) return; await api("canal_parar", {c}); carrega(true); }
+async function canAbrir(c, qual){ await api("canal_abrir", {c, qual}); toast("Abri a pasta no PC"); }
+async function canPauta(c, agora){ const t = $("#pauta_" + c).value; if(!t.trim()) return toast("Escreva a pauta", true);
+  await api("canal_pautas", {c, texto: t, agora}); editando = false; toast(agora ? "Fazendo o vídeo com as pautas" : "Na lista de pautas"); carrega(true); }
+async function canTiraPauta(c, i){ await api("canal_tira_pauta", {c, linha: E.canais[c].pautas[i]}); carrega(true); }
+async function canRefazVlog(c, nome){ if(!confirm("Montar este vlog de novo?")) return; await api("canal_refazer_vlog", {c, nome}); toast("Vai ser montado na próxima rodada"); carrega(true); }
+function canVer(c, i, nome){ const p = E.canais[c].prontos[i];
+  $("#modal").innerHTML = `<div class="ctop" style="margin-bottom:10px"><b style="flex:1">${esc(p.titulo)}</b><button class="mini" onclick="fecha()">✕</button></div>
+    <video src="/canal_arquivo?${new URLSearchParams({c, id: p.id, nome})}" controls playsinline autoplay></video>`;
+  $("#fundo").classList.add("on"); }
+function canAprova(c, i){ const p = E.canais[c].prontos[i]; editando = true;
+  $("#modal").innerHTML = `<div class="ctop" style="margin-bottom:10px"><b style="flex:1">Postar no YouTube</b><button class="mini" onclick="fecha()">✕</button></div>
+    <label>Título</label><input type="text" id="apTit" value="${esc(p.titulo)}" maxlength="100">
+    <label>Descrição</label><textarea id="apDesc" rows="6">${esc(p.descricao)}</textarea>
+    <label>Tags (separadas por vírgula)</label><input type="text" id="apTags" value="${esc(p.tags.join(", "))}">
+    <div class="info">Vai o vídeo agora${p.shorts.length ? ` e ${p.shorts.length} Short(s), um a cada 3 h` : ""}.</div>
+    <div class="linha"><button class="pri" id="apOk">Postar</button><button onclick="fecha()">Cancelar</button></div>`;
+  $("#fundo").classList.add("on");
+  $("#apOk").onclick = async () => { await api("canal_aprovar", {c, id: p.id, titulo: $("#apTit").value, descricao: $("#apDesc").value, tags: $("#apTags").value});
+    fecha(); toast("Na fila para postar"); carrega(true); }; }
+async function canDescarta(c, i){ const p = E.canais[c].prontos[i]; if(!confirm("Descartar este vídeo (não vai ser postado)?")) return;
+  await api("canal_descartar", {c, id: p.id}); carrega(true); }
+let vigiaCan = null;
+async function canLogin(c){
+  if(!confirm("Vai abrir o navegador NO PC: entre com a conta do Google e escolha o CANAL " + (c === "noticias" ? "DE NOTÍCIAS" : "DE VLOGS") + ", depois Permitir.")) return;
+  await api("canal_login", {c}); toast("Abrindo o login no PC…");
+  clearInterval(vigiaCan);
+  vigiaCan = setInterval(async () => { const r = await api("canal_login_resultado", {c});
+    if(!r.rodando){ clearInterval(vigiaCan); toast(/Ligado ao canal/.test(r.texto) ? "Canal conectado!" : "Login não terminou: " + r.texto.slice(-200), !/Ligado ao canal/.test(r.texto)); carrega(true); }
+    else if(r.url && !$("#canUrl")){ $("#modal").innerHTML = `<div class="ctop"><b style="flex:1">Login do YouTube</b><button class="mini" onclick="fecha()">✕</button></div>
+      <div class="info">Se o navegador não abriu sozinho no PC: <a id="canUrl" href="${esc(r.url)}" target="_blank" rel="noopener">abrir a página de login</a> (no PC).</div>`; $("#fundo").classList.add("on"); }
+  }, 2500);
+}
 /* ------------------------------------------------------------ config */
 function configs(){
   $("#tt_modo").value = E.tiktok.modo; $("#tt_ia").checked = E.tiktok.ia;
