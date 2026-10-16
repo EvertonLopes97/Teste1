@@ -30,6 +30,9 @@ TOOLS = AQUI.parent
 sys.path.insert(0, str(TOOLS / "postar"))
 import postar as P  # noqa: E402
 
+sys.path.insert(0, str(AQUI))
+import edicao as EDI  # noqa: E402
+
 VIDEO_EXT = P.VIDEO_EXT
 REELS = None  # pasta dos reels (E:\DETTO\reels)
 BASE = None  # pasta da postagem (E:\DETTO\postar)
@@ -104,6 +107,10 @@ def atualiza_cache(forca=False):
         return
     CACHE["quando"] = time.time()
     c_ = cfg()
+    try:
+        atualiza_views(c_)
+    except Exception as e:
+        P.log(f"views dos reels teste: {e}")
     for c in c_["contas"]:
         k = P.chave(c)
         if not (BASE / "tokens" / f"{c['plataforma']}_{c['conta']}.json").exists():
@@ -116,6 +123,52 @@ def atualiza_cache(forca=False):
             CACHE["erro"].pop(k, None)
         except Exception as e:
             CACHE["erro"][k] = str(e)[:200]
+
+
+def atualiza_views(c_, forca=False):
+    """visualizações dos reels TESTE do Instagram (a cada 30 min), para avisar quando bater a meta"""
+    for c in c_["contas"]:
+        if c["plataforma"] != "instagram" or not (BASE / "tokens" / f"instagram_{c['conta']}.json").exists():
+            continue
+        k = P.chave(c)
+        feitos = 0
+        for f in sorted((BASE / "postados" / k).glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True)[:60]:
+            d = P.le_json(f, {})
+            if not d.get("teste") or d.get("situacao") in ("promovido", "ignorado") or not d.get("id"):
+                continue
+            try:
+                quando = dt.datetime.fromisoformat(d.get("quando", "2000-01-01"))
+            except ValueError:
+                continue
+            if (dt.datetime.now() - quando).days > 30:
+                continue
+            if not forca and time.time() - d.get("views_quando", 0) < 1800:
+                continue
+            v = P.ig_views(c_, BASE, c["conta"], d["id"])
+            if v is not None:
+                d.update(views=v, views_quando=time.time())
+                if v >= int(c.get("meta_views") or 0) > 0 and not d.get("bateu"):
+                    d["bateu"] = dt.datetime.now().isoformat(timespec="minutes")
+                    P.log(f"{k}: reel teste {d.get('video', f.stem)} bateu {v} views — mande para os seguidores no app")
+                P.grava_json(f, d)
+            feitos += 1
+            if feitos >= 25:
+                break
+
+
+def testes_de(c):
+    """reels teste postados (para a lista com views e meta)"""
+    k = P.chave(c)
+    out = []
+    for f in sorted((BASE / "postados" / k).glob("*.json"), key=lambda x: x.stat().st_mtime, reverse=True)[:40]:
+        d = P.le_json(f, {})
+        if not d.get("teste") or d.get("situacao") == "ignorado":
+            continue
+        out.append({"arq": f.name, "nome": d.get("video") or f.stem, "quando": (d.get("quando") or "")[:16].replace("T", " "),
+                    "link": d.get("link", ""), "views": d.get("views"), "situacao": d.get("situacao", ""),
+                    "bateu": bool(d.get("views") is not None and int(c.get("meta_views") or 0) > 0 and d["views"] >= int(c["meta_views"])),
+                    "graduar": d.get("graduar", "manual")})
+    return out
 
 
 def item(p):
@@ -149,6 +202,8 @@ def estado_painel():
         lim = CACHE["limite"].get(k)
         contas.append({
             "k": k, "plataforma": c["plataforma"], "conta": c["conta"], "ativo": c.get("ativo", True) is not False,
+            "teste": bool(c.get("teste")), "graduar": c.get("graduar", "manual"), "meta_views": int(c.get("meta_views") or 0),
+            "testes": testes_de(c) if c["plataforma"] == "instagram" else [],
             "intervalo_min": c.get("intervalo_min", 80), "horas": c.get("horas", "08-23"), "max_dia": c.get("max_dia", 0),
             "login": (BASE / "tokens" / f"{c['plataforma']}_{c['conta']}.json").exists(),
             "fila": [item(p) for p in fila], "postados": len(feitos), "hoje": P.postados_hoje(est, k),
@@ -184,8 +239,9 @@ def estado_painel():
                   "rodando": bool(t and t.poll() is None), "postar": rcfg.get("postar", ["instagram:detto.galo", "tiktok:detto.galo"]),
                   "log": [l.rstrip() for l in rlog]},
         "log": [l.rstrip() for l in log], "disco": tam_txt(livre), "disco_pouco": livre < 15 * 1024 ** 3,
+        "edicao": EDI.lista(), "pasta_edicao": str(EDI.ED), "editando": EDI.PROC["id"] or "",
         "pin": bool((c_.get("painel") or {}).get("pin")), "endereco": f"http://{ip_local()}:{PORTA}",
-        "pastas": {"postar": str(BASE), "reels": str(REELS)},
+        "pastas": {"postar": str(BASE), "reels": str(REELS), "edicao": str(EDI.ED)},
         "agora": dt.datetime.now().strftime("%d/%m %H:%M"),
     }
 
@@ -251,6 +307,12 @@ def acao(nome, d):
                         x["horas"] = f"{h0:02d}-{h1:02d}"
                     if "max_dia" in d:
                         x["max_dia"] = max(0, int(d["max_dia"]))
+                    if "teste" in d:
+                        x["teste"] = bool(d["teste"])
+                    if d.get("graduar") in ("manual", "automatico"):
+                        x["graduar"] = d["graduar"]
+                    if "meta_views" in d:
+                        x["meta_views"] = max(0, int(d["meta_views"]))
         grava_cfg(muda)
     elif nome == "nova_conta":
         plat, conta = d["plataforma"], d["conta"].strip().lstrip("@").lower()
@@ -361,13 +423,74 @@ def acao(nome, d):
         rc = P.le_json(f, {})
         rc["postar"] = [x for x in d.get("para", []) if re.fullmatch(r"(instagram|tiktok):[\w.]+", x)]
         P.grava_json(f, rc)
+    elif nome == "teste_marca":
+        # reel teste: "promovido" = você já mandou para os seguidores; "ignorado" = some da lista
+        f = BASE / "postados" / nome_seguro(d["k"]) / nome_seguro(d["arq"])
+        j = P.le_json(f, None)
+        if j is None:
+            raise ValueError("não achei esse reel")
+        j["situacao"] = d.get("como") if d.get("como") in ("promovido", "ignorado", "") else ""
+        P.grava_json(f, j)
+    elif nome == "views_agora":
+        threading.Thread(target=lambda: atualiza_views(cfg(), True), daemon=True).start()
+    elif nome == "reels_um":
+        # um reel já, deste link (modo TROCA: igual ao original, só a pessoa vira você)
+        t = TRABALHO["reels"]
+        if t and t.poll() is None:
+            raise ValueError("os reels já estão sendo feitos; espere terminar")
+        url = str(d.get("url", "")).strip()
+        if not re.match(r"https?://\S+$", url):
+            raise ValueError("cole um link (https://...)")
+        exe, extra = py_filho()
+        cmd = [exe, "-u", str(TOOLS / "reels" / "reels.py"), "--pasta", str(REELS), "--clip", url, "--modo", d.get("modo") if d.get("modo") in ("troca", "novo") else "troca"]
+        if d.get("inicio"):
+            cmd += ["--inicio", str(d["inicio"])]
+        logf = open(REELS / "painel_reels.log", "w", encoding="utf-8")
+        TRABALHO["reels"] = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT, text=True, cwd=str(TOOLS.parent),
+                                             env={**os.environ, "PYTHONIOENCODING": "utf-8"}, **extra)
+    elif nome.startswith("ed_"):
+        fn = {"ed_novo": EDI.novo, "ed_caminho": EDI.de_caminho, "ed_iniciar": EDI.iniciar, "ed_roteiro": EDI.roteiro,
+              "ed_refazer": EDI.refazer, "ed_cancelar": EDI.cancelar, "ed_apagar": EDI.apagar, "ed_postar": ed_postar}.get(nome)
+        if not fn:
+            raise ValueError(f"ação desconhecida: {nome}")
+        return fn(d)
     elif nome == "abrir_pasta":
-        alvo = {"postar": BASE, "reels": REELS}.get(d.get("qual"), BASE)
+        alvo = {"postar": BASE, "reels": REELS, "edicao": EDI.ED}.get(d.get("qual"), BASE)
         if os.name == "nt":
             os.startfile(str(alvo))  # noqa: S606 (só no PC)
     else:
         raise ValueError(f"ação desconhecida: {nome}")
     return {"ok": True}
+
+
+def ed_postar(d, pasta=None, rels=None):
+    """manda um vídeo pronto da edição para a fila das contas"""
+    p = pasta or EDI.pasta_de(d.get("id", ""))
+    para = [x for x in d.get("para", []) if re.fullmatch(r"(instagram|tiktok):[\w.]+", x)]
+    if not para:
+        raise ValueError("escolha as contas")
+    titulo = EDI.info(p).get("titulo", "video")
+    for rel in rels or [d.get("rel", "")]:
+        f = EDI.arquivo(p.name, rel)
+        leg = None
+        if str(d.get("legenda") or "").strip():
+            leg = BASE / "_envios" / f"leg_{time.time_ns()}.txt"
+            leg.parent.mkdir(exist_ok=True)
+            leg.write_text(d["legenda"].strip(), encoding="utf-8")
+        P.enfileira(BASE, f, para, leg, nome=f"{dt.datetime.now():%Y-%m-%d %H%M%S} {titulo} - {f.stem}.mp4")
+        if leg:
+            leg.unlink(missing_ok=True)
+        P.log(f"edição: {titulo} / {f.name} → fila de {', '.join(para)}")
+    return {"ok": True}
+
+
+def edicao_pronta(p):
+    """terminou: se você marcou, o vertical completo já vai para a fila"""
+    para = EDI.info(p).get("opcoes", {}).get("postar") or []
+    job = EDI.job_de(p)
+    if para and job and (job / "vertical_completo.mp4").exists():
+        rel = str((job / "vertical_completo.mp4").relative_to(p)).replace("\\", "/")
+        ed_postar({"para": para}, pasta=p, rels=[rel])
 
 
 def recebe_envio(h, q):
@@ -497,6 +620,8 @@ class Painel(hserver.BaseHTTPRequestHandler):
                 return self._json(estado_painel())
             if u.path == "/arquivo":
                 return self._arquivo(q)
+            if u.path == "/ed_arquivo":
+                return self._manda(EDI.arquivo(q.get("id", ""), q.get("rel", "")), baixar=q.get("baixar") == "1")
             self._json({"erro": "não achei"}, 404)
         except Exception as e:
             traceback.print_exc()
@@ -509,6 +634,9 @@ class Painel(hserver.BaseHTTPRequestHandler):
         f = BASE / onde / nome_seguro(q.get("k", "")) / nome_seguro(q.get("nome", ""))
         if not f.exists():
             return self._json({"erro": "não achei"}, 404)
+        return self._manda(f)
+
+    def _manda(self, f, baixar=False):
         tam = f.stat().st_size
         ini, fim = 0, tam - 1
         rg = re.match(r"bytes=(\d*)-(\d*)", self.headers.get("Range") or "")
@@ -520,8 +648,11 @@ class Painel(hserver.BaseHTTPRequestHandler):
                 ini = max(0, tam - int(rg.group(2)))
             fim = min(fim, tam - 1)
         self.send_response(206 if rg else 200)
-        tipo = {".mov": "video/quicktime", ".webm": "video/webm", ".mkv": "video/x-matroska"}.get(f.suffix.lower(), "video/mp4")
+        tipo = {".mov": "video/quicktime", ".webm": "video/webm", ".mkv": "video/x-matroska", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                ".png": "image/png", ".webp": "image/webp", ".txt": "text/plain; charset=utf-8"}.get(f.suffix.lower(), "video/mp4")
         self.send_header("Content-Type", tipo)
+        if baixar:
+            self.send_header("Content-Disposition", "attachment; filename*=UTF-8''" + urllib.parse.quote(f.name))
         self.send_header("Accept-Ranges", "bytes")
         self.send_header("Content-Length", str(fim - ini + 1))
         if rg:
@@ -556,6 +687,9 @@ class Painel(hserver.BaseHTTPRequestHandler):
             if u.path == "/api/enviar":
                 q = {k: v[0] for k, v in urllib.parse.parse_qs(u.query).items()}
                 return self._json(recebe_envio(self, q))
+            if u.path == "/api/ed_enviar":
+                q = {k: v[0] for k, v in urllib.parse.parse_qs(u.query).items()}
+                return self._json(EDI.recebe(self, q))
             if u.path.startswith("/api/"):
                 n = int(self.headers.get("Content-Length") or 0)
                 d = json.loads(self.rfile.read(n) or b"{}")
@@ -626,6 +760,7 @@ def main():
     ap = argparse.ArgumentParser(description="painel da postagem automática")
     ap.add_argument("--pasta", default=str(P.pasta_padrao()), help="pasta da postagem (padrão E:\\DETTO\\postar)")
     ap.add_argument("--reels", default=str(reels_pasta()), help="pasta dos reels (padrão E:\\DETTO\\reels)")
+    ap.add_argument("--edicao", default=str(EDI.pasta_padrao()), help="pasta das edições (padrão E:\\DETTO\\edicao)")
     ap.add_argument("--porta", type=int, default=8730)
     ap.add_argument("--so-pc", action="store_true", help="não deixa abrir pelo celular")
     ap.add_argument("--sem-navegador", action="store_true")
@@ -634,6 +769,7 @@ def main():
     ap.add_argument("--desinstalar", action="store_true")
     a = ap.parse_args()
     BASE, REELS, PORTA = Path(a.pasta), Path(a.reels), a.porta
+    EDI.ED = Path(a.edicao)
     if a.instalar:
         return instalar()
     if a.desinstalar:
@@ -643,6 +779,7 @@ def main():
         sys.stdout = sys.stderr = open(Path(a.pasta) / "painel.log", "a", encoding="utf-8", buffering=1)
     cfg()
     REELS.mkdir(parents=True, exist_ok=True)
+    EDI.ED.mkdir(parents=True, exist_ok=True)
     try:
         srv = hserver.ThreadingHTTPServer(("127.0.0.1" if a.so_pc else "0.0.0.0", PORTA), Painel)
     except OSError:
@@ -652,6 +789,7 @@ def main():
     srv.daemon_threads = True
     if not a.sem_postar:
         threading.Thread(target=laco_postagem, daemon=True).start()
+    threading.Thread(target=EDI.laco, kwargs={"log": P.log, "ao_terminar": edicao_pronta}, daemon=True).start()
     print(f"PAINEL DETTO no ar:\n  no PC:      http://localhost:{PORTA}\n"
           f"  no celular: http://{ip_local()}:{PORTA}  (mesmo Wi-Fi; crie o PIN no painel)\n"
           f"  pastas: {BASE}  |  {REELS}\nFeche esta janela para desligar.")

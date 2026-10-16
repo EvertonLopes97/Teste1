@@ -3,7 +3,7 @@ POSTAGEM AUTOMÁTICA — Instagram @detto.galo + TikTok @detto.galo e @detto.tv
 O jeito fácil de usar tudo isto é o PAINEL: tools\painel\LEIA-ME.txt (chaves, logins, fila e horários pelo navegador).
 
 =====================================================================
- 1) INSTAGRAM @detto.galo  (posta de verdade, com legenda)
+ 1) INSTAGRAM @detto.galo  (posta de verdade, com legenda; por padrão como REELS TESTE)
 =====================================================================
 Antes: o @detto.galo precisa ser conta PROFISSIONAL (Criador ou Empresa) e estar LIGADO a uma Página do
 Facebook (Instagram → Configurações → Central de contas, ou na Página: Configurações → Contas vinculadas).
@@ -21,7 +21,7 @@ Facebook (Instagram → Configurações → Central de contas, ou na Página: Co
      ponha esse endereço em "URIs de redirecionamento do OAuth válidos" no Login do Facebook.)
  PLANO B (se o login pelo navegador der erro):
     developers.facebook.com/tools/explorer → escolha o app → "Gerar token de acesso" com as permissões
-    instagram_basic, instagram_content_publish, pages_show_list, pages_read_engagement, business_management
+    instagram_basic, instagram_content_publish, instagram_manage_insights, pages_show_list, pages_read_engagement, business_management
     → copie o token e rode:
        python tools\postar\postar.py --login instagram --conta detto.galo --token COLE_AQUI
  O sistema troca por um token de longa duração (o da Página não vence). Não precisa publicar/revisar o app

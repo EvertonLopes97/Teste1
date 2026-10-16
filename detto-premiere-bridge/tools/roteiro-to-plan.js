@@ -60,6 +60,15 @@ async function main() {
   let txt = buf.toString("utf-8");
   if (txt.includes("\uFFFD")) txt = buf.toString("latin1");
   let roteiro = parseRoteiro(txt);
+  if (!roteiro.segments.length) {
+    // roteiro sem a linha de BLOCO (colado no painel, escrito à mão): os trechos [0:00 – 0:08] viram um bloco só
+    const i = txt.search(/^\s*\[\s*\d{1,2}:\d{2}/m);
+    if (i >= 0) roteiro = parseRoteiro(txt.slice(0, i) + "\n=====\n BLOCO 1\n=====\n" + txt.slice(i));
+  }
+  if (!roteiro.segments.length) {
+    console.error("O roteiro não tem nenhum trecho com tempo ([0:00 – 0:08] + FALA:). Confira o formato no exemplo do CLAUDE.md.");
+    process.exit(1);
+  }
   let keep;
   let words = null;
   if (a.words) {

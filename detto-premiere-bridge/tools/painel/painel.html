@@ -103,8 +103,44 @@ pre.log{background:#090b0a;border:1px solid var(--line);border-radius:10px;paddi
 .modal video{width:100%;max-height:52vh;background:#000;border-radius:10px}
 #toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#202a24;border:1px solid var(--line);padding:10px 16px;border-radius:12px;display:none;z-index:30;max-width:90vw}
 #toast.erro{border-color:var(--verm);color:#ffb3b3}
+/* abas */
+nav.abas{display:flex;gap:4px;width:100%;overflow-x:auto;margin-top:2px}
+nav.abas button{border:none;background:none;border-bottom:3px solid transparent;border-radius:0;padding:8px 14px;color:var(--mut);font-weight:600;white-space:nowrap}
+nav.abas button.on{color:var(--txt);border-bottom-color:var(--lima)}
+nav.abas .bolha{display:inline-block;min-width:18px;padding:0 5px;margin-left:5px;border-radius:9px;background:var(--lima);color:#101400;font-size:11px;line-height:18px;text-align:center}
+section.aba{display:none}
+section.aba.on{display:block}
+/* edição */
+.nova{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.mini-drop{border:2px dashed #3a4a40;border-radius:12px;padding:14px;text-align:center;color:var(--mut);cursor:pointer;display:block}
+.mini-drop.on,.mini-drop:hover{border-color:var(--lima);color:var(--txt)}
+.mini-drop.ok{border-style:solid;border-color:var(--lima2);color:var(--txt)}
+.opcoes{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.ed{margin-bottom:12px}
+.ed .topo{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ed .titulo{font-weight:700;font-size:17px;flex:1;min-width:160px}
+.st{font-size:12px;font-weight:700;border-radius:99px;padding:4px 10px;background:var(--card2);border:1px solid var(--line)}
+.st.editando{color:#101400;background:var(--lima);border-color:var(--lima)}
+.st.pronto{color:var(--lima);border-color:var(--lima2)}
+.st.erro,.st.interrompido{color:var(--verm);border-color:#5a2222}
+.st.na_fila{color:var(--amar)}
+.saidas{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.saida{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:var(--card2);border-radius:10px;padding:8px 10px}
+.saida small{color:var(--mut)}
+.imgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:10px}
+.imgs a{display:block;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#000}
+.imgs img{width:100%;height:90px;object-fit:cover;display:block}
+.imgs span{display:block;font-size:11px;color:var(--mut);padding:3px 6px;background:var(--card2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.teste{background:var(--card2);border-radius:10px;padding:8px 10px;margin:8px 0}
+.teste .linha{margin-top:0}
+.vw{font-weight:700}
+.vw.bateu{color:var(--lima)}
+.fogo{border:1px solid var(--lima2);background:#18210f}
+.lista-t .l{flex-wrap:wrap;row-gap:4px}
+.lista-t .l > span:first-child{flex:1 1 100%;white-space:normal}
+.lista-t .l > span:last-child{margin-left:auto}
 @media (max-width:820px){
-  .envio,.duas,.campos{grid-template-columns:1fr}
+  .envio,.duas,.campos,.nova{grid-template-columns:1fr}
   .contas{grid-template-columns:1fr}
   .regras{grid-template-columns:1fr 1fr}
   .fila{max-height:none}
@@ -123,11 +159,18 @@ pre.log{background:#090b0a;border:1px solid var(--line);border-radius:10px;paddi
   <button id="btPausa">Pausar</button>
   <button id="btRodada" title="Confere a fila agora e posta quem estiver na hora">Conferir fila agora</button>
   <span class="chip" id="chipDisco" title="Espaço livre no disco E:">💾 …</span>
+  <nav class="abas" id="abas">
+    <button data-aba="postagem">Postagem</button>
+    <button data-aba="edicao">Edição<span class="bolha" id="bEd" style="display:none"></span></button>
+    <button data-aba="reels">Reels automáticos</button>
+    <button data-aba="config">Configurações</button>
+  </nav>
 </header>
 
 <div class="wrap">
   <div id="avisos"></div>
 
+  <section class="aba" id="aba-postagem">
   <h2>Enviar vídeos</h2>
   <div class="envio">
     <label class="drop" id="drop">
@@ -151,12 +194,62 @@ pre.log{background:#090b0a;border:1px solid var(--line);border-radius:10px;paddi
   <h2>Contas</h2>
   <div class="contas" id="contas"></div>
 
+  </section>
+
+  <section class="aba" id="aba-edicao">
+  <h2>Nova edição</h2>
+  <div class="card">
+    <div class="nova">
+      <div>
+        <label>Título do vídeo (vira o nome da pasta e o título do roteiro)</label>
+        <input type="text" id="edTitulo" placeholder="ex.: notas Galo x Cruzeiro">
+        <div style="margin-top:10px"><label>1. A gravação</label>
+          <label class="mini-drop" id="edDropV"><input type="file" id="edVideo" accept="video/*,.mov,.mp4" hidden><span>Arraste ou toque para escolher o vídeo</span></label>
+          <input type="text" id="edCaminho" placeholder="…ou o caminho no PC (ex.: E:\Gravações\rodada 29.MOV) — não copia, é mais rápido" style="margin-top:6px">
+        </div>
+        <div style="margin-top:10px"><label>2. O roteiro (opcional — sem roteiro o Gemini escreve)</label>
+          <label class="mini-drop" id="edDropR"><input type="file" id="edRoteiro" accept=".txt,.md,.docx" hidden><span>Arraste o roteiro (.txt ou .docx)</span></label>
+          <textarea id="edRoteiroTxt" rows="4" placeholder="…ou cole o roteiro aqui" style="margin-top:6px"></textarea>
+        </div>
+        <div style="margin-top:10px"><label>3. Imagens (opcional): camisa = nome do time (Vasco.jpg); foto de apoio = o que buscaria (Santos 1997.jpg)</label>
+          <label class="mini-drop" id="edDropI"><input type="file" id="edImgs" accept="image/*" multiple hidden><span>Arraste as imagens</span></label>
+        </div>
+      </div>
+      <div>
+        <label>Opções</label>
+        <div class="opcoes">
+          <label class="dest"><input type="checkbox" id="opTeste"> Teste (só 1 minuto)</label>
+          <label class="dest"><input type="checkbox" id="opSemLances"> Sem lances</label>
+          <label class="dest"><input type="checkbox" id="opSemThumbs"> Sem thumbs</label>
+          <label class="dest"><input type="checkbox" id="opSemVert"> Sem cortes 9:16</label>
+        </div>
+        <div class="campos">
+          <div><label>Horizontal</label><select id="opFps"><option value="60">60 fps (YouTube)</option><option value="30">30 fps (mais rápido)</option></select></div>
+          <div><label>Efeitos sonoros</label><select id="opSfx"><option value="0">Sem</option><option value="0.15">Baixo</option><option value="0.3" selected>Normal</option><option value="0.5">Alto</option></select></div>
+        </div>
+        <div class="info">Quando ficar pronto, mandar o <b>vertical completo</b> para a fila de:</div>
+        <div class="destinos" id="edPara"></div>
+        <div class="linha"><button class="pri" id="btEditar" style="padding:12px 22px">Editar</button><span class="info" id="edProg"></span></div>
+        <div class="info">Uma edição por vez (placa de vídeo). As outras esperam na fila. Pode fechar o navegador: o PC continua.</div>
+      </div>
+    </div>
+  </div>
+  <h2>Edições</h2>
+  <div id="edicoes"></div>
+  </section>
+
+  <section class="aba" id="aba-reels">
   <h2>Reels automáticos</h2>
   <div class="duas">
     <div class="card" id="reelsInfo"></div>
     <div class="card">
       <label>Link de um vídeo para virar reel (TikTok, Instagram, YouTube)</label>
-      <div class="linha"><input type="text" id="link" placeholder="https://…" style="flex:1"><button id="btLink">Adicionar</button></div>
+      <div class="linha"><input type="text" id="link" placeholder="https://…" style="flex:1"></div>
+      <div class="linha">
+        <select id="linkInicio" style="width:auto;flex:1"><option value="">Começo: o Gemini escolhe</option></select>
+        <select id="linkModo" style="width:auto"><option value="troca">Igual ao original (troca)</option><option value="novo">Texto novo</option></select>
+      </div>
+      <div class="linha"><button class="pri" id="btLinkJa">Fazer agora</button><button id="btLink">Pôr na lista (faz na próxima rodada)</button></div>
       <div class="linha">
         <label>Fazer</label>
         <select id="quantos" style="width:80px"><option>1</option><option>3</option><option selected>5</option><option>10</option><option>15</option><option>20</option></select>
@@ -170,9 +263,12 @@ pre.log{background:#090b0a;border:1px solid var(--line);border-radius:10px;paddi
     </div>
   </div>
 
+  </section>
+
+  <section class="aba" id="aba-config">
   <h2>Configurações</h2>
   <div class="card">
-    <details id="detCfg">
+    <details id="detCfg" open>
       <summary>Chaves dos apps, login das contas, PIN do celular, contas novas</summary>
       <div class="duas" style="margin-top:12px">
         <div>
@@ -210,7 +306,7 @@ pre.log{background:#090b0a;border:1px solid var(--line);border-radius:10px;paddi
             <button id="btNova">Adicionar</button>
           </div>
           <div class="info" id="endCel"></div>
-          <div class="linha"><button id="btPastaP">Abrir pasta da postagem</button><button id="btPastaR">Abrir pasta dos reels</button></div>
+          <div class="linha"><button id="btPastaP">Abrir pasta da postagem</button><button id="btPastaR">Abrir pasta dos reels</button><button id="btPastaE">Abrir pasta das edições</button></div>
         </div>
       </div>
     </details>
@@ -218,6 +314,7 @@ pre.log{background:#090b0a;border:1px solid var(--line);border-radius:10px;paddi
 
   <h2>Registro</h2>
   <pre class="log" id="log"></pre>
+  </section>
   <div style="height:40px"></div>
 </div>
 
@@ -241,6 +338,16 @@ async function api(acao, dados){
   if(!r.ok){ toast(j.erro || ("erro " + r.status), true); throw new Error(j.erro); }
   return j;
 }
+/* abas */
+function aba(nome){
+  document.querySelectorAll("section.aba").forEach(x => x.classList.toggle("on", x.id === "aba-" + nome));
+  document.querySelectorAll("#abas button").forEach(b => b.classList.toggle("on", b.dataset.aba === nome));
+  localStorageSet("aba", nome); if(location.hash !== "#" + nome) history.replaceState(null, "", "#" + nome);
+}
+document.querySelectorAll("#abas button").forEach(b => b.onclick = () => aba(b.dataset.aba));
+aba((location.hash || "").slice(1) || localStorageGet("aba") || "postagem");
+if(!document.querySelector("section.aba.on")) aba("postagem");
+window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if(document.getElementById("aba-" + h)) aba(h); });
 const nomeConta = c => (c.plataforma === "instagram" ? "Instagram" : "TikTok") + " @" + c.conta;
 // "2026-10-15 230846 gol do hulk.mp4" → "gol do hulk" (a data vai embaixo)
 const limpo = n => n.replace(/^\d{4}-\d{2}-\d{2}( \d{4,6})? ?(\d+ - )?/, "").replace(/\.[^.]+$/, "") || n;
@@ -268,10 +375,16 @@ function desenha(){
   $("#btPausa").className = E.pausado ? "pri" : "";
   $("#chipDisco").textContent = "💾 " + E.disco + " livres";
   $("#chipDisco").className = "chip" + (E.disco_pouco ? " alerta" : "");
+  const bateram = E.contas.flatMap(c => c.testes.filter(t => t.bateu && !t.situacao && t.graduar !== "automatico"));
+  let ch = $("#chipMeta");
+  if(bateram.length){
+    if(!ch){ ch = document.createElement("span"); ch.id = "chipMeta"; ch.className = "chip fogo"; ch.style.cursor = "pointer"; ch.onclick = () => { aba("postagem"); document.querySelector(".teste.lista-t")?.scrollIntoView({behavior:"smooth"}); }; $("#chipAuto").before(ch); }
+    ch.textContent = "🔥 " + bateram.length + (bateram.length > 1 ? " reels teste bateram a meta" : " reel teste bateu a meta");
+  } else if(ch) ch.remove();
   // mantém aberto o que você abriu (o painel se redesenha a cada 8 s)
   const abertos = {}; document.querySelectorAll("details[data-d]").forEach(d => abertos[d.dataset.d] = d.open);
   const rolagem = [...document.querySelectorAll(".fila")].map(f => f.scrollTop);
-  avisos(); destinos(); contas(); reels(); configs();
+  avisos(); destinos(); contas(); reels(); configs(); edicao();
   document.querySelectorAll("details[data-d]").forEach(d => { if(d.dataset.d in abertos) d.open = abertos[d.dataset.d]; });
   document.querySelectorAll(".fila").forEach((f, i) => f.scrollTop = rolagem[i] || 0);
   const lg = $("#log"), fim = lg.scrollTop + lg.clientHeight >= lg.scrollHeight - 10;
@@ -288,7 +401,7 @@ function avisos(){
   if(E.disco_pouco) a.push("Pouco espaço no disco (" + E.disco + ").");
   $("#avisos").innerHTML = a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "";
 }
-function abreCfg(){ $("#detCfg").open = true; $("#detCfg").scrollIntoView({behavior:"smooth"}); }
+function abreCfg(){ aba("config"); $("#detCfg").open = true; $("#detCfg").scrollIntoView({behavior:"smooth"}); }
 
 /* ------------------------------------------------------------ envio */
 function destinos(){
@@ -359,7 +472,34 @@ function contas(){
           `<div class="l"><span title="${esc(p.legenda)}">${esc(p.quando)} · ${esc(p.legenda || p.nome)}</span><button class="mini" onclick="copia(${ci},${i})">Copiar</button></div>`).join("")}</div></details>`;
       } else if(c.login) extra += `<div class="info">Rascunhos: conferindo…</div>`;
     }
-    if(c.plataforma === "instagram" && c.limite) extra += `<div class="info">Limite da API nas últimas 24 h: ${c.limite[0]}/${c.limite[1]}</div>`;
+    if(c.plataforma === "instagram"){
+      extra += `<div class="teste">
+        <div class="linha" style="justify-content:space-between">
+          <span><b>Reels teste</b> <small style="color:var(--mut)">(só para quem não te segue)</small></span>
+          <label class="sw"><input type="checkbox" ${c.teste ? "checked" : ""} onchange="regra(${ci},{teste:this.checked})"><span></span></label>
+        </div>
+        ${c.teste ? `<div class="campos" style="margin-top:8px">
+          <div><label>Para os seguidores</label><select onchange="regra(${ci},{graduar:this.value})">
+            <option value="manual" ${c.graduar === "manual" ? "selected" : ""}>Eu mando no app</option>
+            <option value="automatico" ${c.graduar === "automatico" ? "selected" : ""}>O Instagram decide</option></select></div>
+          <div><label>Avisar com (views)</label><input type="number" min="0" step="1000" value="${c.meta_views}" onchange="regra(${ci},{meta_views:+this.value||0})"></div>
+        </div>` : ""}
+      </div>`;
+      if(c.testes.length){
+        const t = c.testes;
+        extra += `<details class="teste lista-t" data-d="${c.k}-testes" ${t.some(x => x.bateu && !x.situacao) ? "open" : ""}><summary>Reels teste postados (${t.length}) — views</summary><div class="lista">${t.map((x, ti) => `
+          <div class="l ${x.bateu && !x.situacao ? "fogo" : ""}"><span>${esc(x.quando.slice(5))} · ${esc(limpo(x.nome))}</span>
+          <span style="display:flex;gap:6px;align-items:center;flex:none">
+            <span class="vw ${x.bateu ? "bateu" : ""}">${x.views == null ? "…" : x.views.toLocaleString("pt-BR")}</span>
+            ${x.link ? `<a href="${esc(x.link)}" target="_blank" rel="noopener">abrir</a>` : ""}
+            ${x.situacao === "promovido" ? `<small style="color:var(--lima)">✔ seguidores</small>` : x.graduar === "automatico" ? `<small style="color:var(--mut)">auto</small>` :
+              `<button class="mini ${x.bateu ? "pri" : ""}" title="Já mandei para os seguidores no app" onclick="marcaT(${ci},${ti},'promovido')">Já mandei</button>`}
+            <button class="mini" title="Tirar da lista" onclick="marcaT(${ci},${ti},'ignorado')">✕</button>
+          </span></div>`).join("")}</div>
+          <div class="info">Bateu a meta → abra o reel no app e toque em <b>“Compartilhar com seguidores”</b>, depois “Já mandei”. Views atualizam a cada 30 min · <a href="#" onclick="api('views_agora');toast('Atualizando as views…');setTimeout(()=>carrega(true),6000);return false">atualizar agora</a></div></details>`;
+      }
+      if(c.limite) extra += `<div class="info">Limite da API nas últimas 24 h: ${c.limite[0]}/${c.limite[1]}</div>`;
+    }
     if(c.erro) extra += `<div class="info erro">⚠ ${esc(c.erro)}</div>`;
     const fila = c.fila.length ? c.fila.map((v, i) => {
       const t = c.tentativas[v.nome];
@@ -404,6 +544,7 @@ function contas(){
   }).join("");
 }
 
+async function marcaT(ci, ti, como){ const c = E.contas[ci]; await api("teste_marca", {k: c.k, arq: c.testes[ti].arq, como}); carrega(true); }
 async function regra(ci, d){ const c = E.contas[ci]; await api("conta", {k: c.k, ...d}); toast("Salvo"); editando = false; carrega(true); }
 async function move(ci, i, dir){
   const c = E.contas[ci], nomes = c.fila.map(v => v.nome);
@@ -461,7 +602,10 @@ function reels(){
     <div class="info">${r.rodando ? "⏳ Fazendo reels agora…" : "Mande começos novos em “Enviar vídeos” → “Começo de reel”."}</div>
     ${r.inicios.length ? `<details data-d="r-ini"><summary>Seus começos</summary><div class="tags">${r.inicios.map(n => `<span class="tag">${esc(n)}</span>`).join("")}</div></details>` : `<div class="info alerta">Ainda não tem nenhum começo gravado.</div>`}
     ${r.links.length ? `<details data-d="r-links"><summary>Últimos links</summary><div class="lista">${r.links.map(l => `<div class="l"><span>${esc(l)}</span></div>`).join("")}</div></details>` : ""}`;
-  $("#btReels").disabled = r.rodando; $("#btReelsParar").style.display = r.rodando ? "" : "none";
+  $("#btReels").disabled = r.rodando; $("#btLinkJa").disabled = r.rodando; $("#btReelsParar").style.display = r.rodando ? "" : "none";
+  const li = $("#linkInicio"), kI = JSON.stringify(r.inicios);
+  if(li.dataset.k !== kI){ const v = li.value; li.dataset.k = kI;
+    li.innerHTML = `<option value="">Começo: o Gemini escolhe</option>` + r.inicios.map(n => `<option>${esc(n)}</option>`).join(""); li.value = v; }
   const rl = $("#reelsLog"); rl.style.display = r.log.length ? "block" : "none"; rl.textContent = r.log.join("\n"); rl.scrollTop = rl.scrollHeight;
   const box = $("#reelsPara"), ops = E.contas.map(c => c.plataforma + ":" + c.conta), k = JSON.stringify([ops, r.postar]);
   if(box.dataset.k !== k){
@@ -473,7 +617,11 @@ function reels(){
     });
   }
 }
-$("#btLink").onclick = async () => { await api("reels_link", {url: $("#link").value}); $("#link").value = ""; toast("Link adicionado"); carrega(true); };
+$("#btLink").onclick = async () => { await api("reels_link", {url: $("#link").value}); $("#link").value = ""; toast("Link na lista"); carrega(true); };
+$("#btLinkJa").onclick = async () => {
+  await api("reels_um", {url: $("#link").value, inicio: $("#linkInicio").value, modo: $("#linkModo").value});
+  $("#link").value = ""; toast("Fazendo o reel — ele entra na fila de postagem quando ficar pronto"); carrega(true);
+};
 $("#btReels").onclick = async () => { await api("reels_gerar", {quantos: +$("#quantos").value}); toast("Começou — pode demorar alguns minutos por reel"); carrega(true); };
 $("#btReelsParar").onclick = async () => { await api("reels_parar"); carrega(true); };
 
@@ -522,11 +670,160 @@ $("#btTok").onclick = () => {
 };
 async function tiraConta(ci){ const c = E.contas[ci]; if(!confirm("Tirar " + nomeConta(c) + " do painel?")) return; await api("tirar_conta", {k: c.k}); carrega(true); }
 $("#btNova").onclick = async () => { await api("nova_conta", {plataforma: $("#novaPlat").value, conta: $("#novaConta").value}); $("#novaConta").value = ""; toast("Conta adicionada — agora conecte"); carrega(true); };
+$("#btPastaE") && ($("#btPastaE").onclick = () => api("abrir_pasta", {qual: "edicao"}));
 $("#btPastaP").onclick = () => api("abrir_pasta", {qual: "postar"});
 $("#btPastaR").onclick = () => api("abrir_pasta", {qual: "reels"});
 
 $("#btPausa").onclick = async () => { await api("pausar", {pausado: !E.pausado}); carrega(true); };
 $("#btRodada").onclick = async () => { await api("rodada"); await api("atualizar"); toast("Conferindo a fila…"); setTimeout(() => carrega(true), 2500); };
+
+/* ------------------------------------------------------------ edição */
+const ST = {rascunho:"Rascunho", na_fila:"Na fila", editando:"Editando", pronto:"Pronto", erro:"Erro", interrompido:"Interrompido", cancelado:"Cancelado"};
+const gb = b => b > 1e9 ? (b / 1073741824).toFixed(1) + " GB" : Math.max(1, Math.round(b / 1048576)) + " MB";
+const mmss = s => s == null ? "" : (s >= 3600 ? Math.floor(s/3600) + "h" : "") + String(Math.floor(s % 3600 / 60)).padStart(s >= 3600 ? 2 : 1, "0") + "min" + String(s % 60).padStart(2, "0") + "s";
+function nomeSaida(n){
+  let m, t = n.replace(/\.mp4$/, ""), lances = /_lances$/.test(t); t = t.replace(/_lances$/, "");
+  if(t === "horizontal") t = "Horizontal (YouTube)"; else if(t === "vertical_completo") t = "Vertical completo (9:16)";
+  else if(m = t.match(/^vertical_(\d+)$/)) t = "Corte 9:16 nº " + m[1];
+  return t + (lances ? " · com lances" : "");
+}
+function edicao(){
+  const eds = E.edicao, ativos = eds.filter(e => ["na_fila","editando"].includes(e.status)).length;
+  $("#bEd").style.display = ativos ? "" : "none"; $("#bEd").textContent = ativos;
+  const box = $("#edPara"), k = JSON.stringify(E.contas.map(c => c.k));
+  if(box.dataset.k !== k){ box.dataset.k = k;
+    box.innerHTML = E.contas.map(c => `<label class="dest"><input type="checkbox" value="${esc(c.plataforma + ":" + c.conta)}"> ${esc(nomeConta(c))}</label>`).join(""); }
+  if(!eds.length){ $("#edicoes").innerHTML = `<div class="vazio">Nenhuma edição ainda — mande a gravação aqui em cima</div>`; return; }
+  $("#edicoes").innerHTML = eds.map((e, ei) => {
+    const s = e.saidas;
+    const st = e.status === "editando" ? `Editando · ${esc(e.etapa || "começando")} · ${mmss(e.duracao)}` :
+               e.status === "na_fila" ? `Na fila${e.na_frente ? " (" + e.na_frente + " antes)" : ""}` :
+               e.status === "pronto" ? `Pronto em ${mmss(e.duracao)}` : ST[e.status] || e.status;
+    const op = e.opcoes || {}, tags = [op.teste && "teste 1 min", op.sem_lances && "sem lances", op.fps == 30 && "30 fps", e.imagens && e.imagens + " imagens", e.roteiro ? "com roteiro" : "roteiro do Gemini"].filter(Boolean);
+    let corpo = "";
+    if(["editando","erro","interrompido"].includes(e.status) && e.registro.length)
+      corpo += `<details data-d="ed-${esc(e.id)}-log" ${e.status === "editando" ? "open" : ""}><summary>Registro</summary><pre class="log" style="max-height:220px;margin-top:6px">${esc(e.registro.join("\n"))}</pre></details>`;
+    if(e.erro) corpo += `<div class="info erro">⚠ ${esc(e.erro)}</div>`;
+    if(s && s.videos.length) corpo += `<div class="saidas">${s.videos.map((v, vi) => `<div class="saida">
+        <div><b>${esc(nomeSaida(v.nome))}</b><br><small>${gb(v.tam)} · ${esc(v.quando)}</small></div>
+        <div class="acoes" style="display:flex;gap:4px">
+          <button class="mini" title="Ver" onclick="verEd(${ei},${vi})">▶</button>
+          <a href="/ed_arquivo?${new URLSearchParams({id: e.id, rel: v.rel, baixar: 1})}"><button class="mini" title="Baixar">⬇</button></a>
+          <button class="mini pri" onclick="postaEd(${ei},${vi})">Postar</button>
+        </div></div>`).join("")}</div>`;
+    if(s && s.imagens.length) corpo += `<div class="imgs">${s.imagens.map(i => `<a href="/ed_arquivo?${new URLSearchParams({id: e.id, rel: i.rel})}" target="_blank" rel="noopener">
+        <img loading="lazy" src="/ed_arquivo?${new URLSearchParams({id: e.id, rel: i.rel})}&v=${e.status}"><span>${esc(i.nome)}</span></a>`).join("")}</div>`;
+    if(s && s.textos["conferencia.txt"]) corpo += `<details data-d="ed-${esc(e.id)}-conf"><summary>Conferência: ${esc(s.textos["conferencia.txt"].split("\n")[0])}</summary><pre class="log" style="margin-top:6px">${esc(s.textos["conferencia.txt"])}</pre></details>`;
+    if(s && s.textos["ajustes.txt"]) corpo += `<details data-d="ed-${esc(e.id)}-aj"><summary>Roteiro × o que você falou</summary><pre class="log" style="margin-top:6px">${esc(s.textos["ajustes.txt"])}</pre></details>`;
+    const bts = [];
+    if(e.status === "editando" || e.status === "na_fila") bts.push(`<button class="perigo" onclick="edAcao('ed_cancelar',${ei},'Cancelar esta edição?')">Cancelar</button>`);
+    if(e.status === "rascunho") bts.push(`<button class="pri" onclick="edAcao('ed_iniciar',${ei})">Começar</button>`);
+    if(["pronto","erro","interrompido","cancelado"].includes(e.status)) bts.push(`<button onclick="ajusta(${ei})">Ajustar roteiro e refazer</button>`);
+    if(["erro","interrompido","cancelado"].includes(e.status)) bts.push(`<button class="pri" onclick="edAcao('ed_iniciar',${ei})">Tentar de novo</button>`);
+    if(e.status !== "editando") bts.push(`<button class="perigo" onclick="edAcao('ed_apagar',${ei},'Apagar esta edição e todos os arquivos dela (${gb(e.tam)})?')">Apagar (${gb(e.tam)})</button>`);
+    return `<div class="card ed">
+      <div class="topo"><div class="titulo">${esc(e.titulo)}<div class="info" style="margin:2px 0 0">${esc(e.criado)} · ${tags.map(esc).join(" · ")}</div></div>
+      <span class="st ${e.status}">${st}</span></div>
+      ${corpo}
+      <div class="linha">${bts.join("")}</div></div>`;
+  }).join("");
+}
+async function edAcao(acao, ei, pergunta){ const e = E.edicao[ei]; if(pergunta && !confirm(pergunta)) return; await api(acao, {id: e.id}); carrega(true); }
+function verEd(ei, vi){
+  const e = E.edicao[ei], v = e.saidas.videos[vi];
+  $("#modal").innerHTML = `<div class="ctop" style="margin-bottom:10px"><b style="flex:1">${esc(nomeSaida(v.nome))}</b><button class="mini" onclick="fecha()">✕</button></div>
+    <video src="/ed_arquivo?${new URLSearchParams({id: e.id, rel: v.rel})}" controls playsinline autoplay></video>`;
+  $("#fundo").classList.add("on");
+}
+function postaEd(ei, vi){
+  const e = E.edicao[ei], v = e.saidas.videos[vi], vert = /vertical/.test(v.nome);
+  $("#modal").innerHTML = `<div class="ctop" style="margin-bottom:10px"><b style="flex:1">Postar: ${esc(nomeSaida(v.nome))}</b><button class="mini" onclick="fecha()">✕</button></div>
+    ${vert ? "" : `<div class="info alerta">Este é o horizontal (16:9). Para Reels/TikTok o normal é o vertical.</div>`}
+    <div class="info">Mandar para a fila de:</div>
+    <div class="destinos" id="pPara">${E.contas.map(c => `<label class="dest"><input type="checkbox" value="${esc(c.plataforma + ":" + c.conta)}" ${vert && c.conta === "detto.galo" ? "checked" : ""}> ${esc(nomeConta(c))}</label>`).join("")}</div>
+    <label>Legenda + tags</label><textarea id="pLeg" rows="5" placeholder="Legenda do post…"></textarea>
+    <div class="linha" style="justify-content:flex-end"><button onclick="fecha()">Cancelar</button><button class="pri" id="pOk">Pôr na fila</button></div>`;
+  $("#fundo").classList.add("on");
+  $("#pOk").onclick = async () => {
+    const para = [...document.querySelectorAll("#pPara input:checked")].map(x => x.value);
+    if(!para.length) return toast("Escolha as contas", true);
+    await api("ed_postar", {id: e.id, rel: v.rel, para, legenda: $("#pLeg").value});
+    toast("Na fila de postagem"); fecha(); carrega(true);
+  };
+}
+async function ajusta(ei){
+  const e = E.edicao[ei], r = await api("ed_roteiro", {id: e.id}), op = e.opcoes || {};
+  $("#modal").innerHTML = `<div class="ctop" style="margin-bottom:10px"><b style="flex:1">Ajustar e refazer: ${esc(e.titulo)}</b><button class="mini" onclick="fecha()">✕</button></div>
+    <div class="info">${r.de === "job" ? "Este é o roteiro que a edição usou (já alinhado). Mude o que quiser:" : "Roteiro:"} a transcrição e o rosto são reaproveitados, só refaz o resto.</div>
+    <textarea id="aTxt" rows="16" style="font:13px/1.4 Consolas,monospace">${esc(r.texto)}</textarea>
+    <div class="opcoes">
+      <label class="dest"><input type="checkbox" id="aTeste" ${op.teste ? "checked" : ""}> Teste (1 min)</label>
+      <label class="dest"><input type="checkbox" id="aLances" ${op.sem_lances ? "checked" : ""}> Sem lances</label>
+      <label class="dest"><input type="checkbox" id="aThumbs" ${op.sem_thumbs ? "checked" : ""}> Sem thumbs</label>
+      <label class="dest"><input type="checkbox" id="aVert" ${op.sem_verticais ? "checked" : ""}> Sem cortes 9:16</label>
+    </div>
+    <div class="linha" style="justify-content:flex-end"><button onclick="fecha()">Cancelar</button><button class="pri" id="aOk">Salvar e refazer</button></div>`;
+  $("#fundo").classList.add("on");
+  $("#aOk").onclick = async () => {
+    await api("ed_refazer", {id: e.id, texto: $("#aTxt").value, opcoes: {teste: $("#aTeste").checked, sem_lances: $("#aLances").checked, sem_thumbs: $("#aThumbs").checked, sem_verticais: $("#aVert").checked}});
+    toast("Na fila para refazer"); fecha(); carrega(true);
+  };
+}
+
+/* nova edição: arquivos escolhidos */
+const edArq = {video: null, roteiro: null, imgs: []};
+function liga(dropSel, inputSel, tipo){
+  const d = $(dropSel), i = $(inputSel);
+  ["dragenter","dragover"].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.add("on"); }));
+  ["dragleave","drop"].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.remove("on"); }));
+  d.addEventListener("drop", e => pega(tipo, [...e.dataTransfer.files]));
+  i.onchange = e => { pega(tipo, [...e.target.files]); e.target.value = ""; };
+}
+function pega(tipo, fs){
+  if(tipo === "video"){ const f = fs.find(f => /\.(mp4|mov|m4v|mkv|webm)$/i.test(f.name)); if(!f) return toast("Escolha um vídeo", true); edArq.video = f;
+    if(!$("#edTitulo").value) $("#edTitulo").value = f.name.replace(/\.[^.]+$/, ""); }
+  if(tipo === "roteiro"){ const f = fs.find(f => /\.(txt|md|docx)$/i.test(f.name)); if(!f) return toast("Roteiro em .txt ou .docx", true); edArq.roteiro = f; }
+  if(tipo === "imgs") edArq.imgs = edArq.imgs.concat(fs.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name)));
+  mostraArq();
+}
+function mostraArq(){
+  const v = $("#edDropV"), r = $("#edDropR"), im = $("#edDropI");
+  v.classList.toggle("ok", !!edArq.video); v.querySelector("span").textContent = edArq.video ? "🎬 " + edArq.video.name + " (" + gb(edArq.video.size) + ")" : "Arraste ou toque para escolher o vídeo";
+  r.classList.toggle("ok", !!edArq.roteiro); r.querySelector("span").textContent = edArq.roteiro ? "📄 " + edArq.roteiro.name : "Arraste o roteiro (.txt ou .docx)";
+  im.classList.toggle("ok", edArq.imgs.length > 0); im.querySelector("span").textContent = edArq.imgs.length ? "🖼 " + edArq.imgs.map(f => f.name).join(", ") : "Arraste as imagens";
+}
+liga("#edDropV", "#edVideo", "video"); liga("#edDropR", "#edRoteiro", "roteiro"); liga("#edDropI", "#edImgs", "imgs");
+
+function sobe(url, arquivo, rotulo){
+  return new Promise((ok, falha) => {
+    const x = new XMLHttpRequest(); x.open("POST", url);
+    x.upload.onprogress = e => { if(e.lengthComputable) $("#edProg").textContent = rotulo + " " + Math.round(e.loaded / e.total * 100) + "%"; };
+    x.onload = () => { if(x.status === 200) ok(); else { let j = {}; try { j = JSON.parse(x.responseText) } catch(e){} falha(new Error(j.erro || x.status)); } };
+    x.onerror = () => falha(new Error("caiu a conexão")); x.send(arquivo);
+  });
+}
+$("#btEditar").onclick = async () => {
+  const caminho = $("#edCaminho").value.trim();
+  if(!edArq.video && !caminho) return toast("Escolha a gravação (ou cole o caminho no PC)", true);
+  const bt = $("#btEditar"); bt.disabled = true;
+  try{
+    const opcoes = {teste: $("#opTeste").checked, sem_lances: $("#opSemLances").checked, sem_thumbs: $("#opSemThumbs").checked,
+      sem_verticais: $("#opSemVert").checked, fps: $("#opFps").value, sfx: $("#opSfx").value,
+      postar: [...document.querySelectorAll("#edPara input:checked")].map(x => x.value)};
+    const {id} = await api("ed_novo", {titulo: $("#edTitulo").value, opcoes, roteiro_texto: edArq.roteiro ? "" : $("#edRoteiroTxt").value});
+    const q = t => "/api/ed_enviar?" + new URLSearchParams({id, tipo: t.tipo, nome: t.nome});
+    if(edArq.video) await sobe(q({tipo: "video", nome: edArq.video.name}), edArq.video, "Enviando a gravação");
+    else await api("ed_caminho", {id, caminho});
+    if(edArq.roteiro) await sobe(q({tipo: "roteiro", nome: edArq.roteiro.name}), edArq.roteiro, "Enviando o roteiro");
+    for(const [n, f] of edArq.imgs.entries()) await sobe(q({tipo: "imagem", nome: f.name}), f, `Imagem ${n + 1}/${edArq.imgs.length}`);
+    await api("ed_iniciar", {id});
+    toast("Edição na fila!"); $("#edProg").textContent = "";
+    edArq.video = null; edArq.roteiro = null; edArq.imgs = []; mostraArq();
+    for(const s of ["#edTitulo","#edCaminho","#edRoteiroTxt"]) $(s).value = "";
+    editando = false; carrega(true);
+  }catch(e){ $("#edProg").textContent = "✖ " + e.message; toast("Não deu: " + e.message, true); }
+  bt.disabled = false;
+};
 
 carrega(true);
 setInterval(carrega, 8000);

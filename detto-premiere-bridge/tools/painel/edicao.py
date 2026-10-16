@@ -1,0 +1,414 @@
+# -*- coding: utf-8 -*-
+"""Aba EDIÇÃO do painel: você manda a gravação + o roteiro pela tela e o PC roda o tools/editar.py.
+
+Pasta (padrão E:\\DETTO\\edicao): cada edição é uma pasta "AAAA-MM-DD HHMM título\\" com
+  <título>.mp4 (a gravação), <título>.txt (o seu roteiro), imagens\\ (fotos que você mandou: Vasco.jpg ...),
+  <título>_job\\ (o que o editar.py faz: horizontal.mp4, vertical_*.mp4, thumbs, conferência) e painel.json (situação).
+Uma edição por vez (placa de vídeo); as outras esperam na fila.
+"""
+import datetime as dt
+import json
+import os
+import re
+import shutil
+import signal
+import subprocess
+import sys
+import threading
+import time
+import unicodedata
+from pathlib import Path
+
+AQUI = Path(__file__).resolve().parent
+TOOLS = AQUI.parent
+PONTE = TOOLS.parent
+VIDEO_EXT = {".mp4", ".mov", ".m4v", ".mkv", ".webm"}
+IMG_EXT = {".jpg", ".jpeg", ".png", ".webp"}
+ED = None
+TRAVA = threading.Lock()
+PROC = {"id": None, "p": None}
+
+ETAPAS = [  # (texto no registro, nome da etapa) — a última que aparecer é a atual
+    ("transcrever.py", "Transcrevendo a fala"), ("facetrack.py", "Achando o rosto"), ("roteiro_ia.py", "Gemini escrevendo o roteiro"),
+    ("roteiro-to-plan.js", "Alinhando o roteiro com a fala"), ("jogadores.py", "Buscando fotos e imagens"),
+    ("lances.py", "Buscando os lances"), ("horizontal.mp4", "Render horizontal (YouTube)"), ("conferir.py", "Conferindo cor e volume"),
+    ("vertical_completo.mp4", "Render vertical completo"), ("--cut", "Cortes 9:16"), ("thumb.py", "Fazendo as thumbs"),
+    ("Pronto:", "Pronto"),
+]
+
+
+def pasta_padrao():
+    if os.name == "nt" and Path("E:/").exists():
+        return Path("E:/DETTO/edicao")
+    return Path.home() / "DETTO" / "edicao"
+
+
+def slug(s, n=50):
+    s = unicodedata.normalize("NFC", str(s or "")).strip()
+    s = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "", s)
+    s = re.sub(r"\s+", " ", s).strip(" .")
+    return s[:n].strip() or "video"
+
+
+def le(f, padrao):
+    try:
+        return json.loads(Path(f).read_text(encoding="utf-8"))
+    except Exception:
+        return padrao
+
+
+def grava(f, d):
+    Path(f).write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+
+
+def pasta_de(i):
+    p = (ED / slug(i, 120)).resolve()
+    if p.parent != ED.resolve() or not p.exists():
+        raise ValueError("edição não encontrada")
+    return p
+
+
+def info(p):
+    return le(p / "painel.json", {})
+
+
+def muda_info(p, **kw):
+    with TRAVA:
+        d = info(p)
+        d.update(kw)
+        grava(p / "painel.json", d)
+        return d
+
+
+def video_de(p):
+    d = info(p)
+    v = p / d.get("video", "")
+    return v if d.get("video") and v.exists() else None
+
+
+def job_de(p):
+    v = video_de(p)
+    return v.with_name(v.stem + "_job") if v else None
+
+
+def tam_pasta(p):
+    t = 0
+    for r, _, fs in os.walk(p):
+        for f in fs:
+            try:
+                t += os.path.getsize(os.path.join(r, f))
+            except OSError:
+                pass
+    return t
+
+
+_ETAPA_CACHE = {}
+
+
+def registro(p, n=40):
+    """últimas linhas do registro da edição + a etapa atual (a última que apareceu)"""
+    f = p / "painel_log.txt"
+    if not f.exists():
+        return [], ""
+    st = f.stat()
+    with open(f, "rb") as fh:
+        fh.seek(max(0, st.st_size - 24000))
+        txt = fh.read().decode("utf-8", "replace")
+    linhas = [l.rstrip() for l in re.split(r"[\r\n]+", txt) if l.strip()]
+    chave_c = (st.st_size, st.st_mtime)
+    guardado = _ETAPA_CACHE.get(str(f))
+    etapa = guardado[1] if guardado and guardado[0] == chave_c else None
+    if etapa is None:
+        # só as linhas de comando (">> ...") e o "Pronto:" decidem a etapa
+        etapa, pos = "", -1
+        with open(f, encoding="utf-8", errors="replace") as fh:
+            marcos = [l for l in fh if l.startswith(">>") or l.startswith("Pronto:")]
+        for idx, l in enumerate(marcos):
+            for chave, nome in ETAPAS:
+                if chave in l and idx >= pos:
+                    pos, etapa = idx, nome
+        _ETAPA_CACHE[str(f)] = (chave_c, etapa)
+    return linhas[-n:], etapa
+
+
+def saidas(p):
+    job = job_de(p)
+    if not job or not job.exists():
+        return {"videos": [], "imagens": [], "textos": {}}
+    rel = lambda f: str(f.relative_to(p)).replace("\\", "/")  # noqa: E731
+    ordem = lambda f: (0 if f.stem.startswith("horizontal") else 1 if f.stem.startswith("vertical_completo") else 2, f.name)  # noqa: E731
+    vids = [{"rel": rel(f), "nome": f.name, "tam": f.stat().st_size, "quando": dt.datetime.fromtimestamp(f.stat().st_mtime).strftime("%d/%m %H:%M")}
+            for f in sorted(job.glob("*.mp4"), key=ordem)]
+    imgs = []
+    for nome in ("thumbs/thumbs.jpg", "conferencia.jpg", "imagens_conferir.jpg", "lances_conferir.jpg"):
+        if (job / nome).exists():
+            imgs.append({"rel": rel(job / nome), "nome": nome.split("/")[-1]})
+    imgs += [{"rel": rel(f), "nome": f.name} for f in sorted((job / "thumbs").glob("thumb_*.jpg"))] if (job / "thumbs").exists() else []
+    textos = {}
+    for nome in ("conferencia.txt", "ajustes.txt"):
+        if (job / nome).exists():
+            textos[nome] = (job / nome).read_text(encoding="utf-8", errors="replace")[:6000]
+    return {"videos": vids, "imagens": imgs, "textos": textos}
+
+
+def lista():
+    if not ED.exists():
+        return []
+    out = []
+    for p in sorted((x for x in ED.iterdir() if x.is_dir() and (x / "painel.json").exists()), key=lambda x: x.name, reverse=True):
+        d = info(p)
+        reg, etapa = registro(p) if d.get("status") in ("editando", "erro", "pronto", "interrompido", "cancelado") else ([], "")
+        img_n = len([f for f in (p / "imagens").glob("*") if f.suffix.lower() in IMG_EXT]) if (p / "imagens").exists() else 0
+        dur = None
+        if d.get("inicio"):
+            fim = d.get("fim") or time.time()
+            dur = int(fim - d["inicio"])
+        out.append({
+            "id": p.name, "titulo": d.get("titulo") or p.name, "status": d.get("status", "rascunho"), "opcoes": d.get("opcoes", {}),
+            "video": d.get("video", ""), "roteiro": (p / "roteiro_enviado.txt").exists() or bool(job_de(p) and (job_de(p) / "roteiro.txt").exists()),
+            "imagens": img_n, "criado": d.get("criado", ""), "duracao": dur, "etapa": etapa, "registro": reg if d.get("status") != "pronto" else reg[-8:],
+            "erro": d.get("erro", ""), "tam": tam_pasta(p), "saidas": saidas(p) if d.get("status") in ("pronto", "erro", "interrompido", "cancelado", "editando") else None,
+            "na_frente": sum(1 for q in ED.iterdir() if q.is_dir() and info(q).get("status") == "na_fila" and info(q).get("pedido", 0) < d.get("pedido", 0))
+            if d.get("status") == "na_fila" else 0,
+        })
+    return out
+
+
+def novo(d):
+    ED.mkdir(parents=True, exist_ok=True)
+    titulo = slug(d.get("titulo") or "video")
+    nome = f"{dt.datetime.now():%Y-%m-%d %H%M} {titulo}"
+    p = ED / nome
+    i = 2
+    while p.exists():
+        p = ED / f"{nome} {i}"
+        i += 1
+    p.mkdir()
+    (p / "imagens").mkdir()
+    op = d.get("opcoes") or {}
+    opcoes = {"teste": bool(op.get("teste")), "sem_lances": bool(op.get("sem_lances")), "sem_thumbs": bool(op.get("sem_thumbs")),
+              "sem_verticais": bool(op.get("sem_verticais")), "fps": 30 if str(op.get("fps")) == "30" else 60,
+              "sfx": str(op.get("sfx") or "0.3"), "postar": [x for x in op.get("postar", []) if re.fullmatch(r"(instagram|tiktok):[\w.]+", x)]}
+    grava(p / "painel.json", {"titulo": titulo, "status": "rascunho", "criado": dt.datetime.now().strftime("%d/%m %H:%M"), "opcoes": opcoes})
+    if str(d.get("roteiro_texto") or "").strip():
+        (p / "roteiro_enviado.txt").write_text(d["roteiro_texto"].strip() + "\n", encoding="utf-8")
+    return {"id": p.name}
+
+
+def recebe(h, q):
+    """arquivos da edição: tipo=video (a gravação), roteiro (.txt) ou imagem (vai para imagens\\ com o nome que tem)"""
+    p = pasta_de(q.get("id", ""))
+    tipo = q.get("tipo")
+    nome = Path(slug(q.get("nome", "arquivo"), 120)).name
+    ext = Path(nome).suffix.lower()
+    if tipo == "video":
+        if ext not in VIDEO_EXT:
+            raise ValueError("a gravação precisa ser vídeo (.mp4, .mov ...)")
+        alvo = p / f"{info(p).get('titulo', 'video')}{ext}"
+    elif tipo == "roteiro":
+        if ext not in (".txt", ".md", ".docx"):
+            raise ValueError("roteiro: mande .txt (ou .docx)")
+        alvo = p / ("roteiro_enviado" + ext)
+    elif tipo == "imagem":
+        if ext not in IMG_EXT:
+            raise ValueError("imagem: .jpg, .png ou .webp")
+        alvo = p / "imagens" / nome
+    else:
+        raise ValueError("tipo?")
+    tam = int(h.headers.get("Content-Length") or 0)
+    tmp = alvo.with_name(alvo.name + ".parte")
+    with open(tmp, "wb") as f:
+        falta = tam
+        while falta > 0:
+            b = h.rfile.read(min(4 * 1024 * 1024, falta))
+            if not b:
+                break
+            f.write(b)
+            falta -= len(b)
+    if falta > 0:
+        tmp.unlink(missing_ok=True)
+        raise ValueError("envio interrompido")
+    os.replace(tmp, alvo)
+    if tipo == "roteiro" and ext == ".docx":
+        _docx_para_txt(alvo)
+    if tipo == "video":
+        muda_info(p, video=alvo.name)
+    return {"ok": True}
+
+
+def _docx_para_txt(f):
+    """roteiro em Word → texto (parágrafos)"""
+    import zipfile
+    from xml.etree import ElementTree as ET
+    ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+    with zipfile.ZipFile(f) as z:
+        raiz = ET.fromstring(z.read("word/document.xml"))
+    linhas = ["".join(t.text or "" for t in par.iter(ns + "t")) for par in raiz.iter(ns + "p")]
+    f.with_suffix(".txt").write_text("\n".join(linhas).strip() + "\n", encoding="utf-8")
+    f.unlink()
+
+
+def de_caminho(d):
+    """a gravação já está no PC: liga o arquivo (mesmo disco = não ocupa espaço de novo) ou copia"""
+    p = pasta_de(d.get("id", ""))
+    orig = Path(str(d.get("caminho", "")).strip().strip('"'))
+    if not orig.is_file() or orig.suffix.lower() not in VIDEO_EXT:
+        raise ValueError(f"não achei o vídeo: {orig}")
+    alvo = p / f"{info(p).get('titulo', 'video')}{orig.suffix.lower()}"
+    alvo.unlink(missing_ok=True)
+    try:
+        os.link(orig, alvo)
+    except OSError:
+        shutil.copyfile(orig, alvo)
+    muda_info(p, video=alvo.name)
+    return {"ok": True}
+
+
+def prepara_roteiro(p):
+    """o roteiro mandado vira <título>.txt ao lado da gravação (o editar.py acha sozinho)"""
+    env = p / "roteiro_enviado.txt"
+    v = video_de(p)
+    if env.exists() and v:
+        alvo = v.with_suffix(".txt")
+        if not alvo.exists() or alvo.read_bytes() != env.read_bytes():
+            shutil.copyfile(env, alvo)
+
+
+def iniciar(d):
+    p = pasta_de(d.get("id", ""))
+    if not video_de(p):
+        raise ValueError("falta a gravação")
+    if info(p).get("status") == "editando":
+        raise ValueError("já está editando")
+    muda_info(p, status="na_fila", pedido=time.time(), erro="", inicio=None, fim=None)
+    return {"ok": True}
+
+
+def roteiro(d):
+    """o roteiro atual: o do job (o que o editar.py usou, com seus ajustes) ou o que você mandou"""
+    p = pasta_de(d.get("id", ""))
+    job = job_de(p)
+    for f in ([job / "roteiro.txt"] if job else []) + [p / "roteiro_enviado.txt"]:
+        if f.exists():
+            return {"texto": f.read_text(encoding="utf-8", errors="replace"), "de": "job" if f.parent == job else "enviado"}
+    return {"texto": "", "de": ""}
+
+
+def refazer(d):
+    """salva o roteiro ajustado e edita de novo (transcrição e rosto são reaproveitados)"""
+    p = pasta_de(d.get("id", ""))
+    if "texto" in d and str(d["texto"]).strip():
+        txt = str(d["texto"]).replace("\r\n", "\n").strip() + "\n"
+        job = job_de(p)
+        if job:
+            job.mkdir(exist_ok=True)
+            (job / "roteiro.txt").write_text(txt, encoding="utf-8")
+            # o editar.py só troca o roteiro do job se o da pasta for mais novo: o da pasta fica igual
+            v = video_de(p)
+            if v and v.with_suffix(".txt").exists():
+                v.with_suffix(".txt").write_text(txt, encoding="utf-8")
+                os.utime(job / "roteiro.txt", None)
+        (p / "roteiro_enviado.txt").write_text(txt, encoding="utf-8")
+    if "opcoes" in d:
+        op = info(p).get("opcoes", {})
+        op.update({k: v for k, v in d["opcoes"].items() if k in ("teste", "sem_lances", "sem_thumbs", "sem_verticais", "fps", "sfx")})
+        muda_info(p, opcoes=op)
+    return iniciar({"id": p.name})
+
+
+def cancelar(d):
+    p = pasta_de(d.get("id", ""))
+    if PROC["id"] == p.name and PROC["p"] and PROC["p"].poll() is None:
+        mata(PROC["p"])
+    st = info(p).get("status")
+    if st in ("na_fila", "editando"):
+        muda_info(p, status="cancelado", fim=time.time())
+    return {"ok": True}
+
+
+def mata(proc):
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)], capture_output=True)
+        else:
+            os.killpg(proc.pid, signal.SIGTERM)
+    except Exception:
+        proc.kill()
+
+
+def apagar(d):
+    p = pasta_de(d.get("id", ""))
+    cancelar(d)
+    time.sleep(0.5)
+    shutil.rmtree(p, ignore_errors=True)
+    return {"ok": True}
+
+
+def arquivo(i, rel):
+    p = pasta_de(i)
+    f = (p / rel).resolve()
+    if p not in f.parents or not f.is_file():
+        raise ValueError("arquivo?")
+    return f
+
+
+def comando(p):
+    d = info(p)
+    op = d.get("opcoes", {})
+    exe = Path(sys.executable)
+    if exe.name.lower() == "pythonw.exe" and exe.with_name("python.exe").exists():
+        exe = exe.with_name("python.exe")
+    cmd = [str(exe), "-u", str(TOOLS / "editar.py"), str(video_de(p)), "--titulo", d.get("titulo", ""), "--fps", str(op.get("fps", 60))]
+    for chave, flag in (("teste", "--teste"), ("sem_lances", "--sem-lances"), ("sem_thumbs", "--sem-thumbs"), ("sem_verticais", "--sem-verticais")):
+        if op.get(chave):
+            cmd.append(flag)
+    if op.get("sfx") not in (None, "", "0.3"):
+        cmd += ["--sfx", str(op["sfx"])]
+    return cmd
+
+
+def proximo_da_fila():
+    if not ED.exists():
+        return None
+    fila = [p for p in ED.iterdir() if p.is_dir() and info(p).get("status") == "na_fila"]
+    return min(fila, key=lambda p: info(p).get("pedido", 0)) if fila else None
+
+
+def laco(log=print, ao_terminar=None):
+    """roda as edições da fila, uma por vez"""
+    # o painel foi fechado no meio de uma edição: ela fica "interrompida" (botão Refazer)
+    if ED.exists():
+        for p in ED.iterdir():
+            if p.is_dir() and info(p).get("status") == "editando":
+                muda_info(p, status="interrompido", erro="o painel/PC foi desligado no meio da edição")
+    while True:
+        try:
+            pr = PROC["p"]
+            if pr is not None and pr.poll() is not None:
+                p = ED / PROC["id"]
+                if p.exists() and info(p).get("status") == "editando":
+                    ok = pr.returncode == 0
+                    muda_info(p, status="pronto" if ok else "erro", fim=time.time(),
+                              erro="" if ok else f"o editar.py parou com erro (código {pr.returncode}) — veja o registro")
+                    log(f"edição {p.name}: {'PRONTA' if ok else 'ERRO'}")
+                    if ok and ao_terminar:
+                        try:
+                            ao_terminar(p)
+                        except Exception as e:
+                            log(f"edição {p.name}: não entrou na fila de postagem ({e})")
+                PROC.update(id=None, p=None)
+            if PROC["p"] is None:
+                p = proximo_da_fila()
+                if p:
+                    prepara_roteiro(p)
+                    logf = open(p / "painel_log.txt", "w", encoding="utf-8")
+                    logf.write(f"{dt.datetime.now():%d/%m %H:%M} começando: {' '.join(comando(p))}\n")
+                    logf.flush()
+                    extra = {"creationflags": 0x08000000 | 0x00000200} if os.name == "nt" else {"start_new_session": True}
+                    PROC.update(id=p.name, p=subprocess.Popen(comando(p), stdout=logf, stderr=subprocess.STDOUT, cwd=str(PONTE),
+                                                              env={**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"}, **extra))
+                    muda_info(p, status="editando", inicio=time.time(), fim=None)
+                    log(f"edição {p.name}: começou")
+        except Exception as e:
+            log(f"edição: erro no laço ({e})")
+        time.sleep(3)

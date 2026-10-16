@@ -52,7 +52,10 @@ CONFIG_PADRAO = {
     "tiktok": {"client_key": "", "client_secret": "", "redirect": "http://localhost:8723/callback/", "modo": "rascunho", "ia": False},
     "contas": [
         # intervalo_min = minutos entre posts; horas = janela do dia; max_dia = 0 sem limite; ativo = false pausa só esta conta
-        {"plataforma": "instagram", "conta": "detto.galo", "intervalo_min": 80, "horas": "08-23", "max_dia": 0, "ativo": True},
+        # Instagram: teste = posta como REELS TESTE (só para quem não te segue); graduar "manual" = você manda para os
+        # seguidores no app quando bater a meta_views (o painel avisa); "automatico" = o Instagram decide pelo desempenho
+        {"plataforma": "instagram", "conta": "detto.galo", "intervalo_min": 80, "horas": "08-23", "max_dia": 0, "ativo": True,
+         "teste": True, "graduar": "manual", "meta_views": 10000},
         {"plataforma": "tiktok", "conta": "detto.galo", "intervalo_min": 80, "horas": "08-23", "max_dia": 0, "ativo": True},
         {"plataforma": "tiktok", "conta": "detto.tv", "intervalo_min": 120, "horas": "08-23", "max_dia": 0, "ativo": True},
     ],
@@ -105,6 +108,8 @@ def prepara(base):
         cfg[k] = {**cfg.get(k, {}), **v} if isinstance(v, dict) and isinstance(cfg.get(k), dict) else v
     for c in cfg["contas"]:
         for k_, v_ in CONFIG_PADRAO["contas"][0].items():
+            if k_ in ("teste", "graduar", "meta_views") and c.get("plataforma") != "instagram":
+                continue
             c.setdefault(k_, v_ if k_ not in ("plataforma", "conta") else c.get(k_))
         for p in ("entrada", "postados", "falhas"):
             (base / p / chave(c)).mkdir(parents=True, exist_ok=True)
@@ -183,7 +188,7 @@ def ig_login(cfg, base, conta, token_colado=None):
         redir = f"http://localhost:{porta}/"
         estado = secrets.token_urlsafe(12)
         perm = {"config_id": ic["config_id"]} if ic.get("config_id") else {
-            "scope": "instagram_basic,instagram_content_publish,pages_show_list,pages_read_engagement,business_management"}
+            "scope": "instagram_basic,instagram_content_publish,instagram_manage_insights,pages_show_list,pages_read_engagement,business_management"}
         url = (f"https://www.facebook.com/{v}/dialog/oauth?" + urllib.parse.urlencode({
             "client_id": ic["app_id"], "redirect_uri": redir, "state": estado, "response_type": "code", **perm}))
         print(f"Abrindo o navegador para entrar com o Facebook ligado ao Instagram @{conta}...\n{url}")
@@ -211,14 +216,25 @@ def ig_login(cfg, base, conta, token_colado=None):
     print(f"Instagram @{ig['username']} ligado (página {p['name']}).")
 
 
-def ig_posta(cfg, base, conta, video, legenda):
+def ig_posta(cfg, base, conta, video, legenda, teste=False, graduar="manual"):
     tk = le_json(base / "tokens" / f"instagram_{conta}.json", None)
     if not tk:
         raise RuntimeError(f"Instagram @{conta} sem login: python tools\\postar\\postar.py --login instagram --conta {conta}")
     v, igid, token = cfg["instagram"]["versao"], tk["ig_id"], tk["token"]
     # 1) contêiner de Reels com envio direto do arquivo (não precisa hospedar o vídeo)
-    c = http("POST", f"{GRAPH}/{v}/{igid}/media", {"media_type": "REELS", "upload_type": "resumable", "caption": legenda[:2200],
-                                                  "share_to_feed": "true", "access_token": token})
+    params = {"media_type": "REELS", "upload_type": "resumable", "caption": legenda[:2200], "share_to_feed": "true", "access_token": token}
+    if teste:
+        # REELS TESTE: aparece só para quem não te segue; "MANUAL" = você manda para os seguidores no app,
+        # "SS_PERFORMANCE" = o Instagram manda sozinho se for bem
+        params["trial_params"] = json.dumps({"graduation_strategy": "SS_PERFORMANCE" if graduar == "automatico" else "MANUAL"})
+        params.pop("share_to_feed")
+    try:
+        c = http("POST", f"{GRAPH}/{v}/{igid}/media", params)
+    except RuntimeError as e:
+        if teste and "trial" in str(e).lower():
+            raise RuntimeError(f"o Instagram não aceitou como Reels teste ({e}). Confira se a conta já tem 'Reels de teste' no app; "
+                               f"ou desligue 'Reels teste' no painel") from None
+        raise
     cid, uri = c["id"], c.get("uri") or f"https://rupload.facebook.com/ig-api-upload/{v}/{c['id']}"
     dados = Path(video).read_bytes()
     up = http("POST", uri, cab={"Authorization": f"OAuth {token}", "offset": "0", "file_size": str(len(dados))}, corpo=dados, tempo=900)
@@ -239,7 +255,28 @@ def ig_posta(cfg, base, conta, video, legenda):
     pub = http("POST", f"{GRAPH}/{v}/{igid}/media_publish", {"creation_id": cid, "access_token": token})
     mid = pub["id"]
     link = http("GET", f"{GRAPH}/{v}/{mid}?" + urllib.parse.urlencode({"fields": "permalink", "access_token": token})).get("permalink", "")
-    return {"id": mid, "link": link}
+    return {"id": mid, "link": link, **({"teste": True, "graduar": graduar} if teste else {})}
+
+
+def ig_views(cfg, base, conta, media_id):
+    """visualizações de um reel (precisa da permissão instagram_manage_insights no login)"""
+    tk = le_json(base / "tokens" / f"instagram_{conta}.json", None)
+    if not tk:
+        return None
+    v = cfg["instagram"]["versao"]
+    for metrica in ("views", "plays"):
+        try:
+            r = http("GET", f"{GRAPH}/{v}/{media_id}/insights?" + urllib.parse.urlencode({"metric": metrica, "access_token": tk["token"]}))
+            d = (r.get("data") or [{}])[0]
+            val = (d.get("values") or [{}])[0].get("value")
+            if val is None:
+                val = (d.get("total_value") or {}).get("value")
+            if val is not None:
+                return int(val)
+        except RuntimeError as e:
+            if "permission" in str(e).lower() or "(#10)" in str(e):
+                raise RuntimeError("falta a permissão de estatísticas: refaça o login do Instagram no painel") from None
+    return None
 
 
 def ig_limite(cfg, base, conta):
@@ -448,7 +485,7 @@ def na_hora(c, ultimo, estado=None, k=None):
 def posta_um(cfg, base, c, video):
     leg = legenda_de(video)
     if c["plataforma"] == "instagram":
-        return ig_posta(cfg, base, c["conta"], video, leg)
+        return ig_posta(cfg, base, c["conta"], video, leg, teste=bool(c.get("teste")), graduar=c.get("graduar", "manual"))
     return tt_posta(cfg, base, c["conta"], video, leg)
 
 

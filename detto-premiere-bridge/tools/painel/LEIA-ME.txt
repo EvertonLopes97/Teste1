@@ -31,7 +31,21 @@ PAINEL DETTO — colocar tudo no ar (uma vez só)
      python tools\reels\reels.py --agendar 07:00
    ou pelo painel: "Gerar N reels agora". Os prontos entram sozinhos na fila das contas marcadas.
 
-NO DIA A DIA (tudo pelo painel):
+NO DIA A DIA (tudo pelo painel, 4 abas):
+  EDIÇÃO: título + a gravação (arraste, ou cole o caminho no PC — não copia, é mais rápido) + o roteiro
+    (.txt/.docx ou colado; sem roteiro o Gemini escreve) + imagens (camisa = nome do time: Vasco.jpg) →
+    "Editar". Uma por vez; o resto espera na fila. Pronto: assistir, baixar, "Postar" (manda para a fila
+    da conta com a legenda), thumbs e conferência; "Ajustar roteiro e refazer" (reaproveita transcrição e
+    rosto). Marque as contas em "Quando ficar pronto..." para o vertical completo já entrar na fila.
+    Pasta: E:\DETTO\edicao\<data título>\ (apague as edições velhas no botão "Apagar" para liberar disco).
+  REELS TESTE (Instagram): ligado por padrão — o reel vai só para quem NÃO te segue. O painel mostra as
+    views de cada um e avisa (🔥) quando bate a sua meta: abra o reel no app → "Compartilhar com
+    seguidores" → no painel "Já mandei". O Instagram não deixa fazer esse último passo pela API.
+    "O Instagram decide" = ele mesmo manda para os seguidores se for bem.
+    (As views precisam da permissão de estatísticas: se já tinha feito o login antes, clique em "Refazer".)
+  LINKS: aba Reels automáticos → cole o link do vídeo (TikTok/Insta/YouTube) → "Fazer agora" (fica igual
+    ao original, só a pessoa vira você) ou "Pôr na lista" (entra na próxima rodada de reels).
+
   - Enviar vídeos: arraste (PC) ou toque e escolha (celular), marque para onde vai e a legenda.
     "Começo de reel" vai para a pasta dos começos com o nome que você escrever.
   - Cada conta: liga/desliga, de quanto em quanto tempo posta, das X às Y horas, máximo por dia.
