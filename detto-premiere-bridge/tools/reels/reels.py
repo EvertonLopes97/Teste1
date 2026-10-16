@@ -132,7 +132,12 @@ def audio_bom(f):
     que o FFmpeg não abre; o 2º é o AAC normal. None = sem áudio"""
     r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=codec_name", "-of", "csv=p=0", str(f)], capture_output=True, text=True)
     for k, c in enumerate(r.stdout.split()):
-        if c and c not in ("unknown", "none", "apac"):
+        if not c or c in ("unknown", "none") or "apac" in c:
+            continue
+        # confirma que o FFmpeg deste PC abre esse áudio (o nome do codec muda entre versões do FFmpeg)
+        t = subprocess.run(["ffmpeg", "-v", "error", "-i", str(f), "-map", f"0:a:{k}", "-t", "0.2", "-f", "null", "-"],
+                           capture_output=True, text=True)
+        if t.returncode == 0 and "no decoder" not in (t.stderr or "").lower():
             return k
     return None
 
@@ -265,22 +270,15 @@ def gemini_json(partes):
     if not os.environ.get("GEMINI_API_KEY"):
         return None
     sys.path.insert(0, str(TOOLS))
-    from roteiro_ia import API, _chamar, modelos_disponiveis
+    from roteiro_ia import gerar
 
     corpo = json.dumps({"contents": [{"parts": partes}], "generationConfig": {"temperature": 0.8, "responseMimeType": "application/json"}}).encode()
-    modelos = [os.environ.get("GEMINI_MODEL", "gemini-flash-latest"), "gemini-2.5-flash"]
-    for i in range(3):
-        if i == 2:
-            try:
-                modelos.append((modelos_disponiveis() or ["gemini-2.5-flash"])[0])
-            except Exception:
-                break
-        try:
-            r = _chamar(f"{API}/models/{modelos[i]}:generateContent", corpo)
-            txt = r["candidates"][0]["content"]["parts"][0]["text"]
-            return json.loads(re.search(r"\{.*\}", txt, re.S).group(0))
-        except Exception as e:
-            log(f"   Gemini ({modelos[i] if i < len(modelos) else '?'}): {str(e)[:160]}")
+    try:
+        r = gerar(corpo, log=log)
+        txt = r["candidates"][0]["content"]["parts"][0]["text"]
+        return json.loads(re.search(r"\{.*\}", txt, re.S).group(0))
+    except Exception as e:
+        log(f"   Gemini: {str(e)[:200]}")
     return None
 
 
