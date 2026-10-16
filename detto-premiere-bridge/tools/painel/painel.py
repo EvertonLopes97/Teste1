@@ -743,8 +743,20 @@ def instalar():
     atalho.write_text(f"[InternetShortcut]\r\nURL=http://localhost:{PORTA}/\r\n", encoding="utf-8")
     print(f"Pronto: o painel liga sozinho quando o Windows inicia ({vbs}).\nAtalho na Área de Trabalho: {atalho}")
     subprocess.Popen(["wscript", str(vbs)])
-    time.sleep(3)
-    webbrowser.open(f"http://localhost:{PORTA}/")
+    # confere se ligou mesmo (antes, se desse erro escondido, só aparecia "conexão recusada")
+    for _ in range(20):
+        time.sleep(1)
+        try:
+            with socket.create_connection(("127.0.0.1", PORTA), timeout=1):
+                print(f"Painel ligado: http://localhost:{PORTA}")
+                webbrowser.open(f"http://localhost:{PORTA}/")
+                return
+        except OSError:
+            pass
+    print("O painel NÃO ligou. O erro está em:", ERRO_F)
+    if ERRO_F.exists():
+        print(ERRO_F.read_text(encoding="utf-8", errors="replace")[-3000:])
+    print("Rode sem o --instalar para ver o erro na tela:  python tools\\painel\\painel.py")
 
 
 def desinstalar():
@@ -774,6 +786,8 @@ def main():
         return instalar()
     if a.desinstalar:
         return desinstalar()
+    # a pasta pode não existir ainda (primeira vez): sem ela o registro não abre e o painel escondido morria calado
+    Path(a.pasta).mkdir(parents=True, exist_ok=True)
     if os.name == "nt" and sys.executable.lower().endswith("pythonw.exe"):
         # sem janela: o print iria para lugar nenhum
         sys.stdout = sys.stderr = open(Path(a.pasta) / "painel.log", "a", encoding="utf-8", buffering=1)
@@ -801,5 +815,17 @@ def main():
         pass
 
 
+ERRO_F = Path(os.environ.get("TEMP") or os.environ.get("TMP") or Path.home()) / "detto_painel_erro.txt"
+
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SystemExit:
+        raise
+    except BaseException:
+        # escondido (pythonw) não tem tela: o erro fica num arquivo que o --instalar mostra
+        try:
+            ERRO_F.write_text(f"{dt.datetime.now():%d/%m %H:%M}\n{traceback.format_exc()}", encoding="utf-8")
+        except OSError:
+            pass
+        raise
