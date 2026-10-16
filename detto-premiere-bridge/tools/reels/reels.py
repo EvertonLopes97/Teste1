@@ -914,6 +914,32 @@ def troca_partes(inicio, i_ini, i_fim, clip, cenas, pngs, saida):
     return r.returncode == 0 and saida.exists()
 
 
+def _palavras(png):
+    import unicodedata
+    t = unicodedata.normalize("NFKD", ler_texto(Path(png)) or "").encode("ascii", "ignore").decode().lower()
+    return [w for w in re.findall(r"[a-z0-9]+", t) if len(w) >= 2]
+
+
+def melhor_legenda(pg, barra):
+    """legenda achada na cena da pessoa × texto da barra do lance (meme de barra = o MESMO texto).
+    Se a da cena saiu pela metade (só a última linha, letra branca em parede clara), fica a da barra, inteira."""
+    if not pg or not barra:
+        return pg or barra
+    try:
+        a, b = _palavras(pg), _palavras(barra)
+    except Exception:
+        return pg
+    if not b:
+        return pg
+    if not a:
+        return barra
+    dentro = sum(1 for w in a if any(w in x or x in w for x in b)) / len(a)
+    if dentro >= 0.6 and sum(map(len, a)) < 0.8 * sum(map(len, b)):
+        log(f"   legenda da cena pela metade ({len(a)} de {len(b)} palavras) → texto inteiro do lance")
+        return barra
+    return pg
+
+
 def legenda_parada(clip, t0, t1, saida):
     """A legenda da parte da pessoa EXATAMENTE como no original, em qualquer altura da tela: letras claras em todos
     os quadros (mínimo) E com borda forte (parede lisa e lâmpada não entram). PNG transparente do tamanho do vídeo."""
@@ -931,25 +957,13 @@ def legenda_parada(clip, t0, t1, saida):
     if len(fr) < 4:
         return None
     mn = np.array(fr).min(axis=0)
+    mx = np.array(fr).max(axis=0)
     H, W = mn.shape
     claro = (mn > 185).astype(np.uint8)
     borda = cv2.dilate((cv2.morphologyEx(mn, cv2.MORPH_GRADIENT, np.ones((3, 3), np.uint8)) > 60).astype(np.uint8), np.ones((3, 3), np.uint8))
-    letra = claro & borda
-    n, _, st, _ = cv2.connectedComponentsWithStats(letra, 8)
-    comps = [st[i] for i in range(1, n) if 3 <= st[i, 3] <= H * 0.05 and st[i, 2] <= W * 0.08 and st[i, 4] >= 6]
-    if len(comps) < 6:
-        return None
-    # linhas de texto: centro das letras agrupado; fica o bloco (linhas vizinhas) com mais letras
-    alt = float(np.median([c[3] for c in comps]))
-    comps.sort(key=lambda c: c[1] + c[3] / 2)
-    linhas = []
-    for c in comps:
-        yc = c[1] + c[3] / 2
-        if linhas and yc - linhas[-1]["y"] < alt * 0.8:
-            linhas[-1]["c"].append(c)
-            linhas[-1]["y"] = np.mean([x[1] + x[3] / 2 for x in linhas[-1]["c"]])
-        else:
-            linhas.append({"y": yc, "c": [c]})
+    # contorno escuro parado (o traço preto da legenda): pega letra branca em cima de parede branca
+    contorno = cv2.dilate((mx < 100).astype(np.uint8), np.ones((9, 9), np.uint8))
+
     def centrada(l):
         """legenda de meme: linha centralizada, letras de altura parecida (parede/grade/placar não passam)"""
         xs0 = min(c[0] for c in l["c"])
@@ -957,16 +971,43 @@ def legenda_parada(clip, t0, t1, saida):
         hs = np.array([c[3] for c in l["c"]], np.float32)
         return (abs((xs0 + xs1) / 2 - W / 2) < W * 0.15 and xs1 - xs0 > W * 0.12
                 and float(hs.std() / max(1.0, hs.mean())) < 0.45)
-    linhas = [l for l in linhas if len(l["c"]) >= 4 and centrada(l)]
-    if not linhas:
+
+    def melhor_bloco(letra):
+        n, _, st, _ = cv2.connectedComponentsWithStats(letra, 8)
+        comps = [st[i] for i in range(1, n) if 3 <= st[i, 3] <= H * 0.05 and st[i, 2] <= W * 0.08 and st[i, 4] >= 6]
+        if len(comps) < 6:
+            return None
+        # linhas de texto: centro das letras agrupado; fica o bloco (linhas vizinhas) com mais letras
+        alt = float(np.median([c[3] for c in comps]))
+        comps.sort(key=lambda c: c[1] + c[3] / 2)
+        linhas = []
+        for c in comps:
+            yc = c[1] + c[3] / 2
+            if linhas and yc - linhas[-1]["y"] < alt * 0.8:
+                linhas[-1]["c"].append(c)
+                linhas[-1]["y"] = np.mean([x[1] + x[3] / 2 for x in linhas[-1]["c"]])
+            else:
+                linhas.append({"y": yc, "c": [c]})
+        linhas = [l for l in linhas if len(l["c"]) >= 4 and centrada(l)]
+        if not linhas:
+            return None
+        blocos = [[linhas[0]]]
+        for l in linhas[1:]:
+            if l["y"] - blocos[-1][-1]["y"] < alt * 2.6:
+                blocos[-1].append(l)
+            else:
+                blocos.append([l])
+        return max(blocos, key=lambda b: sum(len(l["c"]) for l in b))
+
+    # duas leituras (letra com borda / letra com contorno escuro): fica a que achou MAIS texto (mais linhas e letras)
+    opcoes = []
+    for letra in (claro & borda, claro & contorno, claro & (borda | contorno)):
+        b = melhor_bloco(letra)
+        if b:
+            opcoes.append((len(b), sum(len(l["c"]) for l in b), b, letra))
+    if not opcoes:
         return None
-    blocos = [[linhas[0]]]
-    for l in linhas[1:]:
-        if l["y"] - blocos[-1][-1]["y"] < alt * 2.6:
-            blocos[-1].append(l)
-        else:
-            blocos.append([l])
-    bloco = max(blocos, key=lambda b: sum(len(l["c"]) for l in b))
+    _, _, bloco, letra = max(opcoes, key=lambda o: (o[0], o[1]))
     cs = [c for l in bloco for c in l["c"]]
     x0, x1 = max(0, min(c[0] for c in cs) - 12), min(W, max(c[0] + c[2] for c in cs) + 12)
     y0, y1 = max(0, min(c[1] for c in cs) - 12), min(H, max(c[1] + c[3] for c in cs) + 12)
@@ -1175,7 +1216,7 @@ def main():
                 x = cenas[k]
                 m = min(0.15, (x["b"] - x["a"]) / 5)
                 pg = legenda_parada(clip, x["a"] + m, x["b"] - m, tmp / f"legenda_{k}.png") if x["b"] - x["a"] >= 0.6 else None
-                pngs[k] = pg or texto_barra
+                pngs[k] = melhor_legenda(pg, texto_barra)
             lido = ""
             for k in pessoas:
                 if pngs[k] and not lido:
