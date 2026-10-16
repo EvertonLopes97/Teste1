@@ -567,6 +567,98 @@ def texto_do_original(clip, t0, t1, saida):
     return saida
 
 
+def corte_de_cena(f, maximo=15.0):
+    """meme SEM barra preta (pessoa em tela cheia → lance em tela cheia, cada parte com a sua legenda):
+    onde a parte da pessoa termina — troca brusca de imagem ou passagem pelo preto (fade). None = não achou."""
+    import numpy as np
+
+    W, H = 72, 128
+    r = subprocess.run(["ffmpeg", "-v", "error", "-i", str(f), "-vf", f"fps=10,scale={W}:{H}", "-f", "rawvideo", "-pix_fmt", "gray", "-"],
+                       capture_output=True)
+    a = np.frombuffer(r.stdout, np.uint8)
+    if a.size < W * H * 20:
+        return None
+    a = a[: a.size // (W * H) * W * H].reshape(-1, H, W).astype(np.float32)
+    luz = a.mean(axis=(1, 2))
+    dif = np.concatenate([[0.0], np.abs(np.diff(a, axis=0)).mean(axis=(1, 2))])
+    fim = min(len(a) * 0.75, maximo * 10)
+    for i in range(10, int(fim)):
+        base_d = float(np.median(dif[1:i])) or 1.0
+        base_l = float(np.median(luz[:i])) or 1.0
+        if dif[i] > max(30.0, 4 * base_d) or luz[i] < 0.4 * base_l:
+            return round((i - 1) / 10 + 0.05, 2)
+    return None
+
+
+def legenda_parada(clip, t0, t1, saida):
+    """A legenda da parte da pessoa EXATAMENTE como no original, em qualquer altura da tela: letras claras em todos
+    os quadros (mínimo) E com borda forte (parede lisa e lâmpada não entram). PNG transparente do tamanho do vídeo."""
+    import cv2
+    import numpy as np
+
+    fr = []
+    for k in range(10):
+        t = t0 + (t1 - t0) * (k + 0.5) / 10
+        r = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{t:.2f}", "-i", str(clip), "-frames:v", "1", "-f", "image2pipe", "-vcodec", "png", "-"],
+                           capture_output=True)
+        q = cv2.imdecode(np.frombuffer(r.stdout, np.uint8), cv2.IMREAD_GRAYSCALE) if r.stdout else None
+        if q is not None:
+            fr.append(q)
+    if len(fr) < 4:
+        return None
+    mn = np.array(fr).min(axis=0)
+    H, W = mn.shape
+    claro = (mn > 200).astype(np.uint8)
+    borda = cv2.dilate((cv2.morphologyEx(mn, cv2.MORPH_GRADIENT, np.ones((3, 3), np.uint8)) > 60).astype(np.uint8), np.ones((3, 3), np.uint8))
+    letra = claro & borda
+    n, _, st, _ = cv2.connectedComponentsWithStats(letra, 8)
+    comps = [st[i] for i in range(1, n) if 3 <= st[i, 3] <= H * 0.05 and st[i, 2] <= W * 0.08 and st[i, 4] >= 6]
+    if len(comps) < 6:
+        return None
+    # linhas de texto: centro das letras agrupado; fica o bloco (linhas vizinhas) com mais letras
+    alt = float(np.median([c[3] for c in comps]))
+    comps.sort(key=lambda c: c[1] + c[3] / 2)
+    linhas = []
+    for c in comps:
+        yc = c[1] + c[3] / 2
+        if linhas and yc - linhas[-1]["y"] < alt * 0.8:
+            linhas[-1]["c"].append(c)
+            linhas[-1]["y"] = np.mean([x[1] + x[3] / 2 for x in linhas[-1]["c"]])
+        else:
+            linhas.append({"y": yc, "c": [c]})
+    linhas = [l for l in linhas if len(l["c"]) >= 4]
+    if not linhas:
+        return None
+    blocos = [[linhas[0]]]
+    for l in linhas[1:]:
+        if l["y"] - blocos[-1][-1]["y"] < alt * 2.6:
+            blocos[-1].append(l)
+        else:
+            blocos.append([l])
+    bloco = max(blocos, key=lambda b: sum(len(l["c"]) for l in b))
+    cs = [c for l in bloco for c in l["c"]]
+    x0, x1 = max(0, min(c[0] for c in cs) - 12), min(W, max(c[0] + c[2] for c in cs) + 12)
+    y0, y1 = max(0, min(c[1] for c in cs) - 12), min(H, max(c[1] + c[3] for c in cs) + 12)
+    alfa = np.zeros((H, W), np.float32)
+    perto = cv2.dilate(letra, np.ones((7, 7), np.uint8)).astype(bool)
+    reg = np.clip((mn.astype(np.float32) - 150) / 70, 0, 1)
+    alfa[y0:y1, x0:x1] = np.where(perto[y0:y1, x0:x1], reg[y0:y1, x0:x1], 0)
+    sombra = cv2.GaussianBlur(cv2.dilate(alfa, np.ones((3, 3), np.uint8)), (0, 0), 3) * 0.6
+    a_final = np.maximum(alfa, sombra)
+    cor = (alfa / np.maximum(a_final, 1e-3) * 255).clip(0, 255).astype(np.uint8)
+    cv2.imwrite(str(saida), np.dstack([cor, cor, cor, (a_final * 255).astype(np.uint8)]))
+    return saida
+
+
+def png_vazio(clip, saida):
+    import cv2
+    import numpy as np
+
+    W, H = tamanho(clip)
+    cv2.imwrite(str(saida), np.zeros((H, W, 4), np.uint8))
+    return saida
+
+
 def ler_texto(png):
     """o texto do meme em letras (para a legenda): tesseract (português) ou o Gemini lendo a imagem"""
     import cv2
@@ -740,17 +832,29 @@ def main():
             log(f"   faixa do vídeo {av['faixa'][0]:.2f}–{av['faixa'][1]:.2f} da altura (texto gravado do original fica de fora)")
         # LINK SEU no formato meme (outra pessoa + lance): fica IGUAL ao original — mesmo texto, música inteira,
         # mesmo lance —, só troca a parte da pessoa pelo seu começo
-        if c.get("seu") and av.get("inicio") and a.modo != "novo":
-            png = texto_do_original(clip, av["inicio"] + 0.2, dclip - 0.2, tmp / "texto_original.png")
+        corte_t, png, so_pessoa = None, None, False
+        if c.get("seu") and a.modo != "novo":
+            if av.get("inicio"):
+                corte_t = av["inicio"]
+                png = texto_do_original(clip, av["inicio"] + 0.2, dclip - 0.2, tmp / "texto_original.png")
+            else:
+                # meme sem barra (pessoa em tela cheia, legenda no meio → lance com a legenda dele)
+                corte_t = corte_de_cena(clip)
+                if corte_t:
+                    so_pessoa = True
+                    log(f"   meme sem barra: a outra pessoa vai até {corte_t:.1f}s; a legenda dela vai para o seu começo")
+                    png = legenda_parada(clip, 0.15, corte_t - 0.15, tmp / "texto_original.png") or png_vazio(clip, tmp / "texto_vazio.png")
+        if corte_t:
             if png:
-                texto = a.texto or ler_texto(png) or "meme"
+                lido = ler_texto(png) if not (so_pessoa and png.name == "texto_vazio.png") else ""
+                texto = a.texto or lido or re.sub(r"#\S+|[^\w\sÀ-ÿ?!,.:]", "", info.get("title", "")).strip() or "meme"
                 nome_inicio = a.inicio if a.inicio in por_nome else escolhe_inicio(texto, descr, usos_hoje, hist, por_nome)
                 i_ini, i_fim = trecho_do_inicio(por_nome[nome_inicio])
                 n = feitos_hoje + feitos + 1
                 nome = f"{n:02d} - {slug(texto, 40)}"
                 saida = destino / f"{nome}.mp4"
-                log(f"   TROCA: mesmo texto ({texto}), música inteira; seu começo: {nome_inicio} no lugar dos {av['inicio']:.1f}s da outra pessoa")
-                if troca(por_nome[nome_inicio], i_ini, i_fim, clip, av["inicio"], png, saida):
+                log(f"   TROCA: mesmo texto ({texto}), música inteira; seu começo: {nome_inicio} no lugar dos {corte_t:.1f}s da outra pessoa")
+                if troca(por_nome[nome_inicio], i_ini, i_fim, clip, corte_t, png, saida):
                     dono = {norm(x).replace("_", "").replace(".", "") for x in (info.get("channel"), info.get("uploader"), info.get("uploader_id")) if x}
                     tags = [t for t in tags_originais(info) if norm(t[1:]).replace("_", "") not in dono]
                     tags = list(dict.fromkeys(tags + (a.tags.split() if a.tags else []) + cfg["tags_padrao"]))[:5]

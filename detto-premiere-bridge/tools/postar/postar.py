@@ -277,19 +277,57 @@ def ig_login(cfg, base, conta, token_colado=None):
     print(f"Instagram @{ig['username']} ligado (página {p['name']}).")
 
 
+def _multipart(url, campos, campo_arq, video, tempo=900):
+    limite = "----detto" + secrets.token_hex(8)
+    nome = Path(video).name.encode("ascii", "replace").decode().replace('"', "").replace("?", "_")
+    corpo = b"".join(f"--{limite}\r\nContent-Disposition: form-data; name=\"{k}\"\r\n\r\n{v}\r\n".encode() for k, v in campos.items())
+    corpo += (f"--{limite}\r\nContent-Disposition: form-data; name=\"{campo_arq}\"; filename=\"{nome}\"\r\n"
+              f"Content-Type: video/mp4\r\n\r\n").encode() + Path(video).read_bytes() + f"\r\n--{limite}--\r\n".encode()
+    req = urllib.request.Request(url, data=corpo, method="POST",
+                                 headers={"Content-Type": f"multipart/form-data; boundary={limite}", "User-Agent": "detto-postar"})
+    with urllib.request.urlopen(req, timeout=tempo) as r:
+        return r.read().decode("utf-8", "replace").strip()
+
+
+def link_temporario(video):
+    """O Reels TESTE só funciona com o vídeo num link público (o envio direto do arquivo ignora o "teste" e posta
+    normal). Sobe para um serviço de link temporário (o vídeo some sozinho em ~1 hora; o Instagram baixa antes)."""
+    erros = []
+    try:  # Litterbox (catbox.moe): some em 1 h
+        url = _multipart("https://litterbox.catbox.moe/resources/internals/api.php", {"reqtype": "fileupload", "time": "1h"}, "fileToUpload", video)
+        if url.startswith("https://"):
+            return url
+        erros.append(f"litterbox: {url[:120]}")
+    except Exception as e:
+        erros.append(f"litterbox: {e}")
+    try:  # tmpfiles.org: some em 1 h; o link direto é o /dl/
+        r = json.loads(_multipart("https://tmpfiles.org/api/v1/upload", {}, "file", video))
+        url = (r.get("data") or {}).get("url", "")
+        if url.startswith("http"):
+            return url.replace("http://", "https://").replace("tmpfiles.org/", "tmpfiles.org/dl/", 1)
+        erros.append(f"tmpfiles: {r}")
+    except Exception as e:
+        erros.append(f"tmpfiles: {e}")
+    raise RuntimeError("não consegui o link temporário para o Reels TESTE (" + " | ".join(erros)[:300] + "). Tenta de novo na próxima rodada.")
+
+
 def ig_posta(cfg, base, conta, video, legenda, teste=False, graduar="manual"):
     tk = ig_token(cfg, base, conta)
     if not tk:
         raise RuntimeError(f"Instagram @{conta} sem login: python tools\\postar\\postar.py --login instagram --conta {conta}")
     v, igid, token = cfg["instagram"]["versao"], tk["ig_id"], tk["token"]
     G = ig_host(tk)
-    # 1) contêiner de Reels com envio direto do arquivo (não precisa hospedar o vídeo)
+    # 1) contêiner de Reels: normal = envio direto do arquivo; TESTE = vídeo num link temporário (o Instagram só
+    #    respeita o "teste" desse jeito — com o envio direto ele ignorou e postou para todo mundo)
     params = {"media_type": "REELS", "upload_type": "resumable", "caption": legenda[:2200], "share_to_feed": "true", "access_token": token}
     if teste:
         # REELS TESTE: aparece só para quem não te segue; "MANUAL" = você manda para os seguidores no app,
         # "SS_PERFORMANCE" = o Instagram manda sozinho se for bem
         params["trial_params"] = json.dumps({"graduation_strategy": "SS_PERFORMANCE" if graduar == "automatico" else "MANUAL"})
         params.pop("share_to_feed")
+        params.pop("upload_type")
+        params["video_url"] = link_temporario(video)
+        log(f"{conta}: Reels TESTE — vídeo no link temporário (some em 1 h)")
     try:
         c = http("POST", f"{G}/{v}/{igid}/media", params)
     except RuntimeError as e:
@@ -297,11 +335,13 @@ def ig_posta(cfg, base, conta, video, legenda, teste=False, graduar="manual"):
             raise RuntimeError(f"o Instagram não aceitou como Reels teste ({e}). Confira se a conta já tem 'Reels de teste' no app; "
                                f"ou desligue 'Reels teste' no painel") from None
         raise
-    cid, uri = c["id"], c.get("uri") or f"https://rupload.facebook.com/ig-api-upload/{v}/{c['id']}"
-    dados = Path(video).read_bytes()
-    up = http("POST", uri, cab={"Authorization": f"OAuth {token}", "offset": "0", "file_size": str(len(dados))}, corpo=dados, tempo=900)
-    if not up.get("success", True):
-        raise RuntimeError(f"envio do arquivo recusado: {up}")
+    cid = c["id"]
+    if not teste:
+        uri = c.get("uri") or f"https://rupload.facebook.com/ig-api-upload/{v}/{c['id']}"
+        dados = Path(video).read_bytes()
+        up = http("POST", uri, cab={"Authorization": f"OAuth {token}", "offset": "0", "file_size": str(len(dados))}, corpo=dados, tempo=900)
+        if not up.get("success", True):
+            raise RuntimeError(f"envio do arquivo recusado: {up}")
     # 2) espera o Instagram processar
     for _ in range(90):
         st = http("GET", f"{G}/{v}/{cid}?" + urllib.parse.urlencode({"fields": "status_code,status", "access_token": token}))
