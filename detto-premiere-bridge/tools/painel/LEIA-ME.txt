@@ -53,6 +53,9 @@ Fila: ↑ ↓ ordem, ✎ ver/editar legenda (e mandar para outra conta), 🚀 po
 REELS TESTE (Instagram, ligado): vai só para quem não te segue. O painel mostra as views e avisa (🔥) quando bate a
   meta → abra o reel no app → "Compartilhar com seguidores" → no painel "Já mandei". (O Instagram não deixa a API
   fazer esse passo.) "O Instagram decide" = ele manda sozinho se for bem.
+FACEBOOK TAMBÉM (cartão do Instagram, ligado): cada vídeo do Instagram vai em seguida para a página do Facebook
+  (Reels). Precisa da permissão pages_manage_posts e de conectar o Instagram de novo — passo a passo em
+  tools\postar\LEIA-ME.txt, parte 1b. Falhou = aviso vermelho no cartão e nova tentativa sozinha (até 3).
 TIKTOK (@detto.galo e @detto.tv) = pelo TIKTOK STUDIO (o TikTok não aprova app para postar nas próprias contas;
   o agendador do Studio é oficial). Cada vídeo da fila mostra "agendar: sex 16/10 08:00" (pelo intervalo, horário e
   máximo por dia da conta; até 10 dias à frente).

@@ -65,6 +65,11 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   "rascunho"/"direto" opcional). Reels entram
   na fila sozinhos (`"postar"` no config dos reels; `[]` desliga). `--login instagram|tiktok --conta X [--token]`,
   `--agendar` (a cada 20 min), `--status`, `--agora video --para plat:conta`.
+  FACEBOOK: cada post do Instagram vai em seguida para a página ligada (`fb_posta`: /{page}/video_reels start →
+  rupload → finish PUBLISHED; > 90 s = /videos normal), com o token da PÁGINA do login pelo Facebook (`pagina_id`
+  no token; login do Instagram IGAA não serve). Precisa de `pages_manage_posts`. `"facebook": true` na conta (painel:
+  "Facebook também"); falha = `fb_pendentes` no estado.json, nova tentativa nas rodadas (até 3), o Instagram não é
+  afetado. `--teste-facebook detto.galo` confere a permissão.
 - PAINEL (`tools\painel\painel.py`, só Python, http://localhost:8730; `--instalar` = liga com o Windows + atalho;
   celular no mesmo Wi-Fi com PIN; setup em `tools\painel\LEIA-ME.txt`): enviar vídeos (vão para `entrada\<conta>\`
   ou `reels\inicios\`), fila com ordem (`_ordem.json`), legenda, postar já, falhas, liga/desliga por conta, intervalo,

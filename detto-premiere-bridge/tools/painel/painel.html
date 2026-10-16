@@ -529,6 +529,14 @@ function contas(){
       } else if(c.login) extra += `<div class="info">Rascunhos: conferindo…</div>`;
     }
     if(c.plataforma === "instagram"){
+      const pend = Object.entries(c.fb_pend || {});
+      extra += `<div class="teste">
+        <div class="linha" style="justify-content:space-between">
+          <span><b>Facebook também</b> <small style="color:var(--mut)">(Reels na página)</small></span>
+          <label class="sw"><input type="checkbox" ${c.facebook ? "checked" : ""} onchange="regra(${ci},{facebook:this.checked})"><span></span></label>
+        </div>
+        ${pend.length ? `<div class="info erro">⚠ Facebook: ${pend.length} vídeo(s) esperando nova tentativa — ${esc(pend[0][1].erro || "")}</div>` : ""}
+      </div>`;
       extra += `<div class="teste">
         <div class="linha" style="justify-content:space-between">
           <span><b>Reels teste</b> <small style="color:var(--mut)">(só para quem não te segue)</small></span>
@@ -548,6 +556,7 @@ function contas(){
           <span style="display:flex;gap:6px;align-items:center;flex:none">
             <span class="vw ${x.bateu ? "bateu" : ""}">${x.views == null ? "…" : x.views.toLocaleString("pt-BR")}</span>
             ${x.link ? `<a href="${esc(x.link)}" target="_blank" rel="noopener">abrir</a>` : ""}
+            ${x.fb ? `<a href="${esc(x.fb)}" target="_blank" rel="noopener" title="no Facebook">fb</a>` : x.fb_erro ? `<small class="erro" title="${esc(x.fb_erro)}">fb ✕</small>` : ""}
             ${x.situacao === "promovido" ? `<small style="color:var(--lima)">✔ seguidores</small>` : x.graduar === "automatico" ? `<small style="color:var(--mut)">auto</small>` :
               `<button class="mini ${x.bateu ? "pri" : ""}" title="Já mandei para os seguidores no app" onclick="marcaT(${ci},${ti},'promovido')">Já mandei</button>`}
             <button class="mini" title="Tirar da lista" onclick="marcaT(${ci},${ti},'ignorado')">✕</button>

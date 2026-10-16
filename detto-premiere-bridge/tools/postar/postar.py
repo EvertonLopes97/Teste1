@@ -54,8 +54,9 @@ CONFIG_PADRAO = {
         # intervalo_min = minutos entre posts; horas = janela do dia; max_dia = 0 sem limite; ativo = false pausa só esta conta
         # Instagram: teste = posta como REELS TESTE (só para quem não te segue); graduar "manual" = você manda para os
         # seguidores no app quando bater a meta_views (o painel avisa); "automatico" = o Instagram decide pelo desempenho
+        # facebook = posta o mesmo vídeo (Reels) na página do Facebook ligada ao Instagram, logo depois do Instagram
         {"plataforma": "instagram", "conta": "detto.galo", "intervalo_min": 80, "horas": "08-23", "max_dia": 0, "ativo": True,
-         "teste": True, "graduar": "manual", "meta_views": 10000},
+         "teste": True, "graduar": "manual", "meta_views": 10000, "facebook": True},
         {"plataforma": "tiktok", "conta": "detto.galo", "intervalo_min": 80, "horas": "08-23", "max_dia": 0, "ativo": True},
         {"plataforma": "tiktok", "conta": "detto.tv", "intervalo_min": 120, "horas": "08-23", "max_dia": 0, "ativo": True},
     ],
@@ -230,7 +231,7 @@ def ig_login(cfg, base, conta, token_colado=None):
         redir = f"http://localhost:{porta}/"
         estado = secrets.token_urlsafe(12)
         perm = {"config_id": ic["config_id"]} if ic.get("config_id") else {
-            "scope": "instagram_basic,instagram_content_publish,instagram_manage_insights,pages_show_list,pages_read_engagement,business_management"}
+            "scope": "instagram_basic,instagram_content_publish,instagram_manage_insights,pages_show_list,pages_read_engagement,pages_manage_posts,business_management"}
         url = (f"https://www.facebook.com/{v}/dialog/oauth?" + urllib.parse.urlencode({
             "client_id": ic["app_id"], "redirect_uri": redir, "state": estado, "response_type": "code", **perm}))
         print(f"Abrindo o navegador para entrar com o Facebook ligado ao Instagram @{conta}...\n{url}")
@@ -266,15 +267,21 @@ def ig_login(cfg, base, conta, token_colado=None):
             ig = me.get("instagram_business_account") or {}
             print(f"   token da página {me.get('name')}: Instagram @{ig.get('username', '-')}")
             if ig.get("username", "").lower() == conta.lower().lstrip("@"):
-                achou = ({"name": me.get("name"), "access_token": longo}, ig)
+                achou = ({"id": me.get("id"), "name": me.get("name"), "access_token": longo}, ig)
         except Exception as e:
             print(f"   (token como página: {e})")
     if not achou:
         sys.exit(f"Não achei o Instagram @{conta} ligado a uma página sua. Confira: Instagram profissional + ligado à página do Facebook (LEIA-ME).")
     p, ig = achou
     # o token da página tirado do token longo do usuário não expira
-    grava_json(base / "tokens" / f"instagram_{conta}.json", {"ig_id": ig["id"], "username": ig["username"], "pagina": p["name"], "token": p["access_token"]})
+    grava_json(base / "tokens" / f"instagram_{conta}.json", {"ig_id": ig["id"], "username": ig["username"], "pagina": p["name"],
+                                                             "pagina_id": p.get("id", ""), "token": p["access_token"]})
     print(f"Instagram @{ig['username']} ligado (página {p['name']}).")
+    try:
+        fb_permissao(cfg, base, conta)
+        print(f"Facebook: a página {p['name']} pode receber os vídeos.")
+    except Exception as e:
+        print(f"Facebook: {e}")
 
 
 def _multipart(url, campos, campo_arq, video, tempo=900):
@@ -392,6 +399,127 @@ def ig_limite(cfg, base, conta):
         return d.get("quota_usage"), (d.get("config") or {}).get("quota_total")
     except Exception:
         return None
+
+
+# ------------------------------------------------------------------ FACEBOOK (página ligada ao Instagram)
+def fb_pagina(cfg, base, conta):
+    """(id da página, token da página, nome) — o mesmo login do Instagram (token da página)"""
+    f = base / "tokens" / f"instagram_{conta}.json"
+    tk = le_json(f, None)
+    if not tk:
+        raise RuntimeError(f"Instagram @{conta} sem login (o Facebook usa o mesmo login)")
+    if tk.get("host") == "instagram":
+        raise RuntimeError("o login atual é o 'login do Instagram', que não posta no Facebook: refaça o login do Instagram "
+                           "no painel pelo Facebook (botão Conectar)")
+    if not tk.get("pagina_id"):
+        me = http("GET", f"{GRAPH}/{cfg['instagram']['versao']}/me?" + urllib.parse.urlencode({"fields": "id,name", "access_token": tk["token"]}))
+        tk["pagina_id"] = me["id"]
+        tk.setdefault("pagina", me.get("name", ""))
+        grava_json(f, tk)
+    return tk["pagina_id"], tk["token"], tk.get("pagina", "")
+
+
+def _erro_fb(e):
+    t = str(e)
+    if "(#200)" in t or "pages_manage_posts" in t or "permission" in t.lower() or "(#10)" in t:
+        return RuntimeError("falta a permissão de postar na página (pages_manage_posts): no app da Meta adicione a permissão "
+                            "e refaça o login do Instagram no painel (LEIA-ME, parte FACEBOOK). Detalhe: " + t[:200])
+    return e
+
+
+def fb_permissao(cfg, base, conta):
+    """confere se o token pode postar na página (sem postar nada)"""
+    pid, token, _ = fb_pagina(cfg, base, conta)
+    r = http("GET", f"{GRAPH}/{cfg['instagram']['versao']}/me/permissions?" + urllib.parse.urlencode({"access_token": token}))
+    perms = {x.get("permission") for x in r.get("data", []) if x.get("status") == "granted"}
+    if perms and "pages_manage_posts" not in perms:
+        raise _erro_fb("pages_manage_posts")
+    return True
+
+
+def duracao(video):
+    try:
+        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(video)],
+                           capture_output=True, text=True, timeout=60)
+        return float(r.stdout.strip())
+    except Exception:
+        return 0.0
+
+
+def fb_posta(cfg, base, conta, video, legenda):
+    """posta o vídeo na página do Facebook: Reels (até 90 s) ou vídeo normal (mais longo)"""
+    pid, token, nome = fb_pagina(cfg, base, conta)
+    v = cfg["instagram"]["versao"]
+    try:
+        if duracao(video) > 90:
+            r = json.loads(_multipart(f"https://graph-video.facebook.com/{v}/{pid}/videos",
+                                      {"description": legenda[:5000], "access_token": token}, "source", video, tempo=1800))
+            if not r.get("id"):
+                raise RuntimeError(f"Facebook recusou o vídeo: {r}")
+            return {"id": r["id"], "link": f"https://www.facebook.com/{pid}/videos/{r['id']}", "pagina": nome}
+        s = http("POST", f"{GRAPH}/{v}/{pid}/video_reels", {"upload_phase": "start", "access_token": token})
+        vid = s["video_id"]
+        dados = Path(video).read_bytes()
+        up = http("POST", s.get("upload_url") or f"https://rupload.facebook.com/video-upload/{v}/{vid}",
+                  cab={"Authorization": f"OAuth {token}", "offset": "0", "file_size": str(len(dados))}, corpo=dados, tempo=900)
+        if not up.get("success", True):
+            raise RuntimeError(f"envio do arquivo recusado: {up}")
+        fim = http("POST", f"{GRAPH}/{v}/{pid}/video_reels", {"upload_phase": "finish", "video_id": vid, "video_state": "PUBLISHED",
+                                                               "description": legenda[:5000], "access_token": token})
+        if not fim.get("success", True):
+            raise RuntimeError(f"Facebook não publicou: {fim}")
+        for _ in range(36):  # até ~6 min processando
+            st = http("GET", f"{GRAPH}/{v}/{vid}?" + urllib.parse.urlencode({"fields": "status", "access_token": token})).get("status") or {}
+            fases = [st.get(x) or {} for x in ("uploading_phase", "processing_phase", "publishing_phase")]
+            if any(f_.get("status") == "error" for f_ in fases) or st.get("video_status") == "error":
+                erro = next((f_.get("errors") for f_ in fases if f_.get("errors")), None) or st
+                raise RuntimeError(f"Facebook não aceitou o vídeo: {json.dumps(erro, ensure_ascii=False)[:300]}")
+            if (st.get("publishing_phase") or {}).get("status") == "complete" or st.get("video_status") in ("ready", "published"):
+                break
+            time.sleep(10)
+        return {"id": vid, "link": f"https://www.facebook.com/reel/{vid}", "pagina": nome}
+    except RuntimeError as e:
+        raise _erro_fb(e) from None
+
+
+def fb_depois(cfg, base, c, video, estado, r):
+    """depois do Instagram: o mesmo vídeo na página do Facebook. Falhou = fica pendente e tenta de novo nas próximas
+    rodadas (até 3 vezes); o post do Instagram não é afetado."""
+    k = chave(c)
+    try:
+        fb = fb_posta(cfg, base, c["conta"], video, legenda_de(video))
+        r["facebook"] = fb
+        log(f"{k}: Facebook OK {fb.get('link', '')}")
+        estado.setdefault(k, {}).setdefault("fb_pendentes", {}).pop(Path(video).name, None)
+    except Exception as e:
+        pend = estado.setdefault(k, {}).setdefault("fb_pendentes", {})
+        n = pend.get(Path(video).name, {}).get("n", 0) + 1
+        r["facebook_erro"] = str(e)[:300]
+        if n < 3:
+            pend[Path(video).name] = {"n": n, "erro": str(e)[:300]}
+        else:
+            pend.pop(Path(video).name, None)
+        log(f"{k}: Facebook ERRO ({n}/3): {e}")
+    return r
+
+
+def fb_pendentes(cfg, base, estado):
+    """tenta de novo os vídeos que foram para o Instagram mas não para o Facebook"""
+    for c in cfg["contas"]:
+        if c["plataforma"] != "instagram" or c.get("facebook", True) is False:
+            continue
+        k = chave(c)
+        for nome in list((estado.get(k, {}).get("fb_pendentes") or {}).keys()):
+            video = base / "postados" / k / nome
+            if not video.exists():
+                estado[k]["fb_pendentes"].pop(nome, None)
+                continue
+            jf = video.with_suffix(".json")
+            d = le_json(jf, {})
+            d.pop("facebook_erro", None)
+            fb_depois(cfg, base, c, video, estado, d)
+            grava_json(jf, d)
+        grava_json(base / "estado.json", estado)
 
 
 # ------------------------------------------------------------------ TIKTOK (Content Posting API)
@@ -620,8 +748,8 @@ def agendados_por_dia(base, k):
     """quantos vídeos já foram agendados no TikTok Studio em cada dia (para o máximo por dia)"""
     cont = {}
     for f in (Path(base) / "postados" / k).glob("*.json"):
-        d = le_json(f, {})
-        if d.get("agendado_para"):
+        d = le_json(f, {}) if not f.name.startswith("_") else {}
+        if isinstance(d, dict) and d.get("agendado_para"):
             dia = d["agendado_para"][:10]
             cont[dia] = cont.get(dia, 0) + 1
     return cont
@@ -699,6 +827,8 @@ def posta_da_fila(cfg, base, c, video, estado):
     for f in [video, video.with_suffix(".txt")]:
         if f.exists():
             shutil.move(str(f), str(destino / f.name))
+    if c["plataforma"] == "instagram" and c.get("facebook", True) is not False:
+        fb_depois(cfg, base, c, destino / video.name, estado, r)
     grava_json(destino / f"{video.stem}.json", {"quando": dt.datetime.now().isoformat(timespec="seconds"), "video": video.name, **r})
     e = estado.setdefault(k, {})
     e["ultimo"] = dt.datetime.now().isoformat(timespec="seconds")
@@ -718,6 +848,10 @@ def rodada(cfg, base):
         if not t.ok:
             return
         estado = le_json(base / "estado.json", {})
+        try:
+            fb_pendentes(cfg, base, estado)
+        except Exception as e:
+            log(f"Facebook (pendentes): {e}")
         for c in cfg["contas"]:
             k = chave(c)
             if c.get("ativo") is False or studio(cfg, c):
@@ -798,6 +932,7 @@ def main():
     ap.add_argument("--agendar", action="store_true")
     ap.add_argument("--status", action="store_true")
     ap.add_argument("--agora", help="vídeo para postar já (fora da fila)")
+    ap.add_argument("--teste-facebook", metavar="CONTA", help="confere se o login do Instagram CONTA pode postar na página do Facebook")
     ap.add_argument("--para", help="instagram:detto.galo / tiktok:detto.tv (com --agora)")
     a = ap.parse_args()
     base = Path(a.pasta)
@@ -810,9 +945,20 @@ def main():
         return agendar(base)
     if a.status:
         return status(cfg, base)
+    if a.teste_facebook:
+        try:
+            pid, _, nome = fb_pagina(cfg, base, a.teste_facebook)
+            fb_permissao(cfg, base, a.teste_facebook)
+            print(f"OK: a página {nome} ({pid}) pode receber os vídeos.")
+        except Exception as e:
+            print(f"Facebook: {e}")
+        return
     if a.agora:
         plat, conta = (a.para or "").split(":", 1)
-        r = posta_um(cfg, base, {"plataforma": plat, "conta": conta}, Path(a.agora))
+        c = next((x for x in cfg["contas"] if x["plataforma"] == plat and x["conta"] == conta), {"plataforma": plat, "conta": conta})
+        r = posta_um(cfg, base, c, Path(a.agora))
+        if plat == "instagram" and c.get("facebook", True) is not False:
+            fb_depois(cfg, base, c, Path(a.agora), {}, r)
         print(json.dumps(r, ensure_ascii=False))
         return
     rodada(cfg, base)

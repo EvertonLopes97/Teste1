@@ -167,7 +167,8 @@ def testes_de(c):
         out.append({"arq": f.name, "nome": d.get("video") or f.stem, "quando": (d.get("quando") or "")[:16].replace("T", " "),
                     "link": d.get("link", ""), "views": d.get("views"), "situacao": d.get("situacao", ""),
                     "bateu": bool(d.get("views") is not None and int(c.get("meta_views") or 0) > 0 and d["views"] >= int(c["meta_views"])),
-                    "graduar": d.get("graduar", "manual")})
+                    "graduar": d.get("graduar", "manual"), "fb": (d.get("facebook") or {}).get("link", ""),
+                    "fb_erro": d.get("facebook_erro", "")})
     return out
 
 
@@ -212,6 +213,7 @@ def estado_painel():
         contas.append({
             "k": k, "plataforma": c["plataforma"], "conta": c["conta"], "ativo": c.get("ativo", True) is not False,
             "teste": bool(c.get("teste")), "graduar": c.get("graduar", "manual"), "meta_views": int(c.get("meta_views") or 0),
+            "facebook": c.get("facebook", True) is not False, "fb_pend": est.get(k, {}).get("fb_pendentes") or {},
             "testes": testes_de(c) if c["plataforma"] == "instagram" else [],
             "intervalo_min": c.get("intervalo_min", 80), "horas": c.get("horas", "08-23"), "max_dia": c.get("max_dia", 0),
             "login": (BASE / "tokens" / f"{c['plataforma']}_{c['conta']}.json").exists(),
@@ -321,6 +323,8 @@ def acao(nome, d):
                         x["max_dia"] = max(0, int(d["max_dia"]))
                     if "teste" in d:
                         x["teste"] = bool(d["teste"])
+                    if "facebook" in d:
+                        x["facebook"] = bool(d["facebook"])
                     if d.get("graduar") in ("manual", "automatico"):
                         x["graduar"] = d["graduar"]
                     if "meta_views" in d:
