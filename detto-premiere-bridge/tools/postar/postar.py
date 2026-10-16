@@ -477,11 +477,16 @@ def _erro_fb(e):
 
 
 def fb_permissao(cfg, base, conta):
-    """confere se o token pode postar na página (sem postar nada)"""
+    """confere se o token da página pode postar (sem postar nada). O token é de PÁGINA (não tem /me/permissions):
+    pergunta ao /debug_token com a chave do app quais permissões ele carrega."""
     pid, token, _ = fb_pagina(cfg, base, conta)
-    r = http("GET", f"{GRAPH}/{cfg['instagram']['versao']}/me/permissions?" + urllib.parse.urlencode({"access_token": token}))
-    perms = {x.get("permission") for x in r.get("data", []) if x.get("status") == "granted"}
-    if perms and "pages_manage_posts" not in perms:
+    ic = cfg["instagram"]
+    if not (ic.get("app_id") and ic.get("app_secret")):
+        return True  # sem a chave do app não dá para conferir; a primeira postagem mostra
+    r = http("GET", f"{GRAPH}/{ic['versao']}/debug_token?" + urllib.parse.urlencode(
+        {"input_token": token, "access_token": f"{ic['app_id']}|{ic['app_secret']}"}))
+    escopos = set((r.get("data") or {}).get("scopes") or [])
+    if escopos and "pages_manage_posts" not in escopos:
         raise _erro_fb("pages_manage_posts")
     return True
 
