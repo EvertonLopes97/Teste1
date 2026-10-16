@@ -376,6 +376,7 @@ def acao(nome, d):
                 shutil.move(str(f), str(BASE / "entrada" / k / f.name))
         est = P.le_json(BASE / "estado.json", {})
         est.get(k, {}).get("falhas", {}).pop(n, None)
+        est.get(k, {}).get("espera", {}).pop(n, None)
         P.grava_json(BASE / "estado.json", est)
     elif nome == "copiar":
         # manda um vídeo da fila de uma conta também para outras

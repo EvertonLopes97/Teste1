@@ -296,6 +296,41 @@ def _multipart(url, campos, campo_arq, video, tempo=900):
         return r.read().decode("utf-8", "replace").strip()
 
 
+def normaliza_ig(video, pasta):
+    """cópia no padrão que o Instagram aceita sempre: H.264 High 4:2:0, ≤ 30 fps, GOP fechado de 2 s, até 1080x1920,
+    ~8 Mbit/s, AAC 128k 48 kHz estéreo, moov no começo (faststart), cor BT.709. Mesmo vídeo = reaproveita."""
+    pasta = Path(pasta)
+    pasta.mkdir(parents=True, exist_ok=True)
+    saida = pasta / (Path(video).stem[:80] + ".ig.mp4")
+    if saida.exists() and saida.stat().st_mtime >= Path(video).stat().st_mtime and saida.stat().st_size > 1000:
+        return saida
+    r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", str(video)],
+                       capture_output=True, text=True)
+    tem_audio = bool(r.stdout.strip())
+    vf = ("scale='if(gt(iw,1080),1080,iw)':-2:flags=lanczos,scale=trunc(iw/2)*2:trunc(ih/2)*2,fps='min(30,source_fps)',"
+          "format=yuv420p")
+    cmd = ["ffmpeg", "-v", "error", "-y", "-i", str(video)]
+    if not tem_audio:
+        cmd += ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"]
+    cmd += ["-map", "0:v:0", "-map", "0:a:0" if tem_audio else "1:a:0", "-shortest",
+            "-vf", vf, "-c:v", "libx264", "-profile:v", "high", "-level", "4.1", "-preset", "medium", "-crf", "20",
+            "-maxrate", "8M", "-bufsize", "16M", "-g", "60", "-keyint_min", "60", "-sc_threshold", "0", "-bf", "2",
+            "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
+            "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2", "-movflags", "+faststart", str(saida)]
+    rr = subprocess.run(cmd, capture_output=True, text=True)
+    if rr.returncode != 0 or not saida.exists():
+        log(f"   (não consegui padronizar o vídeo para o Instagram: {rr.stderr[-200:]}; vai o original)")
+        return Path(video)
+    return saida
+
+
+def _link_catbox(video):
+    url = _multipart("https://catbox.moe/user/api.php", {"reqtype": "fileupload"}, "fileToUpload", video)
+    if not url.startswith("https://"):
+        raise RuntimeError(f"catbox: {url[:120]}")
+    return url
+
+
 def _link_litterbox(video):
     url = _multipart("https://litterbox.catbox.moe/resources/internals/api.php", {"reqtype": "fileupload", "time": "1h"}, "fileToUpload", video)
     if not url.startswith("https://"):
@@ -340,7 +375,8 @@ def link_temporario(video, cfg=None, base=None, conta=None, tentativa=0):
     fontes = []
     if cfg is not None and base is not None and conta:
         fontes.append(("página do Facebook (não publicado)", lambda: _link_facebook(cfg, base, conta, video)))
-    fontes += [("Litterbox", lambda: (_link_litterbox(video), None)), ("tmpfiles", lambda: (_link_tmpfiles(video), None))]
+    fontes += [("Catbox", lambda: (_link_catbox(video), None)), ("Litterbox", lambda: (_link_litterbox(video), None)),
+               ("tmpfiles", lambda: (_link_tmpfiles(video), None))]
     k = tentativa % len(fontes)
     fontes = fontes[k:] + fontes[:k]
     erros = []
@@ -360,6 +396,7 @@ def ig_posta(cfg, base, conta, video, legenda, teste=False, graduar="manual", te
         raise RuntimeError(f"Instagram @{conta} sem login: python tools\\postar\\postar.py --login instagram --conta {conta}")
     v, igid, token = cfg["instagram"]["versao"], tk["ig_id"], tk["token"]
     G = ig_host(tk)
+    video = normaliza_ig(video, Path(base) / "tmp_ig")
     # 1) contêiner de Reels: normal = envio direto do arquivo; TESTE = vídeo num link temporário (o Instagram só
     #    respeita o "teste" desse jeito — com o envio direto ele ignorou e postou para todo mundo)
     params = {"media_type": "REELS", "upload_type": "resumable", "caption": legenda[:2200], "share_to_feed": "true", "access_token": token}
@@ -901,14 +938,19 @@ def posta_da_fila(cfg, base, c, video, estado):
     except Exception as e:
         falhas = estado.setdefault(k, {}).setdefault("falhas", {})
         falhas[video.name] = falhas.get(video.name, 0) + 1
-        log(f"{k}: ERRO ({falhas[video.name]}/3): {e}")
-        if falhas[video.name] >= 3:
+        n = falhas[video.name]
+        # espera antes de tentar de novo (erro do Instagram costuma passar; e vai por outro link): 15 min, 45 min, 2 h
+        espera = [15, 45, 120][min(n, 3) - 1]
+        estado[k].setdefault("espera", {})[video.name] = time.time() + espera * 60
+        log(f"{k}: ERRO ({n}/4): {e}" + (f" — tento de novo em {espera} min" if n < 4 else ""))
+        if n >= 4:
             for f in [video, video.with_suffix(".txt")]:
                 if f.exists():
                     shutil.move(str(f), str(base / "falhas" / k / f.name))
-            log(f"{k}: {video.name} foi para falhas\\ (3 erros seguidos)")
+            log(f"{k}: {video.name} foi para falhas\\ (4 erros seguidos)")
         grava_json(base / "estado.json", estado)
         return None
+    (Path(base) / "tmp_ig" / (video.stem[:80] + ".ig.mp4")).unlink(missing_ok=True)
     destino = base / "postados" / k
     destino.mkdir(parents=True, exist_ok=True)
     for f in [video, video.with_suffix(".txt")]:
@@ -956,7 +998,10 @@ def rodada(cfg, base):
                 if n >= 5:
                     log(f"{k}: 5 rascunhos esperando você publicar no app — o próximo vai quando liberar")
                     continue
-            posta_da_fila(cfg, base, c, fila[0], estado)
+            espera = estado.get(k, {}).get("espera", {})
+            pronto = [v for v in fila if espera.get(v.name, 0) <= time.time()]
+            if pronto:
+                posta_da_fila(cfg, base, c, pronto[0], estado)
 
 
 def status(cfg, base):
