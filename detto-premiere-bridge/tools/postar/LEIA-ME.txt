@@ -5,27 +5,25 @@ O jeito fácil de usar tudo isto é o PAINEL: tools\painel\LEIA-ME.txt (chaves, 
 =====================================================================
  1) INSTAGRAM @detto.galo  (posta de verdade, com legenda; por padrão como REELS TESTE)
 =====================================================================
-Antes: o @detto.galo precisa ser conta PROFISSIONAL (Criador ou Empresa) e estar LIGADO a uma Página do
-Facebook (Instagram → Configurações → Central de contas, ou na Página: Configurações → Contas vinculadas).
+ JEITO MAIS FÁCIL (login do Instagram — não precisa de Página do Facebook nem da chave do app):
+ a) O @detto.galo precisa ser conta PROFISSIONAL (Criador ou Empresa).
+ b) developers.facebook.com → Meus apps → o seu app → Casos de uso → API do Instagram →
+    "Configuração da API com login do Instagram".
+ c) Em "Permissões e recursos", adicione instagram_business_basic, instagram_business_content_publish
+    e instagram_business_manage_insights.
+ d) "2. Gerar tokens de acesso" → Adicionar conta → entre no @detto.galo.
+    Se pedir função de testador: aba Funções do app → Testadores do Instagram → adicione detto.galo;
+    no app do Instagram: Configurações → Apps e sites → Convites de testador → Aceitar.
+ e) "Gerar token" → copie (começa com IGAA...).
+ f) Painel → Configurações → "Instagram: colar o token" → conta detto.galo → cole → Ligar.
+    (Ou: python tools\postar\postar.py --login instagram --conta detto.galo --token IGAA...)
+ O token vale 60 dias e o sistema renova sozinho.
 
- a) developers.facebook.com → Meus apps → Criar app → tipo "Empresa" (Business).
- b) No app, adicione os produtos "Instagram" (API com login do Facebook) e "Login do Facebook para Empresas".
- c) Configurações do app → Básico: copie o "ID do app" e a "Chave secreta do app".
- d) Rode uma vez (cria a pasta E:\DETTO\postar e o config.json):
-       python tools\postar\postar.py --status
-    Abra E:\DETTO\postar\config.json e preencha em "instagram": "app_id" e "app_secret".
- e) Login:
-       python tools\postar\postar.py --login instagram --conta detto.galo
-    Abre o navegador → entre no Facebook dono da Página → marque a Página e o @detto.galo → Permitir.
-    (O endereço http://localhost:8724/ já é aceito com o app em modo "Desenvolvimento". Se reclamar,
-     ponha esse endereço em "URIs de redirecionamento do OAuth válidos" no Login do Facebook.)
- PLANO B (se o login pelo navegador der erro):
-    developers.facebook.com/tools/explorer → escolha o app → "Gerar token de acesso" com as permissões
-    instagram_basic, instagram_content_publish, instagram_manage_insights, pages_show_list, pages_read_engagement, business_management
-    → copie o token e rode:
-       python tools\postar\postar.py --login instagram --conta detto.galo --token COLE_AQUI
- O sistema troca por um token de longa duração (o da Página não vence). Não precisa publicar/revisar o app
- enquanto só VOCÊ usa (você é o administrador).
+ OUTRO JEITO (login do Facebook — precisa do Instagram ligado a uma Página do Facebook):
+ caso de uso "API do Instagram" → "Configuração da API com login do Facebook" → permissões instagram_basic,
+ instagram_content_publish, instagram_manage_insights, pages_show_list, pages_read_engagement, business_management;
+ token no Graph API Explorer (developers.facebook.com/tools/explorer) → painel: ID + chave do app (Configurações do
+ app → Básico) + colar o token. O app NÃO precisa ir para a Análise da Meta (modo Desenvolvimento basta para você).
 
 =====================================================================
  2) TIKTOK @detto.galo e @detto.tv  →  pelo TIKTOK STUDIO (padrão, sem app)

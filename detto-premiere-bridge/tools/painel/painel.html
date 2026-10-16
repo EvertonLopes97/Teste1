@@ -320,7 +320,7 @@ section.aba.on{display:block}
           <b>Login das contas</b>
           <div class="info">O navegador abre <b>no PC</b>: entre na conta certa e autorize.</div>
           <div class="lista" id="logins"></div>
-          <details><summary>Instagram plano B: colar token do Graph API Explorer</summary>
+          <details open><summary><b>Instagram: colar o token</b> (app → Casos de uso → API do Instagram → Gerar token; ou do Graph API Explorer)</summary>
             <div class="linha"><select id="tokConta" style="width:auto"></select><input type="text" id="tokIg" placeholder="token" style="flex:1"><button id="btTok">Ligar</button></div>
           </details>
           <pre class="log" id="loginLog" style="display:none;margin-top:8px;max-height:160px"></pre>
@@ -419,7 +419,7 @@ function desenha(){
 
 function avisos(){
   const a = [];
-  if(!E.instagram.chaves && E.contas.some(c => c.plataforma === "instagram")) a.push("Falta a chave do app da Meta (Instagram).");
+  if(!E.instagram.chaves && E.contas.some(c => c.plataforma === "instagram" && !c.login)) a.push("Instagram sem login: Configurações → colar o token do Instagram.");
   if(!E.tiktok.chaves && E.contas.some(c => c.plataforma === "tiktok" && !c.studio)) a.push("Falta a chave do app do TikTok.");
   const sem = E.contas.filter(c => !c.login && !c.studio).map(nomeConta);
   if(sem.length) a.push("Sem login: " + sem.join(", ") + ".");

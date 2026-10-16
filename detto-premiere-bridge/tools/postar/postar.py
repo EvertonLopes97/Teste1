@@ -42,6 +42,7 @@ from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
 GRAPH = "https://graph.facebook.com"
+GRAPH_IG = "https://graph.instagram.com"  # API do Instagram com login do Instagram (token "IGAA...")
 TT = "https://open.tiktokapis.com"
 VIDEO_EXT = {".mp4", ".mov", ".m4v", ".webm"}
 
@@ -182,7 +183,42 @@ def espera_codigo(porta, caminho="/"):
 
 
 # ------------------------------------------------------------------ INSTAGRAM (Facebook Login for Business + envio direto do arquivo)
+def ig_login_instagram(cfg, base, conta, token):
+    """token da "API do Instagram com login do Instagram" (developers.facebook.com → app → Casos de uso → API do
+    Instagram → Gerar token). Não precisa de Página do Facebook nem da chave do app. Vale 60 dias e renova sozinho."""
+    v = cfg["instagram"]["versao"]
+    eu = http("GET", f"{GRAPH_IG}/{v}/me?" + urllib.parse.urlencode({"fields": "user_id,username", "access_token": token}))
+    nome = eu.get("username", "")
+    if nome.lower() != conta.lower().lstrip("@"):
+        sys.exit(f"Esse token é do Instagram @{nome}, não do @{conta}. Gere o token logado na conta certa.")
+    grava_json(base / "tokens" / f"instagram_{conta}.json", {"ig_id": str(eu.get("user_id") or eu.get("id")), "username": nome,
+                                                             "token": token, "host": "instagram", "renovado": time.time()})
+    print(f"Instagram @{nome} ligado (login do Instagram, sem página).")
+
+
+def ig_token(cfg, base, conta):
+    """o token salvo; o do login do Instagram (60 dias) é renovado sozinho a cada ~20 dias"""
+    f = base / "tokens" / f"instagram_{conta}.json"
+    tk = le_json(f, None)
+    if tk and tk.get("host") == "instagram" and time.time() - tk.get("renovado", 0) > 20 * 86400:
+        try:
+            r = http("GET", f"{GRAPH_IG}/refresh_access_token?" + urllib.parse.urlencode({"grant_type": "ig_refresh_token", "access_token": tk["token"]}))
+            if r.get("access_token"):
+                tk.update(token=r["access_token"], renovado=time.time())
+                grava_json(f, tk)
+                log(f"instagram_{conta}: token renovado")
+        except Exception as e:
+            log(f"instagram_{conta}: não consegui renovar o token ({e}); se passar de 60 dias, gere outro")
+    return tk
+
+
+def ig_host(tk):
+    return GRAPH_IG if tk.get("host") == "instagram" else GRAPH
+
+
 def ig_login(cfg, base, conta, token_colado=None):
+    if token_colado and token_colado.strip().startswith("IG"):
+        return ig_login_instagram(cfg, base, conta, token_colado.strip())
     ic = cfg["instagram"]
     if not ic.get("app_id") or not ic.get("app_secret"):
         sys.exit("Preencha instagram.app_id e instagram.app_secret no config.json (LEIA-ME, parte INSTAGRAM).")
@@ -223,10 +259,11 @@ def ig_login(cfg, base, conta, token_colado=None):
 
 
 def ig_posta(cfg, base, conta, video, legenda, teste=False, graduar="manual"):
-    tk = le_json(base / "tokens" / f"instagram_{conta}.json", None)
+    tk = ig_token(cfg, base, conta)
     if not tk:
         raise RuntimeError(f"Instagram @{conta} sem login: python tools\\postar\\postar.py --login instagram --conta {conta}")
     v, igid, token = cfg["instagram"]["versao"], tk["ig_id"], tk["token"]
+    G = ig_host(tk)
     # 1) contêiner de Reels com envio direto do arquivo (não precisa hospedar o vídeo)
     params = {"media_type": "REELS", "upload_type": "resumable", "caption": legenda[:2200], "share_to_feed": "true", "access_token": token}
     if teste:
@@ -235,7 +272,7 @@ def ig_posta(cfg, base, conta, video, legenda, teste=False, graduar="manual"):
         params["trial_params"] = json.dumps({"graduation_strategy": "SS_PERFORMANCE" if graduar == "automatico" else "MANUAL"})
         params.pop("share_to_feed")
     try:
-        c = http("POST", f"{GRAPH}/{v}/{igid}/media", params)
+        c = http("POST", f"{G}/{v}/{igid}/media", params)
     except RuntimeError as e:
         if teste and "trial" in str(e).lower():
             raise RuntimeError(f"o Instagram não aceitou como Reels teste ({e}). Confira se a conta já tem 'Reels de teste' no app; "
@@ -248,7 +285,7 @@ def ig_posta(cfg, base, conta, video, legenda, teste=False, graduar="manual"):
         raise RuntimeError(f"envio do arquivo recusado: {up}")
     # 2) espera o Instagram processar
     for _ in range(90):
-        st = http("GET", f"{GRAPH}/{v}/{cid}?" + urllib.parse.urlencode({"fields": "status_code,status", "access_token": token}))
+        st = http("GET", f"{G}/{v}/{cid}?" + urllib.parse.urlencode({"fields": "status_code,status", "access_token": token}))
         sc = st.get("status_code")
         if sc == "FINISHED":
             break
@@ -258,21 +295,21 @@ def ig_posta(cfg, base, conta, video, legenda, teste=False, graduar="manual"):
     else:
         raise RuntimeError("Instagram demorou demais para processar o vídeo")
     # 3) publica
-    pub = http("POST", f"{GRAPH}/{v}/{igid}/media_publish", {"creation_id": cid, "access_token": token})
+    pub = http("POST", f"{G}/{v}/{igid}/media_publish", {"creation_id": cid, "access_token": token})
     mid = pub["id"]
-    link = http("GET", f"{GRAPH}/{v}/{mid}?" + urllib.parse.urlencode({"fields": "permalink", "access_token": token})).get("permalink", "")
+    link = http("GET", f"{G}/{v}/{mid}?" + urllib.parse.urlencode({"fields": "permalink", "access_token": token})).get("permalink", "")
     return {"id": mid, "link": link, **({"teste": True, "graduar": graduar} if teste else {})}
 
 
 def ig_views(cfg, base, conta, media_id):
     """visualizações de um reel (precisa da permissão instagram_manage_insights no login)"""
-    tk = le_json(base / "tokens" / f"instagram_{conta}.json", None)
+    tk = ig_token(cfg, base, conta)
     if not tk:
         return None
     v = cfg["instagram"]["versao"]
     for metrica in ("views", "plays"):
         try:
-            r = http("GET", f"{GRAPH}/{v}/{media_id}/insights?" + urllib.parse.urlencode({"metric": metrica, "access_token": tk["token"]}))
+            r = http("GET", f"{ig_host(tk)}/{v}/{media_id}/insights?" + urllib.parse.urlencode({"metric": metrica, "access_token": tk["token"]}))
             d = (r.get("data") or [{}])[0]
             val = (d.get("values") or [{}])[0].get("value")
             if val is None:
@@ -286,11 +323,11 @@ def ig_views(cfg, base, conta, media_id):
 
 
 def ig_limite(cfg, base, conta):
-    tk = le_json(base / "tokens" / f"instagram_{conta}.json", None)
+    tk = ig_token(cfg, base, conta)
     if not tk:
         return None
     try:
-        r = http("GET", f"{GRAPH}/{cfg['instagram']['versao']}/{tk['ig_id']}/content_publishing_limit?" + urllib.parse.urlencode(
+        r = http("GET", f"{ig_host(tk)}/{cfg['instagram']['versao']}/{tk['ig_id']}/content_publishing_limit?" + urllib.parse.urlencode(
             {"fields": "quota_usage,config", "access_token": tk["token"]}))
         d = (r.get("data") or [{}])[0]
         return d.get("quota_usage"), (d.get("config") or {}).get("quota_total")
