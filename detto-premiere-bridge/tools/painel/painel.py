@@ -451,6 +451,14 @@ def acao(nome, d):
         with open(f, "a", encoding="utf-8") as g:
             for u in novos:
                 g.write(u + "\n")
+        # link colado de novo = fazer de novo (tira do histórico de já usados)
+        hf = REELS / "historico.json"
+        h = P.le_json(hf, {})
+        if h.get("usados"):
+            antes = len(h["usados"])
+            h["usados"] = {k: v for k, v in h["usados"].items() if not (isinstance(v, dict) and v.get("url") in novos)}
+            if len(h["usados"]) != antes:
+                P.grava_json(hf, h)
         return {"ok": True, "n": len(novos)}
     elif nome == "reels_auto":
         f = REELS / "config.json"
