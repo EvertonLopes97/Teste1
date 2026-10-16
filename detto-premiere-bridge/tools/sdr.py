@@ -65,7 +65,7 @@ def master_sdr(video, saida=None, placa=True, log=print, full=None):
     else:
         enc = ["-c:v", "libx264", "-preset", "medium", "-crf", "14"]
     tmp = saida.with_name(saida.stem + ".parcial.mp4")
-    cmd = ["ffmpeg", "-y", "-v", "error", "-stats", "-i", str(video), "-map", "0:v:0"] + (["-map", f"0:a:{a}", "-c:a", "copy"] if a is not None else [])
+    cmd = ["ffmpeg", "-y", "-v", "error", "-i", str(video), "-map", "0:v:0"] + (["-map", f"0:a:{a}", "-c:a", "copy"] if a is not None else [])
     reduz = "" if full else "scale='if(gt(iw,ih),min(1920,iw),-2)':'if(gt(iw,ih),-2,min(1920,ih))':flags=lanczos,"
     cmd += ["-vf", reduz + filtro] + enc + ["-pix_fmt", "yuv420p", "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
                                     "-color_range", "tv", "-map_metadata", "0", "-movflags", "+faststart", str(tmp)]

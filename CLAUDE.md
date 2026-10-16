@@ -84,6 +84,15 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   Studio e marca "Agendei" (vai para postados com `agendado_para`). "rascunho"/"direto" = API (opcional).
   REELS no painel: vários links de uma vez → `links.txt`; com `"auto_links"` (padrão) o painel roda
   `reels.py --so-links` sozinho (um por vez, cada pronto vai para a fila). yt-dlp atualiza 1x/dia.
+- COR: `tools\sdr.py` = master SDR antes de editar (HLG→SDR com npl=203 + mobius 0,6 — critério do CapCut/iPhone;
+  lado maior até 1920, `--4k` mantém; NVENC cq 16 ou x264 crf 14; áudio sem o APAC; mantém a data). `editar.py` usa o
+  master (`--sem-sdr` desliga); `cor.py`/`ffopts.js` usam o mesmo tone mapping (`DETTO_TONEMAP=antigo` volta o npl=100).
+- VLOG (`tools\vlog\vlog.py <pasta> [--titulo --estilo --formato --duracao --legendas --refazer]`, aba Edição tipo
+  Vlog; pasta do Google Drive para computador `Meu Drive\DETTO\vlogs\<vlog>`): clipes por data de gravação → SDR →
+  faster-whisper + movimento/volume + fotos → diretor (Gemini com fotos e falas; sem Gemini: falas sem silêncio +
+  cenas) → `plano.json` (seções com clima; trechos: clip/ini/fim/tipo fala|cena|timelapse/zoom/texto/transicao/sfx)
+  → trechos renderizados (fundo desfocado se o formato não bate, punch-in, drawtext) → emenda concat + xfade →
+  sfx (sons.json) → trilha.py por clima (`E:\DETTO\musicas\<clima>`) → `vlog.mp4` + `vlog_conferir.jpg`.
 - CANAL AUTOMÁTICO YouTube (`tools\canal\`, voz clonada + máscara): em construção, não testado de ponta a ponta.
 - TESTES: `npm run check` (tipos + testes + teste VISUAL `test/visual.test.js`: quadros do palco × `test/visual/ref_*.png`).
   Mudou o visual de propósito → `npm run visual:aprovar`. GitHub Actions roda tudo a cada push (`.github/workflows/testes.yml`).

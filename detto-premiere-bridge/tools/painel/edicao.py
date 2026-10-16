@@ -36,6 +36,9 @@ ETAPAS = [  # (texto no registro, nome da etapa) — a última que aparecer é a
     ("Pronto:", "Pronto"),
     # react / galo / vertical
     ("react.py", "Montando o react"), ("passagem.py", "Lendo seus gestos e montando o elenco"), ("vertical916.py", "Fazendo o 9:16"),
+    # vlog
+    ("1/5 cor", "Convertendo a cor (HDR → SDR)"), ("2/5 ouvindo", "Ouvindo e olhando os clipes"), ("3/5 roteiro", "Montando o roteiro do vlog"),
+    ("4/5 montando", "Cortando e montando o vlog"), ("5/5 trilha", "Colocando a trilha"),
 ]
 
 TIPOS = {  # tipo de edição → arquivos que precisa
@@ -43,7 +46,9 @@ TIPOS = {  # tipo de edição → arquivos que precisa
     "react": {"nome": "DETTO REAGE", "arquivos": ["video", "tela", "original"]},
     "galo": {"nome": "Galo — elenco passando", "arquivos": ["video"]},
     "vertical": {"nome": "Vertical de vídeo pronto", "arquivos": ["video"]},
+    "vlog": {"nome": "Vlog", "arquivos": []},
 }
+DRIVE = None  # pasta do Google Drive para computador (painel → Configurações)
 NOME_ARQ = {"video": "a gravação", "tela": "a gravação da tela", "original": "o vídeo original"}
 
 
@@ -132,7 +137,7 @@ def registro(p, n=40):
         # só as linhas de comando (">> ...") e o "Pronto:" decidem a etapa
         etapa, pos = "", -1
         with open(f, encoding="utf-8", errors="replace") as fh:
-            marcos = [l for l in fh if l.startswith(">>") or l.startswith("Pronto:") or " começando: " in l]
+            marcos = [l for l in fh if l.startswith(">>") or l.startswith("Pronto:") or " começando: " in l or re.match(r"^\d/5 ", l)]
         for idx, l in enumerate(marcos):
             for chave, nome in ETAPAS:
                 if chave in l and idx >= pos:
@@ -146,8 +151,9 @@ def saidas(p):
     if info(p).get("tipo", "roteiro") != "roteiro":
         pasta = p / "saidas"
         vids = [{"rel": rel(f), "nome": f.name, "tam": f.stat().st_size, "quando": dt.datetime.fromtimestamp(f.stat().st_mtime).strftime("%d/%m %H:%M")}
-                for f in sorted(pasta.glob("*.mp4"))] if pasta.exists() else []
-        return {"videos": vids, "imagens": [], "textos": {}}
+                for f in sorted(pasta.glob("*.mp4")) if not f.name.startswith("vlog_")] if pasta.exists() else []
+        imgs = [{"rel": rel(f), "nome": f.name} for f in sorted(pasta.glob("*.jpg"))] if pasta.exists() else []
+        return {"videos": vids, "imagens": imgs, "textos": {}}
     job = job_de(p)
     if not job or not job.exists():
         return {"videos": [], "imagens": [], "textos": {}}
@@ -210,7 +216,9 @@ def novo(d):
     extra = {"jogo": str(ex.get("jogo", ""))[:120], "time": str(ex.get("time") or "Atlético Mineiro")[:60], "com_placar": bool(ex.get("com_placar")),
              "formato": "vertical" if ex.get("formato") == "vertical" else "horizontal", "faixa": str(ex.get("faixa", ""))[:120],
              "grafico": ex.get("grafico") if ex.get("grafico") in ("pip", "tela", "dividido") else "pip",
-             "partes": max(0, min(180, int(float(ex.get("partes") or 0))))}
+             "partes": max(0, min(180, int(float(ex.get("partes") or 0)))),
+             "pasta": str(ex.get("pasta") or "")[:400], "estilo": str(ex.get("estilo") or "")[:300],
+             "duracao": max(1.0, min(60.0, float(ex.get("duracao") or 10))), "legendas": ex.get("legendas") if ex.get("legendas") in (True, False) else None}
     grava(p / "painel.json", {"titulo": titulo, "tipo": tipo, "extra": extra, "status": "rascunho",
                               "criado": dt.datetime.now().strftime("%d/%m %H:%M"), "opcoes": opcoes})
     if str(d.get("roteiro_texto") or "").strip():
@@ -232,6 +240,11 @@ def recebe(h, q):
         if ext not in (".txt", ".md", ".docx"):
             raise ValueError("roteiro: mande .txt (ou .docx)")
         alvo = p / ("roteiro_enviado" + ext)
+    elif tipo == "clipe":  # vlog: vários clipes enviados pela tela
+        if ext not in VIDEO_EXT:
+            raise ValueError("clipe: só vídeo (.mp4, .mov ...)")
+        (p / "clipes").mkdir(exist_ok=True)
+        alvo = p / "clipes" / nome
     elif tipo == "imagem":
         if ext not in IMG_EXT:
             raise ValueError("imagem: .jpg, .png ou .webp")
@@ -298,12 +311,62 @@ def prepara_roteiro(p):
             shutil.copyfile(env, alvo)
 
 
+def pasta_vlog(p):
+    """os clipes do vlog: a pasta escolhida (Google Drive) ou os enviados pela tela"""
+    ex = info(p).get("extra", {})
+    if ex.get("pasta") and Path(ex["pasta"]).is_dir():
+        return Path(ex["pasta"])
+    if (p / "clipes").is_dir():
+        return p / "clipes"
+    return None
+
+
+def drive_raiz():
+    """onde está o Google Drive para computador (a pasta configurada no painel ou a padrão)"""
+    cands = [DRIVE] if DRIVE else []
+    for letra in "GHIJKFE":
+        for nome in ("Meu Drive", "My Drive"):
+            cands.append(f"{letra}:/{nome}")
+    cands += [str(Path.home() / "Google Drive"), str(Path.home() / "Meu Drive")]
+    for c in cands:
+        if c and Path(c).is_dir():
+            return Path(c)
+    return None
+
+
+def drive_pastas(d=None):
+    """pastas com vídeos dentro do Drive (até 3 níveis), mais recentes primeiro — para escolher o vlog"""
+    raiz = drive_raiz()
+    if not raiz:
+        return {"raiz": "", "pastas": []}
+    base = raiz / "DETTO" / "vlogs" if (raiz / "DETTO" / "vlogs").is_dir() else raiz
+    out = []
+    for prof in range(3):
+        for p in (base.glob("/".join(["*"] * (prof + 1)))):
+            try:
+                if p.is_dir() and not p.name.startswith("."):
+                    vids = [f for f in p.iterdir() if f.suffix.lower() in VIDEO_EXT]
+                    if vids:
+                        out.append({"pasta": str(p), "nome": str(p.relative_to(raiz)), "n": len(vids),
+                                    "quando": max(f.stat().st_mtime for f in vids)})
+            except OSError:
+                continue
+        if len(out) > 80:
+            break
+    out.sort(key=lambda x: -x["quando"])
+    return {"raiz": str(raiz), "base": str(base), "pastas": out[:60]}
+
+
 def iniciar(d):
     p = pasta_de(d.get("id", ""))
     dd = info(p)
     for campo in TIPOS.get(dd.get("tipo", "roteiro"), TIPOS["roteiro"])["arquivos"]:
         if not dd.get(campo) or not (p / dd[campo]).exists():
             raise ValueError(f"falta {NOME_ARQ[campo]}")
+    if dd.get("tipo") == "vlog":
+        pasta = pasta_vlog(p)
+        if not pasta or not any(f.suffix.lower() in VIDEO_EXT for f in pasta.iterdir()):
+            raise ValueError("vlog: escolha a pasta do Drive com os clipes ou envie os clipes")
     if info(p).get("status") == "editando":
         raise ValueError("já está editando")
     muda_info(p, status="na_fila", pedido=time.time(), erro="", inicio=None, fim=None)
@@ -337,8 +400,11 @@ def refazer(d):
         (p / "roteiro_enviado.txt").write_text(txt, encoding="utf-8")
     if "extra" in d:
         ex = info(p).get("extra", {})
-        ex.update({k: v for k, v in d["extra"].items() if k in ("jogo", "time", "com_placar", "formato", "faixa", "grafico", "partes")})
+        ex.update({k: v for k, v in d["extra"].items() if k in ("jogo", "time", "com_placar", "formato", "faixa", "grafico", "partes",
+                                                                 "estilo", "duracao", "legendas")})
         muda_info(p, extra=ex)
+    if "plano" in d:  # vlog: refazer com o mesmo plano (ou do zero)
+        muda_info(p, refazer_plano=bool(d["plano"]))
     if d.get("refazer_gestos"):
         v = video_de(p)
         if v:
@@ -410,6 +476,16 @@ def comando(p):
             cfg["jogo"] = ex["jogo"]
         grava(p / "jogo.json", cfg)
         return [str(exe), "-u", str(TOOLS / "galo" / "passagem.py"), str(p / "jogo.json")]
+    if tipo == "vlog":
+        cmd = [str(exe), "-u", str(TOOLS / "vlog" / "vlog.py"), str(pasta_vlog(p)), "--saida", str(p / "saidas"), "--titulo", titulo,
+               "--formato", ex.get("formato", "horizontal"), "--duracao", str(ex.get("duracao") or 10)]
+        if ex.get("estilo"):
+            cmd += ["--estilo", ex["estilo"]]
+        if ex.get("legendas") is not None:
+            cmd += ["--legendas", "1" if ex["legendas"] else "0"]
+        if d.get("refazer_plano") and (p / "saidas" / "plano.json").exists():
+            cmd.append("--refazer")
+        return cmd
     if tipo == "vertical":
         cmd = [str(exe), "-u", str(TOOLS / "vertical916.py"), str(p / d["video"]), str(p / "saidas" / f"{titulo} 9x16.mp4"),
                "--grafico", ex.get("grafico", "pip")]

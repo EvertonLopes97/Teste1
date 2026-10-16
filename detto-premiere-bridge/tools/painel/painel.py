@@ -252,7 +252,7 @@ def estado_painel():
                   "log": [l.rstrip() for l in rlog]},
         "log": [l.rstrip() for l in log], "disco": tam_txt(livre), "disco_pouco": livre < 15 * 1024 ** 3,
         "edicao": EDI.lista(), "pasta_edicao": str(EDI.ED), "editando": EDI.PROC["id"] or "",
-        "pin": bool((c_.get("painel") or {}).get("pin")), "endereco": f"http://{ip_local()}:{PORTA}",
+        "pin": bool((c_.get("painel") or {}).get("pin")), "drive": str(EDI.drive_raiz() or ""), "endereco": f"http://{ip_local()}:{PORTA}",
         "pastas": {"postar": str(BASE), "reels": str(REELS), "edicao": str(EDI.ED)},
         "agora": dt.datetime.now().strftime("%d/%m %H:%M"),
     }
@@ -389,6 +389,9 @@ def acao(nome, d):
                 c.setdefault("tiktok", {})["modo"] = d["tt_modo"]
             if "tt_ia" in d:
                 c.setdefault("tiktok", {})["ia"] = bool(d["tt_ia"])
+            if "drive" in d:
+                c.setdefault("painel", {})["drive"] = str(d["drive"]).strip()
+                EDI.DRIVE = c["painel"]["drive"] or None
             if "pin" in d:
                 pin = str(d["pin"]).strip()
                 if pin and not re.fullmatch(r"\d{4,8}", pin):
@@ -497,7 +500,7 @@ def acao(nome, d):
         TRABALHO["reels"] = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT, text=True, cwd=str(TOOLS.parent),
                                              env={**os.environ, "PYTHONIOENCODING": "utf-8"}, **extra)
     elif nome.startswith("ed_"):
-        fn = {"ed_novo": EDI.novo, "ed_caminho": EDI.de_caminho, "ed_iniciar": EDI.iniciar, "ed_roteiro": EDI.roteiro,
+        fn = {"ed_drive": EDI.drive_pastas, "ed_novo": EDI.novo, "ed_caminho": EDI.de_caminho, "ed_iniciar": EDI.iniciar, "ed_roteiro": EDI.roteiro,
               "ed_refazer": EDI.refazer, "ed_cancelar": EDI.cancelar, "ed_apagar": EDI.apagar, "ed_postar": ed_postar}.get(nome)
         if not fn:
             raise ValueError(f"ação desconhecida: {nome}")
@@ -920,6 +923,7 @@ def main():
     a = ap.parse_args()
     BASE, REELS, PORTA = Path(a.pasta), Path(a.reels), a.porta
     EDI.ED = Path(a.edicao)
+    EDI.DRIVE = (P.le_json(BASE / "config.json", {}).get("painel") or {}).get("drive") or None
     if a.instalar:
         return instalar()
     if a.desinstalar:

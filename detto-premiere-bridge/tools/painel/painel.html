@@ -207,6 +207,7 @@ section.aba.on{display:block}
       <label class="dest"><input type="radio" name="edTipo" value="galo"> 🐓 Galo — bater nos jogadores</label>
       <label class="dest"><input type="radio" name="edTipo" value="react"> 📺 DETTO REAGE</label>
       <label class="dest"><input type="radio" name="edTipo" value="vertical"> 📱 Vertical de vídeo já editado</label>
+      <label class="dest"><input type="radio" name="edTipo" value="vlog"> 🎥 Vlog</label>
     </div>
     <div class="info" id="edTipoInfo"></div>
     <div class="nova" style="margin-top:10px">
@@ -214,6 +215,13 @@ section.aba.on{display:block}
         <label>Título (vira o nome da pasta)</label>
         <input type="text" id="edTitulo" placeholder="ex.: notas Galo x Cruzeiro">
         <div id="edCampos"></div>
+        <div data-so="vlog" style="margin-top:10px">
+          <label>Clipes do vlog: pasta do Google Drive</label>
+          <div class="linha" style="margin-top:4px"><select id="vlDrive" style="flex:1"><option value="">— escolha a pasta —</option></select><button class="mini" id="btDrive" title="Atualizar a lista">↻</button></div>
+          <div class="info" id="vlDriveInfo"></div>
+          <input type="text" id="vlPasta" placeholder="…ou o caminho de uma pasta no PC" style="margin-top:6px">
+          <label class="mini-drop" id="vlDrop" style="margin-top:6px"><input type="file" id="vlClipes" accept="video/*,.mov,.mp4" multiple hidden><span>…ou arraste os clipes aqui (vários)</span></label>
+        </div>
         <div data-so="roteiro" style="margin-top:10px"><label>O roteiro (opcional — sem roteiro o Gemini escreve)</label>
           <label class="mini-drop" id="edDropR"><input type="file" id="edRoteiro" accept=".txt,.md,.docx" hidden><span>Arraste o roteiro (.txt ou .docx)</span></label>
           <textarea id="edRoteiroTxt" rows="4" placeholder="…ou cole o roteiro aqui" style="margin-top:6px"></textarea>
@@ -245,6 +253,16 @@ section.aba.on{display:block}
           <label>Título da faixa (o que aparece no layout)</label>
           <input type="text" id="exFaixa" placeholder="ex.: Messi se despede da seleção">
           <div style="margin-top:8px"><label>Formato</label><select id="exFormato"><option value="horizontal">Horizontal (YouTube)</option><option value="vertical">Vertical (Reels/TikTok)</option></select></div>
+        </div>
+        <div data-so="vlog">
+          <label>Estilo (o diretor segue isso)</label>
+          <input type="text" id="vlEstilo" placeholder="ex.: dinâmico e engraçado, estilo Afreim / Cariani">
+          <div class="campos" style="margin-top:8px">
+            <div><label>Formato</label><select id="vlFormato"><option value="horizontal">Horizontal (YouTube)</option><option value="vertical">Vertical (Reels/TikTok)</option></select></div>
+            <div><label>Duração alvo</label><select id="vlDur"><option value="3">~3 min</option><option value="6">~6 min</option><option value="10" selected>~10 min</option><option value="15">~15 min</option><option value="20">~20 min</option></select></div>
+          </div>
+          <div class="opcoes"><label class="dest"><input type="checkbox" id="vlLeg"> Legendas das falas</label></div>
+          <div class="info">Trilha por clima: músicas em E:\DETTO\musicas\animado, tranquilo, engracado, emocionante, tenso, epico.</div>
         </div>
         <div data-so="vertical">
           <div class="campos">
@@ -314,6 +332,7 @@ section.aba.on{display:block}
               <select id="tt_modo"><option value="studio">TikTok Studio (você agenda no site) — recomendado</option><option value="rascunho">Rascunho pela API (precisa app)</option><option value="direto">Direto pela API (app aprovado)</option></select></div>
             <div><label>&nbsp;</label><label class="dest" style="width:max-content"><input type="checkbox" id="tt_ia"> marcar como feito com IA</label></div>
           </div>
+          <div style="margin-top:12px"><label>Pasta do Google Drive (Google Drive para computador)</label><input type="text" id="cfgDrive" placeholder="ex.: G:\Meu Drive"></div>
           <div style="margin-top:12px"><label>PIN do celular (4 a 8 números)</label><input type="password" id="pin" inputmode="numeric" placeholder="vazio = não muda"></div>
           <div class="linha"><button class="pri" id="btSalvarCfg">Salvar</button><span class="info">Chaves em branco não mudam o que já está salvo.</span></div>
         </div>
@@ -685,6 +704,7 @@ function configs(){
   $("#ig_app_id").placeholder = E.instagram.chaves ? "já preenchido" : "";
   $("#tt_client_key").placeholder = E.tiktok.chaves ? "já preenchido" : "";
   $("#tt_client_secret").placeholder = E.tiktok.chaves ? "já preenchida" : "";
+  $("#cfgDrive").placeholder = E.drive ? "achei: " + E.drive : "ex.: G:\\Meu Drive";
   $("#pin").placeholder = E.pin ? "já tem PIN (vazio = não muda)" : "crie um PIN para abrir pelo celular";
   $("#endCel").innerHTML = `No celular (mesmo Wi-Fi): <b>${esc(E.endereco)}</b>`;
   const lg = $("#logins"), k = JSON.stringify(E.contas.map(c => [c.k, c.login, c.fila.length, c.studio]));
@@ -699,6 +719,7 @@ $("#btSalvarCfg").onclick = async () => {
   const d = {tt_modo: $("#tt_modo").value, tt_ia: $("#tt_ia").checked};
   for(const id of ["ig_app_id","ig_app_secret","ig_config_id","tt_client_key","tt_client_secret"]) d[id] = $("#" + id).value;
   if($("#pin").value) d.pin = $("#pin").value;
+  if($("#cfgDrive").value.trim()) d.drive = $("#cfgDrive").value.trim();
   await api("global", d);
   for(const id of ["ig_app_id","ig_app_secret","ig_config_id","tt_client_key","tt_client_secret","pin"]) $("#" + id).value = "";
   toast("Configurações salvas"); editando = false; carrega(true);
@@ -762,7 +783,9 @@ function edicao(){
                e.status === "pronto" ? `Pronto em ${mmss(e.duracao)}` : ST[e.status] || e.status;
     const op = e.opcoes || {}, ex = e.extra || {};
     const tags = e.tipo === "roteiro" ? [op.teste && "teste 1 min", op.sem_lances && "sem lances", op.fps == 30 && "30 fps", e.imagens && e.imagens + " imagens", e.roteiro ? "com roteiro" : "roteiro do Gemini"]
-      : e.tipo === "galo" ? [ex.jogo, ex.com_placar && "com placar"] : e.tipo === "react" ? [ex.formato] : [ex.grafico, ex.partes && "partes de " + ex.partes + " s"];
+      : e.tipo === "galo" ? [ex.jogo, ex.com_placar && "com placar"] : e.tipo === "react" ? [ex.formato]
+      : e.tipo === "vlog" ? [ex.formato, "~" + ex.duracao + " min", ex.estilo, ex.pasta && ex.pasta.split(/[\\/]/).slice(-1)[0]]
+      : [ex.grafico, ex.partes && "partes de " + ex.partes + " s"];
     tags.unshift(e.tipo_nome);
     let corpo = "";
     if(["editando","erro","interrompido"].includes(e.status) && e.registro.length)
@@ -784,7 +807,11 @@ function edicao(){
     if(e.status === "rascunho") bts.push(`<button class="pri" onclick="edAcao('ed_iniciar',${ei})">Começar</button>`);
     if(["pronto","erro","interrompido","cancelado"].includes(e.status) && e.tipo === "roteiro") bts.push(`<button onclick="ajusta(${ei})">Ajustar roteiro e refazer</button>`);
     if(["pronto","erro","interrompido","cancelado"].includes(e.status) && e.tipo === "galo") bts.push(`<button onclick="regestos(${ei})" title="Apaga os gestos lidos e lê de novo">Refazer lendo os gestos de novo</button>`);
-    if(e.status === "pronto" && e.tipo !== "roteiro") bts.push(`<button onclick="edAcao('ed_iniciar',${ei})">Refazer</button>`);
+    if(e.status === "pronto" && !["roteiro", "vlog"].includes(e.tipo)) bts.push(`<button onclick="edAcao('ed_iniciar',${ei})">Refazer</button>`);
+    if(["pronto","erro","interrompido","cancelado"].includes(e.tipo === "vlog" ? e.status : "") ) {
+      bts.push(`<button onclick="refazVlog(${ei}, true)" title="Mesmo roteiro (plano.json, se você ajustou)">Refazer (mesmo roteiro)</button>`);
+      bts.push(`<button onclick="refazVlog(${ei}, false)" title="O diretor monta tudo de novo">Refazer do zero</button>`);
+    }
     if(["erro","interrompido","cancelado"].includes(e.status)) bts.push(`<button class="pri" onclick="edAcao('ed_iniciar',${ei})">Tentar de novo</button>`);
     if(e.status !== "editando") bts.push(`<button class="perigo" onclick="edAcao('ed_apagar',${ei},'Apagar esta edição e todos os arquivos dela (${gb(e.tam)})?')">Apagar (${gb(e.tam)})</button>`);
     return `<div class="card ed">
@@ -794,6 +821,7 @@ function edicao(){
       <div class="linha">${bts.join("")}</div></div>`;
   }).join("");
 }
+async function refazVlog(ei, mesmo){ const e = E.edicao[ei]; await api("ed_refazer", {id: e.id, plano: mesmo}); toast("Na fila"); carrega(true); }
 async function regestos(ei){ const e = E.edicao[ei]; if(!confirm("Ler seus gestos de novo e refazer?")) return; await api("ed_refazer", {id: e.id, refazer_gestos: true}); carrega(true); }
 async function edAcao(acao, ei, pergunta){ const e = E.edicao[ei]; if(pergunta && !confirm(pergunta)) return; await api(acao, {id: e.id}); carrega(true); }
 function verEd(ei, vi){
@@ -843,6 +871,7 @@ const TIPOS = {
   galo: {campos: [["video", "A gravação no estádio"]], info: "Os jogadores do Galo entram ao seu lado e você bate/passa/joga longe — o sistema lê seus gestos. Sai em 9:16, sem música (você põe no app)."},
   react: {campos: [["video", "Sua câmera"], ["tela", "A gravação da tela (com as pausas)"], ["original", "O vídeo original (o que você reagiu)"]], info: "Layout DETTO REAGE: o vídeo na moldura e você no quadro; nas pausas, zoom em você em tela cheia. Sincroniza pelo áudio (bater palma no começo ajuda)."},
   vertical: {campos: [["video", "O vídeo já editado (16:9)"]], info: "Vira 9:16 com recorte no seu rosto; quando tem gráfico ou foto grande, ele aparece grande e você no canto."},
+  vlog: {campos: [], info: "Os clipes do dia (pasta do Google Drive ou enviados aqui) viram o vlog: cor certa, cortes sem silêncio, gancho, transições, textos, efeitos sonoros e trilha por clima."},
 };
 const edArq = {roteiro: null, imgs: []};
 const tipoAtual = () => (document.querySelector("input[name=edTipo]:checked") || {}).value || "roteiro";
@@ -867,7 +896,27 @@ function montaTipo(){
   }
   localStorageSet("edTipo", t);
 }
-document.querySelectorAll("input[name=edTipo]").forEach(r => r.onchange = montaTipo);
+document.querySelectorAll("input[name=edTipo]").forEach(r => r.onchange = () => { montaTipo(); if(tipoAtual() === "vlog") carregaDrive(); });
+const vlClipes = [];
+async function carregaDrive(){
+  try{
+    const r = await api("ed_drive", {});
+    const sel = $("#vlDrive"), v = sel.value;
+    sel.innerHTML = `<option value="">— escolha a pasta —</option>` + r.pastas.map(p => `<option value="${esc(p.pasta)}">${esc(p.nome)} (${p.n} vídeos)</option>`).join("");
+    sel.value = v;
+    $("#vlDriveInfo").textContent = r.raiz ? `Google Drive: ${r.base || r.raiz}` : "Google Drive para computador não encontrado — instale e/ou informe a pasta em Configurações.";
+  }catch(e){}
+}
+$("#btDrive").onclick = carregaDrive;
+if(tipoAtual() === "vlog") carregaDrive();
+{ const d = $("#vlDrop"), i = $("#vlClipes");
+  ["dragenter","dragover"].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.add("on"); }));
+  ["dragleave","drop"].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.remove("on"); }));
+  const pegaC = fs => { fs.filter(f => /\.(mp4|mov|m4v|mkv)$/i.test(f.name)).forEach(f => vlClipes.push(f));
+    d.classList.toggle("ok", vlClipes.length > 0); d.querySelector("span").textContent = vlClipes.length ? `🎬 ${vlClipes.length} clipes (${gb(vlClipes.reduce((a, f) => a + f.size, 0))})` : "…ou arraste os clipes aqui (vários)"; };
+  d.addEventListener("drop", e => pegaC([...e.dataTransfer.files]));
+  i.onchange = e => { pegaC([...e.target.files]); e.target.value = ""; };
+}
 { const t = localStorageGet("edTipo"); const r = t && document.querySelector(`input[name=edTipo][value="${t}"]`); if(r) r.checked = true; }
 montaTipo();
 
@@ -901,6 +950,8 @@ function sobe(url, arquivo, rotulo){
 $("#btEditar").onclick = async () => {
   const t = tipoAtual(), T = TIPOS[t];
   for(const [c, rot] of T.campos) if(!edArq[c] && !$("#cam-" + c).value.trim()) return toast("Falta: " + rot.toLowerCase(), true);
+  const pastaVlog = t === "vlog" ? ($("#vlPasta").value.trim() || $("#vlDrive").value) : "";
+  if(t === "vlog" && !pastaVlog && !vlClipes.length) return toast("Escolha a pasta do Drive ou envie os clipes", true);
   const bt = $("#btEditar"); bt.disabled = true;
   try{
     const opcoes = {teste: $("#opTeste").checked, sem_lances: $("#opSemLances").checked, sem_thumbs: $("#opSemThumbs").checked,
@@ -908,12 +959,18 @@ $("#btEditar").onclick = async () => {
       postar: [...document.querySelectorAll("#edPara input:checked")].map(x => x.value)};
     const extra = {jogo: $("#exJogo").value, com_placar: $("#exPlacar").checked, faixa: $("#exFaixa").value, formato: $("#exFormato").value,
       grafico: $("#exGrafico").value, partes: $("#exPartes").value};
+    if(t === "vlog") Object.assign(extra, {pasta: pastaVlog, estilo: $("#vlEstilo").value, duracao: $("#vlDur").value, formato: $("#vlFormato").value,
+      legendas: $("#vlLeg").checked});
     const {id} = await api("ed_novo", {tipo: t, titulo: $("#edTitulo").value, opcoes, extra,
       roteiro_texto: t === "roteiro" && !edArq.roteiro ? $("#edRoteiroTxt").value : ""});
     const q = (tipo, nome) => "/api/ed_enviar?" + new URLSearchParams({id, tipo, nome});
     for(const [c, rot] of T.campos){
       if(edArq[c]) await sobe(q(c, edArq[c].name), edArq[c], "Enviando " + rot.toLowerCase());
       else await api("ed_caminho", {id, campo: c, caminho: $("#cam-" + c).value.trim()});
+    }
+    if(t === "vlog" && !pastaVlog){
+      for(const [n, f] of vlClipes.entries()) await sobe(q("clipe", f.name), f, `Clipe ${n + 1}/${vlClipes.length}`);
+      vlClipes.length = 0;
     }
     if(t === "roteiro"){
       if(edArq.roteiro) await sobe(q("roteiro", edArq.roteiro.name), edArq.roteiro, "Enviando o roteiro");

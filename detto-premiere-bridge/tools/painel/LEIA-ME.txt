@@ -30,6 +30,16 @@ Escolha o TIPO no topo:
                                  e formato (horizontal/vertical). Bata uma palma no começo (ajuda a sincronizar).
   📱 Vertical de vídeo pronto .. vídeo já editado em 16:9 → 9:16 com recorte no rosto (gráfico grande + você no canto,
                                  só o gráfico, ou metade/metade); pode cortar em partes de 60/90 s.
+  🎥 Vlog ....................... os clipes do dia (pasta do Google Drive, caminho no PC ou arrastados) viram o vlog:
+                                 cor certa (HDR→SDR), ordem de gravação, gancho no começo, cortes sem silêncio/enrolação,
+                                 cenas de apoio, transições (chicote, zoom, flash, fade), textos na tela, efeitos sonoros e
+                                 trilha por CLIMA (E:\DETTO\musicas\animado, tranquilo, engracado, emocionante, tenso,
+                                 epico). Estilo (texto livre), formato, duração alvo, legendas. "Refazer (mesmo roteiro)"
+                                 usa o plano.json da pasta saidas (se você ajustou); "Refazer do zero" monta de novo.
+GOOGLE DRIVE: instale o "Google Drive para computador" e crie Meu Drive\DETTO\vlogs\<nome do vlog>\ — suba os
+  clipes pelo celular (app do Drive) e eles aparecem na lista da aba Edição. Pasta do Drive diferente: Configurações.
+COR (HDR do iPhone): tudo agora é convertido para SDR ANTES de editar, com o mesmo critério do CapCut/iPhone (branco
+  do HLG em 203 nits) — não precisa mais passar pelo CapCut. Avulso: python tools\sdr.py "video.MOV" (ou a pasta).
 Vídeo: arraste/escolha OU cole o caminho no PC (não copia, é mais rápido).
 "Quando ficar pronto, mandar para a fila de": marque as contas e o vídeo já entra na fila de postagem.
 Uma edição por vez; o resto espera. Pronto → ▶ assistir, ⬇ baixar, "Postar" (escolhe as contas + legenda).
