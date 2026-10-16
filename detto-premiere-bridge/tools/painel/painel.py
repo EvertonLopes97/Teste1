@@ -487,6 +487,11 @@ def ed_postar(d, pasta=None, rels=None):
 def edicao_pronta(p):
     """terminou: se você marcou, o vertical completo já vai para a fila"""
     para = EDI.info(p).get("opcoes", {}).get("postar") or []
+    if para and EDI.info(p).get("tipo", "roteiro") != "roteiro":
+        vids = [v["rel"] for v in EDI.saidas(p)["videos"] if "_parte" not in v["nome"]]
+        if vids:
+            ed_postar({"para": para}, pasta=p, rels=vids[:1])
+        return
     job = EDI.job_de(p)
     if para and job and (job / "vertical_completo.mp4").exists():
         rel = str((job / "vertical_completo.mp4").relative_to(p)).replace("\\", "/")

@@ -34,7 +34,17 @@ ETAPAS = [  # (texto no registro, nome da etapa) — a última que aparecer é a
     ("lances.py", "Buscando os lances"), ("horizontal.mp4", "Render horizontal (YouTube)"), ("conferir.py", "Conferindo cor e volume"),
     ("vertical_completo.mp4", "Render vertical completo"), ("--cut", "Cortes 9:16"), ("thumb.py", "Fazendo as thumbs"),
     ("Pronto:", "Pronto"),
+    # react / galo / vertical
+    ("react.py", "Montando o react"), ("passagem.py", "Lendo seus gestos e montando o elenco"), ("vertical916.py", "Fazendo o 9:16"),
 ]
+
+TIPOS = {  # tipo de edição → arquivos que precisa
+    "roteiro": {"nome": "Vídeo com roteiro", "arquivos": ["video"]},
+    "react": {"nome": "DETTO REAGE", "arquivos": ["video", "tela", "original"]},
+    "galo": {"nome": "Galo — elenco passando", "arquivos": ["video"]},
+    "vertical": {"nome": "Vertical de vídeo pronto", "arquivos": ["video"]},
+}
+NOME_ARQ = {"video": "a gravação", "tela": "a gravação da tela", "original": "o vídeo original"}
 
 
 def pasta_padrao():
@@ -122,7 +132,7 @@ def registro(p, n=40):
         # só as linhas de comando (">> ...") e o "Pronto:" decidem a etapa
         etapa, pos = "", -1
         with open(f, encoding="utf-8", errors="replace") as fh:
-            marcos = [l for l in fh if l.startswith(">>") or l.startswith("Pronto:")]
+            marcos = [l for l in fh if l.startswith(">>") or l.startswith("Pronto:") or " começando: " in l]
         for idx, l in enumerate(marcos):
             for chave, nome in ETAPAS:
                 if chave in l and idx >= pos:
@@ -132,10 +142,15 @@ def registro(p, n=40):
 
 
 def saidas(p):
+    rel = lambda f: str(f.relative_to(p)).replace("\\", "/")  # noqa: E731
+    if info(p).get("tipo", "roteiro") != "roteiro":
+        pasta = p / "saidas"
+        vids = [{"rel": rel(f), "nome": f.name, "tam": f.stat().st_size, "quando": dt.datetime.fromtimestamp(f.stat().st_mtime).strftime("%d/%m %H:%M")}
+                for f in sorted(pasta.glob("*.mp4"))] if pasta.exists() else []
+        return {"videos": vids, "imagens": [], "textos": {}}
     job = job_de(p)
     if not job or not job.exists():
         return {"videos": [], "imagens": [], "textos": {}}
-    rel = lambda f: str(f.relative_to(p)).replace("\\", "/")  # noqa: E731
     ordem = lambda f: (0 if f.stem.startswith("horizontal") else 1 if f.stem.startswith("vertical_completo") else 2, f.name)  # noqa: E731
     vids = [{"rel": rel(f), "nome": f.name, "tam": f.stat().st_size, "quando": dt.datetime.fromtimestamp(f.stat().st_mtime).strftime("%d/%m %H:%M")}
             for f in sorted(job.glob("*.mp4"), key=ordem)]
@@ -165,6 +180,7 @@ def lista():
             dur = int(fim - d["inicio"])
         out.append({
             "id": p.name, "titulo": d.get("titulo") or p.name, "status": d.get("status", "rascunho"), "opcoes": d.get("opcoes", {}),
+            "tipo": d.get("tipo", "roteiro"), "tipo_nome": TIPOS.get(d.get("tipo", "roteiro"), {}).get("nome", ""), "extra": d.get("extra", {}),
             "video": d.get("video", ""), "roteiro": (p / "roteiro_enviado.txt").exists() or bool(job_de(p) and (job_de(p) / "roteiro.txt").exists()),
             "imagens": img_n, "criado": d.get("criado", ""), "duracao": dur, "etapa": etapa, "registro": reg if d.get("status") != "pronto" else reg[-8:],
             "erro": d.get("erro", ""), "tam": tam_pasta(p), "saidas": saidas(p) if d.get("status") in ("pronto", "erro", "interrompido", "cancelado", "editando") else None,
@@ -189,7 +205,14 @@ def novo(d):
     opcoes = {"teste": bool(op.get("teste")), "sem_lances": bool(op.get("sem_lances")), "sem_thumbs": bool(op.get("sem_thumbs")),
               "sem_verticais": bool(op.get("sem_verticais")), "fps": 30 if str(op.get("fps")) == "30" else 60,
               "sfx": str(op.get("sfx") or "0.3"), "postar": [x for x in op.get("postar", []) if re.fullmatch(r"(instagram|tiktok):[\w.]+", x)]}
-    grava(p / "painel.json", {"titulo": titulo, "status": "rascunho", "criado": dt.datetime.now().strftime("%d/%m %H:%M"), "opcoes": opcoes})
+    tipo = d.get("tipo") if d.get("tipo") in TIPOS else "roteiro"
+    ex = d.get("extra") or {}
+    extra = {"jogo": str(ex.get("jogo", ""))[:120], "time": str(ex.get("time") or "Atlético Mineiro")[:60], "com_placar": bool(ex.get("com_placar")),
+             "formato": "vertical" if ex.get("formato") == "vertical" else "horizontal", "faixa": str(ex.get("faixa", ""))[:120],
+             "grafico": ex.get("grafico") if ex.get("grafico") in ("pip", "tela", "dividido") else "pip",
+             "partes": max(0, min(180, int(float(ex.get("partes") or 0))))}
+    grava(p / "painel.json", {"titulo": titulo, "tipo": tipo, "extra": extra, "status": "rascunho",
+                              "criado": dt.datetime.now().strftime("%d/%m %H:%M"), "opcoes": opcoes})
     if str(d.get("roteiro_texto") or "").strip():
         (p / "roteiro_enviado.txt").write_text(d["roteiro_texto"].strip() + "\n", encoding="utf-8")
     return {"id": p.name}
@@ -201,10 +224,10 @@ def recebe(h, q):
     tipo = q.get("tipo")
     nome = Path(slug(q.get("nome", "arquivo"), 120)).name
     ext = Path(nome).suffix.lower()
-    if tipo == "video":
+    if tipo in ("video", "tela", "original"):
         if ext not in VIDEO_EXT:
-            raise ValueError("a gravação precisa ser vídeo (.mp4, .mov ...)")
-        alvo = p / f"{info(p).get('titulo', 'video')}{ext}"
+            raise ValueError(f"{NOME_ARQ[tipo]} precisa ser vídeo (.mp4, .mov ...)")
+        alvo = p / (f"{info(p).get('titulo', 'video')}{ext}" if tipo == "video" else f"{tipo}{ext}")
     elif tipo == "roteiro":
         if ext not in (".txt", ".md", ".docx"):
             raise ValueError("roteiro: mande .txt (ou .docx)")
@@ -231,8 +254,8 @@ def recebe(h, q):
     os.replace(tmp, alvo)
     if tipo == "roteiro" and ext == ".docx":
         _docx_para_txt(alvo)
-    if tipo == "video":
-        muda_info(p, video=alvo.name)
+    if tipo in ("video", "tela", "original"):
+        muda_info(p, **{tipo: alvo.name})
     return {"ok": True}
 
 
@@ -251,16 +274,17 @@ def _docx_para_txt(f):
 def de_caminho(d):
     """a gravação já está no PC: liga o arquivo (mesmo disco = não ocupa espaço de novo) ou copia"""
     p = pasta_de(d.get("id", ""))
+    campo = d.get("campo") if d.get("campo") in ("video", "tela", "original") else "video"
     orig = Path(str(d.get("caminho", "")).strip().strip('"'))
     if not orig.is_file() or orig.suffix.lower() not in VIDEO_EXT:
-        raise ValueError(f"não achei o vídeo: {orig}")
-    alvo = p / f"{info(p).get('titulo', 'video')}{orig.suffix.lower()}"
+        raise ValueError(f"não achei {NOME_ARQ[campo]}: {orig}")
+    alvo = p / (f"{info(p).get('titulo', 'video')}{orig.suffix.lower()}" if campo == "video" else f"{campo}{orig.suffix.lower()}")
     alvo.unlink(missing_ok=True)
     try:
         os.link(orig, alvo)
     except OSError:
         shutil.copyfile(orig, alvo)
-    muda_info(p, video=alvo.name)
+    muda_info(p, **{campo: alvo.name})
     return {"ok": True}
 
 
@@ -276,8 +300,10 @@ def prepara_roteiro(p):
 
 def iniciar(d):
     p = pasta_de(d.get("id", ""))
-    if not video_de(p):
-        raise ValueError("falta a gravação")
+    dd = info(p)
+    for campo in TIPOS.get(dd.get("tipo", "roteiro"), TIPOS["roteiro"])["arquivos"]:
+        if not dd.get(campo) or not (p / dd[campo]).exists():
+            raise ValueError(f"falta {NOME_ARQ[campo]}")
     if info(p).get("status") == "editando":
         raise ValueError("já está editando")
     muda_info(p, status="na_fila", pedido=time.time(), erro="", inicio=None, fim=None)
@@ -309,6 +335,14 @@ def refazer(d):
                 v.with_suffix(".txt").write_text(txt, encoding="utf-8")
                 os.utime(job / "roteiro.txt", None)
         (p / "roteiro_enviado.txt").write_text(txt, encoding="utf-8")
+    if "extra" in d:
+        ex = info(p).get("extra", {})
+        ex.update({k: v for k, v in d["extra"].items() if k in ("jogo", "time", "com_placar", "formato", "faixa", "grafico", "partes")})
+        muda_info(p, extra=ex)
+    if d.get("refazer_gestos"):
+        v = video_de(p)
+        if v:
+            Path(str(v) + ".roteiro.json").unlink(missing_ok=True)
     if "opcoes" in d:
         op = info(p).get("opcoes", {})
         op.update({k: v for k, v in d["opcoes"].items() if k in ("teste", "sem_lances", "sem_thumbs", "sem_verticais", "fps", "sfx")})
@@ -355,9 +389,33 @@ def arquivo(i, rel):
 def comando(p):
     d = info(p)
     op = d.get("opcoes", {})
+    ex = d.get("extra", {})
     exe = Path(sys.executable)
     if exe.name.lower() == "pythonw.exe" and exe.with_name("python.exe").exists():
         exe = exe.with_name("python.exe")
+    tipo = d.get("tipo", "roteiro")
+    if tipo != "roteiro":
+        (p / "saidas").mkdir(exist_ok=True)
+        titulo = d.get("titulo", "video")
+    if tipo == "react":
+        cfg = {"camera": str(p / d["video"]), "tela": str(p / d["tela"]), "original": str(p / d["original"]),
+               "titulo": ex.get("faixa") or titulo, "formato": ex.get("formato", "horizontal"), "mascote": "", "patrocinio": "",
+               "offset_camera": None, "saida": str(p / "saidas" / f"{titulo} react{' vertical' if ex.get('formato') == 'vertical' else ''}.mp4")}
+        grava(p / "react.json", cfg)
+        return [str(exe), "-u", str(TOOLS / "react" / "react.py"), str(p / "react.json")]
+    if tipo == "galo":
+        cfg = {"video": str(p / d["video"]), "time": ex.get("time") or "Atlético Mineiro", "com_placar": bool(ex.get("com_placar")),
+               "saida": str(p / "saidas" / f"{titulo} galo.mp4"), "trabalho": str(p / "galo_tmp")}
+        if ex.get("jogo"):
+            cfg["jogo"] = ex["jogo"]
+        grava(p / "jogo.json", cfg)
+        return [str(exe), "-u", str(TOOLS / "galo" / "passagem.py"), str(p / "jogo.json")]
+    if tipo == "vertical":
+        cmd = [str(exe), "-u", str(TOOLS / "vertical916.py"), str(p / d["video"]), str(p / "saidas" / f"{titulo} 9x16.mp4"),
+               "--grafico", ex.get("grafico", "pip")]
+        if ex.get("partes"):
+            cmd += ["--partes", str(ex["partes"])]
+        return cmd
     cmd = [str(exe), "-u", str(TOOLS / "editar.py"), str(video_de(p)), "--titulo", d.get("titulo", ""), "--fps", str(op.get("fps", 60))]
     for chave, flag in (("teste", "--teste"), ("sem_lances", "--sem-lances"), ("sem_thumbs", "--sem-thumbs"), ("sem_verticais", "--sem-verticais")):
         if op.get(chave):
@@ -389,7 +447,8 @@ def laco(log=print, ao_terminar=None):
                 if p.exists() and info(p).get("status") == "editando":
                     ok = pr.returncode == 0
                     muda_info(p, status="pronto" if ok else "erro", fim=time.time(),
-                              erro="" if ok else f"o editar.py parou com erro (código {pr.returncode}) — veja o registro")
+                              erro="" if ok else f"a edição parou com erro (código {pr.returncode}) — veja o registro")
+                    shutil.rmtree(p / "galo_tmp", ignore_errors=True)
                     log(f"edição {p.name}: {'PRONTA' if ok else 'ERRO'}")
                     if ok and ao_terminar:
                         try:

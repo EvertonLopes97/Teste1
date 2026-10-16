@@ -1,59 +1,55 @@
-PAINEL DETTO — colocar tudo no ar (uma vez só)
+PAINEL DETTO — LEIA-ME
 
-0) Atualizar o código no PC (Prompt de Comando):
-     cd C:\Users\guebe\Teste1
-     git pull
-     cd detto-premiere-bridge
+==================== LIGAR (uma vez só) ====================
+PowerShell:
+   cd C:\Users\guebe\Teste1
+   git pull
+   cd detto-premiere-bridge
+   python tools\painel\painel.py              (teste: abre no navegador; Ctrl+C fecha)
+   python tools\painel\painel.py --instalar   (liga sozinho com o Windows + atalho "Painel DETTO")
+Firewall perguntando: marque "Redes privadas" → Permitir (é o que deixa abrir pelo celular).
+Endereço: http://localhost:8730
 
-1) Abrir o painel e deixar ligado sempre:
-     python tools\painel\painel.py --instalar
-   → o painel liga sozinho toda vez que o Windows inicia (sem janela) e aparece o atalho
-     "Painel DETTO" na Área de Trabalho. Abre em http://localhost:8730
-   Se o Windows perguntar sobre o Firewall do Python: marque "Redes privadas" e Permitir
-   (é o que deixa abrir pelo celular).
+==================== CONFIGURAÇÕES (uma vez só) ====================
+1. Chaves dos apps (como criar: tools\postar\LEIA-ME.txt) → Meta: ID + chave secreta; TikTok: client key + secret → Salvar.
+2. Login das contas → "Conectar" em cada uma (abre o navegador NO PC; entre na conta certa e autorize).
+   No TikTok: saia de uma conta e entre na outra antes de conectar a segunda.
+3. PIN do celular (4 a 8 números) → no celular, no mesmo Wi-Fi, abra o endereço mostrado ali → "Adicionar à tela inicial".
+4. PC: Configurações do Windows → Sistema → Energia → Suspender = Nunca (na tomada). Desligado/dormindo não posta.
 
-2) Chaves dos apps (painel → Configurações). Como criar cada app: tools\postar\LEIA-ME.txt
-     Meta (Instagram): ID do app + Chave secreta
-     TikTok: Client key + Client secret
-   → Salvar.
+==================== ABA EDIÇÃO ====================
+Escolha o TIPO no topo:
+  🎬 Vídeo com roteiro ........ sua gravação lendo o roteiro → horizontal (YouTube), vertical completo, cortes 9:16,
+                                 thumbs. Mande: a gravação + o roteiro (.txt/.docx ou colado; sem roteiro o Gemini
+                                 escreve) + imagens (camisa = nome do time: Vasco.jpg). Opções: teste 1 min, sem lances,
+                                 sem thumbs, sem cortes, 60/30 fps, volume dos efeitos.
+  🐓 Galo — bater nos jogadores  gravação no estádio → os jogadores entram ao seu lado, você bate/passa/joga longe
+                                 (lê seus gestos). Jogo (ex.: "Atletico Mineiro Cruzeiro") = notas do SofaScore:
+                                 quem apanha = pior nota. Sai em 9:16, sem música.
+  📺 DETTO REAGE .............. 3 vídeos: sua câmera, a gravação da tela (com as pausas) e o original. Título da faixa
+                                 e formato (horizontal/vertical). Bata uma palma no começo (ajuda a sincronizar).
+  📱 Vertical de vídeo pronto .. vídeo já editado em 16:9 → 9:16 com recorte no rosto (gráfico grande + você no canto,
+                                 só o gráfico, ou metade/metade); pode cortar em partes de 60/90 s.
+Vídeo: arraste/escolha OU cole o caminho no PC (não copia, é mais rápido).
+"Quando ficar pronto, mandar para a fila de": marque as contas e o vídeo já entra na fila de postagem.
+Uma edição por vez; o resto espera. Pronto → ▶ assistir, ⬇ baixar, "Postar" (escolhe as contas + legenda).
+Roteiro: "Ajustar roteiro e refazer" (não transcreve de novo). Galo: "Refazer lendo os gestos de novo".
+Pasta: E:\DETTO\edicao\<data título>\. Disco cheio → "Apagar" nas edições velhas.
 
-3) Login das contas (painel → Configurações → Login das contas → Conectar):
-   o navegador abre NO PC; entre na conta certa e autorize. Uma vez por conta:
-   Instagram @detto.galo, TikTok @detto.galo, TikTok @detto.tv.
-   (No TikTok, saia de uma conta e entre na outra antes de conectar a segunda.)
+==================== ABA POSTAGEM ====================
+Enviar vídeos: arraste, marque as contas e a legenda → cai na fila certa.
+Cada conta: liga/desliga, de quanto em quanto tempo posta, das X às Y horas, máximo por dia.
+Fila: ↑ ↓ ordem, ✎ ver/editar legenda (e mandar para outra conta), 🚀 posta já, ✕ tira.
+REELS TESTE (Instagram, ligado): vai só para quem não te segue. O painel mostra as views e avisa (🔥) quando bate a
+  meta → abra o reel no app → "Compartilhar com seguidores" → no painel "Já mandei". (O Instagram não deixa a API
+  fazer esse passo.) "O Instagram decide" = ele manda sozinho se for bem.
+TikTok (até o app ser aprovado): chega como rascunho no app → "Legendas para colar no TikTok" → Copiar → publica.
 
-4) Celular: painel → Configurações → PIN do celular (4 a 8 números) → Salvar.
-   No celular, no MESMO Wi-Fi da casa, abra o endereço que aparece ali (ex.: http://192.168.0.15:8730),
-   digite o PIN e "Adicionar à tela inicial". Fora de casa: instale o Tailscale (grátis) no PC e no
-   celular, entre com a mesma conta e use o endereço do PC no Tailscale (http://100.x.x.x:8730).
+==================== ABA REELS AUTOMÁTICOS ====================
+Link de um vídeo (TikTok/Insta/YouTube) → "Fazer agora" (igual ao original, só a pessoa vira você; escolha o começo
+ou deixe o Gemini) ou "Pôr na lista" (próxima rodada). "Gerar N reels" busca virais sozinho.
+Começos novos: aba Postagem → Enviar vídeos → "Começo de reel" (o nome diz o que você faz).
 
-5) Reels automáticos todo dia (opcional):
-     python tools\reels\reels.py --agendar 07:00
-   ou pelo painel: "Gerar N reels agora". Os prontos entram sozinhos na fila das contas marcadas.
-
-NO DIA A DIA (tudo pelo painel, 4 abas):
-  EDIÇÃO: título + a gravação (arraste, ou cole o caminho no PC — não copia, é mais rápido) + o roteiro
-    (.txt/.docx ou colado; sem roteiro o Gemini escreve) + imagens (camisa = nome do time: Vasco.jpg) →
-    "Editar". Uma por vez; o resto espera na fila. Pronto: assistir, baixar, "Postar" (manda para a fila
-    da conta com a legenda), thumbs e conferência; "Ajustar roteiro e refazer" (reaproveita transcrição e
-    rosto). Marque as contas em "Quando ficar pronto..." para o vertical completo já entrar na fila.
-    Pasta: E:\DETTO\edicao\<data título>\ (apague as edições velhas no botão "Apagar" para liberar disco).
-  REELS TESTE (Instagram): ligado por padrão — o reel vai só para quem NÃO te segue. O painel mostra as
-    views de cada um e avisa (🔥) quando bate a sua meta: abra o reel no app → "Compartilhar com
-    seguidores" → no painel "Já mandei". O Instagram não deixa fazer esse último passo pela API.
-    "O Instagram decide" = ele mesmo manda para os seguidores se for bem.
-    (As views precisam da permissão de estatísticas: se já tinha feito o login antes, clique em "Refazer".)
-  LINKS: aba Reels automáticos → cole o link do vídeo (TikTok/Insta/YouTube) → "Fazer agora" (fica igual
-    ao original, só a pessoa vira você) ou "Pôr na lista" (entra na próxima rodada de reels).
-
-  - Enviar vídeos: arraste (PC) ou toque e escolha (celular), marque para onde vai e a legenda.
-    "Começo de reel" vai para a pasta dos começos com o nome que você escrever.
-  - Cada conta: liga/desliga, de quanto em quanto tempo posta, das X às Y horas, máximo por dia.
-  - Fila: ↑ ↓ muda a ordem, ✎ vê o vídeo e edita a legenda (e manda para outra conta), 🚀 posta já, ✕ tira.
-  - TikTok em rascunho: "Legendas para colar no TikTok" → Copiar → cola no app e publica.
-  - Pausar tudo: botão "Pausar" lá em cima.
-  - O PC precisa estar LIGADO (e não hibernando) para postar. Configurações do Windows → Sistema →
-    Energia → "Suspender" = Nunca (na tomada).
-
+==================== DEU PROBLEMA ====================
+Não abre (conexão recusada): rode  python tools\painel\painel.py  e mande o print do erro.
 Desligar o início automático:  python tools\painel\painel.py --desinstalar
-Se usou antes o "postar.py --agendar", pode tirar (o painel já posta):  schtasks /Delete /TN "DETTO postar" /F

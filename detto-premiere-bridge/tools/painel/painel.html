@@ -199,35 +199,58 @@ section.aba.on{display:block}
   <section class="aba" id="aba-edicao">
   <h2>Nova edição</h2>
   <div class="card">
-    <div class="nova">
+    <label>Que tipo de edição?</label>
+    <div class="destinos tipos" id="edTipos">
+      <label class="dest sel"><input type="radio" name="edTipo" value="roteiro" checked> 🎬 Vídeo com roteiro</label>
+      <label class="dest"><input type="radio" name="edTipo" value="galo"> 🐓 Galo — bater nos jogadores</label>
+      <label class="dest"><input type="radio" name="edTipo" value="react"> 📺 DETTO REAGE</label>
+      <label class="dest"><input type="radio" name="edTipo" value="vertical"> 📱 Vertical de vídeo já editado</label>
+    </div>
+    <div class="info" id="edTipoInfo"></div>
+    <div class="nova" style="margin-top:10px">
       <div>
-        <label>Título do vídeo (vira o nome da pasta e o título do roteiro)</label>
+        <label>Título (vira o nome da pasta)</label>
         <input type="text" id="edTitulo" placeholder="ex.: notas Galo x Cruzeiro">
-        <div style="margin-top:10px"><label>1. A gravação</label>
-          <label class="mini-drop" id="edDropV"><input type="file" id="edVideo" accept="video/*,.mov,.mp4" hidden><span>Arraste ou toque para escolher o vídeo</span></label>
-          <input type="text" id="edCaminho" placeholder="…ou o caminho no PC (ex.: E:\Gravações\rodada 29.MOV) — não copia, é mais rápido" style="margin-top:6px">
-        </div>
-        <div style="margin-top:10px"><label>2. O roteiro (opcional — sem roteiro o Gemini escreve)</label>
+        <div id="edCampos"></div>
+        <div data-so="roteiro" style="margin-top:10px"><label>O roteiro (opcional — sem roteiro o Gemini escreve)</label>
           <label class="mini-drop" id="edDropR"><input type="file" id="edRoteiro" accept=".txt,.md,.docx" hidden><span>Arraste o roteiro (.txt ou .docx)</span></label>
           <textarea id="edRoteiroTxt" rows="4" placeholder="…ou cole o roteiro aqui" style="margin-top:6px"></textarea>
         </div>
-        <div style="margin-top:10px"><label>3. Imagens (opcional): camisa = nome do time (Vasco.jpg); foto de apoio = o que buscaria (Santos 1997.jpg)</label>
+        <div data-so="roteiro" style="margin-top:10px"><label>Imagens (opcional): camisa = nome do time (Vasco.jpg); foto de apoio = o que buscaria (Santos 1997.jpg)</label>
           <label class="mini-drop" id="edDropI"><input type="file" id="edImgs" accept="image/*" multiple hidden><span>Arraste as imagens</span></label>
         </div>
       </div>
       <div>
-        <label>Opções</label>
-        <div class="opcoes">
-          <label class="dest"><input type="checkbox" id="opTeste"> Teste (só 1 minuto)</label>
-          <label class="dest"><input type="checkbox" id="opSemLances"> Sem lances</label>
-          <label class="dest"><input type="checkbox" id="opSemThumbs"> Sem thumbs</label>
-          <label class="dest"><input type="checkbox" id="opSemVert"> Sem cortes 9:16</label>
+        <div data-so="roteiro">
+          <label>Opções</label>
+          <div class="opcoes">
+            <label class="dest"><input type="checkbox" id="opTeste"> Teste (só 1 minuto)</label>
+            <label class="dest"><input type="checkbox" id="opSemLances"> Sem lances</label>
+            <label class="dest"><input type="checkbox" id="opSemThumbs"> Sem thumbs</label>
+            <label class="dest"><input type="checkbox" id="opSemVert"> Sem cortes 9:16</label>
+          </div>
+          <div class="campos">
+            <div><label>Horizontal</label><select id="opFps"><option value="60">60 fps (YouTube)</option><option value="30">30 fps (mais rápido)</option></select></div>
+            <div><label>Efeitos sonoros</label><select id="opSfx"><option value="0">Sem</option><option value="0.15">Baixo</option><option value="0.3" selected>Normal</option><option value="0.5">Alto</option></select></div>
+          </div>
         </div>
-        <div class="campos">
-          <div><label>Horizontal</label><select id="opFps"><option value="60">60 fps (YouTube)</option><option value="30">30 fps (mais rápido)</option></select></div>
-          <div><label>Efeitos sonoros</label><select id="opSfx"><option value="0">Sem</option><option value="0.15">Baixo</option><option value="0.3" selected>Normal</option><option value="0.5">Alto</option></select></div>
+        <div data-so="galo">
+          <label>Jogo (times, para as notas do SofaScore: quem apanha = pior nota)</label>
+          <input type="text" id="exJogo" placeholder="ex.: Atletico Mineiro Cruzeiro">
+          <div class="opcoes"><label class="dest"><input type="checkbox" id="exPlacar"> Com placar no topo</label></div>
         </div>
-        <div class="info">Quando ficar pronto, mandar o <b>vertical completo</b> para a fila de:</div>
+        <div data-so="react">
+          <label>Título da faixa (o que aparece no layout)</label>
+          <input type="text" id="exFaixa" placeholder="ex.: Messi se despede da seleção">
+          <div style="margin-top:8px"><label>Formato</label><select id="exFormato"><option value="horizontal">Horizontal (YouTube)</option><option value="vertical">Vertical (Reels/TikTok)</option></select></div>
+        </div>
+        <div data-so="vertical">
+          <div class="campos">
+            <div><label>Quando tem gráfico/foto grande</label><select id="exGrafico"><option value="pip">Gráfico grande + você no canto</option><option value="tela">Só o gráfico</option><option value="dividido">Metade / metade</option></select></div>
+            <div><label>Cortar em partes</label><select id="exPartes"><option value="0">Não (um vídeo só)</option><option value="60">De 60 s</option><option value="90">De 90 s</option></select></div>
+          </div>
+        </div>
+        <div class="info">Quando ficar pronto, mandar para a fila de:</div>
         <div class="destinos" id="edPara"></div>
         <div class="linha"><button class="pri" id="btEditar" style="padding:12px 22px">Editar</button><span class="info" id="edProg"></span></div>
         <div class="info">Uma edição por vez (placa de vídeo). As outras esperam na fila. Pode fechar o navegador: o PC continua.</div>
@@ -682,6 +705,7 @@ const ST = {rascunho:"Rascunho", na_fila:"Na fila", editando:"Editando", pronto:
 const gb = b => b > 1e9 ? (b / 1073741824).toFixed(1) + " GB" : Math.max(1, Math.round(b / 1048576)) + " MB";
 const mmss = s => s == null ? "" : (s >= 3600 ? Math.floor(s/3600) + "h" : "") + String(Math.floor(s % 3600 / 60)).padStart(s >= 3600 ? 2 : 1, "0") + "min" + String(s % 60).padStart(2, "0") + "s";
 function nomeSaida(n){
+  if(!/^(horizontal|vertical_)/.test(n)) return n.replace(/\.mp4$/, "");
   let m, t = n.replace(/\.mp4$/, ""), lances = /_lances$/.test(t); t = t.replace(/_lances$/, "");
   if(t === "horizontal") t = "Horizontal (YouTube)"; else if(t === "vertical_completo") t = "Vertical completo (9:16)";
   else if(m = t.match(/^vertical_(\d+)$/)) t = "Corte 9:16 nº " + m[1];
@@ -699,7 +723,10 @@ function edicao(){
     const st = e.status === "editando" ? `Editando · ${esc(e.etapa || "começando")} · ${mmss(e.duracao)}` :
                e.status === "na_fila" ? `Na fila${e.na_frente ? " (" + e.na_frente + " antes)" : ""}` :
                e.status === "pronto" ? `Pronto em ${mmss(e.duracao)}` : ST[e.status] || e.status;
-    const op = e.opcoes || {}, tags = [op.teste && "teste 1 min", op.sem_lances && "sem lances", op.fps == 30 && "30 fps", e.imagens && e.imagens + " imagens", e.roteiro ? "com roteiro" : "roteiro do Gemini"].filter(Boolean);
+    const op = e.opcoes || {}, ex = e.extra || {};
+    const tags = e.tipo === "roteiro" ? [op.teste && "teste 1 min", op.sem_lances && "sem lances", op.fps == 30 && "30 fps", e.imagens && e.imagens + " imagens", e.roteiro ? "com roteiro" : "roteiro do Gemini"]
+      : e.tipo === "galo" ? [ex.jogo, ex.com_placar && "com placar"] : e.tipo === "react" ? [ex.formato] : [ex.grafico, ex.partes && "partes de " + ex.partes + " s"];
+    tags.unshift(e.tipo_nome);
     let corpo = "";
     if(["editando","erro","interrompido"].includes(e.status) && e.registro.length)
       corpo += `<details data-d="ed-${esc(e.id)}-log" ${e.status === "editando" ? "open" : ""}><summary>Registro</summary><pre class="log" style="max-height:220px;margin-top:6px">${esc(e.registro.join("\n"))}</pre></details>`;
@@ -718,16 +745,19 @@ function edicao(){
     const bts = [];
     if(e.status === "editando" || e.status === "na_fila") bts.push(`<button class="perigo" onclick="edAcao('ed_cancelar',${ei},'Cancelar esta edição?')">Cancelar</button>`);
     if(e.status === "rascunho") bts.push(`<button class="pri" onclick="edAcao('ed_iniciar',${ei})">Começar</button>`);
-    if(["pronto","erro","interrompido","cancelado"].includes(e.status)) bts.push(`<button onclick="ajusta(${ei})">Ajustar roteiro e refazer</button>`);
+    if(["pronto","erro","interrompido","cancelado"].includes(e.status) && e.tipo === "roteiro") bts.push(`<button onclick="ajusta(${ei})">Ajustar roteiro e refazer</button>`);
+    if(["pronto","erro","interrompido","cancelado"].includes(e.status) && e.tipo === "galo") bts.push(`<button onclick="regestos(${ei})" title="Apaga os gestos lidos e lê de novo">Refazer lendo os gestos de novo</button>`);
+    if(e.status === "pronto" && e.tipo !== "roteiro") bts.push(`<button onclick="edAcao('ed_iniciar',${ei})">Refazer</button>`);
     if(["erro","interrompido","cancelado"].includes(e.status)) bts.push(`<button class="pri" onclick="edAcao('ed_iniciar',${ei})">Tentar de novo</button>`);
     if(e.status !== "editando") bts.push(`<button class="perigo" onclick="edAcao('ed_apagar',${ei},'Apagar esta edição e todos os arquivos dela (${gb(e.tam)})?')">Apagar (${gb(e.tam)})</button>`);
     return `<div class="card ed">
-      <div class="topo"><div class="titulo">${esc(e.titulo)}<div class="info" style="margin:2px 0 0">${esc(e.criado)} · ${tags.map(esc).join(" · ")}</div></div>
+      <div class="topo"><div class="titulo">${esc(e.titulo)}<div class="info" style="margin:2px 0 0">${esc(e.criado)} · ${tags.filter(Boolean).map(esc).join(" · ")}</div></div>
       <span class="st ${e.status}">${st}</span></div>
       ${corpo}
       <div class="linha">${bts.join("")}</div></div>`;
   }).join("");
 }
+async function regestos(ei){ const e = E.edicao[ei]; if(!confirm("Ler seus gestos de novo e refazer?")) return; await api("ed_refazer", {id: e.id, refazer_gestos: true}); carrega(true); }
 async function edAcao(acao, ei, pergunta){ const e = E.edicao[ei]; if(pergunta && !confirm(pergunta)) return; await api(acao, {id: e.id}); carrega(true); }
 function verEd(ei, vi){
   const e = E.edicao[ei], v = e.saidas.videos[vi];
@@ -736,7 +766,7 @@ function verEd(ei, vi){
   $("#fundo").classList.add("on");
 }
 function postaEd(ei, vi){
-  const e = E.edicao[ei], v = e.saidas.videos[vi], vert = /vertical/.test(v.nome);
+  const e = E.edicao[ei], v = e.saidas.videos[vi], vert = e.tipo === "roteiro" ? /vertical/.test(v.nome) : !(e.tipo === "react" && (e.extra || {}).formato !== "vertical");
   $("#modal").innerHTML = `<div class="ctop" style="margin-bottom:10px"><b style="flex:1">Postar: ${esc(nomeSaida(v.nome))}</b><button class="mini" onclick="fecha()">✕</button></div>
     ${vert ? "" : `<div class="info alerta">Este é o horizontal (16:9). Para Reels/TikTok o normal é o vertical.</div>`}
     <div class="info">Mandar para a fila de:</div>
@@ -770,8 +800,40 @@ async function ajusta(ei){
   };
 }
 
-/* nova edição: arquivos escolhidos */
-const edArq = {video: null, roteiro: null, imgs: []};
+/* nova edição: tipo, arquivos escolhidos */
+const TIPOS = {
+  roteiro: {campos: [["video", "A gravação"]], info: "Sua gravação lendo o roteiro → horizontal (YouTube), vertical completo e cortes 9:16, com gráficos, cards, efeitos, lances e thumbs."},
+  galo: {campos: [["video", "A gravação no estádio"]], info: "Os jogadores do Galo entram ao seu lado e você bate/passa/joga longe — o sistema lê seus gestos. Sai em 9:16, sem música (você põe no app)."},
+  react: {campos: [["video", "Sua câmera"], ["tela", "A gravação da tela (com as pausas)"], ["original", "O vídeo original (o que você reagiu)"]], info: "Layout DETTO REAGE: o vídeo na moldura e você no quadro; nas pausas, zoom em você em tela cheia. Sincroniza pelo áudio (bater palma no começo ajuda)."},
+  vertical: {campos: [["video", "O vídeo já editado (16:9)"]], info: "Vira 9:16 com recorte no seu rosto; quando tem gráfico ou foto grande, ele aparece grande e você no canto."},
+};
+const edArq = {roteiro: null, imgs: []};
+const tipoAtual = () => (document.querySelector("input[name=edTipo]:checked") || {}).value || "roteiro";
+function montaTipo(){
+  const t = tipoAtual(), T = TIPOS[t];
+  document.querySelectorAll("#edTipos .dest").forEach(l => l.classList.toggle("sel", l.querySelector("input").checked));
+  $("#edTipoInfo").textContent = T.info;
+  document.querySelectorAll("[data-so]").forEach(e => e.style.display = e.dataset.so === t ? "" : "none");
+  $("#edCampos").innerHTML = T.campos.map(([c, rot]) => `<div style="margin-top:10px"><label>${esc(rot)}</label>
+    <label class="mini-drop" id="drop-${c}"><input type="file" accept="video/*,.mov,.mp4" hidden><span>Arraste ou toque para escolher</span></label>
+    <input type="text" id="cam-${c}" placeholder="…ou o caminho no PC (ex.: E:\\Gravações\\video.MOV) — não copia, é mais rápido" style="margin-top:6px"></div>`).join("");
+  for(const [c] of T.campos){
+    const d = $("#drop-" + c), i = d.querySelector("input");
+    ["dragenter","dragover"].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.add("on"); }));
+    ["dragleave","drop"].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.remove("on"); }));
+    const pegaV = fs => { const f = fs.find(f => /\.(mp4|mov|m4v|mkv|webm)$/i.test(f.name)); if(!f) return toast("Escolha um vídeo", true);
+      edArq[c] = f; d.classList.add("ok"); d.querySelector("span").textContent = "🎬 " + f.name + " (" + gb(f.size) + ")";
+      if(c === "video" && !$("#edTitulo").value) $("#edTitulo").value = f.name.replace(/\.[^.]+$/, ""); };
+    d.addEventListener("drop", e => pegaV([...e.dataTransfer.files]));
+    i.onchange = e => { pegaV([...e.target.files]); e.target.value = ""; };
+    if(edArq[c]){ d.classList.add("ok"); d.querySelector("span").textContent = "🎬 " + edArq[c].name + " (" + gb(edArq[c].size) + ")"; }
+  }
+  localStorageSet("edTipo", t);
+}
+document.querySelectorAll("input[name=edTipo]").forEach(r => r.onchange = montaTipo);
+{ const t = localStorageGet("edTipo"); const r = t && document.querySelector(`input[name=edTipo][value="${t}"]`); if(r) r.checked = true; }
+montaTipo();
+
 function liga(dropSel, inputSel, tipo){
   const d = $(dropSel), i = $(inputSel);
   ["dragenter","dragover"].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.add("on"); }));
@@ -780,19 +842,16 @@ function liga(dropSel, inputSel, tipo){
   i.onchange = e => { pega(tipo, [...e.target.files]); e.target.value = ""; };
 }
 function pega(tipo, fs){
-  if(tipo === "video"){ const f = fs.find(f => /\.(mp4|mov|m4v|mkv|webm)$/i.test(f.name)); if(!f) return toast("Escolha um vídeo", true); edArq.video = f;
-    if(!$("#edTitulo").value) $("#edTitulo").value = f.name.replace(/\.[^.]+$/, ""); }
   if(tipo === "roteiro"){ const f = fs.find(f => /\.(txt|md|docx)$/i.test(f.name)); if(!f) return toast("Roteiro em .txt ou .docx", true); edArq.roteiro = f; }
   if(tipo === "imgs") edArq.imgs = edArq.imgs.concat(fs.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name)));
   mostraArq();
 }
 function mostraArq(){
-  const v = $("#edDropV"), r = $("#edDropR"), im = $("#edDropI");
-  v.classList.toggle("ok", !!edArq.video); v.querySelector("span").textContent = edArq.video ? "🎬 " + edArq.video.name + " (" + gb(edArq.video.size) + ")" : "Arraste ou toque para escolher o vídeo";
+  const r = $("#edDropR"), im = $("#edDropI");
   r.classList.toggle("ok", !!edArq.roteiro); r.querySelector("span").textContent = edArq.roteiro ? "📄 " + edArq.roteiro.name : "Arraste o roteiro (.txt ou .docx)";
   im.classList.toggle("ok", edArq.imgs.length > 0); im.querySelector("span").textContent = edArq.imgs.length ? "🖼 " + edArq.imgs.map(f => f.name).join(", ") : "Arraste as imagens";
 }
-liga("#edDropV", "#edVideo", "video"); liga("#edDropR", "#edRoteiro", "roteiro"); liga("#edDropI", "#edImgs", "imgs");
+liga("#edDropR", "#edRoteiro", "roteiro"); liga("#edDropI", "#edImgs", "imgs");
 
 function sobe(url, arquivo, rotulo){
   return new Promise((ok, falha) => {
@@ -803,23 +862,31 @@ function sobe(url, arquivo, rotulo){
   });
 }
 $("#btEditar").onclick = async () => {
-  const caminho = $("#edCaminho").value.trim();
-  if(!edArq.video && !caminho) return toast("Escolha a gravação (ou cole o caminho no PC)", true);
+  const t = tipoAtual(), T = TIPOS[t];
+  for(const [c, rot] of T.campos) if(!edArq[c] && !$("#cam-" + c).value.trim()) return toast("Falta: " + rot.toLowerCase(), true);
   const bt = $("#btEditar"); bt.disabled = true;
   try{
     const opcoes = {teste: $("#opTeste").checked, sem_lances: $("#opSemLances").checked, sem_thumbs: $("#opSemThumbs").checked,
       sem_verticais: $("#opSemVert").checked, fps: $("#opFps").value, sfx: $("#opSfx").value,
       postar: [...document.querySelectorAll("#edPara input:checked")].map(x => x.value)};
-    const {id} = await api("ed_novo", {titulo: $("#edTitulo").value, opcoes, roteiro_texto: edArq.roteiro ? "" : $("#edRoteiroTxt").value});
-    const q = t => "/api/ed_enviar?" + new URLSearchParams({id, tipo: t.tipo, nome: t.nome});
-    if(edArq.video) await sobe(q({tipo: "video", nome: edArq.video.name}), edArq.video, "Enviando a gravação");
-    else await api("ed_caminho", {id, caminho});
-    if(edArq.roteiro) await sobe(q({tipo: "roteiro", nome: edArq.roteiro.name}), edArq.roteiro, "Enviando o roteiro");
-    for(const [n, f] of edArq.imgs.entries()) await sobe(q({tipo: "imagem", nome: f.name}), f, `Imagem ${n + 1}/${edArq.imgs.length}`);
+    const extra = {jogo: $("#exJogo").value, com_placar: $("#exPlacar").checked, faixa: $("#exFaixa").value, formato: $("#exFormato").value,
+      grafico: $("#exGrafico").value, partes: $("#exPartes").value};
+    const {id} = await api("ed_novo", {tipo: t, titulo: $("#edTitulo").value, opcoes, extra,
+      roteiro_texto: t === "roteiro" && !edArq.roteiro ? $("#edRoteiroTxt").value : ""});
+    const q = (tipo, nome) => "/api/ed_enviar?" + new URLSearchParams({id, tipo, nome});
+    for(const [c, rot] of T.campos){
+      if(edArq[c]) await sobe(q(c, edArq[c].name), edArq[c], "Enviando " + rot.toLowerCase());
+      else await api("ed_caminho", {id, campo: c, caminho: $("#cam-" + c).value.trim()});
+    }
+    if(t === "roteiro"){
+      if(edArq.roteiro) await sobe(q("roteiro", edArq.roteiro.name), edArq.roteiro, "Enviando o roteiro");
+      for(const [n, f] of edArq.imgs.entries()) await sobe(q("imagem", f.name), f, `Imagem ${n + 1}/${edArq.imgs.length}`);
+    }
     await api("ed_iniciar", {id});
     toast("Edição na fila!"); $("#edProg").textContent = "";
-    edArq.video = null; edArq.roteiro = null; edArq.imgs = []; mostraArq();
-    for(const s of ["#edTitulo","#edCaminho","#edRoteiroTxt"]) $(s).value = "";
+    for(const k of Object.keys(edArq)) edArq[k] = Array.isArray(edArq[k]) ? [] : null;
+    for(const s of ["#edTitulo","#edRoteiroTxt","#exJogo","#exFaixa"]) $(s).value = "";
+    mostraArq(); montaTipo();
     editando = false; carrega(true);
   }catch(e){ $("#edProg").textContent = "✖ " + e.message; toast("Não deu: " + e.message, true); }
   bt.disabled = false;
