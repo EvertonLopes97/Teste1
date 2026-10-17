@@ -1,0 +1,29 @@
+name: testes
+# a cada push/PR: testes do editor (roteiro, componentes, diretor) + teste visual do palco no Chromium
+on:
+  push:
+  pull_request:
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: detto-premiere-bridge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: detto-premiere-bridge/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npm run check
+      - name: quadros que mudaram (teste visual)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-novos
+          path: detto-premiere-bridge/test/visual/novo_*.png
+          if-no-files-found: ignore

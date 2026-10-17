@@ -1,0 +1,80 @@
+POSTAGEM AUTOMÁTICA — Instagram @detto.galo + TikTok @detto.galo e @detto.tv
+(configuração UMA VEZ SÓ; depois o PC posta sozinho)
+O jeito fácil de usar tudo isto é o PAINEL: tools\painel\LEIA-ME.txt (chaves, logins, fila e horários pelo navegador).
+
+=====================================================================
+ 1) INSTAGRAM @detto.galo  (posta de verdade, com legenda; por padrão como REELS TESTE)
+=====================================================================
+ JEITO MAIS FÁCIL (login do Instagram — não precisa de Página do Facebook nem da chave do app):
+ a) O @detto.galo precisa ser conta PROFISSIONAL (Criador ou Empresa).
+ b) developers.facebook.com → Meus apps → o seu app → Casos de uso → API do Instagram →
+    "Configuração da API com login do Instagram".
+ c) Em "Permissões e recursos", adicione instagram_business_basic, instagram_business_content_publish
+    e instagram_business_manage_insights.
+ d) "2. Gerar tokens de acesso" → Adicionar conta → entre no @detto.galo.
+    Se pedir função de testador: aba Funções do app → Testadores do Instagram → adicione detto.galo;
+    no app do Instagram: Configurações → Apps e sites → Convites de testador → Aceitar.
+ e) "Gerar token" → copie (começa com IGAA...).
+ f) Painel → Configurações → "Instagram: colar o token" → conta detto.galo → cole → Ligar.
+    (Ou: python tools\postar\postar.py --login instagram --conta detto.galo --token IGAA...)
+ O token vale 60 dias e o sistema renova sozinho.
+
+ OUTRO JEITO (login do Facebook — precisa do Instagram ligado a uma Página do Facebook):
+ caso de uso "API do Instagram" → "Configuração da API com login do Facebook" → permissões instagram_basic,
+ instagram_content_publish, instagram_manage_insights, pages_show_list, pages_read_engagement, pages_manage_posts,
+ business_management;
+ token no Graph API Explorer (developers.facebook.com/tools/explorer) → painel: ID + chave do app (Configurações do
+ app → Básico) + colar o token. O app NÃO precisa ir para a Análise da Meta (modo Desenvolvimento basta para você).
+
+=====================================================================
+ 1b) FACEBOOK — página Detto Galo (o mesmo vídeo, junto com o Instagram)
+=====================================================================
+ Cada vídeo que vai para o Instagram vai em seguida para a página do Facebook ligada a ele (Reels; mais de
+ 90 s = vídeo normal da página). Liga/desliga no painel: cartão do Instagram → "Facebook também".
+ Falhou no Facebook? O Instagram não é afetado; o sistema tenta de novo nas próximas rodadas (até 3 vezes)
+ e o painel mostra o aviso. O Reels TESTE é só do Instagram: no Facebook o vídeo sai normal, para todos.
+ Precisa do login PELO FACEBOOK (o "login do Instagram", token IGAA..., não posta no Facebook) e da
+ permissão pages_manage_posts (UMA VEZ):
+ a) developers.facebook.com → seu app → Casos de uso → no caso de uso do login do Facebook
+    (API do Instagram com login do Facebook) → Permissões → adicione "pages_manage_posts"
+    (se não aparecer ali: Adicionar caso de uso → "Gerenciar tudo na sua Página" → pages_manage_posts).
+    Se o app usa uma CONFIGURAÇÃO do Login do Facebook para Empresas (config_id no painel), edite essa
+    configuração e marque pages_manage_posts também.
+ b) Painel → Configurações → Instagram → Conectar de novo (aceite a página Detto Galo e a nova permissão).
+    Plano B: Graph API Explorer → marque também pages_manage_posts → Gerar token → cole no painel.
+ c) Conferir: python tools\postar\postar.py --teste-facebook detto.galo  → "OK: a página ... pode receber".
+
+=====================================================================
+ 2) TIKTOK @detto.galo e @detto.tv  →  pelo TIKTOK STUDIO (padrão, sem app)
+=====================================================================
+ As regras do TikTok para a API não aceitam app feito para postar nas próprias contas, e sem aprovação
+ a API só posta como PRIVADO. Por isso o padrão é o agendador oficial do TikTok Studio:
+ o painel planeja os horários, prepara a pasta com os vídeos + legendas e você agenda no site
+ (tiktok.com/tiktokstudio/upload, até 10 dias à frente). Passo a passo: tools\painel\LEIA-ME.txt.
+
+ (Opcional, não recomendado) API do TikTok: config.json → "tiktok": {"modo": "rascunho"} + app em
+ developers.tiktok.com (Login Kit + Content Posting API, redirect http://localhost:8723/callback/,
+ escopos user.info.basic e video.upload, sandbox com as contas) + --login tiktok --conta X.
+ O vídeo chega como rascunho na caixa do TikTok (máx. 5 pendentes).
+
+=====================================================================
+ 3) LIGAR SOZINHO
+=====================================================================
+ Com o painel instalado (python tools\painel\painel.py --instalar) ele mesmo posta. Sem o painel:
+       python tools\postar\postar.py --agendar
+ O Windows roda a cada 20 min (com o PC ligado e você logado). Cada conta respeita o seu intervalo,
+ horário e máximo por dia (config.json → "contas": intervalo_min, horas "08-23", max_dia, ativo).
+
+=====================================================================
+ USO NO DIA A DIA
+=====================================================================
+ - Reels automáticos (tools\reels\reels.py): já entram na fila do Instagram e do TikTok do @detto.galo.
+   Para não entrar: no config.json dos reels, "postar": [].
+ - @detto.tv: jogue o .mp4 em  E:\DETTO\postar\entrada\tiktok_detto.tv\  (se quiser, um .txt com o
+   MESMO NOME com a legenda + tags). Sai na ordem do nome do arquivo (ou a que você arrumar no painel).
+ - Qualquer vídeo em qualquer conta: jogue na pasta  entrada\<plataforma>_<conta>\ .
+   Texto depois de uma linha "---" no .txt NÃO vai para a legenda (anotações).
+ - Ver a situação:    python tools\postar\postar.py --status
+ - Postar já um vídeo: python tools\postar\postar.py --agora "video.mp4" --para instagram:detto.galo
+ - Postados vão para postados\<conta>\ (com o link no .json); erro 3 vezes seguidas → falhas\<conta>\.
+ - Vídeo para o Instagram: MP4 (H.264/AAC), 9:16, até 15 min — os reels do sistema já saem assim.
