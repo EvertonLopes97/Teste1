@@ -27,8 +27,8 @@ const filtroComplexo = (arq) => (novo() ? ["-/filter_complex", arq] : ["-filter_
  * Cor da gravação. iPhone grava em HDR (HLG / Dolby Vision, BT.2020, 10 bits): convertido direto
  * para JPG/H.264 sem "tone mapping" fica lavado e sem cor. Aqui vem o filtro que converte
  * para SDR BT.709 do jeito certo (ou "" quando a gravação já é SDR).
- * Padrão "natural": ajustado para bater com a conversão Dolby Vision do iPhone (só converte, não colore).
- * DETTO_TONEMAP=203|antigo|clip|hable|0 troca.
+ * Padrão "compat": igual ao CapCut ("HDR → SDR"): HLG só troca BT.2020 → BT.709, sem tone mapping.
+ * DETTO_TONEMAP=natural|203|antigo|clip|hable|0 troca.
  * @param {string} video
  * @returns {{hdr: boolean, transfer: string, primaries: string, filtro: string}}
  */
@@ -44,7 +44,7 @@ function corDaGravacao(video) {
   const primaries = s.color_primaries || "";
   const hdr = /arib-std-b67|smpte2084/.test(transfer);
   let filtro = "";
-  const tm = (process.env.DETTO_TONEMAP || "natural").toLowerCase();
+  let tm = (process.env.DETTO_TONEMAP || "compat").toLowerCase();
   const temZscale = /\bzscale\b/.test(spawnSync("ffmpeg", ["-hide_banner", "-filters"], { encoding: "utf-8" }).stdout || "");
   if ((hdr || /bt2020/.test(primaries)) && !temZscale) {
     console.error("AVISO: gravação em HDR, mas este FFmpeg não tem o filtro zscale; a cor pode sair lavada (instale o FFmpeg 'full' do gyan.dev).");
@@ -56,7 +56,11 @@ function corDaGravacao(video) {
     // natural (padrão): igual à conversão Dolby Vision do iPhone (libplacebo) — branco em 350 nits, mobius,
     // desat=1 e 12% menos saturação (o zscale esquenta a pele). "203" = o de antes (pele laranja); "antigo" = npl=100
     const base = "scale='min(1920,iw)':-2:flags=bicubic,";
-    if (tm === "antigo") filtro = base + "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=mobius:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p";
+    // compat (padrão, 16/out): o que o CapCut faz no "HDR → SDR" — o HLG já é compatível com tela comum, só troca
+    // as cores BT.2020 → BT.709, sem tone mapping. PQ (não HLG) cai no natural.
+    if (tm === "compat" && !/arib-std-b67/.test(transfer)) tm = "natural";
+    if (tm === "compat") filtro = base + "zscale=tin=bt709:min=2020_ncl:pin=2020:rin=tv:t=bt709:m=709:p=709:r=tv,format=yuv420p";
+    else if (tm === "antigo") filtro = base + "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=mobius:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p";
     else if (tm === "203" || tm === "mobius") filtro = base + "zscale=t=linear:npl=203,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=mobius:param=0.6:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p";
     else if (["clip", "hable", "reinhard"].includes(tm)) filtro = base + `zscale=t=linear:npl=203,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=${tm}:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p`;
     else filtro = base + "zscale=t=linear:npl=350,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=mobius:desat=1,zscale=t=bt709:m=bt709:r=tv,format=yuv420p,eq=saturation=0.88";

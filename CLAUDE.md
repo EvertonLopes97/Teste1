@@ -99,12 +99,13 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   Studio e marca "Agendei" (vai para postados com `agendado_para`). "rascunho"/"direto" = API (opcional).
   REELS no painel: vários links de uma vez → `links.txt`; com `"auto_links"` (padrão) o painel roda
   `reels.py --so-links` sozinho (um por vez, cada pronto vai para a fila). yt-dlp atualiza 1x/dia.
-- COR: SÓ CONVERTE HDR→SDR, não "colore". `tools\sdr.py` = master SDR antes de editar com o zscale "natural" (npl=350,
-  mobius, desat=1, saturação 0,88 — conferido contra a gravação SDR do próprio iPhone). libplacebo (placa, Dolby Vision)
-  só com `DETTO_PLACEBO=1`: na RTX dele saiu estourado (16/out); conferência em 3 quadros contra o zscale. Lado maior até 1920
-  (`--4k` mantém); NVENC cq 16 ou x264 crf 14; áudio sem o APAC; mantém a data; tag `comment=detto_cor v3` (master
+- COR: SÓ CONVERTE HDR→SDR, não "colore". Padrão "compat" (16/out, o que o CapCut faz no aviso "HDR → SDR"): o HLG do
+  iPhone já é compatível com tela comum, então só troca as cores BT.2020 → BT.709, sem tone mapping (parede branca,
+  sem lavar nem amarelar). PQ cai no "natural" (npl=350, mobius, desat=1, sat 0,88). `DETTO_TONEMAP=natural|203|antigo`
+  volta os de antes; libplacebo só com `DETTO_PLACEBO=1`. `tools\sdr.py` = master SDR antes de editar; lado maior até
+  1920 (`--4k` mantém); NVENC cq 16 ou x264 crf 14; áudio sem o APAC; mantém a data; tag `comment=detto_cor v4` (master
   antigo é refeito). `editar.py`, vlog e o COMEÇO dos reels (`<reels>\sdr\`) usam o master (`--sem-sdr` desliga);
-  `cor.py`/`ffopts.js` usam o zscale natural (`DETTO_TONEMAP=203|antigo` volta os de antes).
+  `cor.py`/`ffopts.js` usam a mesma conversão.
 - Reels TROCA: o texto do original é copiado PIXEL A PIXEL (mediana dos quadros onde fica parado: mesma fonte, cor e
   contorno; meme com faixa preta ganha só um contorno fino).
 - VLOG (`tools\vlog\vlog.py <pasta> [--titulo --estilo --formato --duracao --legendas --refazer]`, aba Edição tipo

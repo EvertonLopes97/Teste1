@@ -13,7 +13,7 @@ Padrão (16/out/2026): SÓ CONVERTE, não "colore". Dois caminhos, o mesmo resul
      mobius, tira só o excesso de saturação dos brilhos (desat=1) e 12% de saturação (o tone mapping do zscale
      esquenta e satura a pele).
 O antigo (203 nits, mobius 0,6, desat 0) deixava a pele laranja e a parede estourada.
-DETTO_TONEMAP=natural (padrão) | 203 | antigo | clip | hable | 0 ; DETTO_PLACEBO=1 liga o libplacebo (desligado por padrão).
+DETTO_TONEMAP=compat (padrão, igual ao CapCut: HLG só troca BT.2020→BT.709) | natural | 203 | antigo | clip | hable | 0 ; DETTO_PLACEBO=1 liga o libplacebo (desligado por padrão).
 """
 import json
 import os
@@ -38,8 +38,17 @@ def tem_zscale():
     return " zscale " in (r.stdout or "")
 
 
-def cadeia_hdr(tm="natural"):
-    """HLG/PQ → SDR BT.709 pelo zscale. tm: natural (padrão, igual ao Dolby Vision do iPhone), 203, antigo, clip, hable."""
+COMPAT = "zscale=tin=bt709:min=2020_ncl:pin=2020:rin=tv:t=bt709:m=709:p=709:r=tv,format=yuv420p"
+
+
+def cadeia_hdr(tm="compat", transfer="arib-std-b67"):
+    """HLG/PQ → SDR BT.709 pelo zscale. tm: compat (padrão), natural, 203, antigo, clip, hable.
+    compat = o que o CapCut faz ("HDR → SDR"): o HLG já é compatível com tela comum, então só troca as cores
+    BT.2020 → BT.709, sem tone mapping (sem lavar, sem esquentar). Só vale para HLG; PQ usa o natural."""
+    if tm == "compat":
+        if "b67" in (transfer or "arib-std-b67"):
+            return COMPAT
+        tm = "natural"
     if tm == "antigo":
         return ("zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=mobius:desat=0,"
                 "zscale=t=bt709:m=bt709:r=tv,format=yuv420p")
@@ -119,12 +128,12 @@ def placebo_ok(video=None):
 
 def filtro_cor(video):
     i = info_cor(video)
-    tm = os.environ.get("DETTO_TONEMAP", "natural").lower()
+    tm = os.environ.get("DETTO_TONEMAP", "compat").lower()
     if (i["hdr"] or "bt2020" in i["primaries"]) and not tem_zscale():
         print("AVISO: gravação em HDR, mas este FFmpeg não tem o filtro zscale; a cor pode sair lavada.")
         return ""
     if i["hdr"] and tm != "0":
-        return cadeia_hdr(tm)
+        return cadeia_hdr(tm, i.get("transfer", ""))
     if "bt2020" in i["primaries"]:
         return "zscale=p=bt709:t=bt709:m=bt709:r=tv,format=yuv420p"
     return ""
