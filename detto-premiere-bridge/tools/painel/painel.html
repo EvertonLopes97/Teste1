@@ -58,6 +58,8 @@ h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut)
 .plat{font-weight:800;font-size:12px;border-radius:8px;padding:4px 7px;color:#0c0f0e}
 .plat.instagram{background:var(--ig)}
 .plat.tiktok{background:var(--tt)}
+.plat.youtube{background:#ff3b3b}
+.plat.kwai{background:#ff8a1f}
 .cnome{font-weight:700;font-size:17px}
 .login{font-size:12px;color:var(--mut)}
 .login.off{color:var(--verm)}
@@ -366,7 +368,7 @@ section.aba.on{display:block}
           <pre class="log" id="loginLog" style="display:none;margin-top:8px;max-height:160px"></pre>
           <b style="display:block;margin-top:16px">Conta nova</b>
           <div class="linha">
-            <select id="novaPlat" style="width:auto"><option value="tiktok">TikTok</option><option value="instagram">Instagram</option></select>
+            <select id="novaPlat" style="width:auto"><option value="tiktok">TikTok</option><option value="instagram">Instagram</option><option value="youtube">YouTube (Shorts)</option><option value="kwai">Kwai</option></select>
             <input type="text" id="novaConta" placeholder="@usuario" style="flex:1">
             <button id="btNova">Adicionar</button>
           </div>
@@ -413,7 +415,8 @@ document.querySelectorAll("#abas button").forEach(b => b.onclick = () => aba(b.d
 aba((location.hash || "").slice(1) || localStorageGet("aba") || "postagem");
 if(!document.querySelector("section.aba.on")) aba("postagem");
 window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if(document.getElementById("aba-" + h)) aba(h); });
-const nomeConta = c => (c.plataforma === "instagram" ? "Instagram" : "TikTok") + " @" + c.conta;
+const NOMES_PLAT = {instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube", kwai: "Kwai"}, SIGLA = {instagram: "IG", tiktok: "TT", youtube: "YT", kwai: "KW"};
+const nomeConta = c => (NOMES_PLAT[c.plataforma] || c.plataforma) + " @" + c.conta;
 // "2026-10-15 230846 gol do hulk.mp4" → "gol do hulk" (a data vai embaixo)
 const limpo = n => n.replace(/^\d{4}-\d{2}-\d{2}( \d{4,6})? ?(\d+ - )?/, "").replace(/\.[^.]+$/, "") || n;
 const durTxt = m => m < 60 ? m + " min" : (m % 60 ? Math.floor(m/60) + "h" + String(m%60).padStart(2,"0") : (m/60) + " h");
@@ -529,7 +532,17 @@ function contas(){
     const ints = INTERVALOS.includes(c.intervalo_min) ? INTERVALOS : [...INTERVALOS, c.intervalo_min].sort((a,b) => a-b);
     const prox = !c.ativo ? "pausada" : !c.fila.length ? "—" : c.proximo_ja ? "agora" : c.proximo.slice(-5) + (c.proximo.slice(0,5) !== E.agora.slice(0,5) ? " (" + c.proximo.slice(0,5) + ")" : "");
     let extra = "";
-    if(c.studio){
+    if(c.studio && c.plataforma === "kwai"){
+      const n10 = c.plano.filter(Boolean).length;
+      extra += `<div class="teste">
+        <b>Kwai</b> <small style="color:var(--mut)">— o Kwai não tem como postar pelo PC: a pasta vai para o Google Drive e você posta pelo app</small>
+        <div class="linha">
+          <button class="pri" onclick="prepara(${ci})" ${n10 ? "" : "disabled"}>Preparar pasta (${n10} vídeo${n10 === 1 ? "" : "s"})</button>
+          ${c.preparados ? `<button onclick="agendeiPasta(${ci})">✔ Postei os ${c.preparados} da pasta</button>` : ""}
+        </div>
+        <div class="info">Preparar = pasta no Drive (DETTO\\kwai\\${esc(c.conta)}) com os vídeos numerados com dia e hora + LEGENDAS.txt. No celular: app do Drive → vídeo → ⋮ → Enviar cópia → Kwai → cole a legenda → Publicar.</div>
+      </div>`;
+    } else if(c.studio){
       const n10 = c.plano.filter(Boolean).length;
       extra += `<div class="teste">
         <b>TikTok Studio</b> <small style="color:var(--mut)">— o TikTok agenda até 10 dias à frente</small>
@@ -598,7 +611,7 @@ function contas(){
           <button class="mini" title="Ver e editar a legenda" onclick="abre(${ci},${i})">✎</button>
           ${c.studio ? `<a href="/arquivo?${new URLSearchParams({k: c.k, nome: v.nome, onde: "entrada", baixar: 1, como: (c.plano[i] ? diaHora(c.plano[i]).replace(/[/:]/g, "-") + " - " : "") + limpo(v.nome) + ".mp4"})}"><button class="mini" title="Baixar">⬇</button></a>
           <button class="mini" title="Copiar a legenda" onclick="copiaLeg(${ci},${i})">📋</button>
-          ${c.plano[i] ? `<button class="mini" title="Já agendei este no TikTok Studio" onclick="agendei(${ci},${i})">✔</button>` : ""}`
+          ${c.plano[i] ? `<button class="mini" title="${c.plataforma === "kwai" ? "Já postei este no Kwai" : "Já agendei este no TikTok Studio"}" onclick="agendei(${ci},${i})">✔</button>` : ""}`
           : `<button class="mini" title="Postar agora" onclick="ja(${ci},${i})">🚀</button>`}
           <button class="mini perigo" title="Tirar da fila" onclick="tira(${ci},${i})">✕</button>
         </div></div>`;
@@ -609,9 +622,9 @@ function contas(){
       `<div class="l"><span>${esc(u.quando)} · ${esc(limpo(u.nome))}</span>${u.link ? `<a href="${esc(u.link)}" target="_blank" rel="noopener">abrir</a>` : `<small style="color:var(--mut)">${u.modo === "rascunho" ? "rascunho" : u.modo === "studio" ? "agendado" : ""}</small>`}</div>`).join("")}</div></details>` : "";
     return `<div class="card">
       <div class="ctop">
-        <span class="plat ${c.plataforma}">${c.plataforma === "instagram" ? "IG" : "TT"}</span>
+        <span class="plat ${c.plataforma}">${SIGLA[c.plataforma] || "?"}</span>
         <div style="flex:1"><div class="cnome">@${esc(c.conta)}</div>
-          <div class="login ${c.login || c.studio ? "" : "off"}">${c.studio ? "pelo TikTok Studio (você agenda)" : c.login ? "conectado" : "sem login — "}${c.login || c.studio ? "" : `<a href="#" onclick="abreCfg();return false">conectar</a>`}</div></div>
+          <div class="login ${c.login || c.studio ? "" : "off"}">${c.studio ? (c.plataforma === "kwai" ? "pelo app do Kwai (você posta)" : "pelo TikTok Studio (você agenda)") : c.login ? "conectado" : "sem login — "}${c.login || c.studio ? "" : `<a href="#" onclick="abreCfg();return false">conectar</a>`}</div></div>
         <label class="sw" title="${c.ativo ? "Postando" : "Pausada"}"><input type="checkbox" ${c.ativo ? "checked" : ""} onchange="regra(${ci},{ativo:this.checked})"><span></span></label>
       </div>
       <div class="nums">
@@ -637,7 +650,7 @@ async function marcaT(ci, ti, como){ const c = E.contas[ci]; await api("teste_ma
 const DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 function diaHora(iso){ const d = new Date(iso); return DIAS[d.getDay()] + " " + String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0") + " " + iso.slice(11, 16); }
 async function prepara(ci){ const c = E.contas[ci]; const r = await api("studio_preparar", {k: c.k}); toast(`Pasta pronta: ${r.n} vídeos — ${r.pasta}`); carrega(true); }
-async function agendeiPasta(ci){ const c = E.contas[ci]; if(!confirm(`Você agendou os ${c.preparados} vídeos da pasta no TikTok Studio?`)) return; const r = await api("studio_agendei", {k: c.k, da_pasta: true}); toast(r.feitos + " marcados como agendados"); carrega(true); }
+async function agendeiPasta(ci){ const c = E.contas[ci]; if(!confirm(c.plataforma === "kwai" ? `Você postou os ${c.preparados} vídeos da pasta no Kwai?` : `Você agendou os ${c.preparados} vídeos da pasta no TikTok Studio?`)) return; const r = await api("studio_agendei", {k: c.k, da_pasta: true}); toast(r.feitos + " marcados como agendados"); carrega(true); }
 async function agendei(ci, i){ const c = E.contas[ci]; await api("studio_agendei", {k: c.k, nomes: [c.fila[i].nome]}); toast("Marcado como agendado"); carrega(true); }
 function copiaLeg(ci, i){ const t = E.contas[ci].fila[i].legenda || "";
   (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast("Legenda copiada")).catch(() => prompt("Copie a legenda:", t)); }
@@ -669,7 +682,7 @@ function abre(ci, i){
   const outras = E.contas.filter(x => x.k !== c.k);
   const src = "/arquivo?" + new URLSearchParams({k: c.k, nome: v.nome, onde: "entrada"});
   $("#modal").innerHTML = `
-    <div class="ctop" style="margin-bottom:10px"><span class="plat ${c.plataforma}">${c.plataforma === "instagram" ? "IG" : "TT"}</span><b style="flex:1;overflow:hidden;text-overflow:ellipsis">${esc(limpo(v.nome))}</b><button class="mini" onclick="fecha()">✕</button></div>
+    <div class="ctop" style="margin-bottom:10px"><span class="plat ${c.plataforma}">${SIGLA[c.plataforma] || "?"}</span><b style="flex:1;overflow:hidden;text-overflow:ellipsis">${esc(limpo(v.nome))}</b><button class="mini" onclick="fecha()">✕</button></div>
     <video src="${src}" controls playsinline preload="metadata"></video>
     <div style="margin-top:10px"><label>Legenda + tags</label><textarea id="mLeg" rows="6">${esc(v.legenda)}</textarea></div>
     ${outras.length ? `<div class="info">Mandar também para:</div><div class="destinos" id="mPara">${outras.map(o => `<label class="dest"><input type="checkbox" value="${esc(o.k)}"> ${esc(nomeConta(o))}</label>`).join("")}</div>` : ""}
@@ -853,7 +866,7 @@ function configs(){
   const lg = $("#logins"), k = JSON.stringify(E.contas.map(c => [c.k, c.login, c.fila.length, c.studio]));
   if(lg.dataset.k !== k){
     lg.dataset.k = k;
-    lg.innerHTML = E.contas.map((c, ci) => c.studio ? `<div class="l"><span>${esc(nomeConta(c))} · TikTok Studio (sem login)</span><span></span></div>` : `<div class="l"><span>${esc(nomeConta(c))} · ${c.login ? "✔ conectado" : "✖ sem login"}</span>
+    lg.innerHTML = E.contas.map((c, ci) => c.studio ? `<div class="l"><span>${esc(nomeConta(c))} · ${c.plataforma === "kwai" ? "pelo app (sem login)" : "TikTok Studio (sem login)"}</span><span></span></div>` : `<div class="l"><span>${esc(nomeConta(c))} · ${c.login ? "✔ conectado" : "✖ sem login"}</span>
       <span><button class="mini ${c.login ? "" : "pri"}" onclick="loga(${ci})">${c.login ? "Refazer" : "Conectar"}</button>${c.fila.length ? "" : ` <button class="mini perigo" title="Tirar a conta" onclick="tiraConta(${ci})">✕</button>`}</span></div>`).join("");
     $("#tokConta").innerHTML = E.contas.filter(c => c.plataforma === "instagram").map(c => `<option>${esc(c.conta)}</option>`).join("");
   }

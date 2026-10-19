@@ -58,6 +58,26 @@ O jeito fácil de usar tudo isto é o PAINEL: tools\painel\LEIA-ME.txt (chaves, 
  O vídeo chega como rascunho na caixa do TikTok (máx. 5 pendentes).
 
 =====================================================================
+ 2b) YOUTUBE SHORTS (um canal que você já tem) e KWAI
+=====================================================================
+ YOUTUBE SHORTS — posta sozinho pela API oficial do YouTube:
+ a) Use a mesma credencial do Google dos canais automáticos (E:\DETTO\youtube\client_secret.json — tools\canal\LEIA-ME.txt).
+    Cota: cada envio gasta 1.600 de 10.000 por dia do projeto do Google, e ela é DIVIDIDA com os canais automáticos.
+    Para não faltar: crie OUTRO projeto no Google Cloud só para os Shorts e salve o client_secret.json dele em
+    E:\DETTO\postar\tokens\youtube_<conta>\client_secret.json.
+ b) Painel → Configurações → Nova conta → "YouTube (Shorts)" + um nome (ex.: meucanal) → Conectar → no navegador do PC
+    escolha o canal certo → Permitir. (Ou: python tools\postar\postar.py --login youtube --conta meucanal)
+ c) Reels automáticos indo também para lá: aba Reels → marque "youtube:meucanal" nos destinos.
+ Título = 1ª linha da legenda + #Shorts; tags = as hashtags. Padrão: no máximo 4 por dia, a cada 3 h.
+
+ KWAI — o Kwai NÃO tem como postar pelo computador (nem API, nem site). O sistema faz igual ao TikTok Studio:
+ a) Painel → Configurações → Nova conta → "Kwai" + o @ da conta.
+ b) Aba Reels → marque "kwai:<conta>" nos destinos (os reels entram na fila do Kwai).
+ c) No card do Kwai: "Preparar pasta" → os vídeos com dia e hora no nome + LEGENDAS.txt vão para o Google Drive
+    (Meu Drive\DETTO\kwai\<conta>). No celular, no horário: app do Drive → vídeo → ⋮ → Enviar cópia → Kwai →
+    cole a legenda → Publicar. Depois "✔ Postei os N da pasta" no painel.
+
+=====================================================================
  3) LIGAR SOZINHO
 =====================================================================
  Com o painel instalado (python tools\painel\painel.py --instalar) ele mesmo posta. Sem o painel:

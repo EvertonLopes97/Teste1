@@ -75,6 +75,13 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   no token; login do Instagram IGAA não serve). Precisa de `pages_manage_posts`. `"facebook": true` na conta (painel:
   "Facebook também"); falha = `fb_pendentes` no estado.json, nova tentativa nas rodadas (até 3), o Instagram não é
   afetado. `--teste-facebook detto.galo` confere a permissão.
+- YOUTUBE SHORTS + KWAI na postagem: plataforma `youtube` (canal que ele já tem: `yt_posta` via `canal/youtube_up.py`,
+  token em `tokens\youtube_<conta>\` + marcador `tokens\youtube_<conta>.json`, client_secret próprio na pasta ou o
+  compartilhado; título = 1ª linha + #Shorts; máx. 4/dia por padrão — cota 10.000/dia do projeto, 1.600 por envio,
+  dividida com os canais) e `kwai` (sem API: `studio()` = verdadeiro, igual ao TikTok Studio; "Preparar pasta" vai para
+  `Meu Drive\DETTO\kwai\<conta>` e ele posta pelo app; "✔ Postei"). `--login youtube --conta X`. Destinos dos reels:
+  `instagram|tiktok|youtube|kwai:<conta>`. IDENTIDADE dos canais: `tools\canal\marca.py` (banner 2560x1440 com área
+  segura 1546x423, perfil 800x800, marca d'água 150x150, molde de thumb; sem escudo oficial).
 - PAINEL (`tools\painel\painel.py`, só Python, http://localhost:8730; `--instalar` = liga com o Windows + atalho;
   celular no mesmo Wi-Fi com PIN; setup em `tools\painel\LEIA-ME.txt`): enviar vídeos (vão para `entrada\<conta>\`
   ou `reels\inicios\`), fila com ordem (`_ordem.json`), legenda, postar já, falhas, liga/desliga por conta, intervalo,

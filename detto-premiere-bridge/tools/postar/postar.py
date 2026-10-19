@@ -27,6 +27,7 @@ import datetime as dt
 import hashlib
 from http import server as hserver
 import json
+import re
 import os
 import secrets
 import shutil
@@ -812,8 +813,9 @@ def na_hora(c, ultimo, estado=None, k=None):
 
 
 def studio(cfg, c):
-    """TikTok pelo TikTok Studio: o sistema planeja e prepara, você agenda no site (nada vai pela API)"""
-    return c["plataforma"] == "tiktok" and cfg["tiktok"].get("modo", "studio") == "studio"
+    """TikTok pelo TikTok Studio / Kwai pelo app: o sistema planeja e prepara a pasta, você agenda/posta (nada vai
+    pela API — o Kwai não tem API de postagem)"""
+    return c["plataforma"] == "kwai" or (c["plataforma"] == "tiktok" and cfg["tiktok"].get("modo", "studio") == "studio")
 
 
 def planeja(c, estado, k, n, ocupados=None, dias=10):
@@ -870,13 +872,58 @@ def marca_agendado(base, c, video, quando):
     if not e.get("ultimo") or e["ultimo"] < quando.isoformat(timespec="seconds"):
         e["ultimo"] = quando.isoformat(timespec="seconds")
     grava_json(Path(base) / "estado.json", estado)
-    log(f"{k}: {video.name} agendado no TikTok Studio para {quando:%d/%m %H:%M}")
+    log(f"{k}: {video.name} " + (f"postado no Kwai (planejado para {quando:%d/%m %H:%M})" if c["plataforma"] == "kwai"
+                                  else f"agendado no TikTok Studio para {quando:%d/%m %H:%M}"))
+
+
+# ------------------------------------------------------------------ YouTube Shorts (canal que você já tem)
+def yt_pasta(base, conta):
+    """login do canal (token.json) em tokens\\youtube_<conta>\\. A credencial do Google Cloud: a dessa pasta (outro projeto
+    = outra cota diária) ou a compartilhada com os canais automáticos (E:\\DETTO\\youtube\\client_secret.json)."""
+    p = Path(base) / "tokens" / f"youtube_{conta}"
+    p.mkdir(parents=True, exist_ok=True)
+    if not (p / "client_secret.json").exists():
+        for f in (Path(base).parent / "youtube" / "client_secret.json", Path(base) / "youtube" / "client_secret.json"):
+            if f.exists():
+                shutil.copyfile(f, p / "client_secret.json")
+                break
+    return p
+
+
+def _yt():
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "canal"))
+    import youtube_up
+    return youtube_up
+
+
+def yt_login(base, conta):
+    yu = _yt()
+    p = yt_pasta(base, conta)
+    yu.credenciais(p, abrir_navegador=True)
+    nome, cid = yu.canal_logado(p)
+    grava_json(Path(base) / "tokens" / f"youtube_{conta}.json", {"canal": nome, "id": cid, "quando": dt.datetime.now().isoformat(timespec="seconds")})
+    print(f"Ligado ao canal do YouTube: {nome}. Os Shorts da conta youtube:{conta} vão para ele.")
+
+
+def yt_posta(base, conta, video, legenda):
+    """Short: vertical até 3 min; título = 1ª linha da legenda + #Shorts; tags = as hashtags da legenda"""
+    d = duracao(video)
+    if d and d > 180:
+        raise RuntimeError(f"Short tem que ter até 3 min (este tem {d:.0f} s)")
+    texto = re.sub(r"#\S+", "", legenda or "").strip()
+    titulo = ((texto.splitlines() or [""])[0].strip() or Path(video).stem)[:88].strip() + " #Shorts"
+    tags = [t.lstrip("#") for t in re.findall(r"#[\wÀ-ÿ]+", legenda or "")][:15]
+    desc = (legenda or "") + ("" if "#shorts" in (legenda or "").lower() else "\n\n#Shorts")
+    vid = _yt().posta(yt_pasta(base, conta), video, titulo, desc, tags, privacidade="public", sintetico=False, log=log, categoria="23")
+    return {"link": f"https://youtube.com/shorts/{vid}", "id": vid}
 
 
 def posta_um(cfg, base, c, video):
     if studio(cfg, c):
-        raise RuntimeError("esta conta do TikTok é pelo TikTok Studio: agende pelo painel (aba Postagem)")
+        raise RuntimeError("esta conta é postada por você (TikTok Studio / app do Kwai): use a pasta preparada no painel")
     leg = legenda_de(video)
+    if c["plataforma"] == "youtube":
+        return yt_posta(base, c["conta"], video, leg)
     if c["plataforma"] == "instagram":
         n = (le_json(base / "estado.json", {}).get(chave(c), {}).get("falhas") or {}).get(Path(video).name, 0)
         return ig_posta(cfg, base, c["conta"], video, leg, teste=bool(c.get("teste")), graduar=c.get("graduar", "manual"), tentativa=n)
@@ -1079,7 +1126,7 @@ def enfileira(base, video, destinos, legenda_txt=None, nome=None):
 def main():
     ap = argparse.ArgumentParser(description="postagem automática Instagram + TikTok")
     ap.add_argument("--pasta", default=str(pasta_padrao()))
-    ap.add_argument("--login", choices=["instagram", "tiktok"])
+    ap.add_argument("--login", choices=["instagram", "tiktok", "youtube"])
     ap.add_argument("--conta")
     ap.add_argument("--token", help="(Instagram, plano B) token do Graph API Explorer")
     ap.add_argument("--agendar", action="store_true")
@@ -1093,6 +1140,8 @@ def main():
     if a.login:
         if not a.conta:
             sys.exit("Diga a conta: --conta detto.galo")
+        if a.login == "youtube":
+            return yt_login(base, a.conta)
         return ig_login(cfg, base, a.conta, a.token) if a.login == "instagram" else tt_login(cfg, base, a.conta)
     if a.agendar:
         return agendar(base)

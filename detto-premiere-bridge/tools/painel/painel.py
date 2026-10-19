@@ -228,7 +228,7 @@ def estado_painel():
             "proximo": prox.strftime("%d/%m %H:%M"), "proximo_ja": prox <= dt.datetime.now(),
             "falhas": falhas, "ultimos": ult, "pendentes": pend_l if pend is not None else None,
             "studio": eh_studio, "plano": plano,
-            "preparados": len(P.le_json(BASE / "tiktok_studio" / f"_preparados_{c['conta']}.json", [])) if eh_studio else 0,
+            "preparados": len(P.le_json(arq_preparados(c), [])) if eh_studio else 0,
             "limite": list(lim) if lim else None, "erro": CACHE["erro"].get(k, ""),
             "tentativas": est.get(k, {}).get("falhas", {}),
         })
@@ -341,14 +341,16 @@ def acao(nome, d):
         grava_cfg(muda)
     elif nome == "nova_conta":
         plat, conta = d["plataforma"], d["conta"].strip().lstrip("@").lower()
-        if plat not in ("instagram", "tiktok") or not re.fullmatch(r"[\w.]{2,40}", conta):
+        if plat not in ("instagram", "tiktok", "youtube", "kwai") or not re.fullmatch(r"[\w.]{2,40}", conta):
             raise ValueError("conta inválida")
 
         def muda(c):
             lista = c.setdefault("contas", json.loads(json.dumps(P.CONFIG_PADRAO["contas"])))
             if any(P.chave(x) == f"{plat}_{conta}" for x in lista):
                 raise ValueError("essa conta já existe")
-            lista.append({"plataforma": plat, "conta": conta, "intervalo_min": 120, "horas": "08-23", "max_dia": 0, "ativo": True})
+            # YouTube: cada envio gasta 1.600 da cota de 10.000/dia do projeto do Google (dividida com os canais) → até 4/dia
+            lista.append({"plataforma": plat, "conta": conta, "intervalo_min": 180 if plat == "youtube" else 120, "horas": "08-23",
+                          "max_dia": 4 if plat == "youtube" else 0, "ativo": True})
         grava_cfg(muda)
         cfg()
     elif nome == "tirar_conta":
@@ -480,7 +482,7 @@ def acao(nome, d):
     elif nome == "reels_postar":
         f = REELS / "config.json"
         rc = P.le_json(f, {})
-        rc["postar"] = [x for x in d.get("para", []) if re.fullmatch(r"(instagram|tiktok):[\w.]+", x)]
+        rc["postar"] = [x for x in d.get("para", []) if re.fullmatch(r"(instagram|tiktok|youtube|kwai):[\w.]+", x)]
         P.grava_json(f, rc)
     elif nome == "studio_agendei":
         # você agendou no TikTok Studio: os vídeos saem da fila com o horário planejado
@@ -490,7 +492,7 @@ def acao(nome, d):
         slots = P.planeja(c, P.le_json(BASE / "estado.json", {}), k, len(fila), P.agendados_por_dia(BASE, k))
         pedidos = set(nome_seguro(n) for n in d.get("nomes", []))
         if d.get("da_pasta"):
-            pedidos |= set(P.le_json(BASE / "tiktok_studio" / f"_preparados_{c['conta']}.json", []))
+            pedidos |= set(P.le_json(arq_preparados(c), []))
         feitos = 0
         for v, t in zip(fila, slots):
             if v.name in pedidos:
@@ -498,7 +500,7 @@ def acao(nome, d):
                 feitos += 1
         if d.get("da_pasta") or not P.fila_de(BASE, k):
             limpa_studio(c)
-            (BASE / "tiktok_studio" / f"_preparados_{c['conta']}.json").unlink(missing_ok=True)
+            (arq_preparados(c)).unlink(missing_ok=True)
         return {"ok": True, "feitos": feitos}
     elif nome == "studio_preparar":
         return prepara_studio(conta_de(d["k"]), int(d.get("quantos") or 0))
@@ -542,7 +544,20 @@ def acao(nome, d):
     return {"ok": True}
 
 
+def arq_preparados(c):
+    """lista dos vídeos que estão na pasta preparada (TikTok: o nome antigo, por conta)"""
+    (BASE / "tiktok_studio").mkdir(parents=True, exist_ok=True)
+    return BASE / "tiktok_studio" / (f"_preparados_{c['conta']}.json" if c["plataforma"] == "tiktok" else f"_preparados_{P.chave(c)}.json")
+
+
 def pasta_studio(c):
+    if c["plataforma"] == "kwai":
+        # Kwai: pasta no Google Drive (aparece no celular, de onde você posta pelo app); sem Drive, no PC
+        try:
+            raiz = EDI.drive_raiz()
+        except Exception:
+            raiz = None
+        return (Path(raiz) / "DETTO" / "kwai" / c["conta"]) if raiz else (BASE / "kwai" / c["conta"])
     return BASE / "tiktok_studio" / c["conta"]
 
 
@@ -569,9 +584,15 @@ def prepara_studio(c, quantos=0):
     p.mkdir(parents=True, exist_ok=True)
     limpa_studio(c)
     dias = ["seg", "ter", "qua", "qui", "sex", "sáb", "dom"]
-    linhas = [f"TIKTOK STUDIO — @{c['conta']}  (tiktok.com/tiktokstudio/upload)",
-              "Para cada vídeo: Enviar → escolha o arquivo → cole a legenda → Agendar → data e hora abaixo.",
-              "Depois, no painel: \"Agendei os N da pasta\" (ou o ✔ de cada vídeo).", ""]
+    if c["plataforma"] == "kwai":
+        linhas = [f"KWAI — @{c['conta']}  (pelo app do Kwai no celular)",
+                  "Esta pasta está no Google Drive (DETTO\\kwai\\" + c["conta"] + "). No celular, no horário de cada vídeo:",
+                  "app do Drive → abra o vídeo → ⋮ → Enviar cópia → Kwai (ou Salvar no dispositivo e escolher no Kwai) →",
+                  "cole a legenda abaixo → Publicar. Depois, no painel: \"Postei os N da pasta\" (ou o ✔ de cada vídeo).", ""]
+    else:
+        linhas = [f"TIKTOK STUDIO — @{c['conta']}  (tiktok.com/tiktokstudio/upload)",
+                  "Para cada vídeo: Enviar → escolha o arquivo → cole a legenda → Agendar → data e hora abaixo.",
+                  "Depois, no painel: \"Agendei os N da pasta\" (ou o ✔ de cada vídeo).", ""]
     preparados = []
     for i, (v, t) in enumerate(zip(fila, slots), 1):
         curto = nome_seguro(re.sub(r"^\d{4}-\d{2}-\d{2}( \d{4,6})? ?", "", v.stem))[:60]
@@ -583,20 +604,20 @@ def prepara_studio(c, quantos=0):
             shutil.copyfile(v, p / nome)
         linhas += [f"===== {i:02d}  {dias[t.weekday()]} {t:%d/%m}  às {t:%H:%M} =====", f"arquivo: {nome}", P.legenda_de(v) or "(sem legenda)", ""]
     (p / f"LEGENDAS - {c['conta']}.txt").write_text("\n".join(linhas), encoding="utf-8")
-    P.grava_json(BASE / "tiktok_studio" / f"_preparados_{c['conta']}.json", preparados)
+    P.grava_json(arq_preparados(c), preparados)
     if os.name == "nt":
         try:
             os.startfile(str(p))  # noqa: S606
         except OSError:
             pass
-    P.log(f"{k}: pasta do TikTok Studio pronta com {len(slots)} vídeos: {p}")
+    P.log(f"{k}: pasta {'do Kwai' if c['plataforma'] == 'kwai' else 'do TikTok Studio'} pronta com {len(slots)} vídeos: {p}")
     return {"ok": True, "pasta": str(p), "n": len(slots)}
 
 
 def ed_postar(d, pasta=None, rels=None):
     """manda um vídeo pronto da edição para a fila das contas"""
     p = pasta or EDI.pasta_de(d.get("id", ""))
-    para = [x for x in d.get("para", []) if re.fullmatch(r"(instagram|tiktok):[\w.]+", x)]
+    para = [x for x in d.get("para", []) if re.fullmatch(r"(instagram|tiktok|youtube|kwai):[\w.]+", x)]
     if not para:
         raise ValueError("escolha as contas")
     titulo = EDI.info(p).get("titulo", "video")
