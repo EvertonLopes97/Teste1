@@ -80,6 +80,38 @@ def alinha(a, b, fps):
     return k, melhor
 
 
+def miniaturas(X):
+    """cada quadro em 24x? cinza, sem o brilho médio e o contraste (compara forma, não a cor)"""
+    import cv2
+    out = []
+    for q in X:
+        g = cv2.resize(q.mean(-1), (24, max(8, int(24 * q.shape[0] / q.shape[1]))), interpolation=cv2.INTER_AREA)
+        out.append((g - g.mean()) / (g.std() + 1e-4))
+    return np.array(out)
+
+
+def so_primeira_cena(B):
+    """o vídeo de referência pode ser o reel postado: fica só até o primeiro corte de cena (a sua parte)"""
+    t = miniaturas(B)
+    for i in range(1, len(t)):
+        if np.mean(np.abs(t[i] - t[i - 1])) > 0.9:
+            return B[:i] if i >= 8 else B
+    return B
+
+
+def acha_trecho(A, B):
+    """em que quadro da gravação o vídeo de referência começa (ele pode ser só um pedaço dela)"""
+    ta, tb = miniaturas(A), miniaturas(B)
+    if len(tb) > len(ta):
+        tb = tb[: len(ta)]
+    melhor, k = -9.0, 0
+    for d in range(0, len(ta) - len(tb) + 1):
+        c = float(np.mean(ta[d: d + len(tb)] * tb))
+        if c > melhor:
+            melhor, k = c, d
+    return k, melhor
+
+
 def termos(x):
     r, g, b = x[:, 0], x[:, 1], x[:, 2]
     t = [np.ones_like(r), r, g, b]
@@ -142,14 +174,12 @@ def main():
     print("Lendo os dois vídeos...")
     A = quadros(orig, ENTRADA_LUT, fps, w, h)
     B = quadros(ref, ref_rgb(ref), fps, w, h)
-    d, c = alinha(A, B, fps)
-    print(f"   alinhamento: {d / fps:+.1f} s (semelhança {c:.2f})")
-    if c < 0.6:
-        print("   AVISO: os vídeos não parecem o mesmo trecho — confira se é o mesmo vídeo.")
-    if d >= 0:
-        A, B = A[: len(A) - d] if d else A, B[d:]
-    else:
-        A, B = A[-d:], B[: len(B) + d]
+    B = so_primeira_cena(B)
+    d, c = acha_trecho(A, B)
+    print(f"   o vídeo de referência começa em {d / fps:.1f} s da gravação (semelhança {c:.2f}), {len(B) / fps:.1f} s comparados")
+    if c < 0.5:
+        print("   AVISO: os vídeos não parecem o mesmo trecho — confira se é a mesma gravação.")
+    A = A[d: d + len(B)]
     n = min(len(A), len(B))
     A, B = A[:n], B[:n]
     # só pixels estáveis: tira bordas e onde muda muito de um quadro para o outro (movimento = desalinhado)
@@ -164,20 +194,21 @@ def main():
     if len(src) > 1_500_000:
         k = np.random.default_rng(1).choice(len(src), 1_500_000, replace=False)
         src, dst = src[k], dst[k]
+    # texto/figurinhas por cima (o vídeo postado) e restos de movimento: fora pelo erro grande no 1º ajuste
+    coef, *_ = np.linalg.lstsq(termos(src), dst, rcond=None)
+    err = np.abs(termos(src) @ coef - dst).max(1)
+    ok = err < max(0.03, 4 * np.median(err))
+    src, dst = src[ok], dst[ok]
     print(f"   {len(src):,} pixels comparados em {n} quadros")
     tab, _ = ajusta(src, dst)
     saida = Path(a.saida)
     grava_cube(tab, saida)
     # confere: aplica a tabela no original e compara com o CapCut
-    C = quadros(orig, ENTRADA_LUT + filtro_lut(saida) + ",", fps, w, h)
-    if d >= 0:
-        C = C[: len(C) - d] if d else C
-    else:
-        C = C[-d:]
-    C = C[:n]
-    e = np.abs(C[m] - B[m]).mean() * 255
+    C = quadros(orig, ENTRADA_LUT + filtro_lut(saida) + ",", fps, w, h)[d: d + n]
+    dif = np.abs(C[m] - B[m]).max(-1)
+    e = float(np.median(dif)) * 255
     print(f"Pronto: {saida}")
-    print(f"   diferença média para o CapCut: {e:.1f} (de 255; abaixo de 3 = igual a olho nu)")
+    print(f"   diferença típica para a referência: {e:.1f} (de 255; abaixo de 3 = igual a olho nu)")
     print("   A partir de agora toda gravação HDR do iPhone usa essa cor (master SDR, edição, reels, vlog).")
 
 

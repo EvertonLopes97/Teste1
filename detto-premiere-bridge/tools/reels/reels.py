@@ -344,27 +344,126 @@ def nome_valido(t):
     return re.sub(r"\s+", " ", t)[:70] or "começo"
 
 
+def sem_repeticao(nome):
+    """"pensativo 2 2 2 2 3 2" → "pensativo" (o importador antigo renomeava o mesmo vídeo a cada 10 min)"""
+    n = re.sub(r"(\s+\d{1,2}){2,}$", "", nome.strip())
+    return n or nome
+
+
+_ASSIN = {}
+
+
+def assinatura(f):
+    """o vídeo pelo conteúdo: tamanho + começo e fim do arquivo (rápido; o nome e a data podem mudar)"""
+    import hashlib
+    f = Path(f)
+    st = f.stat()
+    k = (str(f), st.st_size, st.st_mtime)
+    if k not in _ASSIN:
+        h = hashlib.md5()
+        with open(f, "rb") as a:
+            h.update(a.read(1 << 20))
+            if st.st_size > 2 << 20:
+                a.seek(-(1 << 20), 2)
+                h.update(a.read(1 << 20))
+        _ASSIN[k] = f"{st.st_size}:{h.hexdigest()[:16]}"
+    return _ASSIN[k]
+
+
+def limpa_inicios_repetidos(base):
+    """apaga as cópias repetidas do MESMO começo em inicios\\ (fica a de nome mais curto, com o nome limpo) e os
+    masters SDR delas. Erro antigo: o mesmo vídeo do Drive era importado de novo a cada 10 min ("nome 2 2 2...")."""
+    pasta = base / "inicios"
+    if not pasta.is_dir():
+        return 0
+    grupos = {}
+    for g in pasta.iterdir():
+        if g.is_file() and g.suffix.lower() in VIDEO_EXT:
+            grupos.setdefault(g.stat().st_size, []).append(g)
+    apagados, livre = 0, 0
+    for fs in grupos.values():
+        por = {}
+        for g in fs:
+            try:
+                por.setdefault(assinatura(g), []).append(g)
+            except OSError:
+                pass
+        for iguais in por.values():
+            iguais.sort(key=lambda x: (len(x.stem), x.stem))
+            fica = iguais[0]
+            for g in iguais[1:]:
+                try:
+                    if g.with_suffix(".txt").exists() and not fica.with_suffix(".txt").exists():
+                        g.with_suffix(".txt").rename(fica.with_suffix(".txt"))  # guarda a descrição/trecho
+                    livre += g.stat().st_size
+                    g.unlink()
+                    for extra in (g.with_suffix(".txt"), (SDR_DIR or pasta / "sdr") / f"{g.stem}.mp4"):
+                        if extra.exists():
+                            if extra.suffix == ".mp4":
+                                livre += extra.stat().st_size
+                            extra.unlink()
+                    apagados += 1
+                except OSError:
+                    pass
+            limpo = sem_repeticao(fica.stem)
+            if limpo != fica.stem and not (pasta / f"{limpo}{fica.suffix}").exists():
+                try:
+                    txt = fica.with_suffix(".txt")
+                    novo = fica.with_name(limpo + fica.suffix)
+                    fica.rename(novo)
+                    if txt.exists():
+                        txt.rename(novo.with_suffix(".txt"))
+                except OSError:
+                    pass
+    if apagados:
+        log(f"começos repetidos apagados: {apagados} cópias ({livre / 1e9:.1f} GB liberados)")
+    return apagados
+
+
 def importa_inicios(base, cfg, hist, tmp):
     """Começos que você subiu numa pasta do Drive ("Começo"): o Gemini assiste, dá o NOME do que você faz
     ("cruzando os braços desconfiado") e acha o melhor trecho se a gravação for longa; o arquivo é renomeado no
     Drive e copiado para inicios\\ (já com a cor convertida), pronto para os reels."""
     feitos = hist.setdefault("importados", {})
     novos = 0
-    for pasta in pastas_inicios_drive(cfg):
+    pastas = pastas_inicios_drive(cfg)
+    if not pastas:
+        return 0
+    limpa_inicios_repetidos(base)
+    ja = {}  # tamanho → arquivos em inicios\ (para achar o MESMO vídeo, com qualquer nome)
+    for g in (base / "inicios").glob("*"):
+        if g.is_file() and g.suffix.lower() in VIDEO_EXT:
+            ja.setdefault(g.stat().st_size, []).append(g)
+    for pasta in pastas:
         for f in sorted(pasta.iterdir()):
             if not f.is_file() or f.suffix.lower() not in VIDEO_EXT or f.name.startswith("~"):
                 continue
             try:
-                chave = f"{f.stat().st_size}:{int(f.stat().st_mtime)}"  # renomear não muda tamanho nem data
+                tam = f.stat().st_size
+                if time.time() - f.stat().st_mtime < 60:
+                    continue  # ainda chegando
+                chave = assinatura(f)  # pelo CONTEÚDO: renomear no Drive muda a data e o nome, não o vídeo
             except OSError:
                 continue
+            limpo = sem_repeticao(f.stem)
+            if limpo != f.stem:  # "nome 2 2 2 2" (o erro antigo) → "nome" no Drive também
+                novo = f.with_name(limpo + f.suffix)
+                try:
+                    if not novo.exists():
+                        f.rename(novo)
+                        f = novo
+                except OSError:
+                    pass
             if chave in feitos:
                 continue
-            if time.time() - f.stat().st_mtime < 60:
-                continue  # ainda chegando
+            igual = next((g for g in ja.get(tam, []) if assinatura(g) == chave), None)
+            if igual:  # já está em inicios\ (importado antes com outro nome): não copia de novo
+                feitos[chave] = {"drive": str(f), "inicio": igual.name, "dia": dt.date.today().isoformat()}
+                grava_json(base / "historico.json", hist)
+                continue
             log(f"começo novo no Drive: {f.name}")
             d = dur(f)
-            nome, descr, trecho = f.stem.strip(), "", None
+            nome, descr, trecho = sem_repeticao(f.stem.strip()), "", None
             ja_tem_nome = len(re.findall(r"[a-zA-ZÀ-ÿ]{3,}", nome)) >= 2 and not re.match(r"^(img|vid|mov|dsc|pxl|whatsapp|copy|trim)", nome, re.I) \
                 and not re.search(r"[0-9a-f]{16}", nome)
             p = video_pequeno(f, tmp / "comeco_novo.mp4", 90, 240)
@@ -395,9 +494,9 @@ rindo e batendo palma, olhando sério para a câmera>",
                 linhas.append(f"trecho: {trecho[0]}-{trecho[1]}")
             if linhas:
                 alvo.with_suffix(".txt").write_text("\n".join(linhas) + "\n", encoding="utf-8")
-            # o nome novo também no Drive (você vê o que é cada um)
-            if alvo.stem != f.stem:
-                novo = f.with_name(alvo.stem + f.suffix)
+            # o nome novo também no Drive (você vê o que é cada um) — o nome LIMPO, sem o " 2" de inicios\
+            if nome != f.stem:
+                novo = f.with_name(nome + f.suffix)
                 try:
                     if not novo.exists():
                         f.rename(novo)
@@ -405,6 +504,7 @@ rindo e batendo palma, olhando sério para a câmera>",
                 except OSError as e:
                     log(f"   (não renomeei no Drive: {e})")
             feitos[chave] = {"drive": str(f), "inicio": alvo.name, "dia": dt.date.today().isoformat()}
+            ja.setdefault(alvo.stat().st_size, []).append(alvo)
             grava_json(base / "historico.json", hist)
             try:
                 inicio_sdr(alvo)  # já deixa a cor convertida (o 1º reel com ele sai mais rápido)
@@ -724,8 +824,22 @@ def texto_do_original(clip, t0, t1, saida):
     if len(cores) >= 3:
         letra = np.zeros((H, W), np.uint8)
         letra[y0:y1, x0:x1] = claro[y0:y1, x0:x1]
-        # faixa preta do original: só um contorno fino dela (lê na parede clara do seu começo)
-        return _copia_texto(cores, letra, (x0, y0, x1, y1), saida, raio_max=2)
+        # faixa preta do original: a letra sai do preto sem perder nada (borda suave igual à original, cor de cada
+        # letra mantida) + sombra suave embaixo, como o texto do TikTok/CapCut — lê na parede clara do seu começo,
+        # sem o contorno serrilhado (que deixava o texto "borrado")
+        med = np.median(np.array(cores), axis=0).astype(np.float32)
+        g = med.mean(axis=2)
+        alfa = np.zeros((H, W), np.float32)
+        perto = cv2.dilate(letra, np.ones((7, 7), np.uint8)).astype(bool)
+        alfa[y0:y1, x0:x1] = np.clip((g[y0:y1, x0:x1] - 35) / 165, 0, 1)
+        alfa *= perto
+        cor = np.clip(med / np.maximum(alfa, 0.25)[..., None], 0, 255)
+        sombra = cv2.GaussianBlur(cv2.dilate(alfa, np.ones((3, 3), np.uint8)), (0, 0), 2.2)
+        sombra = np.roll(sombra, (2, 1), axis=(0, 1)) * 0.75
+        a_final = alfa + sombra * (1 - alfa)
+        rgb = cor * (alfa / np.maximum(a_final, 1e-3))[..., None]  # sombra preta: só a letra tem cor
+        cv2.imwrite(str(saida), np.dstack([rgb.astype(np.uint8), (a_final * 255).astype(np.uint8)]))
+        return saida
     alfa = np.zeros((H, W), np.float32)
     alfa[y0:y1, x0:x1] = np.clip((mn[y0:y1, x0:x1].astype(np.float32) - 60) / 140, 0, 1)
     sombra = cv2.GaussianBlur(cv2.dilate(alfa, np.ones((5, 5), np.uint8)), (0, 0), 5) * 0.85
@@ -1215,8 +1329,10 @@ def main():
             for k in pessoas:
                 x = cenas[k]
                 m = min(0.15, (x["b"] - x["a"]) / 5)
-                pg = legenda_parada(clip, x["a"] + m, x["b"] - m, tmp / f"legenda_{k}.png") if x["b"] - x["a"] >= 0.6 else None
-                pngs[k] = melhor_legenda(pg, texto_barra)
+                pg = None if texto_barra else (legenda_parada(clip, x["a"] + m, x["b"] - m, tmp / f"legenda_{k}.png") if x["b"] - x["a"] >= 0.6 else None)
+                # meme de barra: o texto da barra é o do meme (inteiro e limpo); a legenda achada na cena da pessoa
+                # sai pela metade/borrada quando a letra branca fica em cima de parede clara
+                pngs[k] = texto_barra or pg
             lido = ""
             for k in pessoas:
                 if pngs[k] and not lido:

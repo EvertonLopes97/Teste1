@@ -99,7 +99,8 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   Studio e marca "Agendei" (vai para postados com `agendado_para`). "rascunho"/"direto" = API (opcional).
   REELS no painel: vários links de uma vez → `links.txt`; com `"auto_links"` (padrão) o painel roda
   `reels.py --so-links` sozinho (um por vez, cada pronto vai para a fila). yt-dlp atualiza 1x/dia.
-- COR EXATA: `python tools\cor_lut.py "<gravação iPhone>" "<mesmo vídeo exportado do CapCut sem ajuste>"` → aprende
+- COR EXATA: `python tools\cor_lut.py "<gravação iPhone>" "<mesmo vídeo exportado do CapCut, ou o REEL postado feito
+  no CapCut com ela>"` (acha sozinho o trecho, fica só com a 1ª cena, ignora texto por cima) → aprende
   a conversão (tabela 33³, polinômio + correção por célula, confere a diferença) em `tools\cor\referencia.cube`; com
   ela, todo HLG usa essa tabela (cor.py/ffopts.js, master `detto_cor v4 lut<data>` refeito). Apagar = volta ao compat.
 - COR: SÓ CONVERTE HDR→SDR, não "colore". Padrão "compat" (16/out, o que o CapCut faz no aviso "HDR → SDR"): o HLG do
@@ -110,7 +111,11 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   antigo é refeito). `editar.py`, vlog e o COMEÇO dos reels (`<reels>\sdr\`) usam o master (`--sem-sdr` desliga);
   `cor.py`/`ffopts.js` usam a mesma conversão.
 - Reels TROCA: o texto do original é copiado PIXEL A PIXEL (mediana dos quadros onde fica parado: mesma fonte, cor e
-  contorno; meme com faixa preta ganha só um contorno fino).
+  contorno). Meme com faixa preta: o texto da BARRA vale para todas as cenas da pessoa (inteiro e limpo; a legenda achada
+  em cima da parede saía pela metade/borrada), tirado do preto com borda suave + sombra suave (como o TikTok/CapCut).
+- Importação do Drive: chave = CONTEÚDO (`assinatura`: tamanho + md5 do começo/fim), não nome/data (renomear no Drive
+  mudava a data → reimportava a cada 10 min → "nome 2 2 2..." e cópias repetidas). `limpa_inicios_repetidos` apaga as
+  cópias do mesmo vídeo em inicios\ (e masters) e tira o " 2 2 2" do nome (no Drive também).
 - VLOG (`tools\vlog\vlog.py <pasta> [--titulo --estilo --formato --duracao --legendas --refazer]`, aba Edição tipo
   Vlog; pasta do Google Drive para computador `Meu Drive\DETTO\vlogs\<vlog>`): clipes por data de gravação → SDR →
   faster-whisper + movimento/volume + fotos → diretor (Gemini com fotos e falas; sem Gemini: falas sem silêncio +
