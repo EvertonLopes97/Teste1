@@ -785,6 +785,15 @@ def postados_hoje(estado, k):
     return h.get("n", 0) if h.get("dia") == dt.date.today().isoformat() else 0
 
 
+def teto_dia(c):
+    """máximo de posts por dia. Instagram sem limite configurado = 10 (o Instagram limita os Reels teste pela API
+    — falam em ~20/dia — e muitos posts/tentativas seguidos dão bloqueio de ações na conta, até no app)"""
+    m = c.get("max_dia") or 0
+    if not m and c.get("plataforma") == "instagram":
+        return 10
+    return m
+
+
 def proximo(c, estado, k):
     """quando esta conta pode postar de novo (datetime), pelo intervalo, horário e limite do dia"""
     agora = dt.datetime.now().replace(second=0, microsecond=0)
@@ -793,7 +802,7 @@ def proximo(c, estado, k):
     if ult:
         t = max(t, dt.datetime.fromisoformat(ult) + dt.timedelta(minutes=c.get("intervalo_min", 80)))
     h0, h1 = janela(c)
-    if c.get("max_dia") and postados_hoje(estado, k) >= c["max_dia"]:
+    if teto_dia(c) and postados_hoje(estado, k) >= teto_dia(c):
         t = max(t, (agora + dt.timedelta(days=1)).replace(hour=h0, minute=0))
     if t.hour < h0:
         t = t.replace(hour=h0, minute=0)
@@ -836,7 +845,7 @@ def planeja(c, estado, k, n, ocupados=None, dias=10):
             t = (t + dt.timedelta(days=1)).replace(hour=h0, minute=0)
             continue
         dia = t.date().isoformat()
-        if c.get("max_dia") and por_dia.get(dia, 0) >= c["max_dia"]:
+        if teto_dia(c) and por_dia.get(dia, 0) >= teto_dia(c):
             t = (t + dt.timedelta(days=1)).replace(hour=h0, minute=0)
             continue
         out.append(t)
@@ -991,10 +1000,14 @@ def posta_da_fila(cfg, base, c, video, estado):
     try:
         r = posta_um(cfg, base, c, video)
     except Exception as e:
-        if "2207078" in str(e):
-            # limite de Reels TESTE da API (por conta, em 24 h): não é erro do vídeo — a conta pausa e ele espera a vez
-            estado.setdefault(k, {})["pausa_ate"] = time.time() + 6 * 3600
-            log(f"{k}: o Instagram chegou no LIMITE de Reels teste pela API — pauso a conta por 6 h; "
+        txt = str(e)
+        bloqueio = "2207078" in txt or "too many actions" in txt.lower() or '"code": 9,' in txt
+        if bloqueio:
+            # limite de Reels TESTE da API (2207078, conta em 24 h) ou "muitas ações" (bloqueio temporário da conta):
+            # não é erro do vídeo — a conta pausa 24 h (tentar antes só renova o bloqueio) e o vídeo espera a vez
+            estado.setdefault(k, {})["pausa_ate"] = time.time() + 24 * 3600
+            motivo = "LIMITE de Reels teste pela API" if "2207078" in txt else "bloqueio de \"muitas ações\""
+            log(f"{k}: o Instagram deu {motivo} — pauso a conta por 24 h (não insista pelo app também); "
                 f"{video.name} continua na fila (não conta como erro)")
             grava_json(base / "estado.json", estado)
             return None
