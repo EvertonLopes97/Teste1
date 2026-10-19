@@ -908,14 +908,23 @@ def cenas_do_video(f):
     return cenas, a
 
 
+def _hist_sem_preto(img):
+    """histograma de cor SEM as faixas pretas/escuras (memes com barra preta pareciam todos iguais)"""
+    import cv2
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    m = (hsv[:, :, 2] > 40).astype("uint8")
+    if m.sum() < m.size * 0.03:
+        m = None
+    return cv2.calcHist([hsv], [0, 1], m, [18, 8], [0, 180, 0, 256])
+
+
 def _parecida(a, c0, c1):
     """quanto a cena c1 parece com a c0 (mesmo lugar / mesma pessoa): histograma de cor"""
     import cv2
 
     def hist(c):
         q0, q1 = c["q"]
-        h = sum(cv2.calcHist([cv2.cvtColor(x, cv2.COLOR_BGR2HSV)], [0, 1], None, [18, 8], [0, 180, 0, 256])
-                for x in a[q0:q1:max(1, (q1 - q0) // 6)])
+        h = sum(_hist_sem_preto(x) for x in a[q0:q1:max(1, (q1 - q0) // 6)])
         return cv2.normalize(h, h).flatten()
     return float(cv2.compareHist(hist(c0), hist(c1), cv2.HISTCMP_CORREL))
 
@@ -1242,8 +1251,27 @@ def confere_cenas(clip, cenas):
     fotos = {id(c): _quadro_cor(clip, (c["a"] + c["b"]) / 2) for c in cenas}
 
     def hist(img):
-        h = cv2.calcHist([cv2.cvtColor(cv2.resize(img, (108, 192)), cv2.COLOR_BGR2HSV)], [0, 1], None, [18, 8], [0, 180, 0, 256])
+        h = _hist_sem_preto(cv2.resize(img, (108, 192)))
         return cv2.normalize(h, h).flatten()
+
+    def mesma(c, ref):
+        g = gemini_json([{"text": "Foto 1: a pessoa de um meme (gravação dela). Foto 2: outra cena do MESMO vídeo. A foto 2 mostra a "
+                                  "MESMA pessoa/gravação da foto 1 (mesmo lugar, mesma pessoa) ou é outra coisa (jogo de "
+                                  "futebol, desenho, filme, outra pessoa, outro vídeo)? JSON {\"mesma_pessoa\": true|false}"},
+                         _jpg64(ref), _jpg64(fotos[id(c)])], temperatura=0)
+        return (g or {}).get("mesma_pessoa") if g else None
+    ref = fotos[id(pessoas[0])]
+    h0 = hist(ref)
+    # cena marcada "pessoa" que não parece nada com a 1ª (outro lugar, sem rosto): confere — desenho/lance escuro
+    # não pode virar o seu começo
+    for c in pessoas[1:]:
+        sim = float(cv2.compareHist(hist(fotos[id(c)]), h0, cv2.HISTCMP_CORREL))
+        if sim < 0.5 and not _rosto(fotos[id(c)]):
+            r = mesma(c, ref)
+            if r is not True:
+                c["tipo"] = "lance"
+                log(f"   conferência das cenas: {c['a']:.1f}-{c['b']:.1f}s não é a pessoa (fica o original)")
+    pessoas = [c for c in cenas if c.get("tipo") == "pessoa"]
     hp = [hist(fotos[id(c)]) for c in pessoas]
     for c in cenas:
         if c.get("tipo") != "lance" or c["b"] - c["a"] < 0.4:
@@ -1251,13 +1279,8 @@ def confere_cenas(clip, cenas):
         sim = max(float(cv2.compareHist(hist(fotos[id(c)]), h, cv2.HISTCMP_CORREL)) for h in hp)
         if sim < 0.75 or not _rosto(fotos[id(c)]):
             continue
-        ref = fotos[id(pessoas[0])]
-        g = gemini_json([{"text": "Foto 1: a pessoa de um meme (gravação dela). Foto 2: outra cena do MESMO vídeo. A foto 2 mostra a "
-                                  "MESMA pessoa/gravação da foto 1 (mesmo lugar, mesma pessoa) ou é outra coisa (jogo de "
-                                  "futebol, outra pessoa, outro vídeo)? JSON {\"mesma_pessoa\": true|false}"},
-                         _jpg64(ref), _jpg64(fotos[id(c)])], temperatura=0)
-        mesma = (g or {}).get("mesma_pessoa") if g else (sim > 0.9)
-        if mesma is True:
+        r = mesma(c, ref)
+        if r is True or (r is None and sim > 0.9):
             c["tipo"] = "pessoa"
             log(f"   conferência das cenas: {c['a']:.1f}-{c['b']:.1f}s é a MESMA pessoa do começo → o seu começo entra aí também")
     _ = np
@@ -1290,6 +1313,26 @@ def confere_troca(saida, clip, cenas, texto_ref):
         if c["tipo"] == "lance" and corr < 0.6:
             probs.append(f"{c['a']:.1f}-{c['b']:.1f}s: o lance não ficou igual ao original")
         quadros.append((c, q_out))
+    # letra pelos PIXELS (sem internet): as letras do texto no lance têm que estar inteiras (claras) na sua parte
+    lances_ = sorted((c for c in cenas if c["tipo"] == "lance" and c["b"] - c["a"] >= 0.8), key=lambda c: c["b"] - c["a"], reverse=True)
+    if lances_ and any(c["tipo"] == "pessoa" for c, _ in quadros):
+        L = lances_[0]
+        tmpd = Path(saida).with_suffix(".conf.png")
+        try:
+            png = texto_do_original(saida, L["a"] + 0.15, L["b"] - 0.15, tmpd)
+            if png:
+                alfa = cv2.imread(str(png), cv2.IMREAD_UNCHANGED)[:, :, 3]
+                letra = alfa > 230
+                if letra.sum() > 200:
+                    for c, q in quadros:
+                        if c["tipo"] != "pessoa":
+                            continue
+                        g = cv2.cvtColor(cv2.resize(q, (alfa.shape[1], alfa.shape[0])), cv2.COLOR_BGR2GRAY)
+                        cob = float((g[letra] > 170).mean())
+                        if cob < 0.85:
+                            probs.append(f"{c['a']:.1f}-{c['b']:.1f}s: texto incompleto na sua parte ({cob:.0%} das letras)")
+        finally:
+            tmpd.unlink(missing_ok=True)
     if texto_ref:
         for c, q in quadros:
             if c["tipo"] != "pessoa":
@@ -1492,8 +1535,11 @@ def main():
                 if c.get("url"):
                     _tira_link(base, c["url"], ok=False)
                 continue
-            texto_barra = (texto_do_original(clip, av["inicio"] + 0.2, dclip - 0.2, tmp / "texto_original.png")
-                           if av.get("inicio") else None)
+            # o texto que continua na tela no LANCE (mais longo): é o texto do meme, inteiro e limpo
+            lances_ = sorted((x for x in cenas if x.get("tipo") == "lance" and x["b"] - x["a"] >= 0.8),
+                             key=lambda x: x["b"] - x["a"], reverse=True)
+            L = lances_[0] if lances_ else None
+            texto_barra = texto_do_original(clip, L["a"] + 0.15, L["b"] - 0.15, tmp / "texto_original.png") if L else None
             def monta_pngs(usar_barra):
                 out = {}
                 for k in pessoas:
@@ -1508,7 +1554,7 @@ def main():
                 return out
             pngs = monta_pngs(True)
             # CONFERÊNCIA DE LETRA: o texto recortado × o texto lido no quadro original (onde ele continua na tela)
-            t_ref = (av["inicio"] + dclip) / 2 if texto_barra else (cenas[pessoas[0]]["a"] + cenas[pessoas[0]]["b"]) / 2
+            t_ref = (L["a"] + L["b"]) / 2 if texto_barra else (cenas[pessoas[0]]["a"] + cenas[pessoas[0]]["b"]) / 2
             png0 = next((pngs[k] for k in pessoas if pngs[k]), None)
             lido, letra_ok = le_texto_duplo(png0, _quadro_cor(clip, t_ref))
             if not letra_ok and lido:
