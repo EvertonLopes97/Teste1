@@ -18,6 +18,7 @@ DETTO_TONEMAP=compat (padrão, igual ao CapCut: HLG só troca BT.2020→BT.709) 
 import json
 import os
 import subprocess
+from pathlib import Path
 
 
 def info_cor(video):
@@ -39,15 +40,29 @@ def tem_zscale():
 
 
 COMPAT = "zscale=tin=bt709:min=2020_ncl:pin=2020:rin=tv:t=bt709:m=709:p=709:r=tv,format=yuv420p"
+# COR EXATA (cor_lut.py): tabela aprendida do mesmo vídeo exportado pelo CapCut. Existe = vale para todo HLG.
+LUT = Path(__file__).resolve().parent / "cor" / "referencia.cube"
+ENTRADA_LUT = "zscale=min=2020_ncl:rin=tv:r=full,format=gbrp16le,"  # HLG BT.2020 → RGB, sem mexer na cor
+SAIDA_LUT = "zscale=tin=709:pin=709:rin=full:t=709:p=709:m=709:r=tv,format=yuv420p"  # RGB (já SDR) → vídeo BT.709
+
+
+def filtro_lut(f=None):
+    """lut3d com o caminho escapado para o FFmpeg (Windows: C\\:/...)"""
+    f = Path(f or LUT).resolve().as_posix().replace("'", "")
+    return "lut3d=file='" + f.replace(":", "\\:") + "':interp=tetrahedral"
+
+
+def tem_lut():
+    return LUT.is_file() and LUT.stat().st_size > 1000
 
 
 def cadeia_hdr(tm="compat", transfer="arib-std-b67"):
     """HLG/PQ → SDR BT.709 pelo zscale. tm: compat (padrão), natural, 203, antigo, clip, hable.
     compat = o que o CapCut faz ("HDR → SDR"): o HLG já é compatível com tela comum, então só troca as cores
     BT.2020 → BT.709, sem tone mapping (sem lavar, sem esquentar). Só vale para HLG; PQ usa o natural."""
-    if tm == "compat":
+    if tm in ("compat", "lut"):
         if "b67" in (transfer or "arib-std-b67"):
-            return COMPAT
+            return ENTRADA_LUT + filtro_lut() + "," + SAIDA_LUT if tem_lut() else COMPAT
         tm = "natural"
     if tm == "antigo":
         return ("zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=mobius:desat=0,"

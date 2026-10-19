@@ -6,6 +6,8 @@
  *   7.0 em diante: -/filter:v arq / -/filter_complex arq  (as antigas foram removidas na 8)
  */
 const { spawnSync } = require("child_process");
+const fs = require("fs");
+const path = require("path");
 
 let MAJOR = null;
 function versao() {
@@ -59,7 +61,11 @@ function corDaGravacao(video) {
     // compat (padrão, 16/out): o que o CapCut faz no "HDR → SDR" — o HLG já é compatível com tela comum, só troca
     // as cores BT.2020 → BT.709, sem tone mapping. PQ (não HLG) cai no natural.
     if (tm === "compat" && !/arib-std-b67/.test(transfer)) tm = "natural";
-    if (tm === "compat") filtro = base + "zscale=tin=bt709:min=2020_ncl:pin=2020:rin=tv:t=bt709:m=709:p=709:r=tv,format=yuv420p";
+    const lut = path.join(__dirname, "..", "cor", "referencia.cube");
+    const temLut = (tm === "compat" || tm === "lut") && /arib-std-b67/.test(transfer) && fs.existsSync(lut) && fs.statSync(lut).size > 1000;
+    // COR EXATA (cor_lut.py): tabela aprendida do mesmo vídeo exportado pelo CapCut
+    if (temLut) filtro = base + "zscale=min=2020_ncl:rin=tv:r=full,format=gbrp16le,lut3d=file='" + path.resolve(lut).replace(/\\/g, "/").replace(/'/g, "").replace(/:/g, "\\:") + "':interp=tetrahedral,zscale=tin=709:pin=709:rin=full:t=709:p=709:m=709:r=tv,format=yuv420p";
+    else if (tm === "compat") filtro = base + "zscale=tin=bt709:min=2020_ncl:pin=2020:rin=tv:t=bt709:m=709:p=709:r=tv,format=yuv420p";
     else if (tm === "antigo") filtro = base + "zscale=t=linear:npl=100,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=mobius:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p";
     else if (tm === "203" || tm === "mobius") filtro = base + "zscale=t=linear:npl=203,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=mobius:param=0.6:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p";
     else if (["clip", "hable", "reinhard"].includes(tm)) filtro = base + `zscale=t=linear:npl=203,format=gbrpf32le,zscale=p=bt709,tonemap=tonemap=${tm}:desat=0,zscale=t=bt709:m=bt709:r=tv,format=yuv420p`;

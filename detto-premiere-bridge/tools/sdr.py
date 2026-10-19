@@ -18,10 +18,12 @@ from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
 sys.path.insert(0, str(AQUI))
-from cor import PLACEBO, filtro_cor, info_cor, placebo_ok  # noqa: E402
+from cor import LUT, PLACEBO, filtro_cor, info_cor, placebo_ok, tem_lut  # noqa: E402
 
 VIDEO_EXT = {".mov", ".mp4", ".m4v", ".mkv"}
 VERSAO = "detto_cor v4"  # v4: compat (igual ao CapCut: HLG só troca BT.2020→BT.709); v3: zscale natural  # muda quando a conversão muda: masters antigos são refeitos
+if tem_lut():  # cor exata (cor_lut.py): tabela nova = masters refeitos
+    VERSAO += f" lut{int(LUT.stat().st_mtime)}"
 _NVENC = None
 
 
