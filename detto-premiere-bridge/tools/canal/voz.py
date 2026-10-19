@@ -45,6 +45,34 @@ def frases(texto, maximo=220):
     return out
 
 
+def voz_de_teste(texto, saida):
+    """voz de computador em português (só para testar a montagem enquanto a sua voz não chega)"""
+    import shutil
+    import tempfile
+    tmp = Path(tempfile.gettempdir()) / f"detto_voz_{os.getpid()}.wav"
+    try:
+        if os.name == "nt":
+            ps = ("Add-Type -AssemblyName System.Speech; $s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+                  "$v = $s.GetInstalledVoices() | Where-Object { $_.VoiceInfo.Culture.Name -like 'pt*' } | Select-Object -First 1; "
+                  "if ($v) { $s.SelectVoice($v.VoiceInfo.Name) }; $s.Rate = 1; "
+                  f"$s.SetOutputToWaveFile('{tmp}'); $s.Speak([Console]::In.ReadToEnd()); $s.Dispose()")
+            subprocess.run(["powershell", "-NoProfile", "-Command", ps], input=texto, text=True, encoding="utf-8",
+                           capture_output=True, timeout=120)
+        elif shutil.which("espeak-ng"):
+            subprocess.run(["espeak-ng", "-v", "pt-br", "-s", "165", "-w", str(tmp), texto], capture_output=True, timeout=120)
+        if tmp.exists() and tmp.stat().st_size > 2000:
+            subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(tmp), "-ar", "24000", "-ac", "1", str(saida)], check=True)
+            return True
+    except Exception:
+        pass
+    finally:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+    return False
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("falas")
@@ -67,11 +95,13 @@ def main():
         if not Path(f["arquivo"]).exists():
             falta.append(f)
     if falta and os.environ.get("DETTO_VOZ_FALSA"):
-        # só para testar a montagem sem baixar o modelo: um tom baixo com o tempo da fala
+        # TESTE sem a sua voz (sem baixar o modelo): voz de computador em português — Windows (voz "Maria"),
+        # espeak-ng no Linux; sem nenhuma, um tom baixo com o tempo da fala
         for f in falta:
-            d = max(1.0, len(f["texto"].split()) * 0.36)
-            subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"sine=f=200:d={d:.2f}", "-af", "volume=0.05",
-                            "-ar", "24000", f["arquivo"]], check=True)
+            if not voz_de_teste(f["texto"], f["arquivo"]):
+                d = max(1.0, len(f["texto"].split()) * 0.36)
+                subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"sine=f=200:d={d:.2f}", "-af", "volume=0.05",
+                                "-ar", "24000", f["arquivo"]], check=True)
         falta = []
     if falta:
         instala()

@@ -793,7 +793,7 @@ function cardCanal(c, x){
         ${p.shorts_youtube.map((u, si) => `<a href="${esc(u)}" target="_blank" rel="noopener">short ${si + 1}</a>`).join(" ")}
       </div></div>`; }).join("");
   return `<div class="card can">
-    <div class="topo"><span class="titulo">${esc(x.nome)}</span>${x.rodando ? `<span class="st montando">montando…</span><button class="mini" onclick="canParar('${c}')">Parar</button>` : `<button class="mini" onclick="canRodar('${c}')">Rodar agora</button>`}</div>
+    <div class="topo"><span class="titulo">${esc(x.nome)}</span>${x.rodando ? `<span class="st montando">montando…</span><button class="mini" onclick="canParar('${c}')">Parar</button>` : `<button class="mini" onclick="canRodar('${c}')">Rodar agora</button>${c === "noticias" ? `<button class="mini" title="monta um vídeo com voz de computador, sem postar — para ver a edição antes da sua voz e das máscaras" onclick="canTeste('${c}')">Teste</button>` : ""}`}</div>
     <div class="linha">${login}</div>
     <div class="chave"><span><b>Ligado</b><small>${c === "noticias" ? "Monta sozinho a cada 2 h (8h às 23h), com as notícias do dia e as suas pautas" : "Olha a pasta do Drive a cada 10 min e monta os vlogs novos"}</small></span>${sw(c, "ligado", x.ligado)}</div>
     <div class="chave"><span><b>Postar sozinho</b><small>${x.auto_postar ? "Posta assim que fica pronto (vídeo + Shorts a cada 3 h)" : "Desligado: espera você assistir e aprovar aqui embaixo"}</small></span>${sw(c, "auto_postar", x.auto_postar)}</div>
@@ -805,6 +805,7 @@ function cardCanal(c, x){
 }
 async function canCfg(c, d){ await api("canal_cfg", {c, ...d}); toast("Salvo"); editando = false; carrega(true); }
 async function canRodar(c){ await api("canal_rodar", {c}); toast("Começou — acompanhe no registro"); carrega(true); }
+async function canTeste(c){ await api("canal_teste", {c}); toast("Teste começou (voz de computador, não posta) — o vídeo aparece em Esperando você"); carrega(true); }
 async function canParar(c){ if(!confirm("Parar a montagem?")) return; await api("canal_parar", {c}); carrega(true); }
 async function canAbrir(c, qual){ await api("canal_abrir", {c, qual}); toast("Abri a pasta no PC"); }
 async function canPauta(c, agora){ const t = $("#pauta_" + c).value; if(!t.trim()) return toast("Escreva a pauta", true);

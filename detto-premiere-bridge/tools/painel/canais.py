@@ -82,7 +82,7 @@ def py():
     return str(exe), ({"creationflags": 0x08000000} if os.name == "nt" else {})
 
 
-def _roda(c, args, so_preparar=False, log_nome="canal.log"):
+def _roda(c, args, so_preparar=False, log_nome="canal.log", env_extra=None):
     exe, extra = py()
     p = pasta(c)
     p.mkdir(parents=True, exist_ok=True)
@@ -94,7 +94,7 @@ def _roda(c, args, so_preparar=False, log_nome="canal.log"):
     logf.write(f"\n===== {dt.datetime.now():%d/%m %H:%M} {' '.join(args) or 'rodada'} =====\n")
     logf.flush()
     return subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT, cwd=str(PONTE),
-                            env={**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"}, **extra)
+                            env={**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1", **(env_extra or {})}, **extra)
 
 
 def segredo():
@@ -225,6 +225,8 @@ def acao(nome, d):
             f.write_text("\n".join(l for l in f.read_text(encoding="utf-8").splitlines() if l.strip() != alvo) + "\n", encoding="utf-8")
     elif nome == "canal_rodar":
         return roda_agora(c)
+    elif nome == "canal_teste":
+        return roda_agora(c, teste=True)
     elif nome == "canal_parar":
         p = PESADO["p"]
         if p and p.poll() is None and PESADO["id"] == c:
@@ -301,12 +303,15 @@ def acao(nome, d):
 PESADO_LOGIN = {}
 
 
-def roda_agora(c, forcar=True):
+def roda_agora(c, forcar=True, teste=False):
+    """teste = monta com voz de computador (sem a sua voz clonada), não posta — para ver a edição"""
     with TRAVA:
         if ocupado():
             raise ValueError(f"já tem um canal montando agora ({CANAIS[PESADO['id']]['nome']})")
         args = ["--forcar"] if (forcar and c == "noticias") else []
-        PESADO.update(id=c, p=_roda(c, args), o_que="montando")
+        if teste:
+            args = ["--forcar", "--nao-postar"] if c == "noticias" else args
+        PESADO.update(id=c, p=_roda(c, args, env_extra={"DETTO_VOZ_FALSA": "1"} if teste else None), o_que="montando (teste)" if teste else "montando")
         grava_estado(c, ultimo=dt.datetime.now().isoformat(timespec="minutes"))
     LOG(f"canal {CANAIS[c]['nome']}: rodada começou")
     return {"ok": True}
