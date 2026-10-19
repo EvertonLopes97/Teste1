@@ -722,6 +722,8 @@ def main():
         words = transcreve(v["arquivo"])
         tr = acha_trechos(words, v, cfg)
         log(f"   {len(tr)} trecho(s) sobre o Galo")
+        dv = dur(v["arquivo"]) or 1e9
+        tr = [{**x, "fim": min(x["fim"], dv - 0.2)} for x in tr if min(x["fim"], dv - 0.2) - x["ini"] >= 8]  # nunca além do fim do vídeo
         for x in tr:
             hist["trechos"].append({**x, "video": v["id"], "arquivo": v["arquivo"], "fonte": v["fonte"], "canal": v.get("canal", ""), "data": hoje, "usado": False})
         grava_json(pasta / "historico.json", hist)
