@@ -112,6 +112,14 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
 - Reels TROCA: o texto do original é copiado PIXEL A PIXEL (mediana dos quadros onde fica parado: mesma fonte, cor e
   contorno). Meme com faixa preta: o texto da BARRA vale para todas as cenas da pessoa (inteiro e limpo; a legenda achada
   em cima da parede saía pela metade/borrada), tirado do preto com borda suave + sombra suave (como o TikTok/CapCut).
+- CONFERÊNCIAS do TROCA (reels.py): ANTES de montar — `confere_cenas` (cena "lance" parecida com a pessoa + rosto →
+  Gemini compara com a 1ª cena da pessoa → vira "pessoa": a pessoa que volta no meio é coberta) e `le_texto_duplo`
+  (PNG do texto × Gemini lendo o quadro original; não bate → testa o outro recorte). DEPOIS — `confere_troca`
+  (pixels: cena da pessoa ≠ original, lance = original; Gemini lê o texto em cada cena trocada; Gemini aprova
+  um quadro de cada cena). Problema → refaz pelo outro recorte e confere de novo; ainda ruim → `prontos\<dia>\conferir\`
+  com o .txt dos problemas, NÃO vai para a fila. Legenda do post: `legenda_viral` (Gemini, nunca "meme";
+  `"exemplos_legenda"` no config). Guia de instalação/outro PC/outra conta: `detto-premiere-bridge\INSTALAR.txt`
+  (+ `INSTALAR.bat`, `requirements.txt`).
 - Importação do Drive: chave = CONTEÚDO (`assinatura`: tamanho + md5 do começo/fim), não nome/data (renomear no Drive
   mudava a data → reimportava a cada 10 min → "nome 2 2 2..." e cópias repetidas). `limpa_inicios_repetidos` apaga as
   cópias do mesmo vídeo em inicios\ (e masters) e tira o " 2 2 2" do nome (no Drive também).
