@@ -556,6 +556,7 @@ function contas(){
           <label class="sw"><input type="checkbox" ${c.facebook ? "checked" : ""} onchange="regra(${ci},{facebook:this.checked})"><span></span></label>
         </div>
         ${pend.length ? `<div class="info erro">⚠ Facebook: ${pend.length} vídeo(s) esperando nova tentativa — ${esc(pend[0][1].erro || "")}</div>` : ""}
+        ${c.pausa_ate ? `<div class="info erro">⏸ Instagram em pausa até ${esc(c.pausa_ate)} (limite de Reels teste ou erro há pouco) <button class="mini" onclick="api('tira_pausa',{k:'${esc(c.k || (c.plataforma + "_" + c.conta))}'}).then(()=>carrega(true))">Tirar pausa</button></div>` : ""}
       </div>`;
       extra += `<div class="teste">
         <div class="linha" style="justify-content:space-between">

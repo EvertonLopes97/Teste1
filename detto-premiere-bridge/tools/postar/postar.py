@@ -307,21 +307,31 @@ def normaliza_ig(video, pasta):
     r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", str(video)],
                        capture_output=True, text=True)
     tem_audio = bool(r.stdout.strip())
-    vf = ("scale='if(gt(iw,1080),1080,iw)':-2:flags=lanczos,scale=trunc(iw/2)*2:trunc(ih/2)*2,fps='min(60,source_fps)',"
-          "format=yuv420p")
-    cmd = ["ffmpeg", "-v", "error", "-y", "-i", str(video)]
-    if not tem_audio:
-        cmd += ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"]
-    cmd += ["-map", "0:v:0", "-map", "0:a:0" if tem_audio else "1:a:0", "-shortest",
-            "-vf", vf, "-c:v", "libx264", "-profile:v", "high", "-level", "4.2", "-preset", "medium", "-crf", "20",
-            "-maxrate", "12M", "-bufsize", "24M", "-force_key_frames", "expr:gte(t,n_forced*2)", "-sc_threshold", "0", "-bf", "2",
-            "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
-            "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2", "-movflags", "+faststart", str(saida)]
-    rr = subprocess.run(cmd, capture_output=True, text=True)
-    if rr.returncode != 0 or not saida.exists():
-        log(f"   (não consegui padronizar o vídeo para o Instagram: {rr.stderr[-200:]}; vai o original)")
-        return Path(video)
-    return saida
+    def tenta(audio_original, fps_fixo):
+        vf = ("scale='if(gt(iw,1080),1080,iw)':-2:flags=lanczos,scale=trunc(iw/2)*2:trunc(ih/2)*2,"
+              + ("fps=30," if fps_fixo else "fps='min(60,source_fps)',") + "format=yuv420p")
+        cmd = ["ffmpeg", "-v", "error", "-y", "-fflags", "+genpts", "-err_detect", "ignore_err", "-i", str(video)]
+        if not audio_original:
+            cmd += ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"]
+        cmd += ["-map", "0:v:0", "-map", "0:a:0" if audio_original else "1:a:0", "-shortest",
+                "-vf", vf, "-c:v", "libx264", "-profile:v", "high", "-level", "4.2", "-preset", "medium", "-crf", "20",
+                "-maxrate", "12M", "-bufsize", "24M", "-force_key_frames", "expr:gte(t,n_forced*2)", "-sc_threshold", "0", "-bf", "2",
+                "-color_primaries", "bt709", "-color_trc", "bt709", "-colorspace", "bt709",
+                "-c:a", "aac", "-b:a", "128k", "-ar", "48000", "-ac", "2", "-movflags", "+faststart", str(saida)]
+        return subprocess.run(cmd, capture_output=True, text=True)
+
+    # 1) normal; 2) áudio do vídeo vazio/quebrado ("stream received no packets") → silêncio no lugar;
+    # 3) FFmpeg sem "source_fps" → 30 fps. O original quebrado o Instagram recusa (2207082 / código 0).
+    erro = ""
+    for audio_original, fps_fixo in ((tem_audio, False), (False, False), (False, True)):
+        rr = tenta(audio_original, fps_fixo)
+        if rr.returncode == 0 and saida.exists() and saida.stat().st_size > 1000:
+            if audio_original != tem_audio:
+                log("   (o áudio deste vídeo estava vazio/quebrado: foi com silêncio)")
+            return saida
+        erro = rr.stderr[-300:]
+    log(f"   (não consegui padronizar o vídeo para o Instagram: {erro}; vai o original)")
+    return Path(video)
 
 
 def _link_catbox(video):
@@ -934,6 +944,16 @@ def posta_da_fila(cfg, base, c, video, estado):
     try:
         r = posta_um(cfg, base, c, video)
     except Exception as e:
+        if "2207078" in str(e):
+            # limite de Reels TESTE da API (por conta, em 24 h): não é erro do vídeo — a conta pausa e ele espera a vez
+            estado.setdefault(k, {})["pausa_ate"] = time.time() + 6 * 3600
+            log(f"{k}: o Instagram chegou no LIMITE de Reels teste pela API — pauso a conta por 6 h; "
+                f"{video.name} continua na fila (não conta como erro)")
+            grava_json(base / "estado.json", estado)
+            return None
+        # depois de um erro, a conta espera 10 min antes de tentar QUALQUER vídeo (antes tentava o próximo na hora,
+        # vários seguidos, e o Instagram bloqueou por "muitas ações")
+        estado.setdefault(k, {})["pausa_ate"] = time.time() + 10 * 60
         falhas = estado.setdefault(k, {}).setdefault("falhas", {})
         falhas[video.name] = falhas.get(video.name, 0) + 1
         n = falhas[video.name]
@@ -996,6 +1016,8 @@ def rodada(cfg, base):
                 if n >= 5:
                     log(f"{k}: 5 rascunhos esperando você publicar no app — o próximo vai quando liberar")
                     continue
+            if estado.get(k, {}).get("pausa_ate", 0) > time.time():
+                continue  # conta em pausa (limite do Instagram ou erro há pouco)
             espera = estado.get(k, {}).get("espera", {})
             pronto = [v for v in fila if espera.get(v.name, 0) <= time.time()]
             if pronto:

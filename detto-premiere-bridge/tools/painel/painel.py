@@ -218,6 +218,8 @@ def estado_painel():
             "k": k, "plataforma": c["plataforma"], "conta": c["conta"], "ativo": c.get("ativo", True) is not False,
             "teste": bool(c.get("teste")), "graduar": c.get("graduar", "manual"), "meta_views": int(c.get("meta_views") or 0),
             "facebook": c.get("facebook", True) is not False, "fb_pend": est.get(k, {}).get("fb_pendentes") or {},
+            "pausa_ate": (dt.datetime.fromtimestamp(est.get(k, {}).get("pausa_ate", 0)).strftime("%d/%m %H:%M")
+                          if est.get(k, {}).get("pausa_ate", 0) > time.time() else ""),
             "testes": testes_de(c) if c["plataforma"] == "instagram" else [],
             "intervalo_min": c.get("intervalo_min", 80), "horas": c.get("horas", "08-23"), "max_dia": c.get("max_dia", 0),
             "login": (BASE / "tokens" / f"{c['plataforma']}_{c['conta']}.json").exists(),
@@ -377,6 +379,10 @@ def acao(nome, d):
         est = P.le_json(BASE / "estado.json", {})
         est.get(k, {}).get("falhas", {}).pop(n, None)
         est.get(k, {}).get("espera", {}).pop(n, None)
+        P.grava_json(BASE / "estado.json", est)
+    elif nome == "tira_pausa":
+        est = P.le_json(BASE / "estado.json", {})
+        est.get(d["k"], {}).pop("pausa_ate", None)
         P.grava_json(BASE / "estado.json", est)
     elif nome == "copiar":
         # manda um vídeo da fila de uma conta também para outras
