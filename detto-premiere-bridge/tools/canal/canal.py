@@ -296,8 +296,15 @@ def peca_trecho(base, clip, ini, fim, masc, faixa, saida):
     ins = ["-loop", "1", "-i", str(base), "-ss", f"{ini:.2f}", "-t", f"{d:.2f}", "-i", str(clip), "-loop", "1", "-i", str(faixa)]
     x, y, w, h = JANELA
     cx, cy, cw, ch = CANTO
-    f = (f"[1:v]{cor_sdr(clip)}scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black,setsar=1[v];"
-         f"[0:v][v]overlay={x}:{y}[a0];")
+    vw, vh = tamanho(clip)
+    if vw and vh and vw / vh < 1.4:
+        # vídeo vertical/quadrado (TikTok, Reels): o próprio vídeo desfocado preenche as laterais, sem barra preta
+        f = (f"[1:v]{cor_sdr(clip)}split[v1][v2];[v1]{cobre(w // 4, h // 4)},boxblur=8:2,scale={w}:{h},eq=brightness=-0.08[fundo];"
+             f"[v2]scale={w}:{h}:force_original_aspect_ratio=decrease,setsar=1[fr];[fundo][fr]overlay=(W-w)/2:(H-h)/2,setsar=1[v];"
+             f"[0:v][v]overlay={x}:{y}[a0];")
+    else:
+        f = (f"[1:v]{cor_sdr(clip)}scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black,setsar=1[v];"
+             f"[0:v][v]overlay={x}:{y}[a0];")
     if masc:
         ins += ["-stream_loop", "-1", "-i", str(masc)]
         f += f"[3:v]{cor_sdr(masc)}{cobre(cw, ch)},setsar=1[m];[a0][m]overlay={cx}:{cy}[a1];"
@@ -690,8 +697,14 @@ def main():
     hoje = dt.date.today().isoformat()
 
     # 1-2) coleta → baixa → transcreve → trechos
-    novos = [{"id": "local_" + hashlib.sha1(v.encode()).hexdigest()[:8], "arquivo": v, "titulo": Path(v).stem, "fonte": "teste", "canal": ""} for v in a.video] \
-        if a.video else ([] if a.sem_coleta else coleta(cfg, hist))
+    def local(v):
+        """arquivo da imprensa no PC; o .info.json do yt-dlp ao lado (se tiver) dá o título e a fonte"""
+        d = le_json(Path(v).with_suffix(".info.json"), {})
+        fonte = d.get("uploader") or d.get("channel") or "teste"
+        fonte = {"atletico": "TV Galo", "espnbrasil": "ESPN Brasil"}.get(str(fonte).lower(), fonte)
+        return {"id": "local_" + hashlib.sha1(v.encode()).hexdigest()[:8], "arquivo": v, "fonte": fonte, "canal": "",
+                "titulo": re.sub(r"\s+", " ", d.get("description") or d.get("title") or Path(v).stem)[:200]}
+    novos = [local(v) for v in a.video] if a.video else ([] if a.sem_coleta else coleta(cfg, hist))
     grava_json(pasta / "historico.json", hist)
     try:
         pautas(pasta, cfg, hist)
