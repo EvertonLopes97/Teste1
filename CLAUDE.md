@@ -136,6 +136,9 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   cenas) → `plano.json` (seções com clima; trechos: clip/ini/fim/tipo fala|cena|timelapse/zoom/texto/transicao/sfx)
   → trechos renderizados (fundo desfocado se o formato não bate, punch-in, drawtext) → emenda concat + xfade →
   sfx (sons.json) → trilha.py por clima (`E:\DETTO\musicas\<clima>`) → `vlog.mp4` + `vlog_conferir.jpg`.
+  ESTILO AM3NIC (padrão do canal de vlogs desde 19/out; `--estilo` com "am3nic"/"cinemat"): cortes secos, abre com
+  cenas de apoio bonitas + frase-gancho, `lugar` (nome do lugar GRANDE no meio, 2,6 s) e `nota` (comentário curto em
+  minúsculas embaixo, ~1 a cada 40 s), SEM legenda das falas, pouco sfx. Referência: youtu.be/_qu8VdWmd6s.
 - CANAIS AUTOMÁTICOS YouTube (`tools\canal\`, painel aba CANAIS, `tools\painel\canais.py`; guia `tools\canal\LEIA-ME.txt`):
   NOTÍCIAS `canal.py` (E:\DETTO\canal_galo: Galo da imprensa + voz clonada Chatterbox + máscara; `pautas.txt` = link,
   arquivo do PC ou assunto → trechos marcados `pauta`, entram primeiro) e VLOGS `canal_vlog.py` (E:\DETTO\canal_vlogs:

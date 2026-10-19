@@ -39,7 +39,7 @@ TEMP_EXT = {".tmp", ".part", ".partial", ".crdownload", ".download"}
 CONFIG_PADRAO = {
     "drive": "",  # a pasta dos vlogs no Drive; vazio = <Meu Drive>\DETTO\canal_vlogs
     "nome_canal": "",
-    "estilo": "dinâmico, divertido e com emoção, estilo vlog do Afreim / Renato Cariani",
+    "estilo": "cinematográfico, estilo AM3NIC (cortes secos, nome dos lugares, notas curtas em minúsculas)",
     "duracao": 10,
     "auto_postar": False,  # False = espera você aprovar no painel; True = posta sozinho
     "shorts": 2,
@@ -68,6 +68,8 @@ def prepara(pasta):
         comum.grava(f, CONFIG_PADRAO)
     cfg = dict(CONFIG_PADRAO)
     cfg.update(comum.le(f, {}) or {})
+    if "Afreim" in str(cfg.get("estilo", "")):  # o padrão antigo → o estilo que ele escolheu (19/out: AM3NIC)
+        cfg["estilo"] = CONFIG_PADRAO["estilo"]
     return cfg
 
 
@@ -184,7 +186,7 @@ def textos(plano, nome, info, cfg):
     sys.path.insert(0, str(TOOLS / "reels"))
     from reels import gemini_json
 
-    g = gemini_json([{"text": f"""Você cuida de um canal de VLOGS no YouTube (estilo Afreim / Renato Cariani), do criador @detto.galo.
+    g = gemini_json([{"text": f"""Você cuida de um canal de VLOGS no YouTube (estilo AM3NIC: cinematográfico, títulos curiosos tipo "MINHA CASA ESTÁ ABANDONADA?"), do criador @detto.galo.
 Vlog: "{info.get('titulo') or plano.get('titulo') or nome}". Partes: {', '.join(s.get('clima', '') for s in plano.get('secoes', []))}.
 Textos e falas do vlog: {' | '.join(falas)[:6000]}
 Responda SÓ JSON: {{"titulo": "<título chamativo até 90 letras, sem mentir>", "descricao": "<3 a 5 frases>",

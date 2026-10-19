@@ -194,16 +194,32 @@ def analisa(clipes, job):
 
 
 # ------------------------------------------------------------------ plano (o "diretor")
+def cinematografico(estilo):
+    """estilo AM3NIC: cortes secos, nomes de lugar, notas em minúsculas, sem legenda das falas"""
+    e = (estilo or "").lower()
+    return any(k in e for k in ("am3nic", "amenic", "edukof", "cinemat"))
+
+
 def prompt_diretor(an, titulo, estilo, alvo_min, formato):
     linhas = []
     for a in an:
         fr = " | ".join(f"[{f['s']:.1f}-{f['e']:.1f}] {f['t']}" for f in a["frases"])[:2500]
         mov = sum(a["mov"]) / max(1, len(a["mov"]))
         linhas.append(f"CLIPE {a['i']} (dura {a['dur']:.1f}s, movimento {mov:.0f}): falas: {fr or '(sem fala)'}")
-    return f"""Você é o editor de vlogs do criador @detto.galo (futebol/humor, Belo Horizonte). Edite no estilo de vlogs
-brasileiros como Afreim e Renato Cariani: ritmo rápido, jump cuts tirando silêncio e enrolação, gancho forte nos
-primeiros segundos, cenas de apoio curtas entre as falas, textos na tela situando (lugar/momento), efeitos sonoros
-pontuais, trilha que muda de clima conforme a parte. Estilo pedido: {estilo or 'dinâmico, divertido, verdadeiro'}.
+    if cinematografico(estilo):
+        jeito = """Edite no estilo dos vlogs do AM3NIC (EduKof): CINEMATOGRÁFICO e limpo. Abre com 2–4 cenas de
+apoio bonitas (avião, cidade de cima, rua, fachada) e logo a frase-gancho dele; depois cronológico. Cortes SECOS
+(quase nunca whip/zoom/flash; "fade" só para troca de dia), jump cuts tirando silêncio, cenas de apoio curtas
+(1,5–3 s) dos lugares entre as falas, conversas sentadas podem ficar mais longas. NÃO tem legenda das falas: só
+"nota" de vez em quando (comentário curto em minúsculas, tipo "na estaca zero", "sem mentir (2x)", "tão feliz?",
+1 a cada ~40 s) e "lugar" quando chega num lugar novo (nome do lugar/cidade grande no meio, ex.: "Orlando",
+"Arena MRV", "Mineirão"). Pouquíssimo efeito sonoro. Trilha calma/emocionante, baixa."""
+    else:
+        jeito = """Edite no estilo de vlogs brasileiros como Afreim e Renato Cariani: ritmo rápido, jump cuts tirando
+silêncio e enrolação, gancho forte nos primeiros segundos, cenas de apoio curtas entre as falas, textos na tela
+situando (lugar/momento), efeitos sonoros pontuais, trilha que muda de clima conforme a parte."""
+    return f"""Você é o editor de vlogs do criador @detto.galo (futebol/humor, Belo Horizonte). {jeito}
+Estilo pedido: {estilo or 'dinâmico, divertido, verdadeiro'}.
 Título: {titulo or '(você sugere)'}. Formato: {formato}. Duração alvo: ~{alvo_min} min (pode ser menos se o material for curto).
 
 Material (os clipes estão na ordem em que foram gravados; as fotos de cada clipe vêm em seguida, com o tempo):
@@ -217,13 +233,15 @@ Regras:
 - tipo: "fala" | "cena" | "timelapse" (cena longa acelerada 3x, 2–4 s no vídeo final).
 - zoom: "punch" em frases de impacto/piada (no máx. 1 a cada ~20 s), senão "nada".
 - texto: texto CURTO na tela (ex.: "DIA 1 • BH", "06:30 TREINO") só quando ajuda a situar; senão "".
+- lugar: nome do lugar GRANDE no meio da tela quando ele chega num lugar novo (ex.: "Arena MRV"); senão "".
+- nota: comentário curto em minúsculas embaixo (piada/ironia sobre o que ele disse, até 5 palavras); senão "".
 - transicao (antes do trecho): "corte" (padrão, mesmo clipe), "whip", "zoom", "flash" ou "fade" (troca de lugar/momento).
 - sfx: "whoosh" | "boom" | "risada" | "ding" | "pop" | "fail" | "nenhum" (pouco: 1 a cada ~15 s).
 - secoes: agrupe os trechos em partes de 30–120 s, cada uma com um clima de trilha: {", ".join(CLIMAS)}.
 
 Responda SÓ JSON:
 {{"titulo": "...", "secoes": [{{"clima": "animado", "trechos": [{{"clip": 0, "ini": 1.2, "fim": 6.8, "tipo": "fala",
-"zoom": "nada", "texto": "", "transicao": "corte", "sfx": "nenhum"}}]}}]}}"""
+"zoom": "nada", "texto": "", "lugar": "", "nota": "", "transicao": "corte", "sfx": "nenhum"}}]}}]}}"""
 
 
 def diretor_gemini(an, titulo, estilo, alvo_min, formato):
@@ -325,6 +343,8 @@ def limpa_plano(plano, an):
             t["transicao"] = t.get("transicao") if t.get("transicao") in ("corte", *TRANS) else "corte"
             t["zoom"] = "punch" if t.get("zoom") == "punch" else "nada"
             t["texto"] = str(t.get("texto") or "")[:40]
+            t["lugar"] = str(t.get("lugar") or "")[:24]
+            t["nota"] = str(t.get("nota") or "")[:40]
             t["sfx"] = t.get("sfx") or "nenhum"
             ok.append(t)
         s["trechos"] = ok
@@ -371,6 +391,18 @@ def render_trecho(t, a, W, H, fps, saida, job):
         tam = int(H * (0.055 if W >= H else 0.04))
         vf += (f",drawtext=fontfile=fonte.ttf:text='{txt}':fontsize={tam}:fontcolor=white:box=1:boxcolor=black@0.55:boxborderw={tam // 3}"
                f":x=w*0.05:y=h*0.08:enable='lt(t,3.2)':alpha='if(lt(t,0.25),t/0.25,if(gt(t,2.9),(3.2-t)/0.3,1))'")
+    if t.get("lugar"):
+        # nome do lugar GRANDE no meio (estilo AM3NIC: "Orlando"), entra e sai suave
+        txt = esc_txt(t["lugar"])
+        tam = int(H * (0.16 if W >= H else 0.09))
+        vf += (f",drawtext=fontfile=titulo.ttf:text='{txt}':fontsize={tam}:fontcolor=white:shadowcolor=black@0.45:shadowx=4:shadowy=4"
+               f":x=(w-text_w)/2:y=(h-text_h)/2:enable='lt(t,2.6)':alpha='if(lt(t,0.35),t/0.35,if(gt(t,2.2),(2.6-t)/0.4,1))'")
+    if t.get("nota"):
+        # comentário curto em minúsculas, pequeno, no meio de baixo (como "na estaca zero")
+        txt = esc_txt(t["nota"].lower())
+        tam = int(H * (0.042 if W >= H else 0.032))
+        vf += (f",drawtext=fontfile=fonte.ttf:text='{txt}':fontsize={tam}:fontcolor=white:shadowcolor=black@0.6:shadowx=2:shadowy=2"
+               f":x=(w-text_w)/2:y=h*0.80:enable='between(t,0.2,2.6)'")
     dur_saida = (fim - ini) / vel
     k = audio_bom(a["arq"])
     cmd = ["ffmpeg", "-v", "error", "-y", "-ss", f"{ini:.3f}", "-to", f"{fim:.3f}", "-i", a["arq"]]
@@ -412,6 +444,7 @@ def monta(plano, an, job, W, H, fps, legendas, log=log):
     if rn.exists():
         shutil.copyfile(rn, job / "rnnoise.rnnn")
     shutil.copyfile(PONTE / "fonts" / "Inter-ExtraBold.otf", job / "fonte.ttf")
+    shutil.copyfile(PONTE / "fonts" / "Inter-ExtraBold.otf", job / "titulo.ttf")
     por_i = {a["i"]: a for a in an}
     pasta = job / "partes"
     pasta.mkdir(exist_ok=True)
@@ -591,7 +624,7 @@ def main():
     job = Path(a.saida) if a.saida else pasta.with_name(pasta.name + " vlog")
     job.mkdir(parents=True, exist_ok=True)
     W, H = (1920, 1080) if a.formato == "horizontal" else (1080, 1920)
-    legendas = (a.formato == "vertical") if a.legendas is None else bool(a.legendas)
+    legendas = (a.formato == "vertical" and not cinematografico(a.estilo)) if a.legendas is None else bool(a.legendas)
     log(f"VLOG: {len(clipes_orig)} clipes de {pasta} → {job}")
 
     log("1/5 cor: HDR → SDR (uma vez por clipe)")
