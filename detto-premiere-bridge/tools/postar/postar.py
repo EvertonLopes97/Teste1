@@ -370,23 +370,21 @@ def _link_facebook(cfg, base, conta, video):
 
 def link_temporario(video, cfg=None, base=None, conta=None, tentativa=0):
     """O Reels TESTE só funciona com o vídeo num link público (o envio direto do arquivo ignora o "teste" e posta
-    normal). Devolve (url, apagar). Ordem pelo que FUNCIONOU no PC dele (16/out): Catbox (o Instagram baixa),
-    Litterbox, tmpfiles (deram 2207082 = o IG não baixou) e por último a página do Facebook não publicada (deu 2207076).
-    A cada nova tentativa do mesmo vídeo começa pelo próximo."""
-    fontes = [("Catbox", lambda: (_link_catbox(video), None)), ("Litterbox", lambda: (_link_litterbox(video), None)),
-              ("tmpfiles", lambda: (_link_tmpfiles(video), None))]
-    if cfg is not None and base is not None and conta:
-        fontes.append(("página do Facebook (não publicado)", lambda: _link_facebook(cfg, base, conta, video)))
-    k = tentativa % len(fontes)
-    fontes = fontes[k:] + fontes[:k]
+    normal). Devolve (url, apagar). Só o Catbox funcionou no PC dele (o Instagram baixa de lá); tmpfiles e a página do
+    Facebook não publicada SEMPRE deram erro (2207082/2207076) — gastavam as tentativas à toa e ficaram de fora.
+    Catbox até 3 vezes (falha passageira), depois o Litterbox (mesmo servidor); sem link = tenta na próxima rodada."""
     erros = []
-    for nome, f in fontes:
-        try:
-            url, apagar = f()
-            log(f"{conta or ''}: Reels TESTE — vídeo em {nome}")
-            return url, apagar
-        except Exception as e:
-            erros.append(f"{nome}: {str(e)[:150]}")
+    for nome, f, vezes in (("Catbox", _link_catbox, 3), ("Litterbox", _link_litterbox, 1)):
+        for k in range(vezes):
+            try:
+                url = f(video)
+                log(f"{conta or ''}: Reels TESTE — vídeo em {nome}")
+                return url, None
+            except Exception as e:
+                erros.append(f"{nome}: {str(e)[:150]}")
+                log(f"{conta or ''}: {nome} não aceitou o envio ({str(e)[:120]})")
+                if k < vezes - 1:
+                    time.sleep(10 * (k + 1))
     raise RuntimeError("não consegui o link para o Reels TESTE (" + " | ".join(erros)[:400] + "). Tenta de novo na próxima rodada.")
 
 
@@ -441,7 +439,7 @@ def _ig_publica(cfg, base, conta, video, params, teste, graduar, G, v, igid, tok
         if sc == "FINISHED":
             break
         if sc in ("ERROR", "EXPIRED"):
-            dica = " (o Instagram não conseguiu baixar o vídeo do link; na próxima tentativa vai por outro lugar)" if "2207082" in str(st.get("status")) else ""
+            dica = " (o Instagram não conseguiu baixar o vídeo do link)" if "2207082" in str(st.get("status")) else ""
             raise RuntimeError(f"Instagram não aceitou o vídeo: {st.get('status')}{dica}")
         time.sleep(10)
     else:
