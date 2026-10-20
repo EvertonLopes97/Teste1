@@ -1430,10 +1430,10 @@ def agendar(hora, base, quantos):
 TRAVA = None
 
 
-def trava_rodada(base):
+def trava_rodada(base, nome=".reels_rodando"):
     """só UM reels.py por vez: o painel (links) e a tarefa do Windows rodando juntos faziam o mesmo link 2 vezes
     (18 e 19, 20 e 21...). A trava é do sistema: some sozinha quando o processo acaba (até se ele travar/fechar)."""
-    f = open(base / ".reels_rodando", "a+")
+    f = open(Path(base) / nome, "a+")
     try:
         if os.name == "nt":
             import msvcrt

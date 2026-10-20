@@ -275,11 +275,15 @@ def acha_trechos(words, info, cfg, assunto=None):
     _, _, t = apelidos(cfg)
     alvo = (f"em que falam de: {assunto}" if assunto and assunto != "*" else "com a notícia/assunto principal deste vídeo") if assunto \
         else f"em que falam do {t.get('nome', cfg['time'])} (o Galo): análise, elogio, crítica, polêmica, notícia, entrevista"
+    regra_canal = ("Este canal JUNTA notícias de vários programas: marque SÓ as partes em que fala a IMPRENSA (apresentador/jornalista "
+                   "de TV, rádio, entrevista, coletiva). IGNORE a narração do dono do canal ('fala galera', 'se inscreve', leitura de "
+                   "manchete, opinião do youtuber) e anúncios." if info.get("juntador") else
+                   "Ignore vinheta, intervalo, propaganda e conversa sem notícia.")
     g = gemini_json([{"text": f"""Transcrição (segundos entre colchetes) de "{info['titulo']}" ({info['fonte']}).
 Marque os trechos {alvo}.
 Cada trecho é UMA notícia INTEIRA: do começo ao fim do assunto (a informação + a análise/opinião sobre ela), começo e fim
 NATURAIS (frase completa, nunca cortar no meio), entre {cfg.get("trecho_min_s", 15)} e {cfg.get("trecho_max_s", 180)} segundos — o tamanho que a notícia precisar.
-{"Este canal JUNTA notícias de vários programas: marque SÓ as partes em que fala a IMPRENSA (apresentador/jornalista de TV, rádio, entrevista, coletiva). IGNORE a narração do dono do canal (\"fala galera\", \"se inscreve\", leitura de manchete, opinião do youtuber) e anúncios." if info.get("juntador") else "Ignore vinheta, intervalo, propaganda e conversa sem notícia."}
+{regra_canal}
 {"Ignore o resto." if assunto else "Ignore trechos sobre outros times."} Responda SÓ JSON:
 {{"trechos": [{{"ini": <s>, "fim": <s>, "manchete": "<MANCHETE CURTA EM MAIÚSCULAS, até 60 letras>", "resumo": "<1 frase>",
  "programa": "<de onde é a fala, se der para saber: ex. Globo Esporte MG, Jogo Aberto, Rádio Itatiaia, coletiva; senão vazio>",
@@ -1019,6 +1023,9 @@ def agendar(pasta):
         print(f"Agendado: a cada 2 h, das 8h às 23h. Log: {pasta / 'canal.log'}. Tirar: schtasks /Delete /TN \"DETTO canal Galo\" /F")
 
 
+TRAVA = None
+
+
 def main():
     ap = argparse.ArgumentParser(description="canal automático do Galo")
     ap.add_argument("--pasta", default=str(pasta_padrao()))
@@ -1055,6 +1062,14 @@ def main():
 
     if a.postar:
         comum.publica(pasta, Path(a.postar), cfg, log=log)
+        return
+    # UMA rodada por vez: duas juntas (painel + tarefa do Windows / "Rodar agora") apagavam o tmp\ uma da outra
+    # no meio da voz → "falas.json não encontrado"
+    global TRAVA
+    from reels import trava_rodada
+    TRAVA = trava_rodada(pasta, ".canal_rodando")
+    if not TRAVA:
+        log("outra rodada do canal já está montando agora — saio (essa termina sozinha)")
         return
     hist = le_json(pasta / "historico.json", {"vistos": {}, "trechos": [], "postados": []})
     hoje = dt.date.today().isoformat()

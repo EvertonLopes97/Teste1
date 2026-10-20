@@ -167,6 +167,9 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   8–23 h; vlogs 10 min). Um trabalho pesado por vez (`EDI.OCUPADO`). Login por canal (token.json na pasta do canal);
   client_secret.json compartilhado em E:\DETTO\youtube. `--preparar`, `--postar <pronto>`, `DETTO_VOZ_FALSA=1` (teste: voz de computador pt — Windows SAPI "Maria" / espeak-ng —
   no lugar da clonada; painel: botão "Teste" no card Notícias = `--forcar --nao-postar` com essa voz).
+- PYTHON 3.11 no PC dele: NADA de `\` dentro das chaves de f-string (no 3.12+ passa, lá quebra — aconteceu no canal.py). Conferir:
+  `python3.11 -S -c "import ast,sys;ast.parse(open(sys.argv[1]).read())" arq.py`; o GitHub Actions roda compileall no 3.11.
+  canal.py: UMA rodada por vez (`trava_rodada(pasta, ".canal_rodando")`; duas juntas apagavam o tmp\ da outra no meio da voz).
 - TESTES: `npm run check` (tipos + testes + teste VISUAL `test/visual.test.js`: quadros do palco × `test/visual/ref_*.png`).
   Mudou o visual de propósito → `npm run visual:aprovar`. GitHub Actions roda tudo a cada push (`.github/workflows/testes.yml`).
 

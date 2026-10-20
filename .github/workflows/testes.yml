@@ -16,6 +16,12 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: detto-premiere-bridge/package-lock.json
+      # o PC do Everton usa Python 3.11: f-string com \ dentro das chaves quebra lá (aqui no 3.12+ passa)
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Python 3.11 lê todos os .py
+        run: python -c "import ast,pathlib,sys; e=[str(f) for f in pathlib.Path('tools').rglob('*.py') if not ast.parse(f.read_text(encoding='utf-8')) is None and False]; print('ok')" && python -m compileall -q tools
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg
