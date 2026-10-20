@@ -151,7 +151,10 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   Jornal do Galo, Vibra Torcedor, Galo Noticiou, Eu Sou Galo — Gemini marca SÓ a fala da imprensa, ignora o narrador do canal) ·
   4 qualquer canal da busca por data (`busca_qualquer_canal`); `fora` = react/ao vivo/jogo); hora pelo FEED RSS (`rss`), hoje e
   ontem (`max_horas` 48), sem Shorts; `max_videos_rodada` 8 por rodada (o resto na próxima); notícia INTEIRA (15 s a
-  `trecho_max_s` 180, corte só no fim de frase), máx. 3 por vídeo, vídeo ~10 min; notícia repetida em outro canal ou já
+  `trecho_max_s` 180, corte só no fim de frase), máx. 3 por vídeo; vídeo de PELO MENOS 16 min (`duracao_alvo_min` 16 = imprensa + falas ~12 s cada; sem material e sem --forcar espera; `fontes_versao` 5);
+  cada fala CITA a origem do trecho seguinte (`origem`/`origem_falada`: "Globo Esporte MG, no canal X") e o fechamento diz que os créditos estão nos
+  comentários; créditos num COMENTÁRIO do canal (`youtube_up.comenta`, escopo youtube.force-ssl → refazer o login do canal uma vez;
+  fixar é no Studio) + descrição + faixa "Imagens: origem"; notícia repetida em outro canal ou já
   postada nos últimos 3 dias (`parecido` ≥ `parecido_max` 0,35 nas palavras do assunto, `ja_postado`) fica fora; créditos
   com o programa original (`programa`, "via canal");
   VOZ: frases ≤150 letras, exagero ≤0,6, cfg 0,5, cada frase CONFERIDA pelo tamanho (≈14 letras/s) e refeita até 4x (`frase_boa`),

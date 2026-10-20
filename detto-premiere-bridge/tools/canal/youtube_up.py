@@ -12,6 +12,8 @@ import time
 from pathlib import Path
 
 ESCOPOS = ["https://www.googleapis.com/auth/youtube.upload", "https://www.googleapis.com/auth/youtube"]
+# no LOGIN pede também o de comentar (force-ssl); o token antigo continua valendo para postar
+ESCOPOS_LOGIN = ESCOPOS + ["https://www.googleapis.com/auth/youtube.force-ssl"]
 
 
 def _libs():
@@ -37,6 +39,8 @@ def credenciais(pasta, abrir_navegador=False):
             cred.refresh(Request())
         except Exception:
             cred = None
+    if cred and abrir_navegador and token.exists() and ESCOPOS_LOGIN[-1] not in token.read_text(encoding="utf-8"):
+        cred = None  # login de novo pedido no painel: o token antigo não tem a permissão de comentar → pede de novo
     if not cred or not cred.valid:
         if not abrir_navegador:
             raise SystemExit("YouTube sem login: rode  python tools\\canal\\canal.py --login  (uma vez).")
@@ -44,7 +48,7 @@ def credenciais(pasta, abrir_navegador=False):
         if not segredo:
             raise SystemExit(f"Falta o client_secret.json (credencial 'App para computador' do Google Cloud) em {pasta} "
                              f"ou em {pasta.parent / 'youtube'} — veja o LEIA-ME.txt.")
-        cred = InstalledAppFlow.from_client_secrets_file(str(segredo), ESCOPOS).run_local_server(port=0, prompt="consent")
+        cred = InstalledAppFlow.from_client_secrets_file(str(segredo), ESCOPOS_LOGIN).run_local_server(port=0, prompt="consent")
     token.write_text(cred.to_json(), encoding="utf-8")
     return cred
 
@@ -105,3 +109,13 @@ def posta(pasta, video, titulo, descricao, tags, thumb=None, privacidade="public
         except HttpError as e:
             log(f"   thumb não subiu ({e.resp.status}): o canal precisa estar VERIFICADO (telefone) para thumb personalizada")
     return vid
+
+
+def comenta(pasta, video_id, texto):
+    """comentário do próprio canal no vídeo (os créditos). Fixar o comentário a API não faz — é no YouTube Studio."""
+    from googleapiclient.discovery import build
+
+    yt = build("youtube", "v3", credentials=credenciais(pasta), cache_discovery=False)
+    r = yt.commentThreads().insert(part="snippet", body={"snippet": {"videoId": video_id, "topLevelComment": {
+        "snippet": {"textOriginal": texto[:9500]}}}}).execute()
+    return r.get("id")

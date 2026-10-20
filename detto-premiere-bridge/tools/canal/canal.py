@@ -73,7 +73,7 @@ CONFIG_PADRAO = {
         {"canal": "@canalgalonoticiou", "nome": "Canal Galo Noticiou", "filtro": "titulo", "prioridade": 3, "juntador": True},
         {"canal": "@EUSOUGALO", "nome": "Eu Sou Galo", "filtro": "titulo", "prioridade": 3, "juntador": True},
     ],
-    "fontes_versao": 4,
+    "fontes_versao": 5,
     # "qualquer coisa que for notícia": busca do YouTube por data — qualquer canal, se o título fala do Galo (prioridade 4)
     "busca": ["notícias do galo hoje", "atlético mineiro notícias", "galo atlético mg", "corte atlético mineiro programa"],
     "busca_qualquer_canal": True,
@@ -88,7 +88,7 @@ CONFIG_PADRAO = {
     "parecido_max": 0.35,  # notícia repetida (o mesmo assunto em 2 canais / já postada) fica de fora
     "por_fonte": 15,
     "max_min_fonte": 120,
-    "duracao_alvo_min": 10,
+    "duracao_alvo_min": 16,  # o vídeo tem PELO MENOS isso (imprensa + suas falas)
     "min_trechos": 4,
     "max_videos_dia": 2,
     "horas_entre_posts": 4,
@@ -346,8 +346,25 @@ def fim_de_frase(words, ini, alvo):
 
 
 # ------------------------------------------------------------------ 3. roteiro da narração
+def origem(x):
+    """de onde veio o trecho, para falar no vídeo e dar o crédito: o programa original (se o Gemini achou) + o canal"""
+    prog = (x.get("programa") or "").strip()
+    if prog and norm(prog) not in norm(x["fonte"]):
+        return f"{prog} (via {x['fonte']})"
+    return x["fonte"]
+
+
+def origem_falada(x):
+    """a origem do jeito de falar: Globo Esporte MG, no canal Notícias do Galo / Jogo Aberto, da Band"""
+    prog = (x.get("programa") or "").strip()
+    fonte = re.sub(r"\s*\((.+?)\)", r", da \1", x["fonte"])
+    if prog and norm(prog) not in norm(x["fonte"]):
+        return f"{prog}, no canal {fonte}"
+    return fonte
+
+
 def roteiro(sel, cfg):
-    lista = "\n".join(f"{i + 1}. [{x['fonte']}] {x['manchete']} — {x.get('resumo', '')} (clima: {x['clima']})" for i, x in enumerate(sel))
+    lista = "\n".join(f"{i + 1}. [ORIGEM: {origem(x)}] {x['manchete']} — {x.get('resumo', '')} (clima: {x['clima']})" for i, x in enumerate(sel))
     g = gemini_json([{"text": f"""Você narra o canal "{cfg['nome_canal']}", de notícias do Atlético-MG (o Galo), como um torcedor apaixonado
 e engraçado de BH (gírias leves, "Massa", "Galo doido"), opinando sobre o que a imprensa falou (alguns trechos podem ser de OUTROS assuntos do futebol que você escolheu
 comentar: fale deles com o mesmo jeito, sempre como torcedor do Galo). Os trechos, em ordem:
@@ -360,14 +377,17 @@ Escreva a narração que liga os trechos. Responda SÓ JSON:
  "abertura": {{"texto": "<gancho de 2 a 3 frases, até 45 palavras>", "clima": "<{'|'.join(CLIMAS)}>"}},
  "falas": [{{"antes_do": <número do trecho>, "texto": "<sua opinião/ponte para o trecho, 1 a 3 frases, até 40 palavras>", "clima": "..."}}],
  "fechamento": {{"texto": "<opinião final + pedir like, inscrição e comentário, até 40 palavras>", "clima": "..."}}}}
-Uma fala antes de CADA trecho (antes_do = 1, 2, 3...)."""}])
+Uma fala antes de CADA trecho (antes_do = 1, 2, 3...). CADA fala DIZ DE ONDE VEM o trecho seguinte, pelo nome do programa/emissora
+da ORIGEM (ex.: "olha o que falaram no Globo Esporte Minas", "o pessoal do Jogo Aberto, da Band, comentou"; se for "via" um canal,
+cite o programa e o canal). No fechamento, diga que os créditos de tudo que foi usado estão nos comentários e na descrição."""}])
     if not g:
         nomes = ", ".join(x["fonte"] for x in sel[:3])
         g = {"titulo": f"IMPRENSA FALA DO GALO! {sel[0]['manchete']}"[:95], "thumb_texto": "OLHA ISSO", "thumb_destaque": "ISSO",
              "descricao": f"O que {nomes} falaram do Galo hoje.", "tags": ["galo", "atlético mineiro", "notícias do galo", "atlético-mg"],
              "abertura": {"texto": "Fala, Massa! Olha o que a imprensa falou do Galo hoje.", "clima": "falando"},
-             "falas": [{"antes_do": i + 1, "texto": f"Agora olha o que falaram: {x['manchete'].lower()}.", "clima": x["clima"]} for i, x in enumerate(sel)],
-             "fechamento": {"texto": "E aí, Massa, concorda? Comenta aí, deixa o like e se inscreve. Galo doido!", "clima": "comemorando"}}
+             "falas": [{"antes_do": i + 1, "texto": f"Agora olha o que falaram no {origem_falada(x)}: {x['manchete'].lower()}.",
+                        "clima": x["clima"]} for i, x in enumerate(sel)],
+             "fechamento": {"texto": "E aí, Massa, concorda? Comenta aí, deixa o like e se inscreve. Os créditos de tudo estão nos comentários e na descrição. Galo doido!", "clima": "comemorando"}}
     return g
 
 
@@ -673,7 +693,7 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
         if i in fala_antes:
             add_fala(fala_antes[i])
         p = tmp / f"p{len(pecas):03d}.mp4"
-        fx = faixa_png(x["manchete"], f"Imagens: {x['fonte']}", tmp / f"faixa_{i}.png", cfg["cor"])
+        fx = faixa_png(x["manchete"], f"Imagens: {origem(x)}", tmp / f"faixa_{i}.png", cfg["cor"])
         log(f"   trecho {i + 1}/{len(sel)}: {x['manchete']} ({x['fim'] - x['ini']:.0f}s, {x['fonte']})")
         if peca_trecho(base, x["arquivo"], x["ini"], x["fim"], mascara_de(x["clima"], pasta), fx, p):
             pecas.append(p)
@@ -976,7 +996,7 @@ def prepara(pasta):
         for k_ in ("fontes", "fontes_versao", "busca", "busca_qualquer_canal", "outras_fontes", "fora", "max_horas", "max_videos_rodada",
                    "trecho_min_s", "trecho_max_s", "max_trechos_video", "parecido_max"):
             seu[k_] = CONFIG_PADRAO[k_]
-        if seu.get("duracao_alvo_min", 12) in (8, 12):
+        if seu.get("duracao_alvo_min", 12) < 16:
             seu["duracao_alvo_min"] = CONFIG_PADRAO["duracao_alvo_min"]
         grava_json(cfg_f, seu)
         log("config: fontes novas (imprensa + TV Galo + canais de notícias do Galo + busca), notícias inteiras de hoje e ontem")
@@ -1108,11 +1128,15 @@ def main():
     # os melhores (nota) até o tamanho do vídeo, sem repetir muito a mesma fonte seguida
     alvo = cfg["duracao_alvo_min"] * 60
     sel, tot = [], 0.0
+
+    def total_estimado():
+        # imprensa + suas falas (~12 s antes de cada notícia) + abertura e fechamento (~30 s)
+        return tot + 12 * len(sel) + 30
     por_video = {}
     # pautas primeiro; depois as melhores notas, desempate pela mais nova (notícia do dia na frente)
     for x in sorted(recentes, key=lambda x: (not x.get("pauta"), -round(float(x.get("nota", 5))), int(x.get("prioridade", 1)),
                                              "".join(chr(255 - ord(c)) for c in x.get("publicado", "")))):
-        if tot >= alvo:
+        if total_estimado() >= alvo:
             break
         if por_video.get(x["video"], 0) >= int(cfg.get("max_trechos_video", 3)):
             continue
@@ -1128,7 +1152,12 @@ def main():
         tot += x["fim"] - x["ini"]
     # no vídeo, a ordem é da mais nova para a mais antiga (manchete do dia abre)
     sel = [x for x in sel if x.get("pauta")] + sorted([x for x in sel if not x.get("pauta")], key=lambda x: x.get("publicado", ""), reverse=True)
-    log(f"\nmontando: {len(sel)} trechos, {tot / 60:.1f} min de imprensa")
+    if total_estimado() < alvo:
+        if not a.forcar:
+            log(f"ainda não dá {cfg['duracao_alvo_min']} min (tem ~{total_estimado() / 60:.1f} min de notícia nova); espera a próxima rodada")
+            return
+        log(f"AVISO: só tem ~{total_estimado() / 60:.1f} min de notícia nova (menos de {cfg['duracao_alvo_min']}); monto assim porque você mandou")
+    log(f"\nmontando: {len(sel)} trechos, {tot / 60:.1f} min de imprensa (~{total_estimado() / 60:.1f} min de vídeo)")
     rot = roteiro(sel, cfg)
     tmp = pasta / "tmp"
     shutil.rmtree(tmp, ignore_errors=True)
@@ -1137,8 +1166,7 @@ def main():
     pronto.mkdir(parents=True, exist_ok=True)
     video = monta(sel, rot, cfg, pasta, tmp, pronto / "video.mp4")
     th = thumb(video, rot, cfg, pronto)
-    creditos = sorted({(f"{x['programa']} (via {x['fonte']})" if x.get("programa") and norm(x["programa"]) not in norm(x["fonte"]) else x["fonte"])
-                       + (f" — youtube.com/{x['canal']}" if x.get("canal") else "") for x in sel})
+    creditos = sorted({origem(x) + (f" — youtube.com/{x['canal']}" if x.get("canal") else "") for x in sel})
     tags = [t.strip("#") for t in rot.get("tags", [])][:15]
     hashtags = " ".join("#" + re.sub(r"\W", "", t) for t in tags[:3])
     descricao = (f"{rot.get('descricao', '')}\n\n{hashtags}\n\nCréditos das imagens:\n"
@@ -1159,7 +1187,11 @@ def main():
     # lembra o que foi postado (3 dias) para a mesma notícia não voltar por outro canal
     hist["ja_postado"] = [u for u in hist.get("ja_postado", []) if (dt.date.today() - dt.date.fromisoformat(u["data"])).days <= 3] + \
         [{"data": hoje, "texto": (x.get("texto") or x.get("manchete", ""))[:1500]} for x in sel]
+    # crédito também num COMENTÁRIO no vídeo (o sistema comenta logo depois de postar)
+    comentario = ("📺 Créditos — trechos de TV/rádio/canais usados neste vídeo (comentados pelo canal):\n"
+                  + "\n".join(f"• {c}" for c in creditos) + "\n\nTodos os direitos dos trechos são dos seus donos. Narração com voz gerada por IA.")
     post = {"titulo": rot["titulo"], "descricao": descricao, "tags": tags, "video": "video.mp4", "thumb": th.name if th else "",
+            "comentario": comentario,
             "shorts": shorts, "status": "aguardando", "criado": dt.datetime.now().isoformat(timespec="seconds"),
             "trechos": [{"fonte": x["fonte"], "manchete": x["manchete"], "pauta": x.get("pauta", "")} for x in sel]}
     comum.grava(pronto / "post.json", post)

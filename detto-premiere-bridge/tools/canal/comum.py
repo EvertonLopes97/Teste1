@@ -53,6 +53,19 @@ def publica(pasta, pronto, cfg, log=print, sintetico=True, categoria="17"):
             post["youtube"] = f"https://youtu.be/{vid}"
             grava(pronto / "post.json", post)
             log(f"POSTADO: {post['youtube']}")
+        if post.get("comentario") and not post.get("comentou") and post.get("youtube"):
+            try:
+                youtube_up.comenta(pasta, post["youtube"].rsplit("/", 1)[-1], post["comentario"])
+                post["comentou"] = True
+                grava(pronto / "post.json", post)
+                log("créditos comentados no vídeo (para FIXAR: YouTube Studio → Comentários → ⋮ → Fixar)")
+            except Exception as e:
+                msg = str(e)
+                if "insufficient" in msg.lower() or "403" in msg:
+                    log("não consegui comentar os créditos: falta a permissão de comentar — refaça o login do canal no painel "
+                        "(aba Canais) uma vez; os créditos estão na descrição")
+                else:
+                    log(f"não consegui comentar os créditos ({msg[:150]}); estão na descrição")
         feitos = post.setdefault("shorts_youtube", [])
         agora = dt.datetime.now(dt.timezone.utc)
         passo = float(cfg.get("horas_entre_shorts", 3))
