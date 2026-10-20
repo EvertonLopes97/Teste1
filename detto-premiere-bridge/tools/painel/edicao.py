@@ -298,7 +298,32 @@ def de_caminho(d):
     except OSError:
         shutil.copyfile(orig, alvo)
     muda_info(p, **{campo: alvo.name})
+    if campo == "video":
+        junto_do_video(p, orig)
     return {"ok": True}
+
+
+def junto_do_video(p, orig):
+    """vídeo pelo caminho (ex.: a pasta do Drive "rodada 31"): pega também o roteiro (.txt/.docx) e a pasta imagens\\
+    que estão ao lado dele — antes só ia o vídeo e o editar.py pedia o roteiro ao Gemini"""
+    pasta = orig.parent
+    if not any((p / f"roteiro_enviado{e}").exists() for e in (".txt", ".md")):
+        cands = [orig.with_suffix(e) for e in (".txt", ".docx", ".md")] + [orig.with_name(orig.stem + "_roteiro.txt")]
+        outros = sorted((f for f in pasta.iterdir() if f.is_file() and f.suffix.lower() in (".txt", ".docx", ".md")
+                         and not f.name.lower().startswith(("leia-me", "leiame", "~$"))), key=lambda f: -f.stat().st_mtime)
+        rot = next((c for c in cands if c.is_file()), None) or (outros[0] if outros else None)
+        if rot:
+            alvo = p / ("roteiro_enviado" + rot.suffix.lower())
+            shutil.copyfile(rot, alvo)
+            if alvo.suffix == ".docx":
+                _docx_para_txt(alvo)
+            muda_info(p, roteiro_de=str(rot))
+    imgs = pasta / "imagens"
+    if imgs.is_dir():
+        (p / "imagens").mkdir(exist_ok=True)
+        for f in imgs.iterdir():
+            if f.is_file() and f.suffix.lower() in IMG_EXT and not (p / "imagens" / f.name).exists():
+                shutil.copyfile(f, p / "imagens" / f.name)
 
 
 def prepara_roteiro(p):

@@ -204,6 +204,59 @@ def gemini(prompt):
 
 
 
+def _mmss(t):
+    return f"{int(t // 60):02d}:{int(t % 60):02d}"
+
+
+def roteiro_basico(words, titulo=""):
+    """SEM Gemini (cota acabou / sem internet): roteiro simples direto da fala — um trecho [CAM] a cada frase/ideia
+    (5–12 s, quebra nas pausas), punch-in nas exclamações e um corte vertical a cada ~60 s. Dá para ajustar depois."""
+    frases, atual = [], []
+    for k, w in enumerate(words):
+        atual.append(w)
+        prox = words[k + 1] if k + 1 < len(words) else None
+        if prox is None or prox["s"] - w["e"] > 0.6 or re.search(r"[.!?]$", w["w"]) or len(atual) > 28:
+            frases.append(atual)
+            atual = []
+    trechos, cur = [], []
+    for f in frases:
+        cur += f
+        d = cur[-1]["e"] - cur[0]["s"]
+        if d >= 5 or f is frases[-1]:
+            if d > 12 and len(cur) > len(f):
+                trechos.append(cur[: len(cur) - len(f)])
+                cur = list(f)
+                if f is not frases[-1]:
+                    continue
+            trechos.append(cur)
+            cur = []
+    if cur:
+        trechos.append(cur)
+    L = ["=" * 69, f' ROTEIRO DE EDIÇÃO — "{(titulo or "VÍDEO").upper()}"  (automático, sem IA)', "=" * 69, ""]
+    for i, t in enumerate(trechos):
+        if i == 0:
+            L += ["=" * 69, " ABERTURA / GANCHO", "=" * 69, ""]
+        elif i == 1:
+            L += ["=" * 69, " BLOCO 1 — O VÍDEO", "=" * 69, ""]
+        fala = " ".join(w["w"] for w in t).replace('"', "'")
+        L += [f"[{_mmss(t[0]['s'])} – {_mmss(t[-1]['e'] + 0.5)}]", f'FALA: "{fala}"']
+        ex = re.findall(r"(\w+)!", fala)
+        if ex:
+            L.append(f'EFEITO: punch-in em "{ex[0]}"')
+        L.append("")
+    L += ["=" * 69, " CORTES VERTICAIS (9:16) SUGERIDOS", "=" * 69]
+    ini, n, gancho = None, 0, " ".join(w["w"] for w in trechos[0])[:90].replace('"', "'") if trechos else ""
+    for t in trechos:
+        if ini is None:
+            ini = t[0]["s"]
+        if t[-1]["e"] - ini >= 55 or t is trechos[-1]:
+            if t[-1]["e"] - ini >= 25:
+                n += 1
+                L.append(f'{n}. "PARTE {n}": [{_mmss(ini)} – {_mmss(t[-1]["e"] + 0.5)}]. Gancho: "{gancho}"')
+            ini = None
+    return "\n".join(L) + "\n"
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("words")
@@ -212,8 +265,14 @@ def main():
     a = p.parse_args()
     words = json.loads(Path(a.words).read_text(encoding="utf-8"))
     prompt = REGRAS + (f"\nTítulo sugerido: {a.titulo}\n" if a.titulo else "") + "\nTRANSCRIÇÃO:\n" + falas(words)
-    texto = gemini(prompt).strip()
-    texto = re.sub(r"^```\w*\n|\n```$", "", texto)
+    try:
+        texto = gemini(prompt).strip()
+        texto = re.sub(r"^```\w*\n|\n```$", "", texto)
+    except SystemExit as e:
+        # cota do Gemini acabou (429) / sem chave / sem internet: não para a edição — roteiro simples pela fala
+        print(f"Gemini indisponível ({str(e)[:160]}).\nFiz um roteiro SIMPLES pela fala (câmera + legenda, cortes de ~60 s). "
+              f"Para os gráficos, mande o seu roteiro ou refaça amanhã com o Gemini.")
+        texto = roteiro_basico(words, a.titulo).strip()
     Path(a.saida).write_text(texto + "\n", encoding="utf-8")
     print(f"Roteiro: {a.saida} ({texto.count('FALA:')} trechos)")
 
