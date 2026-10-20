@@ -1418,6 +1418,27 @@ def agendar(hora, base, quantos):
         print("Para tirar: schtasks /Delete /TN \"DETTO reels\" /F")
 
 
+TRAVA = None
+
+
+def trava_rodada(base):
+    """só UM reels.py por vez: o painel (links) e a tarefa do Windows rodando juntos faziam o mesmo link 2 vezes
+    (18 e 19, 20 e 21...). A trava é do sistema: some sozinha quando o processo acaba (até se ele travar/fechar)."""
+    f = open(base / ".reels_rodando", "a+")
+    try:
+        if os.name == "nt":
+            import msvcrt
+            f.seek(0)
+            msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return f
+    except OSError:
+        f.close()
+        return None
+
+
 def main():
     ap = argparse.ArgumentParser(description="reels automáticos: seu começo + viral de futebol + texto")
     ap.add_argument("--pasta", default=str(pasta_padrao()))
@@ -1441,6 +1462,11 @@ def main():
     cfg = prepara_pasta(base)
     if a.agendar:
         return agendar(a.agendar, base, a.quantos)
+    global TRAVA
+    TRAVA = trava_rodada(base)
+    if not TRAVA:
+        log("outro reels.py já está rodando (painel ou tarefa do Windows) — saio para não fazer o mesmo link duas vezes")
+        return
     global SDR_DIR
     SDR_DIR = base / "sdr"
     (base / "tmp").mkdir(exist_ok=True)
@@ -1469,7 +1495,7 @@ def main():
     usos_hoje = [k for k, v in hist["inicios"].items() if v.get("ultimo") == hoje]
 
     # fila: links seus primeiro, depois os virais das hashtags
-    links = [l.strip() for l in (base / "links.txt").read_text(encoding="utf-8").splitlines() if re.match(r"https?://", l.strip())]
+    links = list(dict.fromkeys(l.strip() for l in (base / "links.txt").read_text(encoding="utf-8").splitlines() if re.match(r"https?://", l.strip())))
     fila = [{"url": u, "chave": None, "seu": True} for u in links]
     if a.so_links:
         if not links:

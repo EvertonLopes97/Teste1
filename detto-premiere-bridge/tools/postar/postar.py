@@ -297,6 +297,14 @@ def _multipart(url, campos, campo_arq, video, tempo=900):
         return r.read().decode("utf-8", "replace").strip()
 
 
+class VideoQuebrado(RuntimeError):
+    """o arquivo não abre/decodifica: vai direto para falhas, sem gastar tentativas no Instagram"""
+
+
+SEM_INTERNET = ("getaddrinfo failed", "errno 11001", "errno 11002", "name or service not known", "temporary failure in name resolution",
+                "network is unreachable", "no route to host", "winerror 10051", "winerror 10065")
+
+
 def normaliza_ig(video, pasta):
     """cópia no padrão que o Instagram aceita sempre: H.264 High 4:2:0, mesmo fps (até 60), GOP fechado de 2 s, até 1080x1920,
     ~8 Mbit/s, AAC 128k 48 kHz estéreo, moov no começo (faststart), cor BT.709. Mesmo vídeo = reaproveita."""
@@ -308,10 +316,21 @@ def normaliza_ig(video, pasta):
     r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=index", "-of", "csv=p=0", str(video)],
                        capture_output=True, text=True)
     tem_audio = bool(r.stdout.strip())
-    def tenta(audio_original, fps_fixo):
+    def tenta(audio_original, fps_fixo, tolerante=0):
         vf = ("scale='if(gt(iw,1080),1080,iw)':-2:flags=lanczos,scale=trunc(iw/2)*2:trunc(ih/2)*2,"
               + ("fps=30," if fps_fixo else "fps='min(60,source_fps)',") + "format=yuv420p")
-        cmd = ["ffmpeg", "-v", "error", "-y", "-fflags", "+genpts", "-err_detect", "ignore_err", "-i", str(video)]
+        cmd = ["ffmpeg", "-v", "error", "-y"]
+        if tolerante:
+            # vídeo com pedaço estragado (o decodificador parava: "Terminating thread with return code"): um fio só,
+            # joga fora os quadros quebrados e, na última, corta o finalzinho (onde costuma estar o estrago)
+            cmd += ["-threads", "1", "-fflags", "+genpts+discardcorrupt+igndts", "-err_detect", "ignore_err", "-ec", "3"]
+            if tolerante > 1:
+                d = duracao(video)
+                if d > 3:
+                    cmd += ["-t", f"{d - 0.6:.2f}"]
+        else:
+            cmd += ["-fflags", "+genpts", "-err_detect", "ignore_err"]
+        cmd += ["-i", str(video)]
         if not audio_original:
             cmd += ["-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo"]
         cmd += ["-map", "0:v:0", "-map", "0:a:0" if audio_original else "1:a:0", "-shortest",
@@ -324,15 +343,18 @@ def normaliza_ig(video, pasta):
     # 1) normal; 2) áudio do vídeo vazio/quebrado ("stream received no packets") → silêncio no lugar;
     # 3) FFmpeg sem "source_fps" → 30 fps. O original quebrado o Instagram recusa (2207082 / código 0).
     erro = ""
-    for audio_original, fps_fixo in ((tem_audio, False), (False, False), (False, True)):
-        rr = tenta(audio_original, fps_fixo)
+    for audio_original, fps_fixo, tol in ((tem_audio, False, 0), (False, False, 0), (False, True, 0),
+                                          (tem_audio, True, 1), (False, True, 1), (False, True, 2)):
+        rr = tenta(audio_original, fps_fixo, tol)
         if rr.returncode == 0 and saida.exists() and saida.stat().st_size > 1000:
             if audio_original != tem_audio:
                 log("   (o áudio deste vídeo estava vazio/quebrado: foi com silêncio)")
+            if tol:
+                log("   (o vídeo tinha um pedaço estragado: foi consertado" + (" e o finalzinho saiu)" if tol > 1 else ")"))
             return saida
-        erro = rr.stderr[-300:]
-    log(f"   (não consegui padronizar o vídeo para o Instagram: {erro}; vai o original)")
-    return Path(video)
+        erro = rr.stderr.strip().splitlines()[-1][:200] if rr.stderr.strip() else f"código {rr.returncode}"
+    # o original estragado o Instagram SEMPRE recusa (2207082 / código 0): não adianta mandar e gastar ação da conta
+    raise VideoQuebrado(f"o arquivo do vídeo está estragado (o FFmpeg não consegue ler: {erro}) — refaça este reel")
 
 
 def _link_catbox(video):
@@ -1011,11 +1033,24 @@ def posta_da_fila(cfg, base, c, video, estado):
                 f"{video.name} continua na fila (não conta como erro)")
             grava_json(base / "estado.json", estado)
             return None
-        # depois de um erro, a conta espera 10 min antes de tentar QUALQUER vídeo (antes tentava o próximo na hora,
-        # vários seguidos, e o Instagram bloqueou por "muitas ações")
-        estado.setdefault(k, {})["pausa_ate"] = time.time() + 10 * 60
+        if any(x in txt.lower() for x in SEM_INTERNET):
+            # o PC ficou sem internet (DNS): não é culpa do vídeo — não conta erro, espera 10 min
+            estado.setdefault(k, {})["pausa_ate"] = time.time() + 10 * 60
+            log(f"{k}: sem internet no PC agora ({txt[:120]}) — tento de novo em 10 min (não conta como erro)")
+            grava_json(base / "estado.json", estado)
+            return None
         falhas = estado.setdefault(k, {}).setdefault("falhas", {})
+        quando = estado[k].setdefault("falhas_t", {})
+        if time.time() - quando.get(video.name, 0) > 12 * 3600:
+            falhas.pop(video.name, None)  # erro de outro dia (ex.: no bloqueio de ontem) não conta para hoje
+        if isinstance(e, VideoQuebrado):
+            falhas[video.name] = 3  # arquivo estragado: não adianta tentar de novo → falhas já
+        else:
+            # depois de um erro, a conta espera 10 min antes de tentar QUALQUER vídeo (antes tentava o próximo na
+            # hora, vários seguidos, e o Instagram bloqueou por "muitas ações")
+            estado[k]["pausa_ate"] = time.time() + 10 * 60
         falhas[video.name] = falhas.get(video.name, 0) + 1
+        quando[video.name] = time.time()
         n = falhas[video.name]
         # espera antes de tentar de novo (erro do Instagram costuma passar; e vai por outro link): 15 min, 45 min, 2 h
         espera = [15, 45, 120][min(n, 3) - 1]
@@ -1025,7 +1060,9 @@ def posta_da_fila(cfg, base, c, video, estado):
             for f in [video, video.with_suffix(".txt")]:
                 if f.exists():
                     shutil.move(str(f), str(base / "falhas" / k / f.name))
-            log(f"{k}: {video.name} foi para falhas\\ (4 erros seguidos)")
+            log(f"{k}: {video.name} foi para falhas\\ " + ("(arquivo estragado)" if isinstance(e, VideoQuebrado) else "(4 erros seguidos)"))
+            falhas.pop(video.name, None)  # o mesmo nome de novo na fila começa do zero
+            quando.pop(video.name, None)
         grava_json(base / "estado.json", estado)
         return None
     (Path(base) / "tmp_ig" / (video.stem[:80] + ".ig.mp4")).unlink(missing_ok=True)
