@@ -12,6 +12,8 @@ import argparse
 import json
 import os
 import re
+import subprocess
+import shutil
 import sys
 import urllib.error
 import urllib.request
@@ -204,6 +206,28 @@ def gemini(prompt):
 
 
 
+def claude_cli(prompt, tempo=900):
+    """2ª opção quando o Gemini não responde: o Claude da SUA assinatura (Pro/Max), pelo Claude Code instalado no PC
+    (`claude -p`). Usa o mesmo limite das conversas com o Claude. Sem chave de API: tira ANTHROPIC_API_KEY do
+    ambiente para nunca cair na cobrança da API. Devolve o texto ou None."""
+    exe = shutil.which("claude")
+    if not exe or os.environ.get("DETTO_SEM_CLAUDE"):
+        return None
+    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+    try:
+        r = subprocess.run([exe, "-p", "--output-format", "text"], input=prompt, capture_output=True, text=True,
+                           encoding="utf-8", timeout=tempo, env=env)
+    except (OSError, subprocess.TimeoutExpired) as e:
+        print(f"   Claude: não respondeu ({e})")
+        return None
+    out = (r.stdout or "").strip()
+    if r.returncode != 0 or len(out) < 200:
+        print(f"   Claude: não deu ({(r.stderr or out)[:200]})")
+        return None
+    print("Roteiro feito pelo Claude (sua assinatura)")
+    return out
+
+
 def _mmss(t):
     return f"{int(t // 60):02d}:{int(t % 60):02d}"
 
@@ -269,10 +293,15 @@ def main():
         texto = gemini(prompt).strip()
         texto = re.sub(r"^```\w*\n|\n```$", "", texto)
     except SystemExit as e:
-        # cota do Gemini acabou (429) / sem chave / sem internet: não para a edição — roteiro simples pela fala
-        print(f"Gemini indisponível ({str(e)[:160]}).\nFiz um roteiro SIMPLES pela fala (câmera + legenda, cortes de ~60 s). "
-              f"Para os gráficos, mande o seu roteiro ou refaça amanhã com o Gemini.")
-        texto = roteiro_basico(words, a.titulo).strip()
+        # cota do Gemini acabou (429) / sem chave / sem internet: tenta o Claude da assinatura; senão roteiro simples
+        print(f"Gemini indisponível ({str(e)[:160]}).")
+        texto = claude_cli(prompt)
+        if texto:
+            texto = re.sub(r"^```\w*\n|\n```$", "", texto.strip())
+        else:
+            print("Fiz um roteiro SIMPLES pela fala (câmera + legenda, cortes de ~60 s). "
+                  "Para os gráficos, mande o seu roteiro ou refaça amanhã com o Gemini.")
+            texto = roteiro_basico(words, a.titulo).strip()
     Path(a.saida).write_text(texto + "\n", encoding="utf-8")
     print(f"Roteiro: {a.saida} ({texto.count('FALA:')} trechos)")
 
