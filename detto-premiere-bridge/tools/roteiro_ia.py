@@ -437,9 +437,20 @@ def main():
     p.add_argument("words")
     p.add_argument("saida")
     p.add_argument("--titulo", default="")
+    p.add_argument("--base", help="o roteiro que o criador escreveu (sem tempos / em outro formato): a IA segue ele")
     a = p.parse_args()
     words = json.loads(Path(a.words).read_text(encoding="utf-8"))
-    prompt = REGRAS + (f"\nTítulo sugerido: {a.titulo}\n" if a.titulo else "") + "\nTRANSCRIÇÃO:\n" + falas(words)
+    base = ""
+    if a.base and Path(a.base).exists():
+        b = Path(a.base).read_bytes()
+        base = b.decode("utf-8", "replace") if b"\xef\xbf\xbd" not in b and b.decode("utf-8", "replace").count("\ufffd") < 3 else b.decode("latin1")
+    prompt = REGRAS + (f"\nTítulo sugerido: {a.titulo}\n" if a.titulo else "")
+    if base:
+        prompt += ("\nO CRIADOR GRAVOU LENDO O ROTEIRO ABAIXO (mudando algumas falas). Use-o como GUIA: mesma ordem, os mesmos "
+                   "blocos, os gráficos/placares/cards/efeitos/fotos/cortes verticais/ERRATA que ele pediu, nos trechos em que "
+                   "aquilo foi FALADO. Os tempos vêm da TRANSCRIÇÃO. A FALA de cada trecho é o que ele DISSE.\n"
+                   "=== ROTEIRO DELE ===\n" + base[:30000] + "\n=== FIM DO ROTEIRO DELE ===\n")
+    prompt += "\nTRANSCRIÇÃO:\n" + falas(words)
     try:
         texto = gemini(prompt).strip()
         texto = re.sub(r"^```\w*\n|\n```$", "", texto)

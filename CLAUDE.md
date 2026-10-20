@@ -175,7 +175,9 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
 
 ## Vídeo gravado COM o roteiro dele (padrão)
 
-O Everton grava lendo um roteiro, mas muda as falas. `python tools\editar.py "<video>" --roteiro "<roteiro.txt>"`
+O Everton grava lendo um roteiro, mas muda as falas. Roteiro DELE sem tempos (roteiro de gravação, sem `[0:00 – 0:08]`/`[CAM] — TÍTULO`):
+`editar.py` detecta (`tools/roteiro/tem_trechos.js`), guarda em `<job>\roteiro_seu.txt` e o `roteiro_ia.py --base` (Gemini → Claude)
+monta o roteiro de edição SEGUINDO o dele com os tempos da fala; plano ainda falha → `roteiro_basico` (o anterior em roteiro_falhou.txt). `python tools\editar.py "<video>" --roteiro "<roteiro.txt>"`
 (ou o .txt com o MESMO NOME do vídeo na mesma pasta) → o roteiro é copiado para `<job>\roteiro.txt`.
 - Alinhamento global roteiro × transcrição (`tools/roteiro/align.js`, programação dinâmica): cada trecho começa
   onde foi FALADO; improviso (`[IMPROVISA: ...]`) e palavras trocadas não atrapalham.

@@ -35,6 +35,15 @@ PONTE = Path(__file__).resolve().parents[1]
 T = PONTE / "tools"
 
 
+def tem_trechos(f):
+    """o roteiro tem trechos que o plano entende? ([0:00 – 0:08] / [CAM] — TÍTULO com FALA:) — mesmo teste do roteiro-to-plan"""
+    try:
+        r = subprocess.run(["node", str(T / "roteiro" / "tem_trechos.js"), str(f)], cwd=PONTE, capture_output=True, text=True)
+        return r.returncode != 3
+    except OSError:
+        return True
+
+
 def roda(cmd):
     print("\n>>", " ".join(str(c) for c in cmd), flush=True)
     subprocess.run([str(c) for c in cmd], check=True, cwd=PONTE)
@@ -107,9 +116,27 @@ def main():
             print(f"\nRoteiro: {seu.name} (o seu) → alinhado com o que você falou")
     if not (job / "roteiro.txt").exists():
         roda([py, T / "roteiro_ia.py", job / "words.json", job / "roteiro.txt", "--titulo", a.titulo])
-    roda(["node", T / "roteiro-to-plan.js", job / "roteiro.txt", "--media", video, "--duration", f"{dur:.2f}",
-          "--words", job / "words.json", "--gap", "0.8", "--job", orig.stem, "--out", job / "EDIT_PLAN.json",
-          "--report", job / "alinhamento.json", "--ajustes", job / "ajustes.txt"])
+    elif not tem_trechos(job / "roteiro.txt"):
+        # o SEU roteiro não está no formato com tempos ([0:00 – 0:08] + FALA:) — ex.: o roteiro de gravação, escrito antes:
+        # a IA monta o roteiro de edição SEGUINDO o seu (ordem, gráficos, nomes) com os tempos da fala. Antes parava com erro.
+        seu_txt = job / "roteiro_seu.txt"
+        shutil.copyfile(job / "roteiro.txt", seu_txt)
+        print("\nO seu roteiro não tem os tempos ([0:00 – 0:08] + FALA:). Monto o roteiro de edição a partir dele + do que você falou...")
+        roda([py, T / "roteiro_ia.py", job / "words.json", job / "roteiro.txt", "--titulo", a.titulo, "--base", seu_txt])
+    plano = [T / "roteiro-to-plan.js", job / "roteiro.txt", "--media", video, "--duration", f"{dur:.2f}",
+             "--words", job / "words.json", "--gap", "0.8", "--job", orig.stem, "--out", job / "EDIT_PLAN.json",
+             "--report", job / "alinhamento.json", "--ajustes", job / "ajustes.txt"]
+    try:
+        roda(["node"] + plano)
+    except subprocess.CalledProcessError:
+        # roteiro que a IA escreveu fora do formato: última saída, o roteiro simples pela fala (o vídeo sai mesmo assim)
+        print("\nO roteiro não virou plano; faço o roteiro SIMPLES pela fala para o vídeo sair (o anterior fica em roteiro_falhou.txt).")
+        shutil.copyfile(job / "roteiro.txt", job / "roteiro_falhou.txt")
+        sys.path.insert(0, str(T))
+        from roteiro_ia import roteiro_basico
+        (job / "roteiro.txt").write_text(roteiro_basico(json.loads((job / "words.json").read_text(encoding="utf-8")), a.titulo),
+                                         encoding="utf-8")
+        roda(["node"] + plano)
     plano = json.loads((job / "EDIT_PLAN.json").read_text(encoding="utf-8"))
     # SEMPRE: fotos dos jogadores, escudos e as imagens pedidas no roteiro (camisas, fotos de apoio)
     # (antes só rodava quando o roteiro tinha jogador; no vídeo das camisas ficava sem nenhuma imagem)
