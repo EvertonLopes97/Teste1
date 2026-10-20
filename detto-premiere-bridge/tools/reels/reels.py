@@ -55,7 +55,8 @@ CONFIG_PADRAO = {
     "corte_max": 15,
     "tags_padrao": ["#futebol", "#humor", "#resenha", "#viral", "#fy"],
     # cada reel pronto entra na fila de postagem dessas contas (tools/postar/postar.py posta no horário); [] = não posta
-    "postar": ["instagram:detto.galo", "tiktok:detto.galo"],
+    # "todas" = toda conta LIGADA da postagem (Instagram, TikTok, YouTube Shorts, Kwai) que não tem "reels": false
+    "postar": ["todas"],
     "pasta_postar": "",
     "exemplos": [
         "Quando é o professor que escolhe as duplas e você vê com quem seu amigo está sentado:",
@@ -104,7 +105,11 @@ def prepara_pasta(base):
     if not cfg.exists():
         grava_json(cfg, CONFIG_PADRAO)
     c = dict(CONFIG_PADRAO)
-    c.update(le_json(cfg, {}))
+    seu = le_json(cfg, {})
+    if seu.get("postar") == ["instagram:detto.galo", "tiktok:detto.galo"]:
+        seu["postar"] = ["todas"]  # 20/out: reels vão para TODAS as contas ligadas (YouTube Shorts e Kwai também)
+        grava_json(cfg, seu)
+    c.update(seu)
     return c
 
 
@@ -1900,6 +1905,23 @@ def main():
     log(f"\n{feitos} reel(s) em {destino}")
 
 
+def destinos_reels(cfg, base):
+    """para onde vai cada reel: a lista do config; "todas" = toda conta ligada da postagem (Instagram, TikTok, YouTube
+    Shorts e Kwai), menos as marcadas com "reels": false"""
+    lista = list(cfg.get("postar") or [])
+    if "todas" not in lista:
+        return lista
+    try:
+        from postar import prepara as prep_postar
+        contas = prep_postar(base)["contas"]
+    except Exception:
+        contas = []
+    # @detto.tv é a conta de OUTRO tipo de vídeo: só recebe reels se marcar "reels": true nela
+    todas = [f"{c['plataforma']}:{c['conta']}" for c in contas
+             if c.get("ativo", True) and c.get("reels", c["conta"] != "detto.tv") is not False]
+    return list(dict.fromkeys([x for x in lista if x != "todas"] + todas))
+
+
 def _para_postar(cfg, video, txt):
     """põe o reel na fila de postagem (Instagram / TikTok) — postar.py sobe no horário de cada conta"""
     if not cfg.get("postar"):
@@ -1909,9 +1931,13 @@ def _para_postar(cfg, video, txt):
         from postar import enfileira, pasta_padrao as pasta_postar
 
         base = Path(cfg.get("pasta_postar") or pasta_postar())
+        destinos = destinos_reels(cfg, base)
+        if not destinos:
+            log("   nenhuma conta ligada para receber os reels (painel → Configurações)")
+            return
         # nome com a data (o "01 - ..." de amanhã não pisa no de hoje)
-        enfileira(base, video, cfg["postar"], txt, nome=f"{dt.date.today().isoformat()} {Path(video).name}")
-        log(f"   na fila de postagem: {', '.join(cfg['postar'])}")
+        enfileira(base, video, destinos, txt, nome=f"{dt.date.today().isoformat()} {Path(video).name}")
+        log(f"   na fila de postagem: {', '.join(destinos)}")
     except Exception as e:
         log(f"   não entrou na fila de postagem ({e}); poste manual")
 

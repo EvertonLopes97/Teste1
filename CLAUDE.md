@@ -77,7 +77,8 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   `falhas\` (3 erros), `tokens\`, `config.json` (chaves Meta/TikTok, intervalo e horário por conta). Contas: Instagram
   @detto.galo (Reels, posta sozinho), TikTok @detto.galo e @detto.tv pelo TikTok Studio (ver PAINEL; modo API
   "rascunho"/"direto" opcional). Reels entram
-  na fila sozinhos (`"postar"` no config dos reels; `[]` desliga). `--login instagram|tiktok --conta X [--token]`,
+  na fila sozinhos (`"postar"` no config dos reels: `["todas"]` = padrão desde 20/out, toda conta LIGADA — Instagram, TikTok, YouTube
+  Shorts, Kwai — menos @detto.tv e as com `"reels": false` (`destinos_reels`); painel: "Todas as contas ligadas"; `[]` desliga). `--login instagram|tiktok --conta X [--token]`,
   `--agendar` (a cada 20 min), `--status`, `--agora video --para plat:conta`.
   FACEBOOK: cada post do Instagram vai em seguida para a página ligada (`fb_posta`: /{page}/video_reels start →
   rupload → finish PUBLISHED; > 90 s = /videos normal), com o token da PÁGINA do login pelo Facebook (`pagina_id`
@@ -171,8 +172,8 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   extenso, "2 x 1"→"dois a um", 6º, 8,3, 33', R$); FISH AUDIO primeiro se `FISH_API_KEY` (voz clonada criada 1x → voz\fish_modelo.json,
   `s2.1-pro-free`, `FISH_MODELO=s2.1-pro` pago; sotaque BR — o Chatterbox puxava para Portugal), erro → Chatterbox;
   COMENTÁRIOS NO MEIO: trecho ≥45 s (`comentario_min_s`) ganha 1–2 reações dele ("comentarios" no JSON do roteiro; `ponto_de_pausa`
-  = fim de frase, nunca nos 10 s das pontas) → trecho parte 1 → fala → parte 2; durante a REPORTAGEM a máscara é sempre a de
-  POUCO gesto (`mascara_de(..., durante_reportagem=True)`); botão: `cortes_pontas` (reels.py, o mesmo dos reels) corta também a
+  = fim de frase, nunca nos 10 s das pontas) → trecho parte 1 → fala → parte 2; durante a REPORTAGEM a máscara é a de nome
+  "ouvindo/escutando/assistindo/calmo" ou a de POUCO gesto (`mascara_de(..., durante_reportagem=True)`); botão: `cortes_pontas` (reels.py, o mesmo dos reels) corta também a
   MÃO indo dar pause no fim (movimento que sobe e não desce nos últimos 4 s), mínimos 1,0 s / 1,5 s (avaliação v2 refaz);
   VOZ: frases ≤150 letras, exagero ≤0,6, cfg 0,5, cada frase CONFERIDA pelo tamanho (≈14 letras/s) e refeita até 4x (`frase_boa`),
   voz de teste nunca vira cache; MÁSCARA: `prepara_mascaras` corta o botão (≥0,8 s e o tremor das pontas até 3 s), mede o GESTO

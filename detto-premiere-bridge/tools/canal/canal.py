@@ -593,7 +593,9 @@ def mascara_de(clima, pasta, durante_reportagem=False):
         return None
     # durante a REPORTAGEM você está ouvindo: só as gravações com POUCO gesto (as calmas), sempre
     if durante_reportagem:
-        calmas = [p for p in vs if av[p.stem].get("nivel") == "pouco"] or [p for p in vs if av[p.stem].get("nivel") == "médio"]
+        # gravações com o nome "ouvindo"/"escutando" são feitas para isso; senão as de pouco gesto
+        calmas = ([p for p in vs if re.search(r"ouvindo|escutando|calmo|assistindo", norm(p.stem))]
+                  or [p for p in vs if av[p.stem].get("nivel") == "pouco"] or [p for p in vs if av[p.stem].get("nivel") == "médio"])
         if calmas:
             vs = calmas
     certas = [] if durante_reportagem else [p for p in vs if clima in norm(p.stem)]

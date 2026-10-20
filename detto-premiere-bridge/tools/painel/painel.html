@@ -736,10 +736,13 @@ function reels(){
   const box = $("#reelsPara"), ops = E.contas.map(c => c.plataforma + ":" + c.conta), k = JSON.stringify([ops, r.postar]);
   if(box.dataset.k !== k){
     box.dataset.k = k;
-    box.innerHTML = E.contas.map(c => { const v = c.plataforma + ":" + c.conta, on = r.postar.includes(v);
-      return `<label class="dest ${on ? "sel" : ""}"><input type="checkbox" value="${esc(v)}" ${on ? "checked" : ""}> ${esc(nomeConta(c))}</label>`; }).join("");
+    const todas = r.postar.includes("todas");
+    box.innerHTML = `<label class="dest ${todas ? "sel" : ""}"><input type="checkbox" value="todas" ${todas ? "checked" : ""}> <b>Todas as contas ligadas</b></label>` +
+      E.contas.map(c => { const v = c.plataforma + ":" + c.conta, on = todas ? (c.ativo !== false && c.conta !== "detto.tv") : r.postar.includes(v);
+      return `<label class="dest ${on ? "sel" : ""}"${todas ? ' style="opacity:.6"' : ""}><input type="checkbox" value="${esc(v)}" ${on ? "checked" : ""} ${todas ? "disabled" : ""}> ${esc(nomeConta(c))}</label>`; }).join("");
     box.querySelectorAll("input").forEach(i => i.onchange = async () => {
-      await api("reels_postar", {para: [...box.querySelectorAll("input:checked")].map(x => x.value)}); toast("Salvo"); carrega(true);
+      const marcadas = [...box.querySelectorAll("input:checked")].map(x => x.value);
+      await api("reels_postar", {para: i.value === "todas" ? (i.checked ? ["todas"] : marcadas.filter(x => x !== "todas")) : marcadas}); toast("Salvo"); carrega(true);
     });
   }
 }

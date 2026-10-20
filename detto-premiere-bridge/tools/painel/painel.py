@@ -256,7 +256,7 @@ def estado_painel():
         "instagram": {"chaves": bool(c_["instagram"].get("app_id") and c_["instagram"].get("app_secret"))},
         "reels": {"prontos_hoje": len(prontos), "inicios": inicios, "links": links[:30], "n_links": len(links),
                   "auto_links": rcfg.get("auto_links", True), "feitos": feitos_links(),
-                  "rodando": bool(t and t.poll() is None), "postar": rcfg.get("postar", ["instagram:detto.galo", "tiktok:detto.galo"]),
+                  "rodando": bool(t and t.poll() is None), "postar": rcfg.get("postar", ["todas"]),
                   "log": [l.rstrip() for l in rlog]},
         "log": [l.rstrip() for l in log], "disco": tam_txt(livre), "disco_pouco": livre < 15 * 1024 ** 3,
         "edicao": EDI.lista(), "pasta_edicao": str(EDI.ED), "editando": EDI.PROC["id"] or "",
@@ -512,7 +512,7 @@ def acao(nome, d):
     elif nome == "reels_postar":
         f = REELS / "config.json"
         rc = P.le_json(f, {})
-        rc["postar"] = [x for x in d.get("para", []) if re.fullmatch(r"(instagram|tiktok|youtube|kwai):[\w.]+", x)]
+        rc["postar"] = [x for x in d.get("para", []) if x == "todas" or re.fullmatch(r"(instagram|tiktok|youtube|kwai):[\w.]+", x)]
         P.grava_json(f, rc)
     elif nome == "studio_agendei":
         # você agendou no TikTok Studio: os vídeos saem da fila com o horário planejado
