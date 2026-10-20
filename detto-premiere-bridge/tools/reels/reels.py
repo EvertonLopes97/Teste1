@@ -714,7 +714,8 @@ def monta(inicio, clip, ini, fim, texto, saida, tmp, i_ini=0.0, i_fim=None, zoom
         y = max((H - sh) // 2, min(fim_txt + 24, H - sh)) // 2 * 2
         vclip = f"scale={sw}:{sh},crop={W}:{sh}:{x}:0,pad={W}:{H}:0:{y}:black"
     fl = 0.12
-    f = (f"[0:v]trim={i_ini:.3f}:{i_fim:.3f},setpts=PTS-STARTPTS,{cor_sdr(inicio)}{cobre},fps={FPS},setsar=1,format=yuv420p,"
+    quadro_seu = enquadra(inicio, W, H, i_ini, i_fim, getattr(texto_png, "fim", None))
+    f = (f"[0:v]trim={i_ini:.3f}:{i_fim:.3f},setpts=PTS-STARTPTS,{cor_sdr(inicio)}{quadro_seu},fps={FPS},setsar=1,format=yuv420p,"
          f"fade=t=out:st={max(0, di - fl):.3f}:d={fl}:color=white[v0];"
          f"[1:v]trim={ini:.3f}:{fim:.3f},setpts=PTS-STARTPTS,{cor_sdr(clip)}{corta}{vclip},fps={FPS},setsar=1,format=yuv420p,"
          f"fade=t=in:st=0:d={fl * 1.5:.3f}:color=white[v1];")
@@ -1008,6 +1009,8 @@ def troca_partes(inicio, i_ini, i_fim, clip, cenas, pngs, saida):
         blocos.append({"tipo": c["tipo"], "a": a_, "b": b, "k": k,
                        "fade_in": c["fade_in"] and k > 0, "fade_out": c["fade_out"] and k < len(cenas) - 1})
     blocos = [x for x in blocos if x["b"] - x["a"] > 0.02]
+    png0 = next((pngs.get(bl["k"]) for bl in blocos if bl["tipo"] == "pessoa" and pngs.get(bl["k"])), None)
+    cobre = enquadra(inicio, W, H, i_ini, i_fim, fim_do_texto(png0, H) if png0 else None)
     entradas = ["-i", str(inicio), "-i", str(clip)]
     f, nomes, cursor, ip = [], [], i_ini, 2
     seu_total = max(0.3, i_fim - i_ini)
@@ -1403,14 +1406,154 @@ def escolhe_inicio(texto, descr, usos_hoje, hist, por_nome):
     return sorted(por_nome, key=lambda k: (k in usos_hoje, hist["inicios"].get(k, {}).get("n", 0), random.random()))[0]
 
 
+def _movimento(video, fps=10):
+    """quanto cada quadro muda (0..255): o toque no botão de gravar faz TUDO tremer"""
+    import numpy as np
+    w = 96
+    r = subprocess.run(["ffmpeg", "-v", "error", "-i", str(video), "-vf", f"fps={fps},scale={w}:-2,format=gray", "-f", "rawvideo", "-"],
+                       capture_output=True)
+    vw, vh = tamanho(video)
+    h = int(round(w * (vh or 16) / (vw or 9) / 2)) * 2
+    a = np.frombuffer(r.stdout, np.uint8)
+    n = a.size // (w * h)
+    if n < 3:
+        return np.zeros(0)
+    q = a[: n * w * h].reshape(n, h, w).astype(np.float32)
+    return np.abs(np.diff(q, axis=0)).mean(axis=(1, 2))
+
+
+def cortes_botao(video):
+    """onde a gravação começa e termina SEM o botão (mão chegando/celular tremendo): corta o tremor das pontas
+    (até 3 s) e um mínimo fixo (0,8 s; 0,3 s em gravação curta). Guarda em inicios/.cortes.json."""
+    import numpy as np
+    video = Path(video)
+    cache_f = video.parent / ".cortes.json"
+    cache = le_json(cache_f, {})
+    chave = f"{video.name}|{video.stat().st_size}|{int(video.stat().st_mtime)}"
+    if chave in cache:
+        return tuple(cache[chave])
+    mv, fps = _movimento(video), 10
+    n = len(mv)
+    total = n / fps if n else dur(video)
+    if n < fps * 2:
+        res = (0.0, total)
+    else:
+        minimo = 0.8 if total >= 5 else 0.3
+        meio = mv[int(n * 0.25): int(n * 0.75)] if n > fps * 4 else mv
+        lim = max(float(np.median(meio)) * 3.0, float(np.percentile(meio, 90)) * 1.5, 2.0)
+        ini, fim = minimo, total - minimo
+        for k in range(min(n, fps * 3)):
+            if mv[k] > lim:
+                ini = max(ini, (k + 1) / fps + 0.25)
+        for k in range(n - 1, max(-1, n - fps * 3 - 1), -1):
+            if mv[k] > lim:
+                fim = min(fim, k / fps - 0.25)
+        res = (round(ini, 2), round(fim, 2)) if fim - ini >= 1.0 else (0.0, total)
+    cache[chave] = list(res)
+    grava_json(cache_f, cache)
+    return res
+
+
 def trecho_do_inicio(f):
-    """gravação longa de começo: o .txt ao lado pode ter "trecho: 8.0-12.4" (só essa parte entra)"""
+    """o trecho do começo que entra: o .txt ao lado pode ter "trecho: 8.0-12.4"; SEMPRE sem o toque no botão de gravar
+    do começo/fim (antes entrava você clicando na câmera)"""
+    try:
+        b0, b1 = cortes_botao(f)
+    except Exception:
+        b0, b1 = 0.0, None
     txt = f.with_suffix(".txt")
     if txt.exists():
         m = re.search(r"trecho\s*:?\s*([\d.,]+)\s*[-–]\s*([\d.,]+)", txt.read_text(encoding="utf-8"), re.I)
         if m:
-            return float(m.group(1).replace(",", ".")), float(m.group(2).replace(",", "."))
-    return 0.0, None
+            a_, b_ = float(m.group(1).replace(",", ".")), float(m.group(2).replace(",", "."))
+            a2, b2 = max(a_, b0), min(b_, b1) if b1 else b_
+            return (a2, b2) if b2 - a2 >= 1.0 else (a_, b_)
+    return b0, b1
+
+
+def _rosto_caixa(img):
+    """o maior rosto da imagem: (cx, cy, h) em fração do quadro, ou None"""
+    import cv2
+    h, w = img.shape[:2]
+    modelo = TOOLS.parent / "yunet.onnx"
+    try:
+        if modelo.exists():
+            d = cv2.FaceDetectorYN.create(str(modelo), "", (w, h), 0.7)
+            _, f = d.detect(img)
+            fs = [(x[0], x[1], x[2], x[3]) for x in (f if f is not None else [])]
+        else:
+            c = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+            fs = list(c.detectMultiScale(cv2.cvtColor(img, cv2.COLOR_BGR2GRAY), 1.1, 6, minSize=(max(24, w // 14),) * 2))
+    except Exception:
+        return None
+    fs = [x for x in fs if x[2] * x[3] > w * h * 0.003]
+    if not fs:
+        return None
+    x, y, fw, fh = max(fs, key=lambda q: q[2] * q[3])
+    return ((x + fw / 2) / w, (y + fh / 2) / h, fh / h)
+
+
+def fim_do_texto(png, H):
+    """até onde vai o texto do topo (px) no PNG transparente; None se não tem texto"""
+    try:
+        from PIL import Image
+        im = Image.open(png).convert("RGBA")
+        a = im.split()[-1].crop((0, 0, im.width, int(im.height * 0.6)))
+        bb = a.point(lambda v: 255 if v > 40 else 0).getbbox()
+        return int(bb[3] * H / im.height) if bb else None
+    except Exception:
+        return None
+
+
+def enquadra(inicio, W, H, i_ini, i_fim, fim_txt=None):
+    """o seu começo no quadro W×H: rosto NO MEIO (na horizontal) e ABAIXO do texto do topo — com zoom quando precisa
+    (até 1,6x). Antes era só "preencher o quadro" pelo centro: rosto de lado ou debaixo da escrita."""
+    import numpy as np
+    w0, h0 = tamanho(inicio)
+    padrao = f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H}"
+    if not w0 or not h0:
+        return padrao
+    fim = i_fim if i_fim else dur(inicio)
+    caixas = [c for c in (_rosto_caixa(q) for q in _quadros_cor(inicio, i_ini, max(i_ini + 0.2, fim), 6)) if c]
+    if not caixas:
+        return padrao
+    cx, cy, fh = (float(np.median([c[k] for c in caixas])) for k in range(3))
+    s0 = max(W / w0, H / h0)
+    # onde o centro do rosto deve ficar: abaixo do texto (com folga de meio rosto), nunca acima de 38% da altura
+    alvo_y = max(H * 0.38, (fim_txt or 0) + 0.65 * fh * h0 * s0 + 20)
+    melhor = None
+    for z in (1.0, 1.1, 1.2, 1.3, 1.45, 1.6):
+        s = s0 * z
+        sw, sh = int(round(w0 * s / 2)) * 2, int(round(h0 * s / 2)) * 2
+        if fh * sh > H * 0.42 and z > 1.0:
+            break  # rosto grande demais
+        x = int(min(max(cx * sw - W / 2, 0), sw - W))
+        y = int(min(max(cy * sh - alvo_y, 0), sh - H))
+        erro_x = abs((cx * sw - x) - W / 2) / W
+        topo_rosto = (cy * sh - y) - fh * sh / 2
+        erro_y = max(0.0, ((fim_txt or 0) + 10 - topo_rosto) / H)
+        nota = erro_x + erro_y * 2 + (z - 1) * 0.05
+        if melhor is None or nota < melhor[0]:
+            melhor = (nota, sw, sh, x // 2 * 2, y // 2 * 2)
+        if erro_x < 0.04 and erro_y < 0.01:
+            break
+    nota, sw, sh, x, y = melhor
+    if nota < 0.06:
+        return f"scale={sw}:{sh},crop={W}:{H}:{x}:{y}"
+    # rosto muito no canto/no topo da gravação: nem o zoom resolve → estende a borda (espelhada) para dar para
+    # centralizar e descer o rosto para baixo do texto
+    z = 1.25
+    s = s0 * z
+    sw, sh = int(round(w0 * s / 2)) * 2, int(round(h0 * s / 2)) * 2
+    xi, yi = int(cx * sw - W / 2), int(cy * sh - alvo_y)
+    pl, pt = max(0, -xi), max(0, -yi)
+    pr, pb = max(0, xi + W - sw), max(0, yi + H - sh)
+    pl, pr = min(pl, W // 3) // 2 * 2, min(pr, W // 3) // 2 * 2
+    pt, pb = min(pt, H // 3) // 2 * 2, min(pb, H // 3) // 2 * 2
+    x = min(max(xi + pl, 0), sw + pl + pr - W) // 2 * 2
+    y = min(max(yi + pt, 0), sh + pt + pb - H) // 2 * 2
+    return (f"scale={sw}:{sh},pad={sw + pl + pr}:{sh + pt + pb}:{pl}:{pt},"
+            f"fillborders=left={pl}:right={pr}:top={pt}:bottom={pb}:mode=mirror,crop={W}:{H}:{x}:{y}")
 
 
 # ------------------------------------------------------------------ principal

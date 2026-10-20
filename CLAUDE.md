@@ -62,7 +62,9 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   começo, no MEIO ou no fim — vira um pedaço do começo dele (seguido; acabou, volta do início), com a legenda daquela
   cena (`legenda_parada`: letra clara em QUALQUER cor — canal mais forte —, linha centralizada e letras de altura parecida;
   copiada pixel a pixel) e o mesmo fade; os lances e o áudio ficam iguais (`troca_partes`).
-  Um reels.py por vez (`trava_rodada`, `.reels_rodando`: painel + tarefa do Windows juntos faziam o mesmo link 2x); links repetidos no links.txt = um só. Link DELE nunca cai no modo normal: sem pessoa/lance achados = "NÃO FIZ" no registro e o link vai como FALHOU.
+  COMEÇO dos reels: `trecho_do_inicio` SEMPRE tira o toque no botão de gravar (`cortes_botao`, movimento das pontas, cache
+  inicios\.cortes.json); `enquadra` põe o ROSTO no meio e ABAIXO do texto do topo (YuNet, zoom até 1,6x; se não dá, estende a borda
+  espelhada) — vale no modo normal (`monta`) e no TROCA (`troca_partes`, fim do texto pelo PNG). Um reels.py por vez (`trava_rodada`, `.reels_rodando`: painel + tarefa do Windows juntos faziam o mesmo link 2x); links repetidos no links.txt = um só. Link DELE nunca cai no modo normal: sem pessoa/lance achados = "NÃO FIZ" no registro e o link vai como FALHOU.
   COMEÇOS PELO DRIVE (`importa_inicios`, `reels.py --importar`; o painel roda a cada 10 min): pasta "Começo"/"Começos"/
   "Inícios" na raiz do Meu Drive ou em DETTO (ou `"pastas_inicios_drive"` no config) → Gemini assiste e dá o NOME do que
   ele faz + o melhor trecho (`.txt` com `trecho:` se > 10 s) → copiado para `inicios\` (master SDR já feito) e o arquivo
@@ -192,6 +194,10 @@ monta o roteiro de edição SEGUINDO o dele com os tempos da fala; plano ainda f
   do ataque ao goleiro; capitão/cartão pela frase), placares da rodada (jogos da FALA "Time 2 a 1 Time"),
   duelo (`FLA 61 x PAL 60`), vinheta, aspas, selos, tela de VAR (toda POLÊMICA abre com ela), números caindo,
   enquete (TELA), CTA. Cada card/placar entra na hora em que o nome/placar é falado.
+- CAMPINHO (20/out): só é campinho o trecho com a FORMAÇÃO (≥2 linhas `[ NOME 6,1 ]`) ou que pede campo/formação/4-3-3; a vinheta
+  do bloco sozinha não (antes saía um campo vazio). Título entre aspas com SELE/CAMPINHO/BAGRE/PIOR; BAGRE/PIOR = `worst`.
+  Nota seguida de vírgula de frase ("5,6, e um cartão vermelho") vale (`NOTE` em componentes.js). Nome sem time (só no
+  campinho) → `jogadores.py` procura nos elencos dos 20 times do banco (`time_pelo_banco`, único time).
 - Times conhecidos em `tools/roteiro/times.json` (sigla, apelidos, id SofaScore). Time novo → acrescente lá.
 - Banco PRONTO (vem no git pull): `tools/banco/jogadores/<id>.webp` (todos os jogadores dos 20 times, sem fundo),
   `tools/banco/elencos/*.json`, `tools/banco/escudos/*.png`. Atualizar (transferências): `python tools\banco_fotos.py`

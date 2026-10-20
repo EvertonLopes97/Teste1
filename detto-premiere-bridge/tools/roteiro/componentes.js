@@ -126,7 +126,8 @@ const rating = (r) => Number(String(r).replace(",", "."));
 // ------------------------------------------------------------------ elenco citado no roteiro
 
 const NAME = String.raw`(?:[A-ZÀ-Ý]\.\s?)?[A-ZÀ-Ý][A-ZÀ-Ý'’]+(?:[ -][A-ZÀ-Ý][A-ZÀ-Ý'’]+)*`;
-const NOTE = String.raw`(10(?:,0)?|\d,\d)(?![\d,])`;
+// nota: "5,6" — pode vir seguida de vírgula de frase ("5,6, e um cartão vermelho"), mas não de mais um dígito ("5,65")
+const NOTE = String.raw`(10(?:,0)?|\d,\d)(?!\d|,\d)`;
 const MENTION_RE = new RegExp(String.raw`(${NAME})\s*(?:\(([^)]*)\))?\s*${NOTE}(\s*\([^)]*\))?`, "gu");
 const NOT_NAME = new Set(["CARD", "CARDS", "DO", "DA", "DE", "DOS", "DAS", "BADGE", "NOTA", "VS", "MG", "COM", "E", "O", "A", "CAPITÃO", "CAPITAO"]);
 
@@ -443,9 +444,12 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
 
   // campinho
   const gridLines = mg.split("\n").filter((l) => /\[\s*[^\]]*\d\s*\]/.test(l));
+  // campinho = o trecho que TEM a formação (linhas [ NOME 6,1 ]) ou pede o campo; a vinheta do bloco ("CAMPINHO DOS
+  // BAGRES" / "SELEÇÃO DA RODADA") sozinha NÃO é campinho (antes virava um campo vazio, sem ninguém, na abertura do bloco)
+  const blocoCampinho = /CAMPINHO|SELE[ÇC][ÃA]O D|BAGRE|PIORES/.test(`${seg.block} ${mg}`.toUpperCase());
   const isPitch =
-    (/CAMPO|CAMPINHO|MINI-?CARD|BANCO DE RESERVAS/.test(mg.toUpperCase()) && /SELE[ÇC][ÃA]O/.test(`${seg.block} ${mg}`.toUpperCase())) ||
-    (/CAMPINHO|SELE[ÇC][ÃA]O D/.test(String(seg.block).toUpperCase()) && modo === "MG+VO");
+    (gridLines.length >= 2 && blocoCampinho) ||
+    (/\bCAMPO\b|MINI-?CARD|BANCO DE RESERVAS|FORMA[ÇC][ÃA]O|\d-\d-\d/.test(mg.toUpperCase()) && blocoCampinho && !/^\s*vinheta\b/i.test(mg.trim()));
   if (isPitch) {
     const rows = gridLines.map((l) => [...l.matchAll(/\[\s*([^\]]+?)\s*\]/g)].map((m) => {
       const mm = m[1].match(new RegExp(`^(${NAME})\\s+${NOTE}`, "u"));
@@ -453,7 +457,7 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
       const p = roster.get(mm[1], { rating: rating(mm[2]) });
       return p ? { ...card(p, rating(mm[2])), red: /CART[ÃA]O VERMELHO/.test(up) && false } : null;
     }).filter(Boolean));
-    const title = stripEmoji(quotedCaps(mg).find((q) => /SELE/.test(q)) || "");
+    const title = stripEmoji(quotedCaps(mg).find((q) => /SELE|CAMPINHO|BAGRE|PIOR|TIME D|MELHORES/.test(q)) || "");
     // banco: "No banco: Flaco López" / "card do Flaco"
     const bench = /BANCO/.test(mg.toUpperCase()) ? roster.inText(mg).filter((p) => !rows.flat().some((c) => c && c.name === p.name)).map((p) => card(p, p.rating)) : [];
     // capitão e cartões citados no MG ("O card do Tomás Pérez ... CAPITÃO", "João Victor ... cartão vermelho")
@@ -464,7 +468,7 @@ function segmentComponents(seg, roster, games = [], titulo = "") {
         if (f.red) r.red = true;
       }
     }
-    add("pitch", { title, worst: /PIOR/.test(`${seg.block} ${title}`.toUpperCase()), rows: rows.filter((r) => r.length), bench, fire: /fogo/i.test(mg) }, "", "plate");
+    add("pitch", { title, worst: /PIOR|BAGRE/.test(`${seg.block} ${title}`.toUpperCase()), rows: rows.filter((r) => r.length), bench, fire: /fogo/i.test(mg) }, "", "plate");
   }
 
   // cards de jogador (fora do campinho)

@@ -309,9 +309,29 @@ def main():
                 return r
         return None
 
+    def time_pelo_banco(nome):
+        """sem time no roteiro (ex.: só no campinho "[ VIVEROS 6,1 ]"): procura o nome nos elencos dos 20 times do banco;
+        vale quando bate com UM jogador de UM time só"""
+        achados = []
+        for t_ in TIMES:
+            f = BANCO / "elencos" / f"{t_.get('sofa')}.json"
+            if not t_.get("sofa") or not f.exists():
+                continue
+            try:
+                j_ = casar(nome, json.loads(f.read_text(encoding="utf-8")))
+            except ValueError:
+                continue
+            if j_:
+                achados.append(t_)
+        return achados[0] if len(achados) == 1 else None
+
     for p in pessoas:
         nome = p["name"]
         t = next((x for x in TIMES if x["sigla"] == p.get("sigla")), None)
+        if t is None:
+            t = time_pelo_banco(nome)
+            if t:
+                print(f"  {nome}: sem time no roteiro → {t['nome']} (achei no elenco do banco)")
         dst = None
         j = None
         if t and t["sigla"] == "CAM":
