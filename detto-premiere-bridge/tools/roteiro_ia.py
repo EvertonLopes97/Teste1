@@ -209,27 +209,56 @@ def gemini(prompt):
 USO_CLAUDE = Path.home() / ".detto_claude_uso.json"
 
 
-def _cota_claude(gasta=False):
-    """trava de segurança: no máx. DETTO_CLAUDE_MAX_DIA chamadas por dia (padrão 30) — o limite é o MESMO das suas
-    conversas com o Claude, então o sistema não pode gastar tudo sozinho"""
+def le_uso_claude():
+    """o que o sistema perguntou ao Claude hoje (o painel mostra; dá para PARAR por lá)"""
     import datetime as _dt
-    hoje = _dt.date.today().isoformat()
     try:
         u = json.loads(USO_CLAUDE.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         u = {}
-    n = u.get("n", 0) if u.get("dia") == hoje else 0
-    if n >= int(os.environ.get("DETTO_CLAUDE_MAX_DIA", "30")):
-        return False
-    if gasta:
-        try:
-            USO_CLAUDE.write_text(json.dumps({"dia": hoje, "n": n + 1}), encoding="utf-8")
-        except OSError:
-            pass
-    return True
+    hoje = _dt.date.today().isoformat()
+    if u.get("dia") != hoje:
+        u = {"dia": hoje, "n": 0, "falhas": 0, "seguidas": 0, "ultimas": [], "parado": u.get("parado", False),
+             "motivo": u.get("motivo", "")}
+    return u
 
 
-def claude_cli(prompt, tempo=900, imagens=(), log=print):
+def grava_uso_claude(u):
+    try:
+        USO_CLAUDE.write_text(json.dumps(u, ensure_ascii=False), encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _cota_claude():
+    """pode perguntar? Não quando você PAROU no painel, ou parou sozinho (6 falhas seguidas = algo quebrado).
+    Sem limite por padrão; DETTO_CLAUDE_MAX_DIA=N põe um teto."""
+    u = le_uso_claude()
+    if u.get("parado"):
+        return False, u.get("motivo") or "parado no painel"
+    teto = int(os.environ.get("DETTO_CLAUDE_MAX_DIA", "0") or 0)
+    if teto and u["n"] >= teto:
+        return False, f"chegou no máximo do dia ({teto})"
+    return True, ""
+
+
+def _registra_claude(ok, de, chave, seg, erro=""):
+    import time as _t
+    u = le_uso_claude()
+    u["n"] += 1
+    if ok:
+        u["seguidas"] = 0
+    else:
+        u["falhas"] += 1
+        u["seguidas"] += 1
+        if u["seguidas"] >= 6:
+            u["parado"], u["motivo"] = True, "parou sozinho: 6 falhas seguidas (veja o erro e ligue de novo no painel)"
+    u["ultimas"] = (u.get("ultimas", []) + [{"t": int(_t.time()), "ok": ok, "de": de[:70], "h": chave, "s": round(seg),
+                                              "erro": erro[:160]}])[-30:]
+    grava_uso_claude(u)
+
+
+def claude_cli(prompt, tempo=900, imagens=(), log=print, de="roteiro da edição"):
     """2ª opção quando o Gemini não responde: o Claude da SUA assinatura (Pro/Max), pelo Claude Code instalado no PC
     (`claude -p`). Usa o mesmo limite das conversas com o Claude (trava diária em _cota_claude). Sem chave de API:
     tira ANTHROPIC_API_KEY do ambiente para nunca cair na cobrança da API. `imagens` = fotos que ele abre e olha.
@@ -237,9 +266,14 @@ def claude_cli(prompt, tempo=900, imagens=(), log=print):
     exe = shutil.which("claude")
     if not exe or os.environ.get("DETTO_SEM_CLAUDE"):
         return None
-    if not _cota_claude():
-        log("   Claude: chegou no máximo do dia do sistema (DETTO_CLAUDE_MAX_DIA) — guardo o resto para você")
+    pode, porque = _cota_claude()
+    if not pode:
+        log(f"   Claude: não pergunto ({porque})")
         return None
+    import hashlib
+    import time as _t
+    chave = hashlib.sha1((prompt[:4000] + "|".join(str(x) for x in imagens)).encode("utf-8", "ignore")).hexdigest()[:10]
+    t0 = _t.time()
     env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
     cmd = [exe, "-p", "--output-format", "text"]
     cwd = None
@@ -252,12 +286,15 @@ def claude_cli(prompt, tempo=900, imagens=(), log=print):
         r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8", timeout=tempo, env=env, cwd=cwd)
     except (OSError, subprocess.TimeoutExpired) as e:
         log(f"   Claude: não respondeu ({e})")
+        _registra_claude(False, de, chave, _t.time() - t0, str(e))
         return None
-    _cota_claude(gasta=True)
     out = (r.stdout or "").strip()
     if r.returncode != 0 or not out:
-        log(f"   Claude: não deu ({(r.stderr or out)[:200]})")
+        erro = (r.stderr or out or f"código {r.returncode}").strip()
+        log(f"   Claude: não deu ({erro[:200]})")
+        _registra_claude(False, de, chave, _t.time() - t0, erro)
         return None
+    _registra_claude(True, de, chave, _t.time() - t0)
     return out
 
 
@@ -286,7 +323,7 @@ def _fala_do_video(f, log=print):
         return ""
 
 
-def claude_partes_json(partes, log=print, quadros=8):
+def claude_partes_json(partes, log=print, quadros=8, de=""):
     """o mesmo pedido feito ao Gemini (texto + imagens + vídeo), feito ao Claude: o vídeo vira QUADROS (fotos em ordem,
     com o tempo) + a TRANSCRIÇÃO do áudio. Devolve o JSON (dict) ou None."""
     import base64
@@ -327,7 +364,10 @@ def claude_partes_json(partes, log=print, quadros=8):
                 textos.append(f"[VÍDEO de {dur:.1f}s — você não assiste vídeo: veja os quadros {', '.join(nomes)}; "
                               f"áudio transcrito: {fala or '(sem fala / só música)'}]")
         prompt = "\n".join(textos) + "\n\nResponda SOMENTE com o JSON pedido, sem explicação e sem ```."
-        out = claude_cli(prompt, imagens=imgs, log=log)
+        de = de or re.sub(r"\s+", " ", next((p_["text"] for p_ in partes if "text" in p_), "pergunta"))[:70]
+        out = claude_cli(prompt, imagens=imgs, log=log, de="reels: " + de)
+        if out and not re.search(r"\{.*\}", out, re.S):
+            _registra_claude(False, "reels: resposta sem JSON", "", 0, out[:160])
         if not out:
             return None
         m = re.search(r"\{.*\}", out, re.S)

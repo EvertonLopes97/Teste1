@@ -264,7 +264,29 @@ def estado_painel():
         "pastas": {"postar": str(BASE), "reels": str(REELS), "edicao": str(EDI.ED)},
         "agora": dt.datetime.now().strftime("%d/%m %H:%M"),
         "canais": CAN.estado(),
+        "claude": claude_estado(),
     }
+
+
+def claude_estado():
+    """o Claude da assinatura respondendo no lugar do Gemini: quantas hoje, falhas, se está REPETINDO a mesma pergunta"""
+    try:
+        sys.path.insert(0, str(TOOLS))
+        from roteiro_ia import le_uso_claude
+        u = le_uso_claude()
+    except Exception:
+        return {}
+    agora = time.time()
+    ult = u.get("ultimas", [])
+    rep = {}
+    for x in ult:
+        if x.get("h") and agora - x["t"] < 3600:
+            rep[x["h"]] = rep.get(x["h"], 0) + 1
+    repetindo = max(rep.values(), default=0)
+    return {"n": u.get("n", 0), "falhas": u.get("falhas", 0), "seguidas": u.get("seguidas", 0), "parado": bool(u.get("parado")),
+            "motivo": u.get("motivo", ""), "repetindo": repetindo if repetindo >= 3 else 0,
+            "ultimas": [{"hora": dt.datetime.fromtimestamp(x["t"]).strftime("%H:%M"), "ok": x["ok"], "de": x["de"],
+                         "s": x.get("s", 0), "erro": x.get("erro", "")} for x in ult[-8:]][::-1]}
 
 
 # ------------------------------------------------------------------ ações
@@ -382,6 +404,14 @@ def acao(nome, d):
         est.get(k, {}).get("falhas", {}).pop(n, None)
         est.get(k, {}).get("espera", {}).pop(n, None)
         P.grava_json(BASE / "estado.json", est)
+    elif nome == "claude_parar":
+        sys.path.insert(0, str(TOOLS))
+        from roteiro_ia import grava_uso_claude, le_uso_claude
+        u = le_uso_claude()
+        u["parado"] = bool(d.get("parado"))
+        u["motivo"] = "parado por você no painel" if u["parado"] else ""
+        u["seguidas"] = 0
+        grava_uso_claude(u)
     elif nome == "tira_pausa":
         est = P.le_json(BASE / "estado.json", {})
         est.get(d["k"], {}).pop("pausa_ate", None)

@@ -49,8 +49,9 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   escreve o texto "Quando...", legenda e 5 tags (as do original primeiro). Formato dos exemplos dele: começo em tela
   cheia → flash branco → viral (horizontal ampliado 1,33x com faixa preta), texto TikTok Sans branco no topo (16%).
   Gemini sem cota (429)/sem chave → `gemini_json` usa o Claude da assinatura (`claude_partes_json` em roteiro_ia: vídeo vira
-  8 quadros + transcrição faster-whisper; `claude -p --allowedTools Read`; ~1 min por pergunta; trava `DETTO_CLAUDE_MAX_DIA`=30/dia
-  em ~/.detto_claude_uso.json, porque o limite é o mesmo das conversas dele).
+  8 quadros + transcrição faster-whisper; `claude -p --allowedTools Read`; ~1 min por pergunta; SEM limite (ele pediu; `DETTO_CLAUDE_MAX_DIA` põe teto);
+  cada pergunta registrada em ~/.detto_claude_uso.json → painel mostra aviso (n, falhas, REPETINDO a mesma pergunta ≥3x/1 h,
+  falhas seguidas) + botão "Parar o Claude"/"Ligar"; 6 falhas seguidas = para sozinho).
   Saída `prontos\AAAA-MM-DD\NN - texto.mp4` + `.txt`. Login Insta/TikTok: `cookies.txt` na pasta ou `--cookies firefox`.
   LINK DELE em formato meme (outra pessoa + lance) = modo TROCA (padrão): fica IGUAL ao original — mesmo texto (copiado
   do próprio vídeo: mínimo dos quadros do lance, linhas centralizadas do topo; OCR só para a legenda), MÚSICA/áudio

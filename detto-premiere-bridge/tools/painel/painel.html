@@ -460,6 +460,21 @@ function desenha(){
   if(fim) lg.scrollTop = lg.scrollHeight;
 }
 
+// Claude da sua assinatura respondendo no lugar do Gemini (sem cota): mostra tudo e deixa PARAR
+function claudeAviso(){
+  const c = E.claude || {};
+  if(!c.n && !c.parado) return "";
+  const ruim = c.parado || c.repetindo || c.seguidas >= 2;
+  const det = (c.ultimas || []).map(x => `<div style="opacity:.85">${x.hora} ${x.ok ? "✔" : "✖"} ${esc(x.de)} <span style="opacity:.6">(${x.s}s)</span>${x.ok ? "" : ` — <span style="color:#ff9a9a">${esc(x.erro)}</span>`}</div>`).join("");
+  let msg = `🤖 Claude (reserva do Gemini): <b>${c.n}</b> pergunta(s) hoje, ${c.falhas} falharam`;
+  if(c.repetindo) msg += ` · <b style="color:#ff6b6b">REPETINDO a mesma pergunta (${c.repetindo}x em 1 h)</b>`;
+  if(c.seguidas >= 2) msg += ` · <b style="color:#ff6b6b">${c.seguidas} falhas seguidas</b>`;
+  if(c.parado) msg += ` · <b>PARADO</b> (${esc(c.motivo)})`;
+  return `<div class="aviso"${ruim ? ' style="border-color:#a33;background:#2a1414"' : ' style="border-color:#335;background:#14182a;color:#cfd8ff"'}>${msg}
+    <button class="mini${c.parado ? " pri" : ""}" onclick="api('claude_parar',{parado:${!c.parado}}).then(()=>carrega(true))">${c.parado ? "Ligar o Claude" : "Parar o Claude"}</button>
+    <details data-d="claudeDet" style="margin-top:6px"><summary style="cursor:pointer">últimas perguntas</summary>${det || "nada"}</details></div>`;
+}
+
 function avisos(){
   const a = [];
   if(!E.instagram.chaves && E.contas.some(c => c.plataforma === "instagram" && !c.login)) a.push("Instagram sem login: Configurações → colar o token do Instagram.");
@@ -467,7 +482,7 @@ function avisos(){
   const sem = E.contas.filter(c => !c.login && !c.studio).map(nomeConta);
   if(sem.length) a.push("Sem login: " + sem.join(", ") + ".");
   if(E.disco_pouco) a.push("Pouco espaço no disco (" + E.disco + ").");
-  $("#avisos").innerHTML = a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "";
+  $("#avisos").innerHTML = (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
 function abreCfg(){ aba("config"); $("#detCfg").open = true; $("#detCfg").scrollIntoView({behavior:"smooth"}); }
 
