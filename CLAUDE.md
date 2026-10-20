@@ -145,10 +145,15 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   minúsculas embaixo, ~1 a cada 40 s), SEM legenda das falas, pouco sfx. Referência: youtu.be/_qu8VdWmd6s.
 - CANAIS AUTOMÁTICOS YouTube (`tools\canal\`, painel aba CANAIS, `tools\painel\canais.py`; guia `tools\canal\LEIA-ME.txt`):
   NOTÍCIAS `canal.py` (E:\DETTO\canal_galo: Galo da imprensa + voz clonada Chatterbox + máscara; `pautas.txt` = link,
-  arquivo do PC ou assunto → trechos marcados `pauta`, entram primeiro); máscara e voz pelo Drive: `Meu Drive\DETTO\canal_noticias\mascara|voz` → `traz_do_drive` copia a cada rodada (voz = áudio mais novo, qualquer formato → minha_voz.wav); FONTES (20/out, `fontes_versao` 3 migra o config): Jogo Aberto, Alterosa Esporte (@alterosaesporteAE, o programa do dia é live gravada),
-  ESPN Brasil, TV Galo às vezes (1 vídeo/1 trecho, prioridade 2) — hora pelo FEED RSS do canal (`rss`), só ≤ `max_horas` 30 h,
-  sem Shorts/lives sem duração; "outras" = busca por data com canais da lista `outras_fontes`; notícia curta `trecho_min_s` 15 a
-  `trecho_max_s` 45 (corta no fim da frase, `fim_de_frase`), máx. 2 por vídeo, vídeo ~8 min, mais nova abre;
+  arquivo do PC ou assunto → trechos marcados `pauta`, entram primeiro); máscara e voz pelo Drive: `Meu Drive\DETTO\canal_noticias\mascara|voz` → `traz_do_drive` copia a cada rodada (voz = áudio mais novo, qualquer formato → minha_voz.wav); FONTES (20/out, `fontes_versao` 4 migra o config; prioridade 1 imprensa: Jogo Aberto, Alterosa
+  (@alterosaesporteAE; programa do dia = live gravada), ESPN, Cortes TNT · 2 TV Galo às vezes (1 vídeo/1 trecho) · 3 canais que JUNTAM
+  notícias do Galo (`juntador`: Notícias do Galo/@diariodogalo940, Galotícias, Trinca Galo, Resenha Atleticana, Eterno Galo News,
+  Jornal do Galo, Vibra Torcedor, Galo Noticiou, Eu Sou Galo — Gemini marca SÓ a fala da imprensa, ignora o narrador do canal) ·
+  4 qualquer canal da busca por data (`busca_qualquer_canal`); `fora` = react/ao vivo/jogo); hora pelo FEED RSS (`rss`), hoje e
+  ontem (`max_horas` 48), sem Shorts; `max_videos_rodada` 8 por rodada (o resto na próxima); notícia INTEIRA (15 s a
+  `trecho_max_s` 180, corte só no fim de frase), máx. 3 por vídeo, vídeo ~10 min; notícia repetida em outro canal ou já
+  postada nos últimos 3 dias (`parecido` ≥ `parecido_max` 0,35 nas palavras do assunto, `ja_postado`) fica fora; créditos
+  com o programa original (`programa`, "via canal");
   VOZ: frases ≤150 letras, exagero ≤0,6, cfg 0,5, cada frase CONFERIDA pelo tamanho (≈14 letras/s) e refeita até 4x (`frase_boa`),
   voz de teste nunca vira cache; MÁSCARA: `prepara_mascaras` corta o botão (≥0,8 s e o tremor das pontas até 3 s), mede o GESTO
   (movimento) → mascara\avaliacao.txt (muito/médio/pouco); `mascara_de` usa nome do clima ou o gesto (animado → muito), sem repetir e VLOGS `canal_vlog.py` (E:\DETTO\canal_vlogs:

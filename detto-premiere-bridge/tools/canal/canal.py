@@ -53,25 +53,42 @@ CLIMAS = ["rindo", "bravo", "comemorando", "pensativo", "concordando", "surpreso
 CONFIG_PADRAO = {
     "nome_canal": "GALO NOTÍCIAS",
     "time": "CAM",
-    "fontes": [  # as mais atuais do DIA (RSS do YouTube dá a hora de publicação); TV Galo só às vezes (1 trecho)
+    # prioridade: 1 = imprensa (o programa/corte original) · 2 = TV Galo (às vezes) · 3 = canais que já juntam as
+    # notícias do Galo (cortes de Globo Esporte, Jogo Aberto, Itatiaia...) · 4 = qualquer outro achado na busca
+    "fontes": [
         {"canal": "@JogoAberto", "id": "UCZaOZdn-Y-I5ikrofkWBLgQ", "nome": "Jogo Aberto (Band)", "filtro": "titulo"},
         {"canal": "@alterosaesporteAE", "id": "UCf69PDS9TfGvwbFWcjr4eaQ", "nome": "Alterosa Esporte", "filtro": "titulo"},
         {"canal": "@ESPNBrasil", "id": "UCw5-xj3AKqEizC7MvHaIPqA", "nome": "ESPN Brasil", "filtro": "titulo"},
+        {"canal": "@cortestntsports", "nome": "TNT Sports", "filtro": "titulo"},
         {"canal": "@atletico", "id": "UC0BhAOfmm1tJaJkPyTM9D_g", "nome": "TV Galo", "filtro": "tudo", "max_min": 40, "max_trechos": 1,
          "max_videos": 1, "prioridade": 2},
+        {"canal": "@diariodogalo940", "nome": "Notícias do Galo", "filtro": "titulo", "prioridade": 3, "juntador": True},
+        {"canal": "@galoticiasoficial", "nome": "Galotícias", "filtro": "titulo", "prioridade": 3, "juntador": True},
+        {"canal": "@noticiasdogalo-cortesdoatl4515", "nome": "Notícias do Galo - Cortes", "filtro": "titulo", "prioridade": 3, "juntador": True},
+        {"canal": "@TrincaGalo", "nome": "Trinca Galo", "filtro": "titulo", "prioridade": 3, "juntador": True},
+        {"canal": "@Resenhacam", "nome": "Resenha Atleticana", "filtro": "titulo", "prioridade": 3, "juntador": True},
+        {"canal": "@ETERNOGALONEWS", "nome": "Eterno Galo News", "filtro": "titulo", "prioridade": 3, "juntador": True},
+        {"canal": "@JornaldoGalo", "nome": "Jornal do Galo", "filtro": "titulo", "prioridade": 3, "juntador": True},
+        {"canal": "@VIBRATORCEDOR", "nome": "Vibra Torcedor", "filtro": "titulo", "prioridade": 3, "juntador": True},
+        {"canal": "@canalgalonoticiou", "nome": "Canal Galo Noticiou", "filtro": "titulo", "prioridade": 3, "juntador": True},
+        {"canal": "@EUSOUGALO", "nome": "Eu Sou Galo", "filtro": "titulo", "prioridade": 3, "juntador": True},
     ],
-    "fontes_versao": 3,
-    # "entre outras": a busca do YouTube por data acha vídeos de hoje sobre o Galo; só entram canais de imprensa desta lista
-    "busca": ["atlético mineiro", "galo atlético mg notícias"],
+    "fontes_versao": 4,
+    # "qualquer coisa que for notícia": busca do YouTube por data — qualquer canal, se o título fala do Galo (prioridade 4)
+    "busca": ["notícias do galo hoje", "atlético mineiro notícias", "galo atlético mg", "corte atlético mineiro programa"],
+    "busca_qualquer_canal": True,
     "outras_fontes": ["itatiaia", "globo esporte", "ge globo", "sportv", "band", "cnn", "os donos da bola", "tnt sports",
                       "super fc", "o tempo", "hoje em dia", "rádio 98", "estado de minas", "premiere", "cazé"],
-    "max_horas": 30,  # só vídeos publicados nas últimas 30 h (as notícias do dia)
+    "fora": ["react", "reage", "reagindo", "reacao", "reacoes", "ao vivo", "live", "jogo completo", "gameplay", "fifa", "efootball"],
+    "max_horas": 48,  # notícias de hoje e de ontem que ainda não postamos
+    "max_videos_rodada": 8,  # quantos vídeos novos baixa/transcreve por rodada (os melhores primeiro; o resto na próxima)
     "trecho_min_s": 15,
-    "trecho_max_s": 45,  # cada notícia curta (antes ia até 150 s e ficava enorme)
-    "max_trechos_video": 2,  # no máximo 2 notícias do mesmo vídeo (variedade)
+    "trecho_max_s": 180,  # a notícia INTEIRA (do começo ao fim do assunto); só corta se passar de 3 min
+    "max_trechos_video": 3,
+    "parecido_max": 0.35,  # notícia repetida (o mesmo assunto em 2 canais / já postada) fica de fora
     "por_fonte": 15,
     "max_min_fonte": 120,
-    "duracao_alvo_min": 8,
+    "duracao_alvo_min": 10,
     "min_trechos": 4,
     "max_videos_dia": 2,
     "horas_entre_posts": 4,
@@ -166,10 +183,12 @@ def coleta(cfg, hist):
             return
         if f.get("filtro", "titulo") == "titulo" and not fala_do_time(f"{v['titulo']} {v.get('descricao', '')}", aps, nao):
             return
+        if any(re.search(rf"\b{re.escape(norm(x))}\b", norm(v["titulo"])) for x in cfg.get("fora", [])):
+            return  # react / ao vivo / jogo: não é notícia de imprensa
         novos.append({"id": v["id"], "url": f"https://www.youtube.com/watch?v={v['id']}", "titulo": v["titulo"],
                       "fonte": f.get("nome") or v.get("canal_nome") or f.get("canal", ""), "canal": f.get("canal", ""),
                       "dur": dur_s or 0, "publicado": v["quando"].isoformat(timespec="minutes"), "max_trechos": f.get("max_trechos"),
-                      "prioridade": f.get("prioridade", 1)})
+                      "prioridade": f.get("prioridade", 1), "juntador": bool(f.get("juntador"))})
 
     for f in cfg["fontes"]:
         cid = f.get("id") or ids.get(f["canal"])
@@ -191,6 +210,7 @@ def coleta(cfg, hist):
     # "entre outras": busca por data; só canais de imprensa da lista, e a hora vem do feed do próprio canal
     ok_nomes = [norm(x) for x in cfg.get("outras_fontes", [])]
     ja = {f.get("id") or ids.get(f["canal"]) for f in cfg["fontes"]}
+    feeds = {}
     for q in cfg.get("busca", []):
         import urllib.parse
         r = ytdlp(["--flat-playlist", "--dump-json", "--playlist-end", "15", "--extractor-args", "youtube:lang=pt",
@@ -201,15 +221,20 @@ def coleta(cfg, hist):
             except ValueError:
                 continue
             cid, nome = v.get("channel_id"), v.get("channel") or ""
-            if not cid or cid in ja or not any(o in norm(nome) for o in ok_nomes):
+            imprensa = any(o in norm(nome) for o in ok_nomes)
+            if not cid or cid in ja or not (imprensa or cfg.get("busca_qualquer_canal")):
                 continue
-            feed = {x["id"]: x for x in rss(cid)}
-            if v.get("id") in feed:
-                considera(feed[v["id"]], {"nome": nome, "canal": v.get("uploader_id") or "", "filtro": "titulo"}, v.get("duration"))
+            if cid not in feeds:
+                feeds[cid] = {x["id"]: x for x in rss(cid)}
+            if v.get("id") in feeds[cid]:
+                considera(feeds[cid][v["id"]], {"nome": nome, "canal": v.get("uploader_id") or "", "filtro": "titulo",
+                                                "prioridade": 1 if imprensa else 4, "juntador": not imprensa}, v.get("duration"))
+    # imprensa (1), TV Galo (2), canais de notícias do Galo (3), resto da busca (4); dentro de cada, a mais nova primeiro.
+    # Por rodada só os `max_videos_rodada` primeiros (baixar + transcrever pesa); os outros ficam para a próxima.
+    novos.sort(key=lambda x: (x["prioridade"], "".join(chr(255 - ord(c)) for c in x["publicado"])))
+    novos = novos[: int(cfg.get("max_videos_rodada", 8))]
     for v in novos:
         hist["vistos"][v["id"]] = dt.date.today().isoformat()
-    # imprensa primeiro (prioridade 1), TV Galo depois (2); dentro de cada uma, a mais nova primeiro
-    novos.sort(key=lambda x: (x["prioridade"], "".join(chr(255 - ord(c)) for c in x["publicado"])))
     log(f"coleta: {len(novos)} vídeo(s) de hoje sobre o {cfg['time']}: " + "; ".join(f"{x['fonte']} {x['publicado'][11:]}" for x in novos[:8]))
     return novos
 
@@ -252,11 +277,13 @@ def acha_trechos(words, info, cfg, assunto=None):
         else f"em que falam do {t.get('nome', cfg['time'])} (o Galo): análise, elogio, crítica, polêmica, notícia, entrevista"
     g = gemini_json([{"text": f"""Transcrição (segundos entre colchetes) de "{info['titulo']}" ({info['fonte']}).
 Marque os trechos {alvo}.
-Cada trecho é UMA notícia: começo e fim NATURAIS (frase completa, sem cortar no meio), entre {cfg.get("trecho_min_s", 15)} e {cfg.get("trecho_max_s", 45)} segundos.
-Pegue só o essencial (a informação nova + a opinião mais forte), sem enrolação nem repetição.
+Cada trecho é UMA notícia INTEIRA: do começo ao fim do assunto (a informação + a análise/opinião sobre ela), começo e fim
+NATURAIS (frase completa, nunca cortar no meio), entre {cfg.get("trecho_min_s", 15)} e {cfg.get("trecho_max_s", 180)} segundos — o tamanho que a notícia precisar.
+{"Este canal JUNTA notícias de vários programas: marque SÓ as partes em que fala a IMPRENSA (apresentador/jornalista de TV, rádio, entrevista, coletiva). IGNORE a narração do dono do canal (\"fala galera\", \"se inscreve\", leitura de manchete, opinião do youtuber) e anúncios." if info.get("juntador") else "Ignore vinheta, intervalo, propaganda e conversa sem notícia."}
 {"Ignore o resto." if assunto else "Ignore trechos sobre outros times."} Responda SÓ JSON:
 {{"trechos": [{{"ini": <s>, "fim": <s>, "manchete": "<MANCHETE CURTA EM MAIÚSCULAS, até 60 letras>", "resumo": "<1 frase>",
- "clima": "<um de: {', '.join(CLIMAS)}>", "nota": <1 a 10, o quanto prende o torcedor>}}]}}
+ "programa": "<de onde é a fala, se der para saber: ex. Globo Esporte MG, Jogo Aberto, Rádio Itatiaia, coletiva; senão vazio>",
+ "clima": "<um de: {', '.join(CLIMAS)}>", "nota": <1 a 10: o quanto é NOVIDADE importante e prende o torcedor (notícia velha/repetida = nota baixa)>}}]}}
 
 {linhas_tempo(words)[:60000]}"""}])
     trechos = (g or {}).get("trechos") or []
@@ -285,7 +312,25 @@ Pegue só o essencial (a informação nova + a opinião mais forte), sem enrola�
         if b - a >= mn:
             ok.append({**x, "ini": a, "fim": b, "clima": x.get("clima") if x.get("clima") in CLIMAS else "falando"})
     ok.sort(key=lambda x: -float(x.get("nota", 5)))
-    return ok[: int(info.get("max_trechos") or cfg.get("max_trechos_video", 2))]
+    for x in ok:
+        x["texto"] = " ".join(w["w"] for w in words if x["ini"] <= w["s"] < x["fim"])[:4000]
+    return ok[: int(info.get("max_trechos") or cfg.get("max_trechos_video", 3))]
+
+
+def _palavras_chave(txt):
+    """as palavras que dizem o ASSUNTO (sem as comuns) — para achar a mesma notícia contada em outro canal"""
+    comuns = set("que de da do das dos para pra com uma um no na nos nas por mais mas como ele ela isso esse essa ja não nao "
+                 "sim tem ter foi vai ser está esta estao tá ta aqui ali muito bem então entao porque pois sobre agora hoje "
+                 "galo atletico atlético time jogo gente voce você eu nós nos ele eles elas também tambem quando onde".split())
+    return {w for w in re.findall(r"\w{4,}", norm(txt)) if w not in comuns}
+
+
+def parecido(a, b):
+    """0..1: quanto os dois textos falam do mesmo (palavras do assunto em comum)"""
+    A, B = _palavras_chave(a), _palavras_chave(b)
+    if not A or not B:
+        return 0.0
+    return len(A & B) / min(len(A), len(B))
 
 
 def fim_de_frase(words, ini, alvo):
@@ -926,13 +971,15 @@ def prepara(pasta):
     cfg = dict(CONFIG_PADRAO)
     seu = le_json(cfg_f, {})
     if seu.get("fontes_versao", 1) < CONFIG_PADRAO["fontes_versao"]:
-        # 20/out: fontes novas (Jogo Aberto, Alterosa, ESPN, TV Galo às vezes) + notícias curtas e só do dia
-        for k_ in ("fontes", "fontes_versao", "busca", "outras_fontes", "max_horas", "trecho_min_s", "trecho_max_s", "max_trechos_video"):
+        # 20/out: imprensa (Jogo Aberto, Alterosa, ESPN, TNT), TV Galo às vezes, canais de notícias do Galo e busca;
+        # notícia INTEIRA; hoje e ontem; sem repetir notícia
+        for k_ in ("fontes", "fontes_versao", "busca", "busca_qualquer_canal", "outras_fontes", "fora", "max_horas", "max_videos_rodada",
+                   "trecho_min_s", "trecho_max_s", "max_trechos_video", "parecido_max"):
             seu[k_] = CONFIG_PADRAO[k_]
-        if seu.get("duracao_alvo_min", 12) == 12:
+        if seu.get("duracao_alvo_min", 12) in (8, 12):
             seu["duracao_alvo_min"] = CONFIG_PADRAO["duracao_alvo_min"]
         grava_json(cfg_f, seu)
-        log("config: fontes novas (Jogo Aberto, Alterosa Esporte, ESPN, TV Galo) e notícias curtas do dia")
+        log("config: fontes novas (imprensa + TV Galo + canais de notícias do Galo + busca), notícias inteiras de hoje e ontem")
     cfg.update(seu)
     leia = pasta / "LEIA-ME.txt"
     if not leia.exists():
@@ -1022,7 +1069,8 @@ def main():
         tr = [{**x, "fim": min(x["fim"], dv - 0.2)} for x in tr if min(x["fim"], dv - 0.2) - x["ini"] >= 8]  # nunca além do fim do vídeo
         for x in tr:
             hist["trechos"].append({**x, "video": v["id"], "arquivo": v["arquivo"], "fonte": v["fonte"], "canal": v.get("canal", ""), "data": hoje,
-                                    "publicado": v.get("publicado") or dt.datetime.now().isoformat(timespec="minutes"), "usado": False})
+                                    "publicado": v.get("publicado") or dt.datetime.now().isoformat(timespec="minutes"), "usado": False,
+                                    "prioridade": v.get("prioridade", 1)})
         grava_json(pasta / "historico.json", hist)
 
     # 3) hora de montar?
@@ -1062,10 +1110,18 @@ def main():
     sel, tot = [], 0.0
     por_video = {}
     # pautas primeiro; depois as melhores notas, desempate pela mais nova (notícia do dia na frente)
-    for x in sorted(recentes, key=lambda x: (not x.get("pauta"), -round(float(x.get("nota", 5))), "".join(chr(255 - ord(c)) for c in x.get("publicado", "")))):
+    for x in sorted(recentes, key=lambda x: (not x.get("pauta"), -round(float(x.get("nota", 5))), int(x.get("prioridade", 1)),
+                                             "".join(chr(255 - ord(c)) for c in x.get("publicado", "")))):
         if tot >= alvo:
             break
-        if por_video.get(x["video"], 0) >= int(cfg.get("max_trechos_video", 2)):
+        if por_video.get(x["video"], 0) >= int(cfg.get("max_trechos_video", 3)):
+            continue
+        lim_p = float(cfg.get("parecido_max", 0.35))
+        tx = x.get("texto") or x.get("manchete", "")
+        if any(parecido(tx, y.get("texto") or y.get("manchete", "")) >= lim_p for y in sel):
+            continue  # a mesma notícia já entrou por outro canal
+        if any(parecido(tx, t) >= lim_p for t in [u["texto"] for u in hist.get("ja_postado", [])]):
+            x["usado"] = True  # já saiu num vídeo nosso (hoje/ontem): não repete
             continue
         por_video[x["video"]] = por_video.get(x["video"], 0) + 1
         sel.append(x)
@@ -1081,7 +1137,8 @@ def main():
     pronto.mkdir(parents=True, exist_ok=True)
     video = monta(sel, rot, cfg, pasta, tmp, pronto / "video.mp4")
     th = thumb(video, rot, cfg, pronto)
-    creditos = sorted({x["fonte"] + (f" — youtube.com/{x['canal']}" if x.get("canal") else "") for x in sel})
+    creditos = sorted({(f"{x['programa']} (via {x['fonte']})" if x.get("programa") and norm(x["programa"]) not in norm(x["fonte"]) else x["fonte"])
+                       + (f" — youtube.com/{x['canal']}" if x.get("canal") else "") for x in sel})
     tags = [t.strip("#") for t in rot.get("tags", [])][:15]
     hashtags = " ".join("#" + re.sub(r"\W", "", t) for t in tags[:3])
     descricao = (f"{rot.get('descricao', '')}\n\n{hashtags}\n\nCréditos das imagens:\n"
@@ -1099,6 +1156,9 @@ def main():
             shorts.append({"arquivo": sv.name, "titulo": sel[i]["manchete"].title(), "descricao": sel[i].get("resumo", "")})
     for x in sel:
         x["usado"] = True
+    # lembra o que foi postado (3 dias) para a mesma notícia não voltar por outro canal
+    hist["ja_postado"] = [u for u in hist.get("ja_postado", []) if (dt.date.today() - dt.date.fromisoformat(u["data"])).days <= 3] + \
+        [{"data": hoje, "texto": (x.get("texto") or x.get("manchete", ""))[:1500]} for x in sel]
     post = {"titulo": rot["titulo"], "descricao": descricao, "tags": tags, "video": "video.mp4", "thumb": th.name if th else "",
             "shorts": shorts, "status": "aguardando", "criado": dt.datetime.now().isoformat(timespec="seconds"),
             "trechos": [{"fonte": x["fonte"], "manchete": x["manchete"], "pauta": x.get("pauta", "")} for x in sel]}
