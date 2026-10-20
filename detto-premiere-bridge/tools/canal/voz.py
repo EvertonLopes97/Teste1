@@ -30,7 +30,7 @@ def instala():
     import chatterbox.mtl_tts  # noqa: F401
 
 
-def frases(texto, maximo=220):
+def frases(texto, maximo=150):
     """quebra em frases curtas (o modelo perde o fio em texto longo)"""
     partes = re.split(r"(?<=[.!?…])\s+", re.sub(r"\s+", " ", texto.strip()))
     out = []
@@ -73,6 +73,47 @@ def voz_de_teste(texto, saida):
     return False
 
 
+def _apara(w, sr, torch):
+    """tira o silêncio do começo/fim da frase"""
+    a = w.abs().squeeze(0)
+    lim = max(float(a.max()) * 0.02, 1e-4)
+    idx = (a > lim).nonzero()
+    if len(idx) == 0:
+        return w
+    i0 = max(0, int(idx[0]) - int(sr * 0.03))
+    i1 = min(a.shape[0], int(idx[-1]) + int(sr * 0.08))
+    return w[:, i0:i1]
+
+
+def frase_boa(m, fr, ref, exag, torch, tentativas=4):
+    """gera a frase e CONFERE: o modelo às vezes embola, gagueja, fica robótico ou corta — o sinal é o tamanho do
+    áudio fora do normal para o texto (português falado ≈ 14 letras/s) ou picos/ruído. Refaz com outra semente."""
+    esperado = max(0.8, len(fr) / 14.0)
+    melhor, nota_m = None, 9e9
+    for t in range(tentativas):
+        torch.manual_seed(1234 + t * 97)
+        kw = {"language_id": "pt", "exaggeration": exag, "cfg_weight": 0.5, "temperature": 0.7 if t == 0 else 0.6}
+        if ref:
+            kw["audio_prompt_path"] = str(ref)
+        try:
+            w = m.generate(fr, **kw)
+        except TypeError:  # versão do chatterbox sem cfg_weight/temperature
+            kw.pop("cfg_weight", None)
+            kw.pop("temperature", None)
+            w = m.generate(fr, **kw)
+        w = _apara(w, m.sr, torch)
+        d = w.shape[1] / m.sr
+        razao = d / esperado
+        # nota: quão longe do tamanho normal (0,7x a 1,6x é normal) + estouro (clipping)
+        nota = abs(max(0.0, razao - 1.6)) + abs(max(0.0, 0.7 - razao)) * 2 + float((w.abs() > 0.99).float().mean()) * 50
+        if nota < nota_m:
+            melhor, nota_m = w, nota
+        if nota < 0.05:
+            break
+        print(f"voz: frase estranha ({d:.1f}s para ~{esperado:.1f}s), refazendo: {fr[:50]}...", flush=True)
+    return melhor
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("falas")
@@ -88,6 +129,8 @@ def main():
         print(f"voz: não achei a sua voz em {ref} — usando a voz padrão do modelo")
         ref = None
     chave_ref = hashlib.sha1(ref.read_bytes()).hexdigest()[:8] if ref else "padrao"
+    if os.environ.get("DETTO_VOZ_FALSA"):
+        chave_ref = "falsa"  # a voz de computador do TESTE nunca é reaproveitada num vídeo de verdade
     falta = []
     for f in falas:
         h = hashlib.sha1(f"{chave_ref}|{a.exagero}|{f['texto']}".encode()).hexdigest()[:10]
@@ -112,14 +155,12 @@ def main():
         dev = "cuda" if torch.cuda.is_available() else "cpu"
         print(f"voz: {len(falta)} falas na sua voz ({'placa de vídeo' if dev == 'cuda' else 'processador'})...", flush=True)
         m = ChatterboxMultilingualTTS.from_pretrained(device=dev)
+        exag = min(a.exagero, 0.6)  # acima disso o modelo começa a "cantar"/embolar
         for k, f in enumerate(falta):
             pedacos = []
             for fr in frases(f["texto"]):
-                kw = {"language_id": "pt", "exaggeration": a.exagero}
-                if ref:
-                    kw["audio_prompt_path"] = str(ref)
-                w = m.generate(fr, **kw)
-                pedacos += [w, torch.zeros(1, int(m.sr * 0.18))]
+                w = frase_boa(m, fr, ref, exag, torch)
+                pedacos += [w, torch.zeros(1, int(m.sr * 0.16))]
             torchaudio.save(f["arquivo"], torch.cat(pedacos, dim=1), m.sr)
             print(f"voz: {k + 1}/{len(falta)}", flush=True)
     Path(a.falas).write_text(json.dumps(falas, ensure_ascii=False, indent=1), encoding="utf-8")

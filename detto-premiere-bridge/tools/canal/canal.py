@@ -53,15 +53,25 @@ CLIMAS = ["rindo", "bravo", "comemorando", "pensativo", "concordando", "surpreso
 CONFIG_PADRAO = {
     "nome_canal": "GALO NOTÍCIAS",
     "time": "CAM",
-    "fontes": [
-        {"canal": "@JogoAberto", "nome": "Jogo Aberto (Band)", "filtro": "titulo"},
-        {"canal": "@TVBandMinas", "nome": "Band Minas", "filtro": "titulo"},
-        {"canal": "@ESPNBrasil", "nome": "ESPN Brasil", "filtro": "titulo"},
-        {"canal": "@atletico", "nome": "TV Galo", "filtro": "tudo", "max_min": 40},
+    "fontes": [  # as mais atuais do DIA (RSS do YouTube dá a hora de publicação); TV Galo só às vezes (1 trecho)
+        {"canal": "@JogoAberto", "id": "UCZaOZdn-Y-I5ikrofkWBLgQ", "nome": "Jogo Aberto (Band)", "filtro": "titulo"},
+        {"canal": "@alterosaesporteAE", "id": "UCf69PDS9TfGvwbFWcjr4eaQ", "nome": "Alterosa Esporte", "filtro": "titulo"},
+        {"canal": "@ESPNBrasil", "id": "UCw5-xj3AKqEizC7MvHaIPqA", "nome": "ESPN Brasil", "filtro": "titulo"},
+        {"canal": "@atletico", "id": "UC0BhAOfmm1tJaJkPyTM9D_g", "nome": "TV Galo", "filtro": "tudo", "max_min": 40, "max_trechos": 1,
+         "max_videos": 1, "prioridade": 2},
     ],
+    "fontes_versao": 3,
+    # "entre outras": a busca do YouTube por data acha vídeos de hoje sobre o Galo; só entram canais de imprensa desta lista
+    "busca": ["atlético mineiro", "galo atlético mg notícias"],
+    "outras_fontes": ["itatiaia", "globo esporte", "ge globo", "sportv", "band", "cnn", "os donos da bola", "tnt sports",
+                      "super fc", "o tempo", "hoje em dia", "rádio 98", "estado de minas", "premiere", "cazé"],
+    "max_horas": 30,  # só vídeos publicados nas últimas 30 h (as notícias do dia)
+    "trecho_min_s": 15,
+    "trecho_max_s": 45,  # cada notícia curta (antes ia até 150 s e ficava enorme)
+    "max_trechos_video": 2,  # no máximo 2 notícias do mesmo vídeo (variedade)
     "por_fonte": 15,
     "max_min_fonte": 120,
-    "duracao_alvo_min": 12,
+    "duracao_alvo_min": 8,
     "min_trechos": 4,
     "max_videos_dia": 2,
     "horas_entre_posts": 4,
@@ -94,29 +104,113 @@ def fala_do_time(texto, aps, nao):
 
 
 # ------------------------------------------------------------------ 1. coleta
+def rss(canal_id):
+    """os últimos 15 vídeos do canal com a HORA de publicação (o feed do YouTube; leve, sem login)"""
+    import urllib.request
+    import xml.etree.ElementTree as ET
+    try:
+        req = urllib.request.Request(f"https://www.youtube.com/feeds/videos.xml?channel_id={canal_id}", headers={"User-Agent": "Mozilla/5.0"})
+        raiz = ET.fromstring(urllib.request.urlopen(req, timeout=30).read())
+    except Exception as e:
+        log(f"   feed {canal_id}: {e}")
+        return []
+    ns = {"a": "http://www.w3.org/2005/Atom", "yt": "http://www.youtube.com/xml/schemas/2015", "m": "http://search.yahoo.com/mrss/"}
+    out = []
+    for e in raiz.findall("a:entry", ns):
+        vid = e.findtext("yt:videoId", "", ns)
+        pub = e.findtext("a:published", "", ns)
+        desc = e.findtext("m:group/m:description", "", ns) or ""
+        try:
+            quando = dt.datetime.fromisoformat(pub.replace("Z", "+00:00")).astimezone().replace(tzinfo=None)
+        except ValueError:
+            continue
+        out.append({"id": vid, "titulo": e.findtext("a:title", "", ns), "quando": quando, "descricao": desc,
+                    "canal_nome": e.findtext("a:author/a:name", "", ns)})
+    return out
+
+
+def duracoes(canal):
+    """duração e tipo (vídeo / short / live) dos últimos vídeos do canal (o feed não traz)"""
+    out = {}
+    for aba, tipo in (("videos", "video"), ("shorts", "short"), ("streams", "live")):
+        r = ytdlp(["--flat-playlist", "--dump-json", "--playlist-end", "25", f"https://www.youtube.com/{canal}/{aba}"])
+        for linha in (r.stdout or "").splitlines():
+            try:
+                v = json.loads(linha)
+                out.setdefault(v["id"], (v.get("duration") or 0, tipo))
+            except (ValueError, KeyError):
+                continue
+    return out
+
+
 def coleta(cfg, hist):
+    """vídeos NOVOS de hoje sobre o time: feed de cada fonte (hora certa) + busca do YouTube por data (outras fontes de
+    imprensa da lista). Mais novos primeiro."""
     aps, nao, _ = apelidos(cfg)
-    novos = []
+    limite = dt.datetime.now() - dt.timedelta(hours=cfg.get("max_horas", 30))
+    ids = hist.setdefault("canais_id", {})
+    novos, vistos_agora = [], set()
+
+    def considera(v, f, dur_s, tipo="video"):
+        if v["id"] in hist["vistos"] or v["id"] in vistos_agora or v["quando"] < limite:
+            return
+        vistos_agora.add(v["id"])
+        # Short não é notícia; live só depois de acabar e dentro do tamanho (o programa do dia da Alterosa é live
+        # gravada — entra; jogo/treino ao vivo de horas fica fora pela duração)
+        if tipo == "short" or (tipo == "live" and not dur_s):
+            return
+        if f.get("max_videos") and sum(1 for x in novos if x["fonte"] == f.get("nome")) >= f["max_videos"]:
+            return
+        durm = (dur_s or 0) / 60
+        if dur_s and (durm > f.get("max_min", cfg["max_min_fonte"]) or durm < 0.5):
+            return
+        if f.get("filtro", "titulo") == "titulo" and not fala_do_time(f"{v['titulo']} {v.get('descricao', '')}", aps, nao):
+            return
+        novos.append({"id": v["id"], "url": f"https://www.youtube.com/watch?v={v['id']}", "titulo": v["titulo"],
+                      "fonte": f.get("nome") or v.get("canal_nome") or f.get("canal", ""), "canal": f.get("canal", ""),
+                      "dur": dur_s or 0, "publicado": v["quando"].isoformat(timespec="minutes"), "max_trechos": f.get("max_trechos"),
+                      "prioridade": f.get("prioridade", 1)})
+
     for f in cfg["fontes"]:
-        r = ytdlp(["--flat-playlist", "--dump-json", "--playlist-end", str(cfg["por_fonte"]), "--extractor-args", "youtube:lang=pt",
-                   f"https://www.youtube.com/{f['canal']}/videos"])
+        cid = f.get("id") or ids.get(f["canal"])
+        if not cid:
+            r = ytdlp(["--flat-playlist", "-J", "--playlist-end", "1", f"https://www.youtube.com/{f['canal']}/videos"])
+            try:
+                cid = json.loads(r.stdout).get("channel_id")
+                ids[f["canal"]] = cid
+            except ValueError:
+                log(f"   {f['canal']}: não achei o canal")
+                continue
+        lista = [v for v in rss(cid) if v["quando"] >= limite]
+        if not lista:
+            continue
+        durs = duracoes(f["canal"]) if f.get("canal") else {}
+        for v in lista:
+            d_, t_ = durs.get(v["id"], (0, "video"))
+            considera(v, f, d_, t_)
+    # "entre outras": busca por data; só canais de imprensa da lista, e a hora vem do feed do próprio canal
+    ok_nomes = [norm(x) for x in cfg.get("outras_fontes", [])]
+    ja = {f.get("id") or ids.get(f["canal"]) for f in cfg["fontes"]}
+    for q in cfg.get("busca", []):
+        import urllib.parse
+        r = ytdlp(["--flat-playlist", "--dump-json", "--playlist-end", "15", "--extractor-args", "youtube:lang=pt",
+                   "https://www.youtube.com/results?search_query=" + urllib.parse.quote(q) + "&sp=CAI%253D"])
         for linha in (r.stdout or "").splitlines():
             try:
                 v = json.loads(linha)
             except ValueError:
                 continue
-            vid = v.get("id")
-            if not vid or vid in hist["vistos"]:
+            cid, nome = v.get("channel_id"), v.get("channel") or ""
+            if not cid or cid in ja or not any(o in norm(nome) for o in ok_nomes):
                 continue
-            hist["vistos"][vid] = dt.date.today().isoformat()
-            durm = (v.get("duration") or 0) / 60
-            if durm > f.get("max_min", cfg["max_min_fonte"]) or durm < 0.5:
-                continue
-            if f.get("filtro", "titulo") == "titulo" and not fala_do_time(f"{v.get('title', '')} {v.get('description') or ''}", aps, nao):
-                continue
-            novos.append({"id": vid, "url": f"https://www.youtube.com/watch?v={vid}", "titulo": v.get("title", ""), "fonte": f.get("nome") or f["canal"],
-                          "canal": f["canal"], "dur": v.get("duration") or 0})
-    log(f"coleta: {len(novos)} vídeo(s) novo(s) sobre o {cfg['time']}")
+            feed = {x["id"]: x for x in rss(cid)}
+            if v.get("id") in feed:
+                considera(feed[v["id"]], {"nome": nome, "canal": v.get("uploader_id") or "", "filtro": "titulo"}, v.get("duration"))
+    for v in novos:
+        hist["vistos"][v["id"]] = dt.date.today().isoformat()
+    # imprensa primeiro (prioridade 1), TV Galo depois (2); dentro de cada uma, a mais nova primeiro
+    novos.sort(key=lambda x: (x["prioridade"], "".join(chr(255 - ord(c)) for c in x["publicado"])))
+    log(f"coleta: {len(novos)} vídeo(s) de hoje sobre o {cfg['time']}: " + "; ".join(f"{x['fonte']} {x['publicado'][11:]}" for x in novos[:8]))
     return novos
 
 
@@ -158,7 +252,8 @@ def acha_trechos(words, info, cfg, assunto=None):
         else f"em que falam do {t.get('nome', cfg['time'])} (o Galo): análise, elogio, crítica, polêmica, notícia, entrevista"
     g = gemini_json([{"text": f"""Transcrição (segundos entre colchetes) de "{info['titulo']}" ({info['fonte']}).
 Marque os trechos {alvo}.
-Cada trecho deve ter começo e fim NATURAIS (frase completa, sem cortar no meio), entre 20 e 150 segundos.
+Cada trecho é UMA notícia: começo e fim NATURAIS (frase completa, sem cortar no meio), entre {cfg.get("trecho_min_s", 15)} e {cfg.get("trecho_max_s", 45)} segundos.
+Pegue só o essencial (a informação nova + a opinião mais forte), sem enrolação nem repetição.
 {"Ignore o resto." if assunto else "Ignore trechos sobre outros times."} Responda SÓ JSON:
 {{"trechos": [{{"ini": <s>, "fim": <s>, "manchete": "<MANCHETE CURTA EM MAIÚSCULAS, até 60 letras>", "resumo": "<1 frase>",
  "clima": "<um de: {', '.join(CLIMAS)}>", "nota": <1 a 10, o quanto prende o torcedor>}}]}}
@@ -179,14 +274,30 @@ Cada trecho deve ter começo e fim NATURAIS (frase completa, sem cortar no meio)
                 janelas.append([max(0, h - 15), h + 30])
         trechos = [{"ini": a, "fim": b, "manchete": info["titulo"][:60].upper(), "resumo": "", "clima": "falando", "nota": 5} for a, b in janelas if b - a >= 20]
     ok = []
+    mx, mn = float(cfg.get("trecho_max_s", 45)), float(cfg.get("trecho_min_s", 15))
     for x in trechos:
         try:
             a, b = float(x["ini"]), float(x["fim"])
         except (KeyError, TypeError, ValueError):
             continue
-        if 15 <= b - a <= 200:
+        if b - a > mx + 5:
+            b = fim_de_frase(words, a, a + mx)  # notícia longa: corta no fim da frase mais perto do máximo
+        if b - a >= mn:
             ok.append({**x, "ini": a, "fim": b, "clima": x.get("clima") if x.get("clima") in CLIMAS else "falando"})
-    return ok
+    ok.sort(key=lambda x: -float(x.get("nota", 5)))
+    return ok[: int(info.get("max_trechos") or cfg.get("max_trechos_video", 2))]
+
+
+def fim_de_frase(words, ini, alvo):
+    """fim da última frase completa antes de `alvo` (ponto ou pausa ≥ 0,5 s); sem achar, o próprio alvo"""
+    melhor = None
+    for k, w in enumerate(words):
+        if w["e"] <= ini + 8 or w["e"] > alvo:
+            continue
+        prox = words[k + 1] if k + 1 < len(words) else None
+        if re.search(r"[.!?]$", w["w"]) or (prox and prox["s"] - w["e"] >= 0.5):
+            melhor = w["e"] + 0.15
+    return melhor or alvo
 
 
 # ------------------------------------------------------------------ 3. roteiro da narração
@@ -270,19 +381,125 @@ def faixa_png(texto, sub, saida, cor):
     return saida
 
 
+ANIMADOS = {"comemorando", "bravo", "surpreso", "rindo"}  # pedem gravação com mais gesto
+CALMOS = {"pensativo", "concordando", "falando"}
+_ULTIMA_MASC = []
+
+
+def movimento(video, fps=10):
+    """quanto muda cada quadro (0..255), quadro a quadro: mostra o toque no botão (tudo treme) e o quanto você gesticula"""
+    import numpy as np
+    w = 96
+    r = subprocess.run(["ffmpeg", "-v", "error", "-i", str(video), "-vf", f"fps={fps},scale={w}:-2,format=gray", "-f", "rawvideo", "-"],
+                       capture_output=True)
+    vw, vh = tamanho(video)
+    h = int(round(w * (vh or 16) / (vw or 9) / 2)) * 2
+    a = np.frombuffer(r.stdout, np.uint8)
+    n = a.size // (w * h)
+    if n < 3:
+        return np.zeros(0)
+    q = a[: n * w * h].reshape(n, h, w).astype(np.float32)
+    return np.abs(np.diff(q, axis=0)).mean(axis=(1, 2))
+
+
+def cortes_do_botao(mv, fps=10):
+    """onde começar e terminar: a gravação começa e termina com você apertando o botão (mão chegando, celular
+    tremendo). Tira pelo menos 0,8 s de cada ponta e, se o tremor for além, até ele passar (até 3 s)."""
+    import numpy as np
+    n = len(mv)
+    if n < fps * 3:
+        return 0.0, n / fps
+    meio = mv[int(n * 0.25): int(n * 0.75)] if n > fps * 4 else mv
+    lim = max(float(np.median(meio)) * 3.0, float(np.percentile(meio, 90)) * 1.5, 2.0)
+    ini = 0.8
+    for k in range(min(n, fps * 3)):
+        if mv[k] > lim:
+            ini = max(ini, (k + 1) / fps + 0.25)
+    fim = n / fps - 0.8
+    for k in range(n - 1, max(-1, n - fps * 3 - 1), -1):
+        if mv[k] > lim:
+            fim = min(fim, k / fps - 0.25)
+    if fim - ini < 2.0:
+        return 0.5, max(1.0, n / fps - 0.5)
+    return round(ini, 2), round(fim, 2)
+
+
+def prepara_mascaras(pasta):
+    """cada gravação de máscara: converte para SDR, CORTA o começo/fim (o botão) e AVALIA o quanto você gesticula.
+    O resultado fica em mascara\\sdr\\ e em mascara\\avaliacao.txt (para você ver)."""
+    import numpy as np
+    pm = pasta / "mascara"
+    vs = [p for p in pm.glob("*") if p.suffix.lower() in VIDEO_EXT]
+    av_f = pm / "avaliacao.json"
+    av = le_json(av_f, {})
+    mudou = False
+    for v in vs:
+        sig = f"{v.stat().st_size}:{int(v.stat().st_mtime)}"
+        saida = pm / "sdr" / f"{v.stem}.mp4"
+        if av.get(v.stem, {}).get("sig") == sig and saida.exists():
+            continue
+        saida.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            from sdr import master_sdr
+            base = master_sdr(v, saida=pm / "sdr" / f"{v.stem}__inteiro.mp4", log=log)
+        except Exception:
+            base = v
+        mv = movimento(base)
+        ini, fim = cortes_do_botao(mv)
+        meio = mv[int(ini * 10): int(fim * 10)] if len(mv) else mv
+        gesto = float(np.mean(meio)) if len(meio) else 0.0
+        r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{ini:.2f}", "-to", f"{fim:.2f}", "-i", str(base), "-an",
+                            "-c:v", "libx264", "-preset", "veryfast", "-crf", "18", "-pix_fmt", "yuv420p", str(saida)])
+        if r.returncode != 0:
+            log(f"máscara {v.name}: não consegui cortar")
+            continue
+        if base != v and Path(base).name.endswith("__inteiro.mp4"):
+            Path(base).unlink(missing_ok=True)
+        av[v.stem] = {"sig": sig, "ini": ini, "fim": fim, "dur_total": round(len(mv) / 10, 1), "gesto": round(gesto, 2)}
+        mudou = True
+        log(f"máscara {v.name}: cortei {ini:.1f} s do começo e {max(0.0, len(mv) / 10 - fim):.1f} s do fim; gesto {gesto:.1f}")
+    for k in [k for k in av if not any(v.stem == k for v in vs)]:
+        av.pop(k)
+        mudou = True
+    if av:
+        # nível de gesto: comparando as suas gravações entre si (terços) — muito / médio / pouco
+        ordem = sorted(av, key=lambda k: av[k]["gesto"])
+        for i, k in enumerate(ordem):
+            nivel = "pouco" if i < len(ordem) / 3 else ("muito" if i >= len(ordem) * 2 / 3 else "médio")
+            if av[k].get("nivel") != nivel:
+                av[k]["nivel"] = nivel
+                mudou = True
+    if mudou:
+        grava_json(av_f, av)
+        linhas = ["AVALIAÇÃO DAS GRAVAÇÕES DE MÁSCARA (o sistema usa as de MUITO gesto nas partes animadas — comemorando,",
+                  "bravo, surpreso, rindo — e as de POUCO nas calmas — pensativo, concordando, falando)", ""]
+        for k in sorted(av, key=lambda k: -av[k]["gesto"]):
+            x = av[k]
+            linhas.append(f"{k:30s} gesto {x['gesto']:5.1f} ({x['nivel']:5s})  usa de {x['ini']:.1f} s a {x['fim']:.1f} s "
+                          f"(de {x['dur_total']:.1f} s; o resto era o botão)")
+        (pm / "avaliacao.txt").write_text("\n".join(linhas) + "\n", encoding="utf-8")
+    return av
+
+
 def mascara_de(clima, pasta):
-    """uma gravação sua de máscara com esse clima (nome do arquivo); sem ela, qualquer uma"""
-    vs = [p for p in (pasta / "mascara").glob("*") if p.suffix.lower() in {".mov", ".mp4", ".m4v", ".mkv", ".webm"}]
+    """a gravação de máscara para esse clima: pelo NOME do arquivo (rindo.mov...) ou, se o nome não diz (teste 1.mov),
+    pelo GESTO avaliado (animado → muito gesto; calmo → pouco). Já cortada (sem o botão) e em SDR. Não repete a última."""
+    pm = pasta / "mascara"
+    av = le_json(pm / "avaliacao.json", {})
+    vs = [p for p in (pm / "sdr").glob("*.mp4") if p.stem in av and not p.stem.endswith("__inteiro")]
     if not vs:
         return None
     certas = [p for p in vs if clima in norm(p.stem)]
-    esc = random.choice(certas or [p for p in vs if "falando" in norm(p.stem)] or vs)
-    try:  # iPhone em HDR: converte UMA vez (o tone mapping a cada peça deixava a montagem lenta)
-        from sdr import master_sdr
-
-        return master_sdr(esc, saida=pasta / "mascara" / "sdr" / f"{esc.stem}.mp4", log=log)
-    except Exception:
-        return esc
+    if not certas:
+        quer = ["muito", "médio"] if clima in ANIMADOS else ["pouco", "médio"]
+        for nv in quer:
+            certas = [p for p in vs if av[p.stem].get("nivel") == nv]
+            if certas:
+                break
+    opcoes = [p for p in (certas or vs) if p not in _ULTIMA_MASC[-1:]] or (certas or vs)
+    esc = random.choice(opcoes)
+    _ULTIMA_MASC.append(esc)
+    return esc
 
 
 def cobre(w, h):
@@ -707,7 +924,16 @@ def prepara(pasta):
     if not cfg_f.exists():
         grava_json(cfg_f, CONFIG_PADRAO)
     cfg = dict(CONFIG_PADRAO)
-    cfg.update(le_json(cfg_f, {}))
+    seu = le_json(cfg_f, {})
+    if seu.get("fontes_versao", 1) < CONFIG_PADRAO["fontes_versao"]:
+        # 20/out: fontes novas (Jogo Aberto, Alterosa, ESPN, TV Galo às vezes) + notícias curtas e só do dia
+        for k_ in ("fontes", "fontes_versao", "busca", "outras_fontes", "max_horas", "trecho_min_s", "trecho_max_s", "max_trechos_video"):
+            seu[k_] = CONFIG_PADRAO[k_]
+        if seu.get("duracao_alvo_min", 12) == 12:
+            seu["duracao_alvo_min"] = CONFIG_PADRAO["duracao_alvo_min"]
+        grava_json(cfg_f, seu)
+        log("config: fontes novas (Jogo Aberto, Alterosa Esporte, ESPN, TV Galo) e notícias curtas do dia")
+    cfg.update(seu)
     leia = pasta / "LEIA-ME.txt"
     if not leia.exists():
         shutil.copyfile(AQUI / "LEIA-ME.txt", leia)
@@ -741,6 +967,10 @@ def main():
     pasta = Path(a.pasta)
     cfg = prepara(pasta)
     traz_do_drive(pasta, cfg)
+    try:
+        prepara_mascaras(pasta)
+    except Exception as e:
+        log(f"máscaras: {e}")
     le_pautas(pasta)
     if a.preparar:
         return
@@ -791,12 +1021,22 @@ def main():
         dv = dur(v["arquivo"]) or 1e9
         tr = [{**x, "fim": min(x["fim"], dv - 0.2)} for x in tr if min(x["fim"], dv - 0.2) - x["ini"] >= 8]  # nunca além do fim do vídeo
         for x in tr:
-            hist["trechos"].append({**x, "video": v["id"], "arquivo": v["arquivo"], "fonte": v["fonte"], "canal": v.get("canal", ""), "data": hoje, "usado": False})
+            hist["trechos"].append({**x, "video": v["id"], "arquivo": v["arquivo"], "fonte": v["fonte"], "canal": v.get("canal", ""), "data": hoje,
+                                    "publicado": v.get("publicado") or dt.datetime.now().isoformat(timespec="minutes"), "usado": False})
         grava_json(pasta / "historico.json", hist)
 
     # 3) hora de montar?
-    recentes = [x for x in hist["trechos"] if not x["usado"] and Path(x["arquivo"]).exists()
-                and (dt.date.today() - dt.date.fromisoformat(x["data"])).days <= (5 if x.get("pauta") else 2)]
+    lim = dt.datetime.now() - dt.timedelta(hours=cfg.get("max_horas", 30))
+
+    def do_dia(x):
+        if x.get("pauta"):
+            return (dt.date.today() - dt.date.fromisoformat(x["data"])).days <= 5
+        try:
+            return dt.datetime.fromisoformat(x.get("publicado") or x["data"]) >= lim
+        except ValueError:
+            return False
+
+    recentes = [x for x in hist["trechos"] if not x["usado"] and Path(x["arquivo"]).exists() and do_dia(x)]
     tem_pauta = any(x.get("pauta") for x in recentes)
     esperando = [d for _, d in comum.prontos(pasta) if d.get("status") == "aguardando"]
     postados_hoje = [p for p in hist["postados"] if p["data"] == hoje]
@@ -820,11 +1060,18 @@ def main():
     # os melhores (nota) até o tamanho do vídeo, sem repetir muito a mesma fonte seguida
     alvo = cfg["duracao_alvo_min"] * 60
     sel, tot = [], 0.0
-    for x in sorted(recentes, key=lambda x: (not x.get("pauta"), -float(x.get("nota", 5)), x["data"])):
+    por_video = {}
+    # pautas primeiro; depois as melhores notas, desempate pela mais nova (notícia do dia na frente)
+    for x in sorted(recentes, key=lambda x: (not x.get("pauta"), -round(float(x.get("nota", 5))), "".join(chr(255 - ord(c)) for c in x.get("publicado", "")))):
         if tot >= alvo:
             break
+        if por_video.get(x["video"], 0) >= int(cfg.get("max_trechos_video", 2)):
+            continue
+        por_video[x["video"]] = por_video.get(x["video"], 0) + 1
         sel.append(x)
         tot += x["fim"] - x["ini"]
+    # no vídeo, a ordem é da mais nova para a mais antiga (manchete do dia abre)
+    sel = [x for x in sel if x.get("pauta")] + sorted([x for x in sel if not x.get("pauta")], key=lambda x: x.get("publicado", ""), reverse=True)
     log(f"\nmontando: {len(sel)} trechos, {tot / 60:.1f} min de imprensa")
     rot = roteiro(sel, cfg)
     tmp = pasta / "tmp"

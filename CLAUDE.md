@@ -145,7 +145,13 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   minúsculas embaixo, ~1 a cada 40 s), SEM legenda das falas, pouco sfx. Referência: youtu.be/_qu8VdWmd6s.
 - CANAIS AUTOMÁTICOS YouTube (`tools\canal\`, painel aba CANAIS, `tools\painel\canais.py`; guia `tools\canal\LEIA-ME.txt`):
   NOTÍCIAS `canal.py` (E:\DETTO\canal_galo: Galo da imprensa + voz clonada Chatterbox + máscara; `pautas.txt` = link,
-  arquivo do PC ou assunto → trechos marcados `pauta`, entram primeiro); máscara e voz pelo Drive: `Meu Drive\DETTO\canal_noticias\mascara|voz` → `traz_do_drive` copia a cada rodada (voz = áudio mais novo, qualquer formato → minha_voz.wav) e VLOGS `canal_vlog.py` (E:\DETTO\canal_vlogs:
+  arquivo do PC ou assunto → trechos marcados `pauta`, entram primeiro); máscara e voz pelo Drive: `Meu Drive\DETTO\canal_noticias\mascara|voz` → `traz_do_drive` copia a cada rodada (voz = áudio mais novo, qualquer formato → minha_voz.wav); FONTES (20/out, `fontes_versao` 3 migra o config): Jogo Aberto, Alterosa Esporte (@alterosaesporteAE, o programa do dia é live gravada),
+  ESPN Brasil, TV Galo às vezes (1 vídeo/1 trecho, prioridade 2) — hora pelo FEED RSS do canal (`rss`), só ≤ `max_horas` 30 h,
+  sem Shorts/lives sem duração; "outras" = busca por data com canais da lista `outras_fontes`; notícia curta `trecho_min_s` 15 a
+  `trecho_max_s` 45 (corta no fim da frase, `fim_de_frase`), máx. 2 por vídeo, vídeo ~8 min, mais nova abre;
+  VOZ: frases ≤150 letras, exagero ≤0,6, cfg 0,5, cada frase CONFERIDA pelo tamanho (≈14 letras/s) e refeita até 4x (`frase_boa`),
+  voz de teste nunca vira cache; MÁSCARA: `prepara_mascaras` corta o botão (≥0,8 s e o tremor das pontas até 3 s), mede o GESTO
+  (movimento) → mascara\avaliacao.txt (muito/médio/pouco); `mascara_de` usa nome do clima ou o gesto (animado → muito), sem repetir e VLOGS `canal_vlog.py` (E:\DETTO\canal_vlogs:
   pasta do Drive `Meu Drive\DETTO\canal_vlogs\<vlog>` parada 20 min → vlog.py → thumb.py → Shorts = janelas com mais
   volume → vertical916). Cada pronto: `prontos\<data - título>\post.json` (status aguardando|na_fila|postando|postado|
   erro|descartado) + video.mp4 + short_N.mp4; `comum.publica` sobe o vídeo e agenda cada Short (+3 h, `publishAt`).
