@@ -228,7 +228,7 @@ def monta(vlog, cfg, pasta):
         th = "thumb_1.jpg"
     # Shorts: os trechos com mais vida, em 9:16 com recorte no rosto
     shorts = []
-    tam = float(cfg.get("short_s", 58))
+    tam = max(60.0, float(cfg.get("short_s", 62)))  # short nunca abaixo de 60 s
     for k, ini in enumerate(melhores_janelas(video, int(cfg.get("shorts", 0)), tam)):
         corte = pronto / f"corte_{k + 1}.mp4"
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{ini:.2f}", "-t", f"{tam:.2f}", "-i", str(video), "-c:v", "libx264", "-crf", "16",
@@ -239,7 +239,16 @@ def monta(vlog, cfg, pasta):
             shorts.append({"arquivo": sv.name, "titulo": tt[k] if k < len(tt) else tx["titulo"], "descricao": tx.get("descricao", "")[:200]})
         corte.unlink(missing_ok=True)
     tags = list(dict.fromkeys([t.strip("#") for t in tx.get("tags", [])] + cfg.get("tags_padrao", [])))[:15]
-    post = {"titulo": tx["titulo"], "descricao": tx.get("descricao", ""), "tags": tags, "video": "video.mp4", "thumb": th,
+    descricao = tx.get("descricao", "")
+    comentario = ""
+    cred = Path(video).parent / "creditos_apoio.txt"
+    if cred.exists():
+        # cenas de apoio da internet (lugares): crédito na descrição e num comentário do canal
+        linhas = [l for l in cred.read_text(encoding="utf-8").splitlines() if l.startswith("•")]
+        if linhas:
+            descricao += "\n\nCenas de apoio:\n" + "\n".join(linhas)
+            comentario = "🎥 Créditos das cenas de apoio usadas neste vlog:\n" + "\n".join(linhas)
+    post = {"titulo": tx["titulo"], "descricao": descricao, "tags": tags, "video": "video.mp4", "thumb": th, "comentario": comentario,
             "shorts": shorts, "status": "aguardando", "origem": str(vlog), "criado": dt.datetime.now().isoformat(timespec="seconds"),
             "duracao": round(duracao(video))}
     comum.grava(pronto / "post.json", post)

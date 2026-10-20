@@ -148,6 +148,11 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   ESTILO AM3NIC (padrão do canal de vlogs desde 19/out; `--estilo` com "am3nic"/"cinemat"): cortes secos, abre com
   cenas de apoio bonitas + frase-gancho, `lugar` (nome do lugar GRANDE no meio, 2,6 s) e `nota` (comentário curto em
   minúsculas embaixo, ~1 a cada 40 s), SEM legenda das falas, pouco sfx. Referência: youtu.be/_qu8VdWmd6s.
+  APOIO DA INTERNET (20/out, `tools\vlog\apoio.py`): o diretor põe trecho `"tipo": "externo", "busca": "...", "dur": 2.5` quando ele
+  fala de um lugar/momento sem cena própria → Pexels (PEXELS_API_KEY) → Pixabay (PIXABAY_API_KEY) → YouTube (Creative Commons
+  primeiro, depois busca normal; pedaço do MEIO, horizontal) com `tem_marca` (logo/marca parada nos cantos ou letreiro embaixo =
+  descarta); cache `<DETTO>\vlog_apoio` (`DETTO_APOIO`); créditos `<job>\creditos_apoio.txt` → canal_vlog põe na descrição e num
+  comentário. Shorts do canal de vlogs ≥ 60 s.
 - CANAIS AUTOMÁTICOS YouTube (`tools\canal\`, painel aba CANAIS, `tools\painel\canais.py`; guia `tools\canal\LEIA-ME.txt`):
   NOTÍCIAS `canal.py` (E:\DETTO\canal_galo: Galo da imprensa + voz clonada Chatterbox + máscara; `pautas.txt` = link,
   arquivo do PC ou assunto → trechos marcados `pauta`, entram primeiro); máscara e voz pelo Drive: `Meu Drive\DETTO\canal_noticias\mascara|voz` → `traz_do_drive` copia a cada rodada (voz = áudio mais novo, qualquer formato → minha_voz.wav); FONTES (20/out, `fontes_versao` 4 migra o config; prioridade 1 imprensa: Jogo Aberto, Alterosa

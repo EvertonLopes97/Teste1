@@ -230,7 +230,11 @@ Regras:
   depois siga a ordem cronológica.
 - Trecho de fala: comece e termine nos limites das frases indicadas (não corte palavra); tire repetições,
   "é... é...", tentativas refeitas e silêncios. Trecho de cena (sem fala): 1,5–4 s, só o melhor.
-- tipo: "fala" | "cena" | "timelapse" (cena longa acelerada 3x, 2–4 s no vídeo final).
+- tipo: "fala" | "cena" | "timelapse" (cena longa acelerada 3x, 2–4 s no vídeo final) | "externo".
+- "externo" = cena de APOIO DA INTERNET: quando ele FALA de um lugar ou do que fez (ex.: "fui na Aparecida", "o dia na
+  Arena MRV") e NÃO tem cena dele mostrando aquilo, ponha 1 trecho {{"tipo": "externo", "busca": "<termos concretos para
+  achar o vídeo: lugar + o que mostrar, ex. \"Basílica de Aparecida vista aérea\", \"Arena MRV estádio drone\">",
+  "dur": 2.5}} logo antes ou logo depois da fala (sem "clip"/"ini"/"fim"). No máximo 1 a cada ~30 s; nunca do rosto dele.
 - zoom: "punch" em frases de impacto/piada (no máx. 1 a cada ~20 s), senão "nada".
 - texto: texto CURTO na tela (ex.: "DIA 1 • BH", "06:30 TREINO") só quando ajuda a situar; senão "".
 - lugar: nome do lugar GRANDE no meio da tela quando ele chega num lugar novo (ex.: "Arena MRV"); senão "".
@@ -324,6 +328,13 @@ def limpa_plano(plano, an):
             s["clima"] = "animado"
         ok = []
         for t in s.get("trechos", []):
+            if t.get("tipo") == "externo":
+                # cena de apoio da internet (baixada na montagem)
+                if str(t.get("busca") or "").strip():
+                    ok.append({"tipo": "externo", "busca": str(t["busca"])[:80], "dur": max(1.5, min(5.0, float(t.get("dur") or 2.5))),
+                               "clip": -1, "ini": 0.0, "fim": 0.0, "zoom": "nada", "texto": "", "lugar": str(t.get("lugar") or "")[:24],
+                               "nota": "", "sfx": "nenhum", "transicao": t.get("transicao") if t.get("transicao") in ("corte", *TRANS) else "corte"})
+                continue
             a = por_i.get(int(t.get("clip", -1)) if str(t.get("clip", "")).lstrip("-").isdigit() else -1)
             if not a:
                 continue
@@ -451,6 +462,9 @@ def monta(plano, an, job, W, H, fps, legendas, log=log):
     itens = []
     n = sum(len(s["trechos"]) for s in plano["secoes"])
     k = 0
+    k_pulados, creditos = [], []
+    sys.path.insert(0, str(AQUI))
+    from apoio import busca as apoio_busca
     for si, s in enumerate(plano["secoes"]):
         for t in s["trechos"]:
             k += 1
@@ -460,11 +474,32 @@ def monta(plano, an, job, W, H, fps, legendas, log=log):
             if f.exists() and marca.exists() and marca.read_text(encoding="utf-8") == chave:
                 d = float(subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(f)],
                                          capture_output=True, text=True).stdout or 0)
+            elif t["tipo"] == "externo":
+                log(f"   trecho {k}/{n} (apoio da internet: {t['busca']})")
+                ach = apoio_busca(t["busca"], t["dur"], log=lambda m: log(m))
+                if not ach:
+                    log("      não achei vídeo bom (sem marca d'água) — sigo sem essa cena")
+                    k_pulados.append(k)
+                    continue
+                arq, cred = ach
+                creditos.append(f"{t['busca']}: {cred}")
+                w_, h_, dd = sonda(arq)["w"], sonda(arq)["h"], sonda(arq)["dur"]
+                tt = {**t, "tipo": "cena", "ini": 0.0, "fim": min(dd, t["dur"])}
+                d = render_trecho(tt, {"arq": str(arq), "w": w_, "h": h_}, W, H, fps, f, job)
+                marca.write_text(chave, encoding="utf-8")
             else:
                 log(f"   trecho {k}/{n} (clipe {t['clip']} {t['ini']:.1f}–{t['fim']:.1f}s, {t['tipo']})")
                 d = render_trecho(t, por_i[t["clip"]], W, H, fps, f, job)
                 marca.write_text(chave, encoding="utf-8")
+            if t["tipo"] == "externo" and not any(c.startswith(t["busca"] + ":") for c in creditos):
+                ach = apoio_busca(t["busca"], t["dur"], log=lambda m: None)  # já baixado: só o crédito
+                if ach:
+                    creditos.append(f"{t['busca']}: {ach[1]}")
             itens.append({"f": f, "d": d, "t": t, "secao": si})
+    if creditos:
+        (job / "creditos_apoio.txt").write_text("Cenas de apoio da internet usadas neste vlog (ponha na descrição):\n"
+                                                + "\n".join(f"• {c}" for c in creditos) + "\n", encoding="utf-8")
+        log(f"   {len(creditos)} cena(s) da internet — créditos em {job / 'creditos_apoio.txt'}")
     # emenda: blocos de cortes secos (concat) ligados por transições (xfade)
     TD = 0.3
     entradas, filtros = [], []
