@@ -9,7 +9,7 @@ Código em `detto-premiere-bridge/`. Rode os comandos a partir dessa pasta.
 ## Jeito mais barato (sem gastar o Claude)
 
 `python tools\editar.py "<video>"` faz tudo sozinho: transcrição (faster-whisper, local), rosto, roteiro
-pelo Gemini (`GEMINI_API_KEY`, quase de graça); sem Gemini (cota 429/sem chave) o `roteiro_ia.py` tenta o Claude da assinatura dele (`claude_cli`: `claude -p` do Claude Code instalado e logado no PC, sem ANTHROPIC_API_KEY; `DETTO_SEM_CLAUDE=1` desliga) e, sem ele, faz um roteiro SIMPLES pela fala (`roteiro_basico`: [CAM] + legenda, cortes de ~60 s) em vez de parar, plano, horizontal e verticais. `--teste` = só 1 minuto.
+pelo Gemini (`GEMINI_API_KEY`, quase de graça); sem Gemini (cota 429/sem chave) o `roteiro_ia.py` tenta as IAs GRÁTIS de texto (`texto_gratis`: CEREBRAS_API_KEY, GROQ_API_KEY, MISTRAL_API_KEY, OPENROUTER_API_KEY — modelo some → pega o maior da lista) e depois o Claude da assinatura dele (`claude_cli`: `claude -p` do Claude Code instalado e logado no PC, sem ANTHROPIC_API_KEY; `DETTO_SEM_CLAUDE=1` desliga) e, sem ele, faz um roteiro SIMPLES pela fala (`roteiro_basico`: [CAM] + legenda, cortes de ~60 s) em vez de parar, plano, horizontal e verticais. `--teste` = só 1 minuto.
 Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
 - Saídas: `horizontal.mp4` (YouTube), `vertical_completo.mp4` (o vídeo inteiro em 9:16, gráficos refeitos
   para o vertical) e `vertical_N.mp4` (um short por tema, com o gancho).
@@ -48,8 +48,9 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   senão Shorts mais vistos das hashtags do `config.json`, ≤ `max_dias`). Gemini assiste o viral, escolhe o começo e
   escreve o texto "Quando...", legenda e 5 tags (as do original primeiro). Formato dos exemplos dele: começo em tela
   cheia → flash branco → viral (horizontal ampliado 1,33x com faixa preta), texto TikTok Sans branco no topo (16%).
-  Gemini sem cota (429)/sem chave → `gemini_json` usa o Claude da assinatura (`claude_partes_json` em roteiro_ia: vídeo vira
-  8 quadros + transcrição faster-whisper; `claude -p --allowedTools Read`; ~1 min por pergunta; SEM limite (ele pediu; `DETTO_CLAUDE_MAX_DIA` põe teto);
+  Gemini sem cota (429)/sem chave → `gemini_json`: pergunta só de TEXTO → IAs grátis e depois Claude; com foto/vídeo → Claude só se
+  `essencial` (conferências extras de imagem pulam: `essencial=False`), o Claude da assinatura (`claude_partes_json` em roteiro_ia: vídeo vira
+  4 quadros + transcrição faster-whisper; `claude -p --allowedTools Read`; ~1 min por pergunta; SEM limite (ele pediu; `DETTO_CLAUDE_MAX_DIA` põe teto);
   cada pergunta registrada em ~/.detto_claude_uso.json → painel mostra aviso (n, falhas, REPETINDO a mesma pergunta ≥3x/1 h,
   falhas seguidas) + botão "Parar o Claude"/"Ligar"; 6 falhas seguidas = para sozinho).
   Saída `prontos\AAAA-MM-DD\NN - texto.mp4` + `.txt`. Login Insta/TikTok: `cookies.txt` na pasta ou `--cookies firefox`.
@@ -159,6 +160,13 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   fixar é no Studio) + descrição + faixa "Imagens: origem"; notícia repetida em outro canal ou já
   postada nos últimos 3 dias (`parecido` ≥ `parecido_max` 0,35 nas palavras do assunto, `ja_postado`) fica fora; créditos
   com o programa original (`programa`, "via canal");
+  VOZ (20/out): `pronuncia` antes de qualquer voz (siglas soletradas CBF→"cê bê éfe", VAR/SAF/FIFA como palavra, números por
+  extenso, "2 x 1"→"dois a um", 6º, 8,3, 33', R$); FISH AUDIO primeiro se `FISH_API_KEY` (voz clonada criada 1x → voz\fish_modelo.json,
+  `s2.1-pro-free`, `FISH_MODELO=s2.1-pro` pago; sotaque BR — o Chatterbox puxava para Portugal), erro → Chatterbox;
+  COMENTÁRIOS NO MEIO: trecho ≥45 s (`comentario_min_s`) ganha 1–2 reações dele ("comentarios" no JSON do roteiro; `ponto_de_pausa`
+  = fim de frase, nunca nos 10 s das pontas) → trecho parte 1 → fala → parte 2; durante a REPORTAGEM a máscara é sempre a de
+  POUCO gesto (`mascara_de(..., durante_reportagem=True)`); botão: `cortes_pontas` (reels.py, o mesmo dos reels) corta também a
+  MÃO indo dar pause no fim (movimento que sobe e não desce nos últimos 4 s), mínimos 1,0 s / 1,5 s (avaliação v2 refaz);
   VOZ: frases ≤150 letras, exagero ≤0,6, cfg 0,5, cada frase CONFERIDA pelo tamanho (≈14 letras/s) e refeita até 4x (`frase_boa`),
   voz de teste nunca vira cache; MÁSCARA: `prepara_mascaras` corta o botão (≥0,8 s e o tremor das pontas até 3 s), mede o GESTO
   (movimento) → mascara\avaliacao.txt (muito/médio/pouco); `mascara_de` usa nome do clima ou o gesto (animado → muito), sem repetir e VLOGS `canal_vlog.py` (E:\DETTO\canal_vlogs:

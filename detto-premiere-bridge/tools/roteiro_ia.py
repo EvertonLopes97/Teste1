@@ -206,6 +206,67 @@ def gemini(prompt):
 
 
 
+# ------------------------------------------------------------------ IAs GRÁTIS de texto (antes do Claude)
+# cada uma com a sua chave (setx NOME_DA_CHAVE ...); a primeira que responder fica. Ordem: as de cota maior primeiro.
+PROVEDORES = [
+    ("CEREBRAS_API_KEY", "https://api.cerebras.ai/v1", "CEREBRAS_MODEL", "llama-3.3-70b"),
+    ("GROQ_API_KEY", "https://api.groq.com/openai/v1", "GROQ_MODEL", "llama-3.3-70b-versatile"),
+    ("MISTRAL_API_KEY", "https://api.mistral.ai/v1", "MISTRAL_MODEL", "mistral-large-latest"),
+    ("OPENROUTER_API_KEY", "https://openrouter.ai/api/v1", "OPENROUTER_MODEL", "openai/gpt-oss-120b:free"),
+]
+
+
+def _modelo_grande(base, chave):
+    """o modelo não existe mais? pega o maior da lista da própria IA (70b/120b/large/qwen)"""
+    try:
+        req = urllib.request.Request(f"{base}/models", headers={"Authorization": f"Bearer {chave}"})
+        ids = [m.get("id", "") for m in json.loads(urllib.request.urlopen(req, timeout=30).read()).get("data", [])]
+    except Exception:
+        return None
+    for pref in ("gpt-oss-120b", "70b", "large", "qwen", "llama"):
+        c = [i for i in ids if pref in i.lower() and ("free" in i or "openrouter" not in base)]
+        if c:
+            return sorted(c)[-1]
+    return None
+
+
+def texto_gratis(prompt, json_mode=False, log=print):
+    """pergunta às IAs grátis de TEXTO (Cerebras, Groq, Mistral, OpenRouter) — só as que têm chave. Devolve o texto ou None.
+    Para roteiro/narração/legenda (texto puro); vídeo e foto continuam no Gemini."""
+    for env, base, env_modelo, padrao in PROVEDORES:
+        chave = os.environ.get(env)
+        if not chave:
+            continue
+        modelo = os.environ.get(env_modelo) or padrao
+        for vez in range(2):
+            corpo = {"model": modelo, "messages": [{"role": "user", "content": prompt}], "temperature": 0.5}
+            if json_mode:
+                corpo["response_format"] = {"type": "json_object"}
+            req = urllib.request.Request(f"{base}/chat/completions", data=json.dumps(corpo).encode(), method="POST",
+                                         headers={"Authorization": f"Bearer {chave}", "Content-Type": "application/json"})
+            try:
+                r = json.loads(urllib.request.urlopen(req, timeout=240).read())
+                txt = r["choices"][0]["message"]["content"] or ""
+                if txt.strip():
+                    log(f"   (respondido por {env.split('_')[0].title()} — {modelo}, grátis)")
+                    return txt
+            except urllib.error.HTTPError as e:
+                det = e.read().decode("utf-8", "ignore")[:160]
+                if vez == 0 and e.code in (400, 404) and "model" in det.lower():
+                    novo = _modelo_grande(base, chave)
+                    if novo and novo != modelo:
+                        modelo = novo
+                        continue
+                if vez == 0 and e.code == 400 and json_mode:
+                    json_mode = False  # IA sem modo JSON: pede só no texto
+                    continue
+                log(f"   {env.split('_')[0].title()}: {e.code} {det}")
+            except Exception as e:
+                log(f"   {env.split('_')[0].title()}: {str(e)[:120]}")
+            break
+    return None
+
+
 USO_CLAUDE = Path.home() / ".detto_claude_uso.json"
 
 
@@ -323,7 +384,7 @@ def _fala_do_video(f, log=print):
         return ""
 
 
-def claude_partes_json(partes, log=print, quadros=8, de=""):
+def claude_partes_json(partes, log=print, quadros=4, de=""):
     """o mesmo pedido feito ao Gemini (texto + imagens + vídeo), feito ao Claude: o vídeo vira QUADROS (fotos em ordem,
     com o tempo) + a TRANSCRIÇÃO do áudio. Devolve o JSON (dict) ou None."""
     import base64
@@ -457,7 +518,11 @@ def main():
     except SystemExit as e:
         # cota do Gemini acabou (429) / sem chave / sem internet: tenta o Claude da assinatura; senão roteiro simples
         print(f"Gemini indisponível ({str(e)[:160]}).")
-        texto = claude_cli(prompt)
+        texto = texto_gratis(prompt)
+        if texto and len(texto) > 200 and "FALA:" in texto:
+            print("Roteiro feito por uma IA grátis")
+        else:
+            texto = claude_cli(prompt)
         if texto and len(texto) > 200:
             print("Roteiro feito pelo Claude (sua assinatura)")
             texto = re.sub(r"^```\w*\n|\n```$", "", texto.strip())

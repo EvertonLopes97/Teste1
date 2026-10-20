@@ -367,8 +367,51 @@ def origem_falada(x):
     return fonte
 
 
+def ponto_de_pausa(x, alvo):
+    """onde pausar a reportagem para o seu comentário: o fim de frase mais perto do alvo (nunca nos 10 s das pontas)"""
+    try:
+        words = json.loads(Path(x["arquivo"]).with_suffix(".words.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    lo, hi = x["ini"] + 10, x["fim"] - 10
+    if hi <= lo:
+        return None
+    melhor = None
+    for k, w in enumerate(words):
+        if not (lo <= w["e"] <= hi):
+            continue
+        prox = words[k + 1] if k + 1 < len(words) else None
+        if re.search(r"[.!?]$", w["w"]) or (prox and prox["s"] - w["e"] >= 0.45):
+            if melhor is None or abs(w["e"] - alvo) < abs(melhor - alvo):
+                melhor = w["e"] + 0.12
+    return melhor if melhor is not None and abs(melhor - alvo) <= 12 else None
+
+
+def falas_do_trecho(x, passo=7.0):
+    """o que é dito no trecho, com o segundo (contado do começo do trecho) — para o comentário no meio dele"""
+    try:
+        words = json.loads(Path(x["arquivo"]).with_suffix(".words.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    out, atual, t0 = [], [], None
+    for w in words:
+        if w["s"] < x["ini"] or w["s"] >= x["fim"]:
+            continue
+        t0 = w["s"] if t0 is None else t0
+        atual.append(w["w"])
+        if w["e"] - t0 >= passo:
+            out.append(f"[+{int(t0 - x['ini'])}s] {' '.join(atual)}")
+            atual, t0 = [], None
+    if atual:
+        out.append(f"[+{int(t0 - x['ini'])}s] {' '.join(atual)}")
+    return "\n".join(out)[:3500]
+
+
 def roteiro(sel, cfg):
-    lista = "\n".join(f"{i + 1}. [ORIGEM: {origem(x)}] {x['manchete']} — {x.get('resumo', '')} (clima: {x['clima']})" for i, x in enumerate(sel))
+    lista = "\n".join(f"{i + 1}. [ORIGEM: {origem(x)}] {x['manchete']} — {x.get('resumo', '')} (clima: {x['clima']}; {x['fim'] - x['ini']:.0f} s)"
+                      for i, x in enumerate(sel))
+    longos = "\n\n".join(f"TRECHO {i + 1} ({x['fim'] - x['ini']:.0f} s) — o que é dito:\n{falas_do_trecho(x)}"
+                          for i, x in enumerate(sel) if x["fim"] - x["ini"] >= cfg.get("comentario_min_s", 45))
     g = gemini_json([{"text": f"""Você narra o canal "{cfg['nome_canal']}", de notícias do Atlético-MG (o Galo), como um torcedor apaixonado
 e engraçado de BH (gírias leves, "Massa", "Galo doido"), opinando sobre o que a imprensa falou (alguns trechos podem ser de OUTROS assuntos do futebol que você escolheu
 comentar: fale deles com o mesmo jeito, sempre como torcedor do Galo). Os trechos, em ordem:
@@ -380,7 +423,13 @@ Escreva a narração que liga os trechos. Responda SÓ JSON:
  "descricao": "<2 a 3 frases sobre o vídeo>", "tags": ["<10 a 15 tags>"],
  "abertura": {{"texto": "<gancho de 2 a 3 frases, até 45 palavras>", "clima": "<{'|'.join(CLIMAS)}>"}},
  "falas": [{{"antes_do": <número do trecho>, "texto": "<sua opinião/ponte para o trecho, 1 a 3 frases, até 40 palavras>", "clima": "..."}}],
+ "comentarios": [{{"trecho": <número>, "depois_de": <segundo do trecho, logo DEPOIS de uma frase forte>, "texto": "<sua reação curta ao que ACABOU de ser dito, 6 a 20 palavras>", "clima": "..."}}],
  "fechamento": {{"texto": "<opinião final + pedir like, inscrição e comentário, até 40 palavras>", "clima": "..."}}}}
+COMENTÁRIOS NO MEIO: nos trechos longos abaixo, entre UMA reação sua no meio da reportagem (2 se passar de 2 min), como
+quem pausa e comenta o que acabou de ouvir ("Olha isso, Massa!", "Concordo demais com ele", "Aí não, né?") — só onde
+combina, nunca nos primeiros 10 s nem nos últimos 10 s do trecho.
+{longos}
+
 Uma fala antes de CADA trecho (antes_do = 1, 2, 3...). CADA fala DIZ DE ONDE VEM o trecho seguinte, pelo nome do programa/emissora
 da ORIGEM (ex.: "olha o que falaram no Globo Esporte Minas", "o pessoal do Jogo Aberto, da Band, comentou"; se for "via" um canal,
 cite o programa e o canal). No fechamento, diga que os créditos de tudo que foi usado estão nos comentários e na descrição."""}])
@@ -472,25 +521,9 @@ def movimento(video, fps=10):
 
 
 def cortes_do_botao(mv, fps=10):
-    """onde começar e terminar: a gravação começa e termina com você apertando o botão (mão chegando, celular
-    tremendo). Tira pelo menos 0,8 s de cada ponta e, se o tremor for além, até ele passar (até 3 s)."""
-    import numpy as np
-    n = len(mv)
-    if n < fps * 3:
-        return 0.0, n / fps
-    meio = mv[int(n * 0.25): int(n * 0.75)] if n > fps * 4 else mv
-    lim = max(float(np.median(meio)) * 3.0, float(np.percentile(meio, 90)) * 1.5, 2.0)
-    ini = 0.8
-    for k in range(min(n, fps * 3)):
-        if mv[k] > lim:
-            ini = max(ini, (k + 1) / fps + 0.25)
-    fim = n / fps - 0.8
-    for k in range(n - 1, max(-1, n - fps * 3 - 1), -1):
-        if mv[k] > lim:
-            fim = min(fim, k / fps - 0.25)
-    if fim - ini < 2.0:
-        return 0.5, max(1.0, n / fps - 0.5)
-    return round(ini, 2), round(fim, 2)
+    """sem o botão nas pontas (o mesmo dos reels): tremor do toque no começo e a MÃO indo dar pause no fim"""
+    from reels import cortes_pontas
+    return cortes_pontas(mv, fps, 1.0, 1.5)
 
 
 def prepara_mascaras(pasta):
@@ -503,7 +536,7 @@ def prepara_mascaras(pasta):
     av = le_json(av_f, {})
     mudou = False
     for v in vs:
-        sig = f"{v.stat().st_size}:{int(v.stat().st_mtime)}"
+        sig = f"v2:{v.stat().st_size}:{int(v.stat().st_mtime)}"  # v2 = corte novo do fim (a mão indo dar pause)
         saida = pm / "sdr" / f"{v.stem}.mp4"
         if av.get(v.stem, {}).get("sig") == sig and saida.exists():
             continue
@@ -550,7 +583,7 @@ def prepara_mascaras(pasta):
     return av
 
 
-def mascara_de(clima, pasta):
+def mascara_de(clima, pasta, durante_reportagem=False):
     """a gravação de máscara para esse clima: pelo NOME do arquivo (rindo.mov...) ou, se o nome não diz (teste 1.mov),
     pelo GESTO avaliado (animado → muito gesto; calmo → pouco). Já cortada (sem o botão) e em SDR. Não repete a última."""
     pm = pasta / "mascara"
@@ -558,8 +591,13 @@ def mascara_de(clima, pasta):
     vs = [p for p in (pm / "sdr").glob("*.mp4") if p.stem in av and not p.stem.endswith("__inteiro")]
     if not vs:
         return None
-    certas = [p for p in vs if clima in norm(p.stem)]
-    if not certas:
+    # durante a REPORTAGEM você está ouvindo: só as gravações com POUCO gesto (as calmas), sempre
+    if durante_reportagem:
+        calmas = [p for p in vs if av[p.stem].get("nivel") == "pouco"] or [p for p in vs if av[p.stem].get("nivel") == "médio"]
+        if calmas:
+            vs = calmas
+    certas = [] if durante_reportagem else [p for p in vs if clima in norm(p.stem)]
+    if not certas and not durante_reportagem:
         quer = ["muito", "médio"] if clima in ANIMADOS else ["pouco", "médio"]
         for nv in quer:
             certas = [p for p in vs if av[p.stem].get("nivel") == nv]
@@ -677,6 +715,20 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
         f = por_trecho.get(i + 1)
         if f and f.get("texto"):
             falas.append({"id": f"f{i + 1:02d}", "texto": f["texto"], "clima": f.get("clima", "falando"), "antes": i})
+    # comentários seus NO MEIO da reportagem (pausa → você comenta → a reportagem continua de onde parou)
+    for k, c in enumerate(rot.get("comentarios") or []):
+        try:
+            i = int(c.get("trecho", 0)) - 1
+            dep = float(c.get("depois_de", 0))
+        except (TypeError, ValueError):
+            continue
+        if not (0 <= i < len(sel)) or not str(c.get("texto", "")).strip():
+            continue
+        x = sel[i]
+        corte = ponto_de_pausa(x, x["ini"] + dep)
+        if corte is None:
+            continue
+        falas.append({"id": f"c{i + 1:02d}{k}", "texto": c["texto"], "clima": c.get("clima", "falando"), "comenta": i, "em": corte})
     falas.append({"id": "f99", "texto": rot["fechamento"]["texto"], "clima": rot["fechamento"].get("clima", "comemorando")})
     fj = tmp / "falas.json"
     grava_json(fj, falas)
@@ -684,7 +736,11 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
     subprocess.run([sys.executable, str(AQUI / "voz.py"), str(fj), str(pasta / "voz" / "cache"), "--ref", str(ref), "--exagero", str(cfg["exagero_voz"])], check=True)
     falas = json.loads(fj.read_text(encoding="utf-8"))
     fala_antes = {f["antes"]: f for f in falas if "antes" in f}
-    # 2) peças: abertura → (fala → trecho)… → fechamento
+    comenta = {}
+    for f in falas:
+        if "comenta" in f:
+            comenta.setdefault(f["comenta"], []).append(f)
+    # 2) peças: abertura → (fala → trecho [→ comentário → resto do trecho])… → fechamento
     pecas = []
 
     def add_fala(f):
@@ -699,8 +755,16 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
         p = tmp / f"p{len(pecas):03d}.mp4"
         fx = faixa_png(x["manchete"], f"Imagens: {origem(x)}", tmp / f"faixa_{i}.png", cfg["cor"])
         log(f"   trecho {i + 1}/{len(sel)}: {x['manchete']} ({x['fim'] - x['ini']:.0f}s, {x['fonte']})")
-        if peca_trecho(base, x["arquivo"], x["ini"], x["fim"], mascara_de(x["clima"], pasta), fx, p):
-            pecas.append(p)
+        cortes = sorted({round(c["em"], 2) for c in comenta.get(i, [])})
+        partes = list(zip([x["ini"]] + cortes, cortes + [x["fim"]]))
+        coms = sorted(comenta.get(i, []), key=lambda c: c["em"])
+        for n, (a0, b0) in enumerate(partes):
+            p = tmp / f"p{len(pecas):03d}.mp4"
+            if peca_trecho(base, x["arquivo"], a0, b0, mascara_de(x["clima"], pasta, durante_reportagem=True), fx, p):
+                pecas.append(p)
+            if n < len(coms):
+                log(f"      comentário seu no meio: {coms[n]['texto'][:60]}")
+                add_fala(coms[n])
     add_fala(falas[-1])
     lista = tmp / "pecas.txt"
     lista.write_text("".join(f"file '{p.as_posix()}'\n" for p in pecas), encoding="utf-8")
@@ -890,7 +954,7 @@ def short(cfg, pasta, fala, trecho, tmp, idx, saida):
     if fim - ini < 8:
         fim = min(trecho["fim"], ini + 15)
     clip = trecho["arquivo"]
-    masc = mascara_de(trecho.get("clima", "falando"), pasta)
+    masc = mascara_de(trecho.get("clima", "falando"), pasta, durante_reportagem=True)
     ins = ["-ss", f"{ini:.2f}", "-t", f"{fim - ini:.2f}", "-i", str(clip), "-loop", "1", "-i", str(cab)]
     f = (f"[0:v]{cor_sdr(clip)}split[v1][v2];[v1]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,boxblur=8:2,scale={VW}:{VH},eq=brightness=-0.25[bg];"
          f"[v2]scale={VW}:-2[fg];[bg][fg]overlay=0:(H-h)/2-60[b0];")

@@ -288,11 +288,13 @@ def tags_originais(info):
 GEMINI_FORA = False  # 429 (cota) nesta rodada: vai direto ao Claude, sem tentar o Gemini de novo a cada pergunta
 
 
-def gemini_json(partes, temperatura=0.8):
-    """pergunta ao Gemini (assiste o vídeo); sem cota/sem chave → o Claude da sua assinatura (quadros + transcrição)"""
+def gemini_json(partes, temperatura=0.8, essencial=True):
+    """pergunta ao Gemini (assiste o vídeo). Sem cota/sem chave: pergunta SÓ DE TEXTO → IAs grátis (Cerebras/Groq/
+    Mistral/OpenRouter) e depois o Claude; com FOTO/VÍDEO → o Claude só se `essencial` (conferências extras pulam,
+    para não gastar o seu Claude)."""
     global GEMINI_FORA
     sys.path.insert(0, str(TOOLS))
-    from roteiro_ia import claude_partes_json, gerar
+    from roteiro_ia import claude_partes_json, gerar, texto_gratis
 
     if os.environ.get("GEMINI_API_KEY") and not GEMINI_FORA:
         corpo = json.dumps({"contents": [{"parts": partes}], "generationConfig": {"temperature": temperatura, "responseMimeType": "application/json"}}).encode()
@@ -304,6 +306,17 @@ def gemini_json(partes, temperatura=0.8):
             log(f"   Gemini: {str(e)[:200]}")
             if "429" in str(e) or "nenhum modelo" in str(e):
                 GEMINI_FORA = True
+    so_texto = all("text" in p_ for p_ in partes)
+    if so_texto:
+        t = texto_gratis("\n".join(p_["text"] for p_ in partes) + "\n\nResponda SOMENTE com o JSON pedido.", json_mode=True, log=log)
+        m = re.search(r"\{.*\}", t or "", re.S)
+        if m:
+            try:
+                return json.loads(m.group(0))
+            except ValueError:
+                pass
+    elif not essencial:
+        return None  # conferência extra com imagem: sem Gemini, fica só a dos pixels (não gasta o Claude)
     g = claude_partes_json(partes, log=log)
     if g is not None:
         log("   (respondido pelo Claude da sua assinatura)")
@@ -1350,7 +1363,7 @@ def confere_troca(saida, clip, cenas, texto_ref):
             if c["tipo"] != "pessoa":
                 continue
             g = gemini_json([{"text": "Transcreva EXATAMENTE o texto de legenda/meme escrito nesta imagem (ignore marca d'água e @). "
-                                      "JSON {\"texto\": \"...\"}"}, _jpg64(q, 540)], temperatura=0)
+                                      "JSON {\"texto\": \"...\"}"}, _jpg64(q, 540)], temperatura=0, essencial=False)
             lido = (g or {}).get("texto") if g else None
             if lido is not None and _bate(lido, texto_ref) < 0.8:
                 probs.append(f"{c['a']:.1f}-{c['b']:.1f}s: texto diferente do que continua na tela ({lido!r})")
@@ -1363,7 +1376,7 @@ def confere_troca(saida, clip, cenas, texto_ref):
                              "parte dele; imagem estourada/branca demais). JSON {\"ok\": true|false, \"problemas\": [\"...\"]}"}]
         for c, q in quadros:
             partes += [{"text": ("SUA PARTE" if c["tipo"] == "pessoa" else "LANCE") + f" ({c['a']:.1f}s):"}, _jpg64(q)]
-        g = gemini_json(partes, temperatura=0)
+        g = gemini_json(partes, temperatura=0, essencial=False)
         if g and g.get("ok") is False:
             probs += [f"Gemini: {x}" for x in (g.get("problemas") or ["não aprovou"])][:4]
     return probs
@@ -1422,6 +1435,41 @@ def _movimento(video, fps=10):
     return np.abs(np.diff(q, axis=0)).mean(axis=(1, 2))
 
 
+def cortes_pontas(mv, fps=10, ini_min=1.0, fim_min=1.2):
+    """(ini, fim) sem o botão: no começo, o tremor do toque; no FIM, a mão indo para o botão aparece ANTES do tremor
+    (o movimento sobe e não desce mais) — corta antes disso. Mínimos: ini_min / fim_min."""
+    import numpy as np
+    n = len(mv)
+    total = n / fps
+    if n < fps * 3:
+        return 0.0, total
+    meio = mv[int(n * 0.25): int(n * 0.75)] if n > fps * 4 else mv
+    base = float(np.median(meio))
+    lim = max(base * 3.0, float(np.percentile(meio, 90)) * 1.5, 2.0)
+    ini, fim = ini_min, total - fim_min
+    for k in range(min(n, fps * 3)):
+        if mv[k] > lim:
+            ini = max(ini, (k + 1) / fps + 0.25)
+    for k in range(n - 1, max(-1, n - fps * 3 - 1), -1):
+        if mv[k] > lim:
+            fim = min(fim, k / fps - 0.25)
+    # mão chegando: nos últimos 4 s, o ponto a partir do qual o movimento fica acima de 1,6x o normal até o fim
+    sobe = max(base * 1.6, 1.2)
+    k0 = None
+    for k in range(n - 1, max(-1, n - fps * 4 - 1), -1):
+        janela = mv[max(0, k - 2): k + 1]
+        if float(np.mean(janela)) > sobe:
+            k0 = k
+        else:
+            if k0 is not None:
+                break
+    if k0 is not None and k0 / fps < fim:
+        fim = min(fim, k0 / fps - 0.3)
+    if fim - ini < 1.5:
+        return (0.3, max(0.8, total - 0.3)) if total > 1.5 else (0.0, total)
+    return round(ini, 2), round(fim, 2)
+
+
 def cortes_botao(video):
     """onde a gravação começa e termina SEM o botão (mão chegando/celular tremendo): corta o tremor das pontas
     (até 3 s) e um mínimo fixo (0,8 s; 0,3 s em gravação curta). Guarda em inicios/.cortes.json."""
@@ -1429,7 +1477,7 @@ def cortes_botao(video):
     video = Path(video)
     cache_f = video.parent / ".cortes.json"
     cache = le_json(cache_f, {})
-    chave = f"{video.name}|{video.stat().st_size}|{int(video.stat().st_mtime)}"
+    chave = f"v2|{video.name}|{video.stat().st_size}|{int(video.stat().st_mtime)}"
     if chave in cache:
         return tuple(cache[chave])
     mv, fps = _movimento(video), 10
@@ -1438,17 +1486,8 @@ def cortes_botao(video):
     if n < fps * 2:
         res = (0.0, total)
     else:
-        minimo = 0.8 if total >= 5 else 0.3
-        meio = mv[int(n * 0.25): int(n * 0.75)] if n > fps * 4 else mv
-        lim = max(float(np.median(meio)) * 3.0, float(np.percentile(meio, 90)) * 1.5, 2.0)
-        ini, fim = minimo, total - minimo
-        for k in range(min(n, fps * 3)):
-            if mv[k] > lim:
-                ini = max(ini, (k + 1) / fps + 0.25)
-        for k in range(n - 1, max(-1, n - fps * 3 - 1), -1):
-            if mv[k] > lim:
-                fim = min(fim, k / fps - 0.25)
-        res = (round(ini, 2), round(fim, 2)) if fim - ini >= 1.0 else (0.0, total)
+        curto = total < 5
+        res = cortes_pontas(mv, fps, 0.3 if curto else 0.8, 0.5 if curto else 1.2)
     cache[chave] = list(res)
     grava_json(cache_f, cache)
     return res
