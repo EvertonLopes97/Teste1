@@ -94,7 +94,7 @@ REGRAS:
 - NUNCA invente nota, placar ou time: use só o que está na fala. Sem a nota na fala, não faça card.
 - EFEITO: punch-in nas frases de impacto; zoom lento no suspense.
 - Na chamada para seguir/comentar: TELA: "COMENTA AÍ" + botão "SEGUIR".
-- CORTES VERTICAIS: um por tema (30 a 75 s), com um gancho forte.
+- CORTES VERTICAIS: um por tema (75 a 110 s da gravação: sem as pausas o short fica com 60 a 90 s — NUNCA menos de 60), com um gancho forte.
 - Responda SÓ com o roteiro, sem comentários.
 """
 
@@ -485,7 +485,7 @@ def roteiro_basico(words, titulo=""):
     for t in trechos:
         if ini is None:
             ini = t[0]["s"]
-        if t[-1]["e"] - ini >= 55 or t is trechos[-1]:
+        if t[-1]["e"] - ini >= 80 or t is trechos[-1]:
             if t[-1]["e"] - ini >= 25:
                 n += 1
                 L.append(f'{n}. "PARTE {n}": [{_mmss(ini)} – {_mmss(t[-1]["e"] + 0.5)}]. Gancho: "{gancho}"')

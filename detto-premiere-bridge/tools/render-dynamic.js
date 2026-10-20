@@ -51,6 +51,53 @@ function cutRanges(plan, n) {
   return ms.sort((a, b) => a.time - b.time).map((m) => [m.time, m.time + (m.duration || 0)]);
 }
 
+/**
+ * Short mais DINÂMICO e com pelo menos `minimo` segundos: tira os silêncios de dentro do corte (pausa > `pausa` s entre
+ * palavras, pelas legendas do plano) e, se ficar curto, estende o corte até o fim da próxima frase falada (ou volta
+ * para trás no fim do vídeo).
+ * @param {number[][]} ranges @param {any} plan @param {number} duracao
+ */
+function shortDinamico(ranges, plan, duracao, minimo = 60, pausa = 0.35) {
+  const palavras = (plan.captions || []).flatMap((c) => c.words || []).filter((w) => w.e > w.s).sort((x, y) => x.s - y.s);
+  if (!palavras.length) return ranges;
+  const falas = (/** @type {number[][]} */ rs) => {
+    const out = [];
+    for (const [a, b] of rs) {
+      let cur = null;
+      for (const w of palavras) {
+        if (w.e <= a || w.s >= b) continue;
+        const s = Math.max(a, w.s - 0.08);
+        const e = Math.min(b, w.e + 0.12);
+        if (cur && s - cur[1] <= pausa) cur[1] = Math.max(cur[1], e);
+        else {
+          if (cur) out.push(cur);
+          cur = [s, e];
+        }
+      }
+      if (cur) out.push(cur);
+    }
+    return out.filter(([x, y]) => y - x > 0.15);
+  };
+  const soma = (/** @type {number[][]} */ rs) => rs.reduce((t, [x, y]) => t + (y - x), 0);
+  let rs = ranges.map((r) => [...r]);
+  let out = falas(rs);
+  // curto: estende o fim, frase a frase (fins de legenda), até passar do mínimo
+  const fins = (plan.captions || []).map((c) => c.end).sort((x, y) => x - y);
+  let guarda = 0;
+  while (soma(out) < minimo && guarda++ < 400) {
+    const ult = rs[rs.length - 1];
+    const prox = fins.find((t) => t > ult[1] + 0.05);
+    if (prox !== undefined && prox <= duracao) ult[1] = prox;
+    else {
+      const ini = (plan.captions || []).map((c) => c.start).filter((t) => t < rs[0][0] - 0.05).pop();
+      if (ini === undefined) break;
+      rs[0][0] = ini;
+    }
+    out = falas(rs);
+  }
+  return out.length ? out : ranges;
+}
+
 async function main() {
   const a = args(process.argv.slice(2));
   if (!a._[0] || !a.video || !a.out || !a.fonts) {
@@ -93,7 +140,15 @@ async function main() {
 
   // 3. trechos a renderizar
   let ranges = [[0, d.duration]];
-  if (a.cut) ranges = cutRanges(plan, a.cut);
+  if (a.cut) {
+    ranges = cutRanges(plan, a.cut);
+    // short: sem silêncios e com pelo menos 60 s (--min-short / --pausa-short mudam)
+    if (a["min-short"] !== "0") {
+      const antes = ranges.reduce((t, [x, y]) => t + (y - x), 0);
+      ranges = shortDinamico(ranges, plan, d.duration, Number(a["min-short"] || 60), Number(a["pausa-short"] || 0.35));
+      log(`short dinâmico: ${antes.toFixed(1)}s → ${ranges.reduce((t, [x, y]) => t + (y - x), 0).toFixed(1)}s em ${ranges.length} pedaços (sem silêncio, mínimo ${a["min-short"] || 60}s)`);
+    }
+  }
   else if (a.from || a.to) ranges = [[Number(a.from || 0), Math.min(d.duration, Number(a.to || d.duration))]];
   const total = ranges.reduce((s, [x, y]) => s + (y - x), 0);
   // corte 9:16: o gancho escrito na tela nos primeiros segundos (o do roteiro; senão o título do corte)
