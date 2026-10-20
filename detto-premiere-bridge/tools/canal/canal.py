@@ -11,6 +11,8 @@ PASTA (padrão E:\\DETTO\\canal_galo, criada na 1ª vez):
   mascara\\     você de máscara, 5–10 s cada, o NOME diz o clima: rindo.mov, bravo.mov, comemorando.mov,
                pensativo.mov, concordando.mov, surpreso.mov, falando.mov (vários por clima: rindo 2.mov...)
   voz\\minha_voz.wav   20–30 s da sua voz falando normal, sem música (é a voz clonada)
+  PELO DRIVE: suba em  Meu Drive\\DETTO\\canal_noticias\\mascara  e  ...\\voz  (qualquer áudio: .m4a do iPhone serve)
+               → cada rodada copia sozinha para cá (a voz vira minha_voz.wav)
   client_secret.json / token.json   ligação com o canal (LEIA-ME.txt)
   config.json   fontes (canais da imprensa), nome do canal, tamanho do vídeo, quantos por dia
   fontes\\      vídeos baixados da imprensa (apagados depois de usados)
@@ -71,6 +73,7 @@ CONFIG_PADRAO = {
     "shorts": 2,  # Shorts (9:16) por vídeo: as melhores notícias, cada uma com a sua fala antes
     "horas_entre_shorts": 3,
     "short_max_s": 55,
+    "drive": "",  # pasta do Drive com mascara\ e voz\; vazio = <Meu Drive>\DETTO\canal_noticias
 }
 
 
@@ -635,6 +638,68 @@ def pasta_padrao():
     return Path.home() / "DETTO" / "canal_galo"
 
 
+def raiz_drive():
+    """onde o Google Drive para computador aparece no PC (G:\\Meu Drive...)"""
+    for letra in "GHIJKFED":
+        for nome in ("Meu Drive", "My Drive"):
+            p = Path(f"{letra}:/{nome}")
+            if p.is_dir():
+                return p
+    for p in (Path.home() / "Google Drive", Path.home() / "Meu Drive", Path.home() / "My Drive"):
+        if p.is_dir():
+            return p
+    return None
+
+
+VIDEO_EXT = {".mov", ".mp4", ".m4v", ".mkv", ".webm"}
+AUDIO_EXT = VIDEO_EXT | {".m4a", ".mp3", ".wav", ".aac", ".ogg", ".opus", ".flac", ".caf", ".amr", ".3gp"}
+
+
+def traz_do_drive(pasta, cfg):
+    """copia do Drive (DETTO\\canal_noticias) as gravações de máscara e a sua voz — você sobe pelo celular e pronto"""
+    if cfg.get("drive"):
+        raiz = Path(cfg["drive"])
+    else:
+        d = raiz_drive()
+        raiz = d / "DETTO" / "canal_noticias" if d else None
+    if not raiz or not raiz.is_dir():
+        return
+    m = raiz / "mascara"
+    if m.is_dir():
+        for f in sorted(m.iterdir()):
+            if not f.is_file() or f.suffix.lower() not in VIDEO_EXT:
+                continue
+            dest = pasta / "mascara" / f.name
+            try:
+                if dest.exists() and dest.stat().st_size == f.stat().st_size:
+                    continue
+                shutil.copy2(f, dest)
+                log(f"Drive: máscara {f.name} copiada")
+            except OSError as e:  # ainda baixando do Drive: pega na próxima rodada
+                log(f"Drive: {f.name} ainda não dá para copiar ({e}); tento na próxima")
+    v = raiz / "voz"
+    if v.is_dir():
+        auds = [f for f in v.iterdir() if f.is_file() and f.suffix.lower() in AUDIO_EXT]
+        if auds:
+            f = max(auds, key=lambda x: x.stat().st_mtime)
+            marca = f"{f.name}|{f.stat().st_size}|{int(f.stat().st_mtime)}"
+            reg = pasta / "voz" / "origem_drive.txt"
+            if not reg.exists() or reg.read_text(encoding="utf-8").strip() != marca:
+                ref = pasta / cfg["voz_ref"]
+                ref.parent.mkdir(parents=True, exist_ok=True)
+                tmp = ref.with_name("_nova_voz.wav")
+                # mono, 44,1 kHz, até 40 s, sem graves de vento e com volume certo (a clonagem gosta de voz limpa)
+                r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(f), "-vn", "-ac", "1", "-ar", "44100", "-t", "40",
+                                    "-af", "highpass=f=70,loudnorm=I=-18:TP=-2", str(tmp)], capture_output=True, text=True)
+                if r.returncode == 0 and tmp.exists() and tmp.stat().st_size > 50_000:
+                    tmp.replace(ref)
+                    reg.write_text(marca, encoding="utf-8")
+                    log(f"Drive: sua voz atualizada a partir de {f.name}")
+                else:
+                    tmp.unlink(missing_ok=True)
+                    log(f"Drive: não consegui ler a voz {f.name} (ainda baixando?) — tento na próxima")
+
+
 def prepara(pasta):
     for p in ("mascara", "voz", "fontes", "prontos"):
         (pasta / p).mkdir(parents=True, exist_ok=True)
@@ -675,6 +740,7 @@ def main():
     a = ap.parse_args()
     pasta = Path(a.pasta)
     cfg = prepara(pasta)
+    traz_do_drive(pasta, cfg)
     le_pautas(pasta)
     if a.preparar:
         return

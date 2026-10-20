@@ -25,6 +25,8 @@ CANAIS AUTOMÁTICOS DO YOUTUBE — NOTÍCIAS e VLOGS
    mascara\   você de máscara, 5–10 s cada, o NOME diz o clima: rindo.mov, bravo.mov, comemorando.mov,
               pensativo.mov, concordando.mov, surpreso.mov, falando.mov (pode ter vários: rindo 2.mov)
    voz\minha_voz.wav   20–30 s da sua voz falando normal, sem música (a primeira vez baixa o modelo, ~3 GB)
+   PELO DRIVE: suba em Meu Drive\DETTO\canal_noticias\mascara e ...\voz (o .m4a do iPhone serve);
+   cada rodada copia sozinha para cá.
  PAUTAS (outras notícias quando quiser): no painel, cole um LINK de vídeo, o caminho de um ARQUIVO do PC ou
  escreva o ASSUNTO ("Cruzeiro demite o técnico" — ele procura os vídeos no YouTube). Entram no próximo vídeo,
  antes das do Galo. "Pôr e fazer o vídeo agora" monta na hora. (Arquivo: pautas.txt, uma por linha.)
