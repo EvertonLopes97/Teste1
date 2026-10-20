@@ -285,20 +285,29 @@ def tags_originais(info):
 
 
 # ------------------------------------------------------------------ Gemini (assiste o vídeo e escreve)
-def gemini_json(partes, temperatura=0.8):
-    if not os.environ.get("GEMINI_API_KEY"):
-        return None
-    sys.path.insert(0, str(TOOLS))
-    from roteiro_ia import gerar
+GEMINI_FORA = False  # 429 (cota) nesta rodada: vai direto ao Claude, sem tentar o Gemini de novo a cada pergunta
 
-    corpo = json.dumps({"contents": [{"parts": partes}], "generationConfig": {"temperature": temperatura, "responseMimeType": "application/json"}}).encode()
-    try:
-        r = gerar(corpo, log=log)
-        txt = r["candidates"][0]["content"]["parts"][0]["text"]
-        return json.loads(re.search(r"\{.*\}", txt, re.S).group(0))
-    except Exception as e:
-        log(f"   Gemini: {str(e)[:200]}")
-    return None
+
+def gemini_json(partes, temperatura=0.8):
+    """pergunta ao Gemini (assiste o vídeo); sem cota/sem chave → o Claude da sua assinatura (quadros + transcrição)"""
+    global GEMINI_FORA
+    sys.path.insert(0, str(TOOLS))
+    from roteiro_ia import claude_partes_json, gerar
+
+    if os.environ.get("GEMINI_API_KEY") and not GEMINI_FORA:
+        corpo = json.dumps({"contents": [{"parts": partes}], "generationConfig": {"temperature": temperatura, "responseMimeType": "application/json"}}).encode()
+        try:
+            r = gerar(corpo, log=log)
+            txt = r["candidates"][0]["content"]["parts"][0]["text"]
+            return json.loads(re.search(r"\{.*\}", txt, re.S).group(0))
+        except Exception as e:
+            log(f"   Gemini: {str(e)[:200]}")
+            if "429" in str(e) or "nenhum modelo" in str(e):
+                GEMINI_FORA = True
+    g = claude_partes_json(partes, log=log)
+    if g is not None:
+        log("   (respondido pelo Claude da sua assinatura)")
+    return g
 
 
 def video_pequeno(f, saida, segundos=40, altura=360):

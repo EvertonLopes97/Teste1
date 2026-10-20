@@ -206,26 +206,137 @@ def gemini(prompt):
 
 
 
-def claude_cli(prompt, tempo=900):
+USO_CLAUDE = Path.home() / ".detto_claude_uso.json"
+
+
+def _cota_claude(gasta=False):
+    """trava de segurança: no máx. DETTO_CLAUDE_MAX_DIA chamadas por dia (padrão 30) — o limite é o MESMO das suas
+    conversas com o Claude, então o sistema não pode gastar tudo sozinho"""
+    import datetime as _dt
+    hoje = _dt.date.today().isoformat()
+    try:
+        u = json.loads(USO_CLAUDE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        u = {}
+    n = u.get("n", 0) if u.get("dia") == hoje else 0
+    if n >= int(os.environ.get("DETTO_CLAUDE_MAX_DIA", "30")):
+        return False
+    if gasta:
+        try:
+            USO_CLAUDE.write_text(json.dumps({"dia": hoje, "n": n + 1}), encoding="utf-8")
+        except OSError:
+            pass
+    return True
+
+
+def claude_cli(prompt, tempo=900, imagens=(), log=print):
     """2ª opção quando o Gemini não responde: o Claude da SUA assinatura (Pro/Max), pelo Claude Code instalado no PC
-    (`claude -p`). Usa o mesmo limite das conversas com o Claude. Sem chave de API: tira ANTHROPIC_API_KEY do
-    ambiente para nunca cair na cobrança da API. Devolve o texto ou None."""
+    (`claude -p`). Usa o mesmo limite das conversas com o Claude (trava diária em _cota_claude). Sem chave de API:
+    tira ANTHROPIC_API_KEY do ambiente para nunca cair na cobrança da API. `imagens` = fotos que ele abre e olha.
+    Devolve o texto ou None."""
     exe = shutil.which("claude")
     if not exe or os.environ.get("DETTO_SEM_CLAUDE"):
         return None
+    if not _cota_claude():
+        log("   Claude: chegou no máximo do dia do sistema (DETTO_CLAUDE_MAX_DIA) — guardo o resto para você")
+        return None
     env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+    cmd = [exe, "-p", "--output-format", "text"]
+    cwd = None
+    if imagens:
+        cmd += ["--allowedTools", "Read"]
+        cwd = str(Path(imagens[0]).parent)
+        prompt = ("Abra e OLHE estas imagens com a ferramenta Read antes de responder (são quadros de um vídeo, em ordem):\n"
+                  + "\n".join(str(Path(x).resolve()) for x in imagens) + "\n\n" + prompt)
     try:
-        r = subprocess.run([exe, "-p", "--output-format", "text"], input=prompt, capture_output=True, text=True,
-                           encoding="utf-8", timeout=tempo, env=env)
+        r = subprocess.run(cmd, input=prompt, capture_output=True, text=True, encoding="utf-8", timeout=tempo, env=env, cwd=cwd)
     except (OSError, subprocess.TimeoutExpired) as e:
-        print(f"   Claude: não respondeu ({e})")
+        log(f"   Claude: não respondeu ({e})")
         return None
+    _cota_claude(gasta=True)
     out = (r.stdout or "").strip()
-    if r.returncode != 0 or len(out) < 200:
-        print(f"   Claude: não deu ({(r.stderr or out)[:200]})")
+    if r.returncode != 0 or not out:
+        log(f"   Claude: não deu ({(r.stderr or out)[:200]})")
         return None
-    print("Roteiro feito pelo Claude (sua assinatura)")
     return out
+
+
+_WHISPER = None
+
+
+def _fala_do_video(f, log=print):
+    """o que se ouve no vídeo (narração, grito, fala) — o Claude não ouve, então vai escrito"""
+    global _WHISPER
+    try:
+        from faster_whisper import WhisperModel
+        if _WHISPER is None:
+            _WHISPER = WhisperModel(os.environ.get("DETTO_WHISPER_RESERVA", "small"), device="cpu", compute_type="int8")
+        wav = Path(f).with_suffix(".wav")
+        subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(f), "-vn", "-ac", "1", "-ar", "16000", str(wav)], check=False)
+        if not wav.exists():
+            return ""
+        import numpy as np
+        import wave
+        with wave.open(str(wav)) as w_:
+            audio = np.frombuffer(w_.readframes(w_.getnframes()), np.int16).astype(np.float32) / 32768.0
+        segs, _ = _WHISPER.transcribe(audio, language="pt", vad_filter=True)
+        return " ".join(f"[{s.start:.1f}s] {s.text.strip()}" for s in segs)[:3000]
+    except Exception as e:
+        log(f"   (sem transcrição do áudio: {str(e)[:80]})")
+        return ""
+
+
+def claude_partes_json(partes, log=print, quadros=8):
+    """o mesmo pedido feito ao Gemini (texto + imagens + vídeo), feito ao Claude: o vídeo vira QUADROS (fotos em ordem,
+    com o tempo) + a TRANSCRIÇÃO do áudio. Devolve o JSON (dict) ou None."""
+    import base64
+    import tempfile
+    pasta = Path(tempfile.mkdtemp(prefix="detto_claude_"))
+    textos, imgs = [], []
+    try:
+        for k, p_ in enumerate(partes):
+            if "text" in p_:
+                textos.append(p_["text"])
+                continue
+            d = p_.get("inline_data") or {}
+            mime, dado = d.get("mime_type", ""), base64.b64decode(d.get("data", "") or b"")
+            if mime.startswith("image/"):
+                f = pasta / f"foto{k:02d}.jpg"
+                f.write_bytes(dado)
+                imgs.append(f)
+                textos.append(f"[foto: {f.name}]")
+            elif mime.startswith("video/"):
+                v = pasta / f"video{k:02d}.mp4"
+                v.write_bytes(dado)
+                r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(v)],
+                                   capture_output=True, text=True)
+                try:
+                    dur = float(r.stdout.strip())
+                except ValueError:
+                    dur = 10.0
+                nomes = []
+                for q in range(quadros):
+                    t = dur * (q + 0.5) / quadros
+                    f = pasta / f"video{k:02d}_q{q:02d}_{t:05.1f}s.jpg"
+                    subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{t:.2f}", "-i", str(v), "-frames:v", "1",
+                                    "-vf", "scale=-2:480", "-q:v", "4", str(f)], check=False)
+                    if f.exists():
+                        imgs.append(f)
+                        nomes.append(f"{f.name} ({t:.1f}s)")
+                fala = _fala_do_video(v, log)
+                textos.append(f"[VÍDEO de {dur:.1f}s — você não assiste vídeo: veja os quadros {', '.join(nomes)}; "
+                              f"áudio transcrito: {fala or '(sem fala / só música)'}]")
+        prompt = "\n".join(textos) + "\n\nResponda SOMENTE com o JSON pedido, sem explicação e sem ```."
+        out = claude_cli(prompt, imagens=imgs, log=log)
+        if not out:
+            return None
+        m = re.search(r"\{.*\}", out, re.S)
+        return json.loads(m.group(0)) if m else None
+    except Exception as e:
+        log(f"   Claude: {str(e)[:160]}")
+        return None
+    finally:
+        shutil.rmtree(pasta, ignore_errors=True)
 
 
 def _mmss(t):
@@ -296,7 +407,8 @@ def main():
         # cota do Gemini acabou (429) / sem chave / sem internet: tenta o Claude da assinatura; senão roteiro simples
         print(f"Gemini indisponível ({str(e)[:160]}).")
         texto = claude_cli(prompt)
-        if texto:
+        if texto and len(texto) > 200:
+            print("Roteiro feito pelo Claude (sua assinatura)")
             texto = re.sub(r"^```\w*\n|\n```$", "", texto.strip())
         else:
             print("Fiz um roteiro SIMPLES pela fala (câmera + legenda, cortes de ~60 s). "
