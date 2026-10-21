@@ -1,16 +1,13 @@
 # -*- coding: utf-8 -*-
-"""THUMBS virais do vídeo (4 versões para escolher / testar no YouTube).
+"""THUMBS virais do vídeo: VOCÊ (melhor reação, recortado do peito para cima) + UM QUADRO DO VÍDEO + O ASSUNTO.
 
-    python tools\\thumb\\thumb.py "<video ou pasta do job>" [--texto "VIRADA NO FIM"] [--jogador "Gabigol"] [--fundo-ia]
+    python tools\\thumb\\thumb.py "<video ou pasta do job>" [--texto "VIRADA NO FIM" --destaque VIRADA] [--jogador "Hulk"]
+        [--quadro "video_final.mp4"] [--estilo futebol|noticia|vlog|gameplay] [--selo URGENTE] [--saida pasta]
 
-1. Assiste a gravação e acha os quadros com a sua REAÇÃO mais forte (boca aberta, olho arregalado, sobrancelha
-   levantada; nítido) — MediaPipe Face Landmarker (baixado uma vez).
-2. Recorta você (mesmo recorte do "texto atrás") com contorno branco e brilho.
-3. Monta 4 versões no estilo de thumb de futebol: texto gigante (2–4 palavras, uma em destaque), jogador recortado
-   com nota/escudo (do jogadores.json do job), seta/círculo vermelho, fundo escurecido com luz atrás de você.
-   --fundo-ia: fundo gerado pelo Gemini (estádio/torcida; usa a GEMINI_API_KEY). Sem ela: o quadro desfocado.
-Texto: --texto; senão o Gemini resume o título do roteiro em 2–4 palavras; senão o título mesmo.
-Saída: <job>\\thumbs\\thumb_1.jpg … thumb_4.jpg (1280x720) + thumbs.jpg (as 4 lado a lado).
+Quem desenha é o viral.py (3 versões; se o Chromium falhar, uma simples — nunca fica sem thumb). Aqui ficam as peças:
+reacoes() = os quadros com a sua reação mais forte (MediaPipe Face Landmarker; olhando para a câmera, sem piscar) e
+recorte() = você em PNG transparente. Quadro do assunto: o horizontal.mp4 do job (gráficos, lances, fotos).
+Saída: <job>\\thumbs\\thumb_1.jpg … thumb_3.jpg (1280x720) + thumbs.jpg (todas lado a lado).
 """
 import argparse
 import base64
@@ -94,7 +91,9 @@ def reacoes(video, n=4):
                      + 0.6 * (b.get("browOuterUpLeft", 0) + b.get("browOuterUpRight", 0)) + 0.5 * (b.get("mouthSmileLeft", 0) + b.get("mouthSmileRight", 0))
                      + 0.5 * (b.get("mouthFunnel", 0) + b.get("mouthPucker", 0)))
         piscando = (b.get("eyeBlinkLeft", 0) + b.get("eyeBlinkRight", 0)) / 2 > 0.45
-        nota = expressao * (0.6 + 0.4 * min(1, nitido / 120)) * (0.2 if piscando else 1) * (0.5 if larg < 0.08 else 1)
+        olhando_baixo = (b.get("eyeLookDownLeft", 0) + b.get("eyeLookDownRight", 0)) / 2 > 0.4  # thumb: olhando para a câmera
+        nota = (expressao * (0.6 + 0.4 * min(1, nitido / 120)) * (0.2 if piscando else 1) * (0.5 if larg < 0.08 else 1)
+                * (0.45 if olhando_baixo else 1))
         notas.append((nota, t, f))
     notas.sort(key=lambda x: -x[0])
     escolhidos = []
@@ -180,14 +179,22 @@ def fundo_ia(tema, saida):
 
 
 def main():
+    """thumbs do vídeo editado (editar.py) ou de qualquer vídeo: VOCÊ + QUADRO DO VÍDEO + ASSUNTO (viral.py)"""
     ap = argparse.ArgumentParser(description="thumbs virais do vídeo")
     ap.add_argument("alvo", help="o vídeo (gravação) ou a pasta do job")
     ap.add_argument("--texto", default="")
-    ap.add_argument("--destaque", default="", help="palavra do texto em destaque (amarela)")
+    ap.add_argument("--destaque", default="", help="palavra do texto em destaque")
+    ap.add_argument("--selo", default=None, help="selo (URGENTE, POLÊMICA...); vazio = sem")
     ap.add_argument("--jogador", default="", help="jogador na thumb (foto do jogadores.json do job)")
-    ap.add_argument("--fundo-ia", action="store_true")
+    ap.add_argument("--quadro", default="", help="vídeo de onde sai o quadro do assunto (padrão: o horizontal.mp4 do job)")
+    ap.add_argument("--estilo", default="futebol", help="futebol | noticia | vlog | gameplay")
+    ap.add_argument("--marca", default="")
     ap.add_argument("--saida", default="")
+    ap.add_argument("--fundo-ia", action="store_true", help="(antigo, ignorado)")
     a = ap.parse_args()
+    sys.path.insert(0, str(AQUI))
+    from viral import thumb_viral
+
     alvo = Path(a.alvo).resolve()
     job, video = (alvo, None) if alvo.is_dir() else (alvo.with_name(alvo.stem + "_job"), alvo)
     plano = {}
@@ -198,42 +205,24 @@ def main():
     if not video or not video.exists():
         sys.exit("Passe o vídeo da gravação (ou a pasta do job com o EDIT_PLAN.json).")
     out = Path(a.saida) if a.saida else (job if job.exists() else video.parent) / "thumbs"
-    out.mkdir(parents=True, exist_ok=True)
     titulo = ((plano.get("meta") or {}).get("title") or plano.get("name") or video.stem)
-    texto, destaque = (a.texto.upper(), a.destaque.upper()) if a.texto else texto_curto(titulo)
-    if a.destaque:
-        destaque = a.destaque.upper()
-    print(f"thumb: texto \"{texto}\" (destaque {destaque or '-'})")
-    print("thumb: procurando suas melhores reações...", flush=True)
-    melhores = reacoes(video, 4)
-    if not melhores:
-        sys.exit("Não achei o seu rosto na gravação.")
-    cortes = []
-    for i, (nota, t, f) in enumerate(melhores):
-        fq = out / f"quadro_{i + 1}.jpg"
-        cv2.imwrite(str(fq), cv2.imread(str(f)))
-        cortes.append({"t": round(t, 1), "nota": round(nota, 2), "quadro": str(fq), "recorte": str(recorte(fq, out / f"voce_{i + 1}.png"))})
-        print(f"   reação em {t:.1f}s (nota {nota:.2f})")
-    # jogador: o pedido, senão o primeiro com foto no jogadores.json
-    jog = {}
+    # o assunto: título + o começo do que é falado (para a IA achar as 2–4 palavras)
+    assunto = titulo
+    rot = job / "roteiro.txt"
+    if rot.exists():
+        falas = re.findall(r'FALA:\s*"?([^"\n]+)', rot.read_text(encoding="utf-8", errors="replace"))
+        assunto += " — " + " ".join(falas[:8])[:900]
+    # jogador/escudo: o pedido, senão os primeiros com foto no jogadores.json
+    extras = []
     jj = job / "jogadores.json"
     if jj.exists():
-        d = json.loads(jj.read_text(encoding="utf-8"))
-        players = d.get("players", {})
-        if a.jogador:
-            nome = next((k for k in players if a.jogador.lower() in k.lower()), None)
-            if not nome or not players[nome].get("photo"):
-                print(f"thumb: sem foto de {a.jogador} no jogadores.json (a thumb sai sem jogador)")
-                nome = None
-        else:
-            nome = next((k for k, v in players.items() if v.get("photo")), None)
-        if nome:
-            jog = {"nome": nome, "foto": players[nome]["photo"]}
-    fundo = fundo_ia(titulo, out / "fundo_ia.png") if a.fundo_ia else None
-    spec = {"texto": texto, "destaque": destaque, "cortes": cortes, "jogador": jog, "fundo": str(fundo) if fundo else "", "saida": str(out),
-            "fontes": str(PONTE / "fonts")}
-    (out / "thumbs.json").write_text(json.dumps(spec, ensure_ascii=False, indent=1), encoding="utf-8")
-    subprocess.run(["node", str(AQUI / "thumb.js"), str(out / "thumbs.json")], check=True)
+        players = json.loads(jj.read_text(encoding="utf-8")).get("players", {})
+        nomes = [k for k in players if a.jogador.lower() in k.lower()] if a.jogador else list(players)
+        extras = [players[k]["photo"] for k in nomes if players[k].get("photo")][:2]
+    quadro = Path(a.quadro) if a.quadro else next((p for p in (job / "horizontal.mp4", job / "horizontal_lances.mp4") if p.exists()), video)
+    feitas = thumb_viral(out, assunto, a.texto, a.destaque, a.selo, [video], quadro, None, extras, a.estilo, a.marca)
+    if not feitas:
+        sys.exit("thumb: não consegui fazer a thumb (veja as mensagens acima)")
     print(f"\nthumbs: {out}  (compare em {out / 'thumbs.jpg'})")
 
 

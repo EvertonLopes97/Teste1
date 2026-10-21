@@ -153,6 +153,9 @@ def saidas(p):
         vids = [{"rel": rel(f), "nome": f.name, "tam": f.stat().st_size, "quando": dt.datetime.fromtimestamp(f.stat().st_mtime).strftime("%d/%m %H:%M")}
                 for f in sorted(pasta.glob("*.mp4")) if not f.name.startswith("vlog_")] if pasta.exists() else []
         imgs = [{"rel": rel(f), "nome": f.name} for f in sorted(pasta.glob("*.jpg"))] if pasta.exists() else []
+        th = pasta / "thumbs"
+        if th.exists():  # thumbs virais (react/vlog)
+            imgs += [{"rel": rel(f), "nome": f.name} for f in [th / "thumbs.jpg"] + sorted(th.glob("thumb_*.jpg")) if f.exists()]
         return {"videos": vids, "imagens": imgs, "textos": {}}
     job = job_de(p)
     if not job or not job.exists():
@@ -533,6 +536,38 @@ def proximo_da_fila():
     return min(fila, key=lambda p: info(p).get("pedido", 0)) if fila else None
 
 
+def thumbs_depois(p, log=print):
+    """react e vlog (horizontais, YouTube): thumbs virais — você + quadro do vídeo + assunto — em saidas\\thumbs\\
+    (roda separado, não segura a próxima edição)"""
+    d = info(p)
+    tipo, ex = d.get("tipo", "roteiro"), d.get("extra", {}) or {}
+    if tipo not in ("react", "vlog") or ex.get("formato") == "vertical":
+        return
+    pasta = p / "saidas"
+    vids = sorted([f for f in pasta.glob("*.mp4") if not f.name.startswith("vlog_")], key=lambda f: -f.stat().st_size) if pasta.exists() else []
+    if not vids:
+        return
+    exe = Path(sys.executable)
+    if exe.name.lower() == "pythonw.exe":
+        exe = exe.with_name("python.exe")
+    if tipo == "react":
+        rosto, quadro, estilo = [str(p / d["video"])], str(p / d["original"]), "futebol"
+    else:
+        pv = pasta_vlog(p)
+        clipes = sorted(f for f in pv.rglob("*") if f.suffix.lower() in (".mp4", ".mov", ".m4v")) if pv else []
+        rosto, quadro = [str(c) for c in clipes[:: max(1, len(clipes) // 6)][:6]] + [str(vids[0])], str(vids[0])
+        estilo = "gameplay" if re.search(r"gameplay|game|jogando|fifa|ea fc|efootball", d.get("titulo", "").lower()) else "vlog"
+    cmd = [str(exe), "-u", str(TOOLS / "thumb" / "viral.py"), "--rosto", *rosto, "--quadro", quadro, "--assunto",
+           ex.get("faixa") or d.get("titulo", ""), "--estilo", estilo, "--saida", str(pasta / "thumbs")]
+    logf = open(p / "painel_log.txt", "a", encoding="utf-8")
+    logf.write(f"\n{dt.datetime.now():%d/%m %H:%M} thumbs: fazendo as thumbs virais...\n")
+    logf.flush()
+    extra = {"creationflags": 0x08000000} if os.name == "nt" else {}
+    subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT, cwd=str(PONTE),
+                     env={**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"}, **extra)
+    log(f"edição {p.name}: fazendo as thumbs")
+
+
 OCUPADO = lambda: False  # noqa: E731  (o painel troca: um canal montando = a próxima edição espera)
 
 
@@ -554,6 +589,11 @@ def laco(log=print, ao_terminar=None):
                               erro="" if ok else f"a edição parou com erro (código {pr.returncode}) — veja o registro")
                     shutil.rmtree(p / "galo_tmp", ignore_errors=True)
                     log(f"edição {p.name}: {'PRONTA' if ok else 'ERRO'}")
+                    if ok:
+                        try:
+                            thumbs_depois(p, log)
+                        except Exception as e:
+                            log(f"edição {p.name}: thumbs não saíram ({e})")
                     if ok and ao_terminar:
                         try:
                             ao_terminar(p)

@@ -592,7 +592,7 @@ comentar: fale deles com o mesmo jeito, sempre como torcedor do Galo). Os trecho
 
 Escreva a narração que liga os trechos. Responda SÓ JSON:
 {{"titulo": "<título do YouTube em MAIÚSCULAS, chamativo, até 95 letras, com o principal nome/placar>",
- "thumb_texto": "<2 a 4 palavras de impacto>", "thumb_destaque": "<1 palavra do thumb_texto para destacar>",
+ "thumb_texto": "<2 a 4 palavras da NOTÍCIA PRINCIPAL que dão vontade de clicar (nome do jogador/técnico/assunto; sem mentir)>", "thumb_destaque": "<1 palavra do thumb_texto para destacar>",
  "descricao": "<2 a 3 frases sobre o vídeo>", "tags": ["<10 a 15 tags>"],
  "abertura": {{"texto": "<gancho de 2 a 3 frases, até 45 palavras>", "clima": "<{'|'.join(CLIMAS)}>"}},
  "falas": [{{"antes_do": <número do trecho>, "texto": "<sua opinião/ponte para o trecho, 1 a 3 frases, até 40 palavras>", "clima": "..."}}],
@@ -608,7 +608,7 @@ da ORIGEM (ex.: "olha o que falaram no Globo Esporte Minas", "o pessoal do Jogo 
 cite o programa e o canal). No fechamento, diga que os créditos de tudo que foi usado estão nos comentários e na descrição."""}])
     if not g:
         nomes = ", ".join(x["fonte"] for x in sel[:3])
-        g = {"titulo": f"IMPRENSA FALA DO GALO! {sel[0]['manchete']}"[:95], "thumb_texto": "OLHA ISSO", "thumb_destaque": "ISSO",
+        g = {"titulo": f"IMPRENSA FALA DO GALO! {sel[0]['manchete']}"[:95], "thumb_texto": "", "thumb_destaque": "",
              "descricao": f"O que {nomes} falaram do Galo hoje.", "tags": ["galo", "atlético mineiro", "notícias do galo", "atlético-mg"],
              "abertura": {"texto": "Fala, Massa! Olha o que a imprensa falou do Galo hoje.", "clima": "falando"},
              "falas": [{"antes_do": i + 1, "texto": f"Agora olha o que falaram no {origem_falada(x)}: {x['manchete'].lower()}.",
@@ -951,27 +951,28 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
 
 
 # ------------------------------------------------------------------ 5. thumb
-def thumb(video, rot, cfg, pasta_saida):
-    """rostos com reação forte dos apresentadores (recortados) + escudo + texto — mesma ferramenta das suas thumbs"""
+def thumb(video, rot, cfg, pasta_saida, sel=None):
+    """thumb viral: VOCÊ (a melhor reação das suas gravações de máscara — surpreso/bravo/rindo primeiro) + UM QUADRO da
+    notícia principal (o vídeo original da imprensa, no trecho usado) + o ASSUNTO (thumb_texto do roteiro) + escudo"""
     try:
         sys.path.insert(0, str(TOOLS / "thumb"))
-        from thumb import reacoes, recorte
+        from viral import thumb_viral
 
-        out = Path(pasta_saida)
-        melhores = reacoes(video, 4)
-        cortes = []
-        for i, (nota, t, f) in enumerate(melhores):
-            fq = out / f"quadro_{i + 1}.jpg"
-            shutil.copyfile(f, fq)
-            cortes.append({"t": t, "nota": nota, "quadro": str(fq), "recorte": str(recorte(fq, out / f"rosto_{i + 1}.png"))})
-        if not cortes:
-            return None
+        pasta = Path(pasta_saida)
+        pm = Path(cfg.get("_pasta", "")) / "mascara" / "sdr"
+        masc = [p for p in pm.glob("*.mp4") if not p.stem.endswith("__inteiro")] if pm.exists() else []
+        masc.sort(key=lambda p: 0 if re.search(r"surpres|brav|rind|comemor|choc|assust", norm(p.stem)) else 1)
+        principal = (sel or [None])[0]
+        quadro, faixas = (principal["arquivo"], [(float(principal["ini"]) + 2, float(principal["fim"]) - 1)]) if principal and \
+            Path(principal.get("arquivo", "")).exists() else (video, None)
+        assunto = rot.get("titulo", "") + " — " + "; ".join(x.get("manchete", "") for x in (sel or [])[:4])
         esc = TOOLS / "banco" / "escudos" / f"{cfg['time']}.png"
-        spec = {"texto": rot.get("thumb_texto", "OLHA ISSO").upper(), "destaque": rot.get("thumb_destaque", "").upper(), "cortes": cortes,
-                "jogador": {"nome": "GALO", "foto": str(esc)} if esc.exists() else {}, "fundo": "", "saida": str(out), "fontes": str(FONTES_DIR)}
-        (out / "thumbs.json").write_text(json.dumps(spec, ensure_ascii=False), encoding="utf-8")
-        subprocess.run(["node", str(TOOLS / "thumb" / "thumb.js"), str(out / "thumbs.json")], check=True, capture_output=True)
-        return out / "thumb_1.jpg"
+        feitas = thumb_viral(pasta / "thumbs", assunto, rot.get("thumb_texto", ""), rot.get("thumb_destaque", ""), None,
+                             masc[:6], quadro, faixas, [esc] if esc.exists() else [], "noticia", cfg.get("nome_canal", ""), log=log)
+        if not feitas:
+            return None
+        shutil.copyfile(feitas[0], pasta / "thumb_1.jpg")
+        return pasta / "thumb_1.jpg"
     except Exception as e:
         log(f"   thumb falhou ({e}); posta sem thumb (o YouTube escolhe um quadro)")
         return None
@@ -1437,7 +1438,7 @@ def main():
     pronto = pasta / "prontos" / f"{dt.datetime.now():%Y-%m-%d_%H%M} - {slug(rot['titulo'], 50)}"
     pronto.mkdir(parents=True, exist_ok=True)
     video = monta(sel, rot, cfg, pasta, tmp, pronto / "video.mp4")
-    th = thumb(video, rot, cfg, pronto)
+    th = thumb(video, rot, {**cfg, "_pasta": str(pasta)}, pronto, sel)
     creditos = sorted({origem(x) + (f" — youtube.com/{x['canal']}" if x.get("canal") else "") for x in sel})
     tags = [t.strip("#") for t in rot.get("tags", [])][:15]
     hashtags = " ".join("#" + re.sub(r"\W", "", t) for t in tags[:3])

@@ -53,6 +53,11 @@ CONFIG_PADRAO = {
 }
 
 
+def norm_txt(t):
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFD", str(t).lower()) if unicodedata.category(c) != "Mn")
+
+
 def log(m):
     print(m, flush=True)
 
@@ -224,9 +229,14 @@ def monta(vlog, cfg, pasta):
         shutil.copyfile(ed / "vlog.mp4", video)
     plano = comum.le(ed / "plano.json", {}) or {}
     tx = textos(plano, vlog.name, info, cfg)
-    # thumb: suas melhores reações + texto
+    # thumb viral: VOCÊ (melhor reação dos seus clipes) + o quadro mais bonito do vlog + o assunto
     th = ""
-    if roda([sys.executable, TOOLS / "thumb" / "thumb.py", video, "--texto", tx.get("thumb_texto", ""), "--destaque", tx.get("thumb_destaque", ""),
+    clipes = sorted([p for p in Path(vlog).rglob("*") if p.suffix.lower() in VIDEO_EXT and "edicao" not in p.parts], key=lambda p: p.name)
+    passo = max(1, len(clipes) // 6)
+    estilo_th = "gameplay" if re.search(r"gameplay|game|jogando|fifa|ea fc|efootball|minecraft|gta|fortnite", norm_txt(f"{vlog.name} {tx.get('titulo', '')}")) else "vlog"
+    if roda([sys.executable, TOOLS / "thumb" / "viral.py", "--rosto", *[str(c) for c in clipes[::passo][:6]], video, "--quadro", video,
+             "--assunto", f"{tx.get('titulo', '')} — {tx.get('descricao', '')[:400]}", "--texto", tx.get("thumb_texto", ""),
+             "--destaque", tx.get("thumb_destaque", ""), "--estilo", estilo_th, "--marca", cfg.get("nome_canal", ""),
              "--saida", pronto / "thumbs"], reg) == 0 and (pronto / "thumbs" / "thumb_1.jpg").exists():
         shutil.copyfile(pronto / "thumbs" / "thumb_1.jpg", pronto / "thumb_1.jpg")
         th = "thumb_1.jpg"

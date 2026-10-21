@@ -42,9 +42,17 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   `--lances lances.json --base <sem lances>` refaz só os trechos de lance e emenda; áudio igual). Conferir:
   `<job>\lances_conferir.jpg`; corrigir `ini`/`fim` no `lances.json`. Roteiro: `LANCE: <link ou arquivo> 1:23-1:31`,
   `LANCE: sem`. YouTube pedindo login: `--cookies firefox` (ou chrome/edge). `--sem-lances` desliga.
-- THUMBS: `python tools\thumb\thumb.py "<job ou vídeo>" [--texto "X" --destaque PALAVRA --jogador Nome --fundo-ia]`
-  (roda no fim do editar.py) → `<job>\thumbs\thumb_1..4.jpg` + `thumbs.jpg`: melhores reações (MediaPipe Face
-  Landmarker, blendshapes), recorte com contorno, texto Anton, jogador do jogadores.json, seta/círculo.
+- THUMBS VIRAIS (20/out, `tools\thumb\viral.py` + `viral.js`): VOCÊ (melhor reação — MediaPipe blendshapes, olhando para a
+  câmera — recortado do PEITO para cima, contorno branco; sem rosto no vídeo → foto padrão `DETTO_FOTO`/`<DETTO>\marca\eu.jpg`/
+  `<DETTO>\thumb_rosto\`; recorte falhou → rosto em quadro) + UM QUADRO DO VÍDEO (`melhores_quadros`: nítido/colorido, sem
+  preto/vinheta, nas `faixas`) + O ASSUNTO (2–4 palavras + destaque + selo; IA texto Gemini→grátis→Claude; sem IA = palavras do
+  assunto, nunca nome de arquivo) + escudo/jogador. 3 versões (TV inclinada + seta | quadro cheio + texto | dividida + faixa);
+  Chromium falhou/sem node → desenho simples pelo PIL (nunca fica sem thumb). Estilos noticia|futebol|vlog|gameplay.
+  Onde: `thumb.py <job>` no fim do editar.py (rosto = gravação, quadro = horizontal.mp4, jogadores do jogadores.json);
+  canal.py `thumb(..., sel)` (rosto = máscaras surpreso/bravo/rindo primeiro, quadro = o vídeo da imprensa no trecho
+  principal, escudo, marca do canal) → `pronto\thumb_1.jpg` (sobe no YouTube; canal precisa ser VERIFICADO por telefone);
+  canal_vlog (rosto = clipes do vlog, estilo vlog/gameplay pelo nome); painel Edição react/vlog horizontais → `saidas\thumbs\`
+  (`thumbs_depois`, roda separado).
 - REELS AUTOMÁTICOS (meme: começo dele + viral): `python tools\reels\reels.py [--quantos 10] [--agendar 07:00]`, pasta
   `E:\DETTO\reels` (`inicios\` = começos dele, nome = o que ele faz; `links.txt` = links TikTok/Insta/YouTube dele;
   senão Shorts mais vistos das hashtags do `config.json`, ≤ `max_dias`). Gemini assiste o viral, escolhe o começo e
