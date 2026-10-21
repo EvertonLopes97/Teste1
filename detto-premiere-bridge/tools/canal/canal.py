@@ -51,7 +51,12 @@ FAIXA = (40, 950, 1840, 100)  # manchete / legenda
 CLIMAS = ["rindo", "bravo", "comemorando", "pensativo", "concordando", "surpreso", "falando"]
 
 CONFIG_PADRAO = {
-    "nome_canal": "GALO NOTÍCIAS",
+    "nome_canal": "DETTO GALO NOTÍCIAS",
+    # assinatura no fim de toda descrição (canal de torcedor: sem parecer o oficial do clube)
+    "assinatura": ("📰 DETTO GALO NOTÍCIAS — o que a imprensa falou do Galo hoje, com a resenha de quem vive o Atlético.\n"
+                   "🔔 Inscreva-se e ative o sininho: vídeo novo todo dia.\n📲 Instagram e TikTok: @detto.galo\n"
+                   "Canal de torcedor, sem ligação oficial com o Clube Atlético Mineiro. Os vídeos de imprensa são usados em "
+                   "trechos curtos, com comentário e crédito a quem produziu."),
     "time": "CAM",
     # prioridade: 1 = imprensa (o programa/corte original) · 2 = TV Galo (às vezes) · 3 = canais que já juntam as
     # notícias do Galo (cortes de Globo Esporte, Jogo Aberto, Itatiaia...) · 4 = qualquer outro achado na busca
@@ -85,6 +90,8 @@ CONFIG_PADRAO = {
     "trecho_min_s": 15,
     "trecho_max_s": 180,  # a notícia INTEIRA (do começo ao fim do assunto); só corta se passar de 3 min
     "max_trechos_video": 3,
+    "buscar_original": True,  # trecho de canal que JUNTA notícias → baixa do vídeo original (crédito para quem fez)
+    "original_max_candidatos": 6,
     "parecido_max": 0.35,  # notícia repetida (o mesmo assunto em 2 canais / já postada) fica de fora
     "por_fonte": 15,
     "max_min_fonte": 120,
@@ -347,6 +354,172 @@ def fim_de_frase(words, ini, alvo):
         if re.search(r"[.!?]$", w["w"]) or (prox and prox["s"] - w["e"] >= 0.5):
             melhor = w["e"] + 0.15
     return melhor or alvo
+
+
+# ------------------------------------------------------------------ 2b. o vídeo ORIGINAL (canal que só junta → a fonte)
+def _tokens(txt):
+    return re.findall(r"\w+", norm(txt))
+
+
+def _janela(alvo, ws):
+    """onde o texto `alvo` (lista de palavras) foi dito em `ws` ([{w,s,e}]): (ini, fim, nota 0..1) ou None"""
+    import difflib
+    from collections import Counter
+    toks = [re.sub(r"\W+", "", norm(w["w"])) for w in ws]
+    n = len(alvo)
+    if n < 12 or len(toks) < n // 2:
+        return None
+    A = Counter(alvo)
+    passo = max(1, n // 10)
+    melhor, nm = None, 0.0
+    for i in range(0, max(1, len(toks) - n // 2), passo):
+        B = Counter(toks[i: i + n])
+        nota = sum((A & B).values()) / n
+        if nota > nm:
+            melhor, nm = i, nota
+    if melhor is None or nm < 0.45:
+        return None
+
+    def refina(pedaco, lo, hi, esperado, do_fim=False):
+        # o pedaço mais parecido; empate (frase repetida) = o mais perto de onde devia estar
+        k = len(pedaco)
+        best, bn, br = None, -1.0, 0.0
+        for j in range(max(0, lo), min(len(toks) - k, hi) + 1):
+            r = difflib.SequenceMatcher(None, pedaco, toks[j: j + k], autojunk=False).ratio()
+            sc = r - 0.004 * abs(j - esperado)
+            if sc > bn:
+                best, bn, br = j, sc, r
+        if best is None or br < 0.5:
+            return None
+        return best + k - 1 if do_fim else best
+
+    k = min(12, n // 3)
+    i0 = refina(alvo[:k], melhor - n // 2, melhor + n // 2, melhor)
+    i1 = refina(alvo[-k:], melhor + n // 2, melhor + n + n // 2, melhor + n - k, do_fim=True)
+    i0 = melhor if i0 is None else i0
+    i1 = min(len(ws) - 1, melhor + n - 1) if i1 is None or i1 <= i0 else i1
+    return ws[i0]["s"], ws[i1]["e"], nm
+
+
+def legenda_youtube(vid, pasta):
+    """as palavras com tempo pela legenda do YouTube (automática serve) — sem baixar o vídeo"""
+    pasta.mkdir(parents=True, exist_ok=True)
+    cache = pasta / f"{vid}.leg.json"
+    if cache.exists():
+        return le_json(cache, [])
+    ytdlp(["--skip-download", "--write-auto-subs", "--write-subs", "--sub-langs", "pt.*,pt", "--sub-format", "json3",
+           "-o", str(pasta / f"{vid}.%(ext)s"), f"https://www.youtube.com/watch?v={vid}"])
+    ws = []
+    for f in sorted(pasta.glob(f"{vid}*.json3")):
+        try:
+            d = json.loads(f.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        for ev in d.get("events", []):
+            t0 = ev.get("tStartMs", 0) / 1000
+            fim_ev = t0 + ev.get("dDurationMs", 0) / 1000
+            segs = [x for x in ev.get("segs") or [] if (x.get("utf8") or "").strip()]
+            for k, sg in enumerate(segs):
+                s0 = t0 + sg.get("tOffsetMs", 0) / 1000
+                s1 = t0 + segs[k + 1].get("tOffsetMs", 0) / 1000 if k + 1 < len(segs) else fim_ev
+                pal = sg["utf8"].split()
+                passo = max(0.1, (s1 - s0) / len(pal))  # legenda por frase: espalha as palavras no tempo dela
+                for q, w in enumerate(pal):
+                    ws.append({"w": w, "s": round(s0 + q * passo, 2), "e": round(s0 + (q + 1) * passo, 2)})
+        f.unlink(missing_ok=True)
+        if ws:
+            break
+    grava_json(cache, ws)
+    return ws
+
+
+def candidatos_originais(x, v, cfg, descricao=""):
+    """vídeos que podem ser o ORIGINAL do trecho: links na descrição do canal que juntou + busca pelo programa e
+    pelas palavras do assunto (por data). Nunca o próprio canal que juntou nem outro "juntador"."""
+    import urllib.parse
+    juntadores = {norm(f.get("nome", "")) for f in cfg["fontes"] if f.get("juntador")} | {norm(v.get("fonte", ""))}
+    out, vistos = [], {v.get("id")}
+    for vid in re.findall(r"(?:youtu\.be/|watch\?v=|/live/|/shorts/)([\w-]{11})", descricao or ""):
+        if vid not in vistos:
+            vistos.add(vid)
+            out.append({"id": vid, "canal_nome": "", "titulo": "", "dur": 0, "da_descricao": True})
+    chave = sorted(_palavras_chave(x.get("texto", "")), key=lambda w: -len(w))[:5]
+    prog = (x.get("programa") or "").strip()
+    buscas = ([f"{prog} atlético"] if prog else []) + ([" ".join(chave[:4]) + " atlético"] if chave else [])
+    for q in buscas:
+        r = ytdlp(["--flat-playlist", "--dump-json", "--playlist-end", "10", "--extractor-args", "youtube:lang=pt",
+                   "https://www.youtube.com/results?search_query=" + urllib.parse.quote(q) + "&sp=CAI%253D"])
+        for linha in (r.stdout or "").splitlines():
+            try:
+                c = json.loads(linha)
+            except ValueError:
+                continue
+            nome = c.get("channel") or c.get("uploader") or ""
+            if not c.get("id") or c["id"] in vistos or norm(nome) in juntadores or "/shorts/" in str(c.get("url", "")):
+                continue
+            vistos.add(c["id"])
+            out.append({"id": c["id"], "canal_nome": nome, "canal": c.get("uploader_id") or "", "titulo": c.get("title") or "",
+                        "dur": c.get("duration") or 0})
+    # o canal com o nome do programa (ou de imprensa da lista) primeiro
+    ok_nomes = [norm(o) for o in cfg.get("outras_fontes", [])] + ([norm(prog)] if prog else [])
+
+    def peso(c):
+        n = norm(c["canal_nome"] + " " + c["titulo"])
+        return (0 if c.get("da_descricao") else 1, 0 if any(o and o in n for o in ok_nomes) else 1)
+    return sorted(out, key=peso)[: int(cfg.get("original_max_candidatos", 6))]
+
+
+def busca_original(x, v, cfg, pasta, descricao=""):
+    """o trecho veio de um canal que só JUNTA notícias (ex. Galotícias mostrando a Band Minas): acha o vídeo ORIGINAL,
+    o mesmo pedaço nele (pela legenda do YouTube) e baixa SÓ esse pedaço na melhor qualidade. Devolve o trecho trocado
+    (arquivo/ini/fim/fonte = o original; o crédito vai para quem fez) ou None (fica o do canal que juntou)."""
+    alvo = _tokens(x.get("texto", ""))
+    if len(alvo) < 25:
+        return None
+    for c in candidatos_originais(x, v, cfg, descricao):
+        ws = legenda_youtube(c["id"], pasta / "legendas")
+        j = _janela(alvo, ws) if ws else None
+        if not j:
+            continue
+        a, b, nota = j
+        info = {}
+        r = ytdlp(["--skip-download", "--dump-json", f"https://www.youtube.com/watch?v={c['id']}"])
+        try:
+            info = json.loads((r.stdout or "").strip().splitlines()[-1])
+        except (ValueError, IndexError):
+            pass
+        nome = info.get("channel") or info.get("uploader") or c["canal_nome"]
+        if norm(nome) in {norm(f.get("nome", "")) for f in cfg["fontes"] if f.get("juntador")}:
+            continue
+        m0 = max(0.0, a - 4)
+        saida = pasta / "fontes" / f"orig_{c['id']}_{int(a)}.mp4"
+        saida.parent.mkdir(parents=True, exist_ok=True)
+        if not saida.exists():
+            rr = ytdlp(["-f", "bv*[height<=1080]+ba/b[height<=1080]", "-S", "res:1080,fps", "--merge-output-format", "mp4",
+                        "--download-sections", f"*{m0:.1f}-{b + 4:.1f}", "--force-keyframes-at-cuts", "-o", str(saida),
+                        f"https://www.youtube.com/watch?v={c['id']}"])
+            if rr.returncode != 0 or not saida.exists():
+                log(f"   original achado ({nome}) mas não baixou: {((rr.stderr or '').strip().splitlines() or [''])[-1][:120]}")
+                continue
+        # tempo exato dentro do pedaço baixado (transcreve o pedaço — curto)
+        ini, fim = a - m0, b - m0
+        try:
+            wp = transcreve(saida)
+            jj = _janela(alvo, wp)
+            if jj:
+                ini, fim = max(0.0, jj[0] - 0.1), jj[1] + 0.15
+        except Exception:
+            pass
+        d = dur(saida) or fim
+        fim = min(fim, d - 0.1)
+        if fim - ini < 8:
+            continue
+        log(f"   ORIGINAL: {nome} — {(info.get('title') or c['titulo'])[:60]} ({nota:.0%} igual) → crédito para {nome}")
+        return {**x, "arquivo": str(saida), "ini": round(ini, 2), "fim": round(fim, 2), "fonte": nome,
+                "canal": info.get("uploader_id") or c.get("canal") or "", "video": c["id"],
+                "url_original": f"https://www.youtube.com/watch?v={c['id']}", "juntado_por": v.get("fonte", ""),
+                "programa": x.get("programa") or "", "prioridade": 1}
+    return None
 
 
 # ------------------------------------------------------------------ 3. roteiro da narração
@@ -687,8 +860,8 @@ def peca_fala(base, wav, masc, texto, pasta, idx, saida, logo):
         ins += ["-loop", "1", "-i", str(png)]
         f += f"[{ult}][{4 + k}:v]overlay=0:0:enable='between(t,{a:.2f},{b:.2f})'[c{k}];"
         ult = f"c{k}"
-    f += f"[{ult}]fps={FPS},format=yuv420p[vo];[1:a]atempo=1.05,loudnorm=I=-16:TP=-1.5,aresample=48000,apad=pad_dur=0.3[ao]"
-    r = subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", f, "-map", "[vo]", "-map", "[ao]", "-t", f"{da / 1.05 + 0.3:.2f}", *enc(), str(saida)])
+    f += f"[{ult}]fps={FPS},format=yuv420p[vo];[1:a]atempo=1.05,loudnorm=I=-16:TP=-1.5,aresample=48000,apad=pad_dur=0.2[ao]"
+    r = subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", f, "-map", "[vo]", "-map", "[ao]", "-t", f"{da / 1.05 + 0.2:.2f}", *enc(), str(saida)])
     return r.returncode == 0
 
 
@@ -945,9 +1118,9 @@ def short(cfg, pasta, fala, trecho, tmp, idx, saida):
             ins += ["-loop", "1", "-i", str(png)]
             f += f"[{ult}][{3 + k}:v]overlay=0:0:enable='between(t,{a:.2f},{b:.2f})'[c{k}];"
             ult = f"c{k}"
-        f += f"[{ult}]fps={FPS},format=yuv420p[vo];[0:a]atempo=1.05,loudnorm=I=-16:TP=-1.5,aresample=48000,apad=pad_dur=0.3[ao]"
+        f += f"[{ult}]fps={FPS},format=yuv420p[vo];[0:a]atempo=1.05,loudnorm=I=-16:TP=-1.5,aresample=48000,apad=pad_dur=0.2[ao]"
         p = tmp / f"sv_{idx}_a.mp4"
-        r = subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", f, "-map", "[vo]", "-map", "[ao]", "-t", f"{da / 1.05 + 0.3:.2f}",
+        r = subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", f, "-map", "[vo]", "-map", "[ao]", "-t", f"{da / 1.05 + 0.2:.2f}",
                             *enc(), str(p)])
         if r.returncode == 0:
             pecas.append(p)
@@ -1070,6 +1243,10 @@ def prepara(pasta):
             seu["duracao_alvo_min"] = CONFIG_PADRAO["duracao_alvo_min"]
         grava_json(cfg_f, seu)
         log("config: fontes novas (imprensa + TV Galo + canais de notícias do Galo + busca), notícias inteiras de hoje e ontem")
+    if seu.get("nome_canal") in (None, "", "GALO NOTÍCIAS"):
+        seu["nome_canal"] = CONFIG_PADRAO["nome_canal"]  # 20/out: o canal se chama DETTO GALO NOTÍCIAS
+        seu.setdefault("assinatura", CONFIG_PADRAO["assinatura"])
+        grava_json(cfg_f, seu)
     cfg.update(seu)
     leia = pasta / "LEIA-ME.txt"
     if not leia.exists():
@@ -1162,6 +1339,7 @@ def main():
                 log(f"   não baixou: {info}")
                 continue
             v["arquivo"] = str(arq)
+            v["descricao"] = (info or {}).get("description") or ""
         log(f"transcrevendo: {Path(v['arquivo']).name}")
         words = transcreve(v["arquivo"])
         tr = acha_trechos(words, v, cfg)
@@ -1169,9 +1347,22 @@ def main():
         dv = dur(v["arquivo"]) or 1e9
         tr = [{**x, "fim": min(x["fim"], dv - 0.2)} for x in tr if min(x["fim"], dv - 0.2) - x["ini"] >= 8]  # nunca além do fim do vídeo
         for x in tr:
-            hist["trechos"].append({**x, "video": v["id"], "arquivo": v["arquivo"], "fonte": v["fonte"], "canal": v.get("canal", ""), "data": hoje,
-                                    "publicado": v.get("publicado") or dt.datetime.now().isoformat(timespec="minutes"), "usado": False,
-                                    "prioridade": v.get("prioridade", 1)})
+            t = {**x, "video": v["id"], "arquivo": v["arquivo"], "fonte": v["fonte"], "canal": v.get("canal", ""), "data": hoje,
+                 "publicado": v.get("publicado") or dt.datetime.now().isoformat(timespec="minutes"), "usado": False,
+                 "prioridade": v.get("prioridade", 1)}
+            if v.get("juntador") and cfg.get("buscar_original", True):
+                # canal que só junta: vai até o vídeo ORIGINAL (melhor qualidade, crédito para quem fez)
+                try:
+                    o = busca_original(t, v, cfg, pasta, v.get("descricao", ""))
+                except Exception as e:
+                    log(f"   original: {str(e)[:120]}")
+                    o = None
+                if o:
+                    t = o
+                    hist["vistos"][o["video"]] = hoje
+                else:
+                    log(f"   original não achado: fica o de {v['fonte']}" + (f" (programa: {x['programa']})" if x.get("programa") else ""))
+            hist["trechos"].append(t)
         grava_json(pasta / "historico.json", hist)
 
     # 3) hora de montar?
@@ -1251,7 +1442,8 @@ def main():
     tags = [t.strip("#") for t in rot.get("tags", [])][:15]
     hashtags = " ".join("#" + re.sub(r"\W", "", t) for t in tags[:3])
     descricao = (f"{rot.get('descricao', '')}\n\n{hashtags}\n\nCréditos das imagens:\n"
-                 + "\n".join(f"• {c}" for c in creditos) + "\n\nNarração com voz gerada por inteligência artificial.")
+                 + "\n".join(f"• {c}" for c in creditos) + "\n\nNarração com voz gerada por inteligência artificial."
+                 + (f"\n\n{cfg['assinatura']}" if cfg.get("assinatura") else ""))
     (pronto / "post.txt").write_text(f"{rot['titulo']}\n\n{descricao}\n\nTags: {', '.join(tags)}\n", encoding="utf-8")
     # Shorts: as melhores notícias (pautas primeiro), cada uma com a sua fala antes
     falas = le_json(tmp / "falas.json", [])

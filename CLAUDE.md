@@ -91,7 +91,10 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   dividida com os canais) e `kwai` (sem API: `studio()` = verdadeiro, igual ao TikTok Studio; "Preparar pasta" vai para
   `Meu Drive\DETTO\kwai\<conta>` e ele posta pelo app; "✔ Postei"). `--login youtube --conta X`. Destinos dos reels:
   `instagram|tiktok|youtube|kwai:<conta>`. IDENTIDADE dos canais: `tools\canal\marca.py` (banner 2560x1440 com área
-  segura 1546x423, perfil 800x800, marca d'água 150x150, molde de thumb; sem escudo oficial).
+  segura 1546x423, perfil 800x800, marca d'água 150x150, molde de thumb; sem escudo oficial). Canais (20/out): DETTO GALO NOTÍCIAS
+  (`<saida>\noticias`) e EVERTON LOPES = vlogs + GAMEPLAYS + outros (`<saida>\everton_lopes`, `--foto` = rosto no perfil; moldes
+  de thumb vlog e gameplay); cada pasta com CANAL.txt (descrição, palavras-chave, playlists, padrão de envio, links).
+  canal_vlog: `nome_canal` EVERTON LOPES + `assinatura` no fim da descrição.
 - PAINEL (`tools\painel\painel.py`, só Python, http://localhost:8730; `--instalar` = liga com o Windows + atalho;
   celular no mesmo Wi-Fi com PIN; setup em `tools\painel\LEIA-ME.txt`): enviar vídeos (vão para `entrada\<conta>\`
   ou `reels\inicios\`), fila com ordem (`_ordem.json`), legenda, postar já, falhas, liga/desliga por conta, intervalo,
@@ -168,6 +171,13 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   fixar é no Studio) + descrição + faixa "Imagens: origem"; notícia repetida em outro canal ou já
   postada nos últimos 3 dias (`parecido` ≥ `parecido_max` 0,35 nas palavras do assunto, `ja_postado`) fica fora; créditos
   com o programa original (`programa`, "via canal");
+  VOZ SEM PAUSAS (20/out): `voz.sem_pausas` corta todo silêncio no MEIO da fala para ≤0,13 s (`--max-pausa`/`DETTO_MAX_PAUSA`,
+  `--com-pausas` desliga) — Fish, Chatterbox e as do cache (marca `.sp`); entre frases do Chatterbox 0,08 s; depois da fala 0,2 s.
+  ORIGINAL (20/out, `busca_original`): trecho de canal JUNTADOR (Galotícias etc.) → acha o vídeo original (links da descrição, busca
+  pelo `programa` e pelas palavras do assunto, por data; nunca outro juntador), acha o MESMO pedaço pela legenda do YouTube
+  (`legenda_youtube` json3 + `_janela`, ≥45% igual), baixa SÓ esse pedaço até 1080p (`--download-sections`, `fontes\orig_*.mp4`)
+  e o crédito/`fonte` vira o canal original (ex. Band Minas); `juntado_por` guarda o outro. Não achou = fica o do juntador
+  (`buscar_original` false desliga). Nome do canal: DETTO GALO NOTÍCIAS (`nome_canal`, migra o antigo) + `assinatura` na descrição.
   VOZ (20/out): `pronuncia` antes de qualquer voz (siglas soletradas CBF→"cê bê éfe", VAR/SAF/FIFA como palavra, números por
   extenso, "2 x 1"→"dois a um", 6º, 8,3, 33', R$); FISH AUDIO primeiro se `FISH_API_KEY` (voz clonada criada 1x → voz\fish_modelo.json,
   `s2.1-pro-free`, `FISH_MODELO=s2.1-pro` pago; sotaque BR — o Chatterbox puxava para Portugal), erro → Chatterbox;

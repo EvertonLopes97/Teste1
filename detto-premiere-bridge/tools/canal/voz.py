@@ -211,6 +211,69 @@ def _apara(w, sr, torch):
     return w[:, i0:i1]
 
 
+def sem_pausas(arquivo, max_pausa=0.13, sr=44100):
+    """tira os SILÊNCIOS do meio da fala (a voz de IA às vezes "espaça" entre frases/palavras e entrega que é IA):
+    toda pausa interna maior que `max_pausa` fica com `max_pausa`; as pontas ficam com 0,04 s. Junta com fade curto."""
+    import wave
+    import numpy as np
+    r = subprocess.run(["ffmpeg", "-v", "error", "-i", str(arquivo), "-ac", "1", "-ar", str(sr), "-f", "f32le", "-"],
+                       capture_output=True)
+    a = np.frombuffer(r.stdout, np.float32).copy()
+    if a.size < sr * 0.3:
+        return 0.0
+    q = int(sr * 0.01)  # quadros de 10 ms
+    n = a.size // q
+    rms = np.sqrt(np.mean(a[: n * q].reshape(n, q) ** 2, axis=1) + 1e-12)
+    ref = float(np.percentile(rms, 95))
+    mudo = rms < max(ref * 0.018, 1e-4)  # ~35 dB abaixo da fala
+    # silêncios curtos demais (entre sílabas) não contam: só trechos >= max_pausa
+    pedacos, i, ant = [], 0, 0
+    fala = np.nonzero(~mudo)[0]
+    if fala.size == 0:
+        return 0.0
+    ini, fim = max(0, fala[0] - 4) * q, min(n, fala[-1] + 6) * q
+    keep_q = int(round(max_pausa / 0.01))
+    i = fala[0]
+    cortado = 0
+    while i < fala[-1]:
+        if mudo[i]:
+            j = i
+            while j < n and mudo[j]:
+                j += 1
+            if j - i > keep_q:
+                meio = keep_q // 2
+                pedacos.append(a[ant: (i + meio) * q])
+                ant = (j - (keep_q - meio)) * q
+                cortado += (j - i - keep_q) * 0.01
+            i = j
+        else:
+            i += 1
+    pedacos.append(a[ant: fim])
+    if ant == 0:
+        pedacos = [a[ini:fim]]
+    else:
+        pedacos[0] = pedacos[0][ini:]
+    f = int(sr * 0.008)
+    ramp = np.linspace(0, 1, f, dtype=np.float32)
+    saida = []
+    for k, p in enumerate(pedacos):
+        p = p.copy()
+        if p.size > 2 * f:
+            if k > 0:
+                p[:f] *= ramp
+            if k < len(pedacos) - 1:
+                p[-f:] *= ramp[::-1]
+        saida.append(p)
+    y = np.concatenate(saida)
+    y = np.clip(y, -1, 1)
+    with wave.open(str(arquivo), "wb") as w:
+        w.setnchannels(1)
+        w.setsampwidth(2)
+        w.setframerate(sr)
+        w.writeframes((y * 32767).astype(np.int16).tobytes())
+    return cortado
+
+
 def frase_boa(m, fr, ref, exag, torch, tentativas=4):
     """gera a frase e CONFERE: o modelo às vezes embola, gagueja, fica robótico ou corta — o sinal é o tamanho do
     áudio fora do normal para o texto (português falado ≈ 14 letras/s) ou picos/ruído. Refaz com outra semente."""
@@ -248,6 +311,9 @@ def main():
     ap.add_argument("--exagero", type=float, default=0.6, help="emoção (0,3 calmo … 0,9 empolgado)")
     ap.add_argument("--fish-chave", default="", help="chave do Fish Audio (ou FISH_API_KEY)")
     ap.add_argument("--fish-modelo", default=os.environ.get("FISH_MODELO", "s2.1-pro-free"), help="s2.1-pro-free (grátis) ou s2.1-pro")
+    ap.add_argument("--max-pausa", type=float, default=float(os.environ.get("DETTO_MAX_PAUSA", "0.13")),
+                    help="maior silêncio no MEIO da fala (s); o resto é cortado")
+    ap.add_argument("--com-pausas", action="store_true", help="não tira os silêncios do meio")
     a = ap.parse_args()
     falas = json.loads(Path(a.falas).read_text(encoding="utf-8"))
     out = Path(a.saida)
@@ -303,9 +369,22 @@ def main():
             pedacos = []
             for fr in frases(f["falado"]):
                 w = frase_boa(m, fr, ref, exag, torch)
-                pedacos += [w, torch.zeros(1, int(m.sr * 0.16))]
+                pedacos += [w, torch.zeros(1, int(m.sr * 0.08))]
             torchaudio.save(f["arquivo"], torch.cat(pedacos, dim=1), m.sr)
             print(f"voz: {k + 1}/{len(falta)}", flush=True)
+    # SEM PAUSAS no meio (vale para Fish, Chatterbox e as já prontas do cache; marca .sp = já tratada)
+    if not a.com_pausas:
+        for f in falas:
+            arq = Path(f["arquivo"])
+            marca = arq.with_suffix(".sp")
+            if arq.exists() and not marca.exists():
+                try:
+                    c = sem_pausas(arq, a.max_pausa)
+                    marca.write_text(f"{c:.2f}", encoding="utf-8")
+                    if c > 0.2:
+                        print(f"voz: {f['id']} sem {c:.1f}s de silêncio no meio", flush=True)
+                except Exception as e:
+                    print(f"voz: não tirei as pausas de {arq.name} ({str(e)[:80]})", flush=True)
     Path(a.falas).write_text(json.dumps(falas, ensure_ascii=False, indent=1), encoding="utf-8")
 
 

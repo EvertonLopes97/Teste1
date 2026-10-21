@@ -38,7 +38,9 @@ TEMP_EXT = {".tmp", ".part", ".partial", ".crdownload", ".download"}
 
 CONFIG_PADRAO = {
     "drive": "",  # a pasta dos vlogs no Drive; vazio = <Meu Drive>\DETTO\canal_vlogs
-    "nome_canal": "",
+    "nome_canal": "EVERTON LOPES",  # o canal de vlogs, gameplays e outros vídeos
+    "assinatura": ("🎬 EVERTON LOPES — vlogs, gameplays e o meu dia a dia (futebol, viagens, resenha).\n"
+                   "🔔 Inscreva-se e ative o sininho.\n⚽ Notícias do Galo: DETTO GALO NOTÍCIAS\n📲 Instagram e TikTok: @detto.galo"),
     "estilo": "cinematográfico, estilo AM3NIC (cortes secos, nome dos lugares, notas curtas em minúsculas)",
     "duracao": 10,
     "auto_postar": False,  # False = espera você aprovar no painel; True = posta sozinho
@@ -47,7 +49,7 @@ CONFIG_PADRAO = {
     "horas_entre_shorts": 3,
     "privacidade": "public",
     "espera_min": 20,  # minutos sem arquivo novo na pasta = upload terminou
-    "tags_padrao": ["vlog", "detto", "dettogalo"],
+    "tags_padrao": ["everton lopes", "vlog", "detto", "dettogalo"],
 }
 
 
@@ -70,6 +72,8 @@ def prepara(pasta):
     cfg.update(comum.le(f, {}) or {})
     if "Afreim" in str(cfg.get("estilo", "")):  # o padrão antigo → o estilo que ele escolheu (19/out: AM3NIC)
         cfg["estilo"] = CONFIG_PADRAO["estilo"]
+    if not cfg.get("nome_canal"):
+        cfg["nome_canal"] = CONFIG_PADRAO["nome_canal"]  # 20/out: canal EVERTON LOPES (vlogs + gameplays)
     return cfg
 
 
@@ -186,7 +190,7 @@ def textos(plano, nome, info, cfg):
     sys.path.insert(0, str(TOOLS / "reels"))
     from reels import gemini_json
 
-    g = gemini_json([{"text": f"""Você cuida de um canal de VLOGS no YouTube (estilo AM3NIC: cinematográfico, títulos curiosos tipo "MINHA CASA ESTÁ ABANDONADA?"), do criador @detto.galo.
+    g = gemini_json([{"text": f"""Você cuida de um canal de VLOGS no YouTube (estilo AM3NIC: cinematográfico, títulos curiosos tipo "MINHA CASA ESTÁ ABANDONADA?"), do canal "{cfg.get('nome_canal') or 'EVERTON LOPES'}" (vlogs e gameplays do Everton, o @detto.galo).
 Vlog: "{info.get('titulo') or plano.get('titulo') or nome}". Partes: {', '.join(s.get('clima', '') for s in plano.get('secoes', []))}.
 Textos e falas do vlog: {' | '.join(falas)[:6000]}
 Responda SÓ JSON: {{"titulo": "<título chamativo até 90 letras, sem mentir>", "descricao": "<3 a 5 frases>",
@@ -248,6 +252,8 @@ def monta(vlog, cfg, pasta):
         if linhas:
             descricao += "\n\nCenas de apoio:\n" + "\n".join(linhas)
             comentario = "🎥 Créditos das cenas de apoio usadas neste vlog:\n" + "\n".join(linhas)
+    if cfg.get("assinatura"):
+        descricao += f"\n\n{cfg['assinatura']}"
     post = {"titulo": tx["titulo"], "descricao": descricao, "tags": tags, "video": "video.mp4", "thumb": th, "comentario": comentario,
             "shorts": shorts, "status": "aguardando", "origem": str(vlog), "criado": dt.datetime.now().isoformat(timespec="seconds"),
             "duracao": round(duracao(video))}
