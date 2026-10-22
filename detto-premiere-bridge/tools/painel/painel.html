@@ -181,6 +181,7 @@ section.aba.on{display:block}
     <button data-aba="edicao">Edição<span class="bolha" id="bEd" style="display:none"></span></button>
     <button data-aba="reels">Reels automáticos</button>
     <button data-aba="canais">Canais<span class="bolha" id="bCan" style="display:none"></span></button>
+    <button data-aba="historias">Histórias</button>
     <button data-aba="config">Configurações</button>
   </nav>
 </header>
@@ -331,6 +332,12 @@ section.aba.on{display:block}
   <div class="duas" id="canCards"></div>
   </section>
 
+  <section class="aba" id="aba-historias">
+  <h2>Histórias em série <small style="opacity:.6;font-weight:400">— o público escolhe a continuação</small></h2>
+  <div id="hisTopo"></div>
+  <div class="duas" id="hisCards"></div>
+  </section>
+
   <section class="aba" id="aba-config">
   <h2>Configurações</h2>
   <div class="card">
@@ -452,7 +459,7 @@ function desenha(){
   // mantém aberto o que você abriu (o painel se redesenha a cada 8 s)
   const abertos = {}; document.querySelectorAll("details[data-d]").forEach(d => abertos[d.dataset.d] = d.open);
   const rolagem = [...document.querySelectorAll(".fila")].map(f => f.scrollTop);
-  avisos(); destinos(); contas(); reels(); configs(); edicao(); canais();
+  avisos(); destinos(); contas(); reels(); configs(); edicao(); canais(); historias();
   document.querySelectorAll("details[data-d]").forEach(d => { if(d.dataset.d in abertos) d.open = abertos[d.dataset.d]; });
   document.querySelectorAll(".fila").forEach((f, i) => f.scrollTop = rolagem[i] || 0);
   const lg = $("#log"), fim = lg.scrollTop + lg.clientHeight >= lg.scrollHeight - 10;
@@ -759,6 +766,64 @@ $("#btLinkJa").onclick = async () => {
 $("#btReels").onclick = async () => { await api("reels_gerar", {quantos: +$("#quantos").value}); toast("Começou — pode demorar alguns minutos por reel"); carrega(true); };
 $("#btReelsParar").onclick = async () => { await api("reels_parar"); carrega(true); };
 
+
+/* ------------------------------------------------------------ histórias em série */
+function historias(){
+  const H = E.historias; if(!H) return;
+  $("#hisTopo").innerHTML = `<div class="card" style="margin-bottom:14px">
+    <div class="linha" style="align-items:flex-start">
+      <div style="flex:1;min-width:280px">
+        <b>Nova história</b>
+        <small style="display:block;opacity:.7;margin:4px 0 6px">A ideia em uma frase. A IA monta o mundo, as regras e os personagens; depois cada episódio sai sozinho e termina numa escolha A/B.</small>
+        <input type="text" id="hisIdeia" placeholder="ex.: apagão de 30 dias num prédio de BH / o técnico do Galo tem 1 jogo para salvar o emprego" style="width:100%">
+        <div class="linha" style="margin-top:6px">
+          <input type="text" id="hisConta" placeholder="instagram:detto.historias" value="${esc((H.contas||[])[0]||"")}" style="flex:1">
+          <button class="pri" onclick="hisNovo()" ${H.rodando?"disabled":""}>Criar história</button>
+        </div>
+      </div>
+      <div style="min-width:230px">
+        <div class="campos">
+          <div><label>Episódios por dia</label><input type="number" min="1" max="5" value="${H.por_dia}" onchange="api('hist_cfg',{por_dia:this.value}).then(()=>carrega(true))"></div>
+          <div><label>Duração (s)</label><input type="number" min="30" max="180" value="${H.duracao_s}" onchange="api('hist_cfg',{duracao_s:this.value}).then(()=>carrega(true))"></div>
+          <div><label>@ no rodapé do vídeo</label><input type="text" value="${esc(H.marca)}" onchange="api('hist_cfg',{marca:this.value}).then(()=>carrega(true))"></div>
+        </div>
+        <label class="dest" style="margin-top:6px"><input type="checkbox" ${H.auto_postar?"checked":""} onchange="api('hist_cfg',{auto_postar:this.checked}).then(()=>carrega(true))"> Fazer e postar sozinho</label>
+        <div class="linha" style="margin-top:6px"><button class="mini" onclick="api('hist_apurar').then(()=>carrega(true))" ${H.rodando?"disabled":""}>Contar os votos agora</button>
+          ${H.rodando?`<button class="mini perigo" onclick="api('hist_parar').then(()=>carrega(true))">Parar</button>`:""}</div>
+      </div>
+    </div>
+    ${H.rodando?`<div class="info" style="margin-top:8px">⏳ fazendo: <b>${esc(H.serie_rodando)}</b></div>`:""}
+    ${H.log.length?`<pre class="log" style="margin-top:8px;max-height:150px">${esc(H.log.join("\n"))}</pre>`:""}
+    <div class="info" style="margin-top:6px">Pasta: ${esc(H.pasta)}</div>
+  </div>`;
+  $("#hisCards").innerHTML = H.series.length ? H.series.map(s => {
+    const u = s.ultimo;
+    return `<div class="card">
+      <div class="linha" style="justify-content:space-between"><b>${esc(s.nome)}</b>
+        <label class="dest"><input type="checkbox" ${s.ligada?"checked":""} onchange="api('hist_serie_cfg',{pasta:'${s.pasta}',ligada:this.checked}).then(()=>carrega(true))"> ligada</label></div>
+      <div class="info">${esc(s.tema)} · <b>${s.n}</b> episódio(s) · ${esc(s.conta||"sem conta")}</div>
+      ${s.personagens.length?`<div class="info" style="opacity:.75">${s.personagens.map(p=>esc(p.nome)).join(" · ")}</div>`:""}
+      ${u?`<div class="chave" style="display:block;margin-top:8px">
+        <b>Ep ${u.n}: ${esc(u.titulo)}</b>
+        ${u.escolha&&u.escolha.pergunta?`<div class="info">${esc(u.escolha.pergunta)} <br><b>A)</b> ${esc(u.escolha.a||"")} · <b>B)</b> ${esc(u.escolha.b||"")}</div>`:""}
+        ${u.resultado?`<div class="info" style="color:var(--lima)">🗳️ ${esc(u.resultado)}</div>`:`<div class="info" style="opacity:.6">votos ainda não contados</div>`}
+        ${u.existe?`<div class="linha" style="margin-top:6px"><button class="mini" onclick="hisVer('${s.pasta}')">Assistir</button>
+          <a class="mini" href="/historia?s=${encodeURIComponent(s.pasta)}&baixar=1" download>Baixar</a></div>`:""}
+      </div>`:`<div class="info" style="margin-top:8px;opacity:.7">nenhum episódio ainda</div>`}
+      <div class="linha" style="margin-top:8px"><button class="pri" onclick="api('hist_episodio',{pasta:'${s.pasta}'}).then(()=>carrega(true))" ${H.rodando?"disabled":""}>Fazer o episódio ${s.n+1}</button></div>
+    </div>`;
+  }).join("") : `<div class="card"><div class="info">Nenhuma história ainda — crie a primeira aí em cima.</div></div>`;
+}
+function hisNovo(){
+  const ideia = $("#hisIdeia").value.trim(); if(!ideia) return alert("Escreva a ideia da história.");
+  api("hist_novo", {ideia, conta: $("#hisConta").value.trim()}).then(()=>{ $("#hisIdeia").value=""; carrega(true); });
+}
+function hisVer(s){
+  const se = (E.historias.series || []).find(x => x.pasta === s) || {};
+  $("#modal").innerHTML = `<div class="ctop" style="margin-bottom:10px"><b style="flex:1">${esc(se.nome || s)} — ep ${se.ultimo ? se.ultimo.n : ""}</b><button class="mini" onclick="fecha()">✕</button></div>
+    <video src="/historia?s=${encodeURIComponent(s)}" controls playsinline autoplay></video>`;
+  $("#fundo").classList.add("on");
+}
 
 /* ------------------------------------------------------------ canais */
 const ST_CAN = {aguardando: "esperando você", na_fila: "na fila p/ postar", postando: "postando", postado: "postado", erro: "erro", descartado: "descartado", montando: "montando"};

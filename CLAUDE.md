@@ -222,6 +222,34 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
 - TESTES: `npm run check` (tipos + testes + teste VISUAL `test/visual.test.js`: quadros do palco × `test/visual/ref_*.png`).
   Mudou o visual de propósito → `npm run visual:aprovar`. GitHub Actions roda tudo a cada push (`.github/workflows/testes.yml`).
 
+## HISTÓRIAS EM SÉRIE — reels em que o público escolhe a continuação (22/out)
+
+Formato medido nos virais de out/2026 (Histórias com Kaio 308k, Manual do Benji 372k, Tio do Fim, Insólito, Contos de
+Stick): 60–90 s · 9:16 · ilustração CHAPADA desenhada por CÓDIGO (mesmo visual em toda a série) · narração 150–190
+palavras/min · legenda GRANDE em caixa alta com a palavra-chave colorida · relógio/contador na tela · cena nova a cada
+4–6 s (movimento lento de câmera, NÃO corte rápido).
+NARRATIVA: gancho em 2ª pessoa com ordem contra-intuitiva → promessa com risco → personagem de nome simples + hora →
+3 a 5 REGRAS NUMERADAS com razão técnica e NÚMERO CONCRETO (180 litros, 1 litro = 1 quilo, 8 km — é o que faz salvar e
+compartilhar) → detalhe doméstico brasileiro (a gata, o mercadinho, a laje) → cliffhanger → **ESCOLHA A/B**.
+O LAÇO: o episódio termina na escolha → o público comenta A ou B → o episódio seguinte ABRE com o resultado ("84%
+mandaram o Lucas pro mercadinho"). É isso que faz a série crescer. Vale para qualquer tema (esporte, trabalho...).
+
+- `python tools\historias\historias.py --novo "<ideia>" --conta instagram:<conta>` → a IA monta o mundo, as regras e os
+  personagens em `<DETTO>\historias\series\<nome>\serie.json`.
+- `python tools\historias\historias.py [--serie X] [--quantos N] [--apurar]` → apura os votos do episódio anterior
+  (`apura`: lê os comentários pela API do Instagram, conta A x B, menos de 3 votos segue pela A) → a IA escreve o
+  episódio (`escreve_episodio`, Gemini → IAs grátis → Claude; `limpa_cena` descarta cenário/pose/objeto que o palco não
+  sabe desenhar) → voz (VoiceStudio → Fish, com `sem_pausas`) → faster-whisper → `encaixa_cenas` (cada cena termina onde
+  a frase dela acaba) → `render.js` → `<serie>\ep_NN\episodio.mp4` → fila de postagem do painel.
+- PALCO `tools\historias\palco\` (cena.html/css/js, Chromium): cenários `cidade predio quarto janela banheiro corredor
+  rua laje garagem mercado escuro`, luz `dia tarde noite escuro chuva alerta`, bonequinho em 8 poses, gato, objetos
+  (balde, banheira, vela, celular, porta, caixa, moto, carro, mochila, escada, torneira), chuva, relógio/contador/selo,
+  onomatopeia, movimento `zoom afasta direita esquerda sobe desce`. Legenda: `*palavra*` sai colorida; sem marcação o
+  `destaca()` escolhe (número primeiro). Desenhar por código mantém a série IGUAL em todo episódio e é instantâneo.
+- PAINEL aba **Histórias** (`tools\painel\historias_painel.py`): criar série pela ideia, ligar/desligar, "Fazer o
+  episódio N", assistir/baixar, contar os votos, episódios por dia, duração, @ do rodapé. Faz sozinho 1x/dia (8–21 h),
+  um por vez junto com canais e edição.
+
 ## Vídeo gravado COM o roteiro dele (padrão)
 
 O Everton grava lendo um roteiro, mas muda as falas. Roteiro DELE sem tempos (roteiro de gravação, sem `[0:00 – 0:08]`/`[CAM] — TÍTULO`):

@@ -33,6 +33,7 @@ import postar as P  # noqa: E402
 sys.path.insert(0, str(AQUI))
 import edicao as EDI  # noqa: E402
 import canais as CAN  # noqa: E402
+import historias_painel as HIS  # noqa: E402
 
 VIDEO_EXT = P.VIDEO_EXT
 REELS = None  # pasta dos reels (E:\DETTO\reels)
@@ -264,6 +265,7 @@ def estado_painel():
         "pastas": {"postar": str(BASE), "reels": str(REELS), "edicao": str(EDI.ED)},
         "agora": dt.datetime.now().strftime("%d/%m %H:%M"),
         "canais": CAN.estado(),
+        "historias": HIS.estado(),
         "claude": claude_estado(),
     }
 
@@ -332,6 +334,8 @@ def rodada_ja():
 def acao(nome, d):
     if nome.startswith("canal_"):
         return CAN.acao(nome, d)
+    if nome.startswith("hist_"):
+        return HIS.acao(nome, d)
     if nome == "pausar":
         grava_cfg(lambda c: c.__setitem__("pausado", bool(d.get("pausado"))))
         P.log("postagem automática " + ("PAUSADA pelo painel" if d.get("pausado") else "LIGADA pelo painel"))
@@ -825,6 +829,8 @@ class Painel(hserver.BaseHTTPRequestHandler):
                 return self._arquivo(q)
             if u.path == "/canal_arquivo":
                 return self._manda(CAN.arquivo(q.get("c", ""), q.get("id", ""), q.get("nome", "")), baixar=q.get("baixar") == "1")
+            if caminho == "/historia":
+                return self._manda(HIS.arquivo(q.get("s", ""), q.get("nome", "episodio.mp4")), baixar=q.get("baixar") == "1")
             if u.path == "/ed_arquivo":
                 return self._manda(EDI.arquivo(q.get("id", ""), q.get("rel", "")), baixar=q.get("baixar") == "1")
             self._json({"erro": "não achei"}, 404)
@@ -1060,6 +1066,8 @@ def main():
     if EDI.DRIVE:
         os.environ["DETTO_DRIVE"] = str(EDI.DRIVE)
     threading.Thread(target=EDI.laco, kwargs={"log": P.log, "ao_terminar": edicao_pronta}, daemon=True).start()
+    threading.Thread(target=HIS.laco, kwargs={"log": P.log, "ocupado": lambda: CAN.ocupado() or bool(EDI.PROC["p"] and EDI.PROC["p"].poll() is None)},
+                     daemon=True).start()
     threading.Thread(target=CAN.laco, kwargs={"log": P.log, "edicao_ocupada": lambda: bool(EDI.PROC["p"] and EDI.PROC["p"].poll() is None)},
                      daemon=True).start()
     print(f"PAINEL DETTO no ar:\n  no PC:      http://localhost:{PORTA}\n"
