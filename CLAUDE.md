@@ -234,6 +234,10 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   mostra um aviso VERMELHO e para de desenhar o resto. **Ao mexer no painel.py, suba as duas versões juntas.**
   `codigo_novo()` (data dos arquivos × `SUBIU_EM`) continua avisando quando só os arquivos mudaram; botão
   **Reiniciar o painel** (ação `reiniciar`, `os._exit(7)`; o Python velho não tem a ação → a tela manda fechar na mão).
+- ATUALIZAR O PC DELE: `detto-premiere-bridge\ATUALIZAR.ps1` (PowerShell, UTF-8 com BOM) faz tudo na ordem certa —
+  fecha o painel (`Get-CimInstance Win32_Process` + CommandLine com "painel"), `git pull` (se falhar pela pasta
+  `detto-historias-panel` solta, renomeia para -BACKUP e tenta de novo), confere no disco a `PAINEL_VERSAO`, a marca
+  "link conferido" do postar e o historias.py, e abre o painel + o navegador. Mande ele rodar isso em vez de comandos soltos.
 - TESTES: `npm run check` (tipos + testes + teste VISUAL `test/visual.test.js`: quadros do palco × `test/visual/ref_*.png`).
   Mudou o visual de propósito → `npm run visual:aprovar`. GitHub Actions roda tudo a cada push (`.github/workflows/testes.yml`).
 
