@@ -206,11 +206,10 @@ def whoosh(destino, dur):
 
 
 def filtro_complexo(arq):
-    """FFmpeg 7+ trocou -filter_complex_script por -/filter_complex."""
-    import re as _re
-    r = subprocess.run(["ffmpeg", "-version"], capture_output=True, text=True)
-    m = _re.search(r"ffmpeg version n?(\d+)", r.stdout or "")
-    return ["-/filter_complex", str(arq)] if (int(m.group(1)) if m else 7) >= 7 else ["-filter_complex_script", str(arq)]
+    """FFmpeg 7+ trocou -filter_complex_script por -/filter_complex (tools/ffcompat.py)."""
+    from ffcompat import filtro_complexo as _fc
+
+    return _fc(arq)
 
 
 def main():

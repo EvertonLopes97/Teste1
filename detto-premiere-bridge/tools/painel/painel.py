@@ -404,6 +404,23 @@ def acao(nome, d):
         est.get(k, {}).get("falhas", {}).pop(n, None)
         est.get(k, {}).get("espera", {}).pop(n, None)
         P.grava_json(BASE / "estado.json", est)
+    elif nome == "tentar_todas":
+        # devolve TODOS os vídeos com erro desta conta para a fila (ex.: depois de uma rodada em que a hospedagem
+        # do Reels teste estava fora do ar e os vídeos foram para falhas\ sem culpa)
+        k = d["k"]
+        est = P.le_json(BASE / "estado.json", {})
+        n = 0
+        for f in sorted((BASE / "falhas" / k).glob("*")):
+            if f.suffix.lower() not in VIDEO_EXT:
+                continue
+            for g in (f, f.with_suffix(".txt")):
+                if g.exists():
+                    shutil.move(str(g), str(BASE / "entrada" / k / g.name))
+            est.get(k, {}).get("falhas", {}).pop(f.name, None)
+            est.get(k, {}).get("espera", {}).pop(f.name, None)
+            n += 1
+        P.grava_json(BASE / "estado.json", est)
+        return {"ok": True, "n": n}
     elif nome == "claude_parar":
         sys.path.insert(0, str(TOOLS))
         from roteiro_ia import grava_uso_claude, le_uso_claude

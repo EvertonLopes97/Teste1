@@ -35,6 +35,7 @@ AQUI = Path(__file__).resolve().parent
 TOOLS = AQUI.parent
 PONTE = TOOLS.parent
 sys.path.insert(0, str(TOOLS))
+from ffcompat import filtro_complexo  # noqa: E402
 from sdr import master_sdr, audio_bom, tem_nvenc  # noqa: E402
 
 VIDEO_EXT = {".mov", ".mp4", ".m4v", ".mkv", ".avi"}
@@ -554,7 +555,7 @@ def monta(plano, an, job, W, H, fps, legendas, log=log):
     (job / "grafo.txt").write_text(grafo, encoding="utf-8")
     sem = job / "vlog_sem_trilha.mp4"
     log(f"   emendando {len(itens)} trechos ({pos / 60:.1f} min)...")
-    r = subprocess.run(["ffmpeg", "-v", "error", "-y"] + entradas + ["-filter_complex_script", "grafo.txt", "-map", vf_final, "-map", "[afim]"]
+    r = subprocess.run(["ffmpeg", "-v", "error", "-y"] + entradas + filtro_complexo("grafo.txt") + ["-map", vf_final, "-map", "[afim]"]
                        + enc_video(False) + ["-pix_fmt", "yuv420p", "-r", str(fps), "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", sem.name],
                        cwd=str(job), capture_output=True, text=True)
     if r.returncode != 0:
@@ -586,8 +587,9 @@ def efeitos(video, marcas, saida, job):
     mix = "".join(f"[s{i}]" for i in range(1, n + 1))
     grafo = ";".join(partes) + f";[0:a]{mix}amix=inputs={n + 1}:normalize=0:duration=first[a]"
     (job / "grafo_sfx.txt").write_text(grafo, encoding="utf-8")
-    r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(video)] + entradas + ["-filter_complex_script", "grafo_sfx.txt", "-map", "0:v",
-                       "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", str(saida)], cwd=str(job), capture_output=True, text=True)
+    r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(video)] + entradas + filtro_complexo("grafo_sfx.txt")
+                       + ["-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", str(saida)],
+                       cwd=str(job), capture_output=True, text=True)
     if r.returncode != 0:
         log(f"   (efeitos sonoros não entraram: {r.stderr[-200:]})")
         shutil.copyfile(video, saida)

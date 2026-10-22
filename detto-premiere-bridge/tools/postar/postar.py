@@ -357,68 +357,181 @@ def normaliza_ig(video, pasta):
     raise VideoQuebrado(f"o arquivo do vídeo está estragado (o FFmpeg não consegue ler: {erro}) — refaça este reel")
 
 
-def _link_catbox(video):
-    url = _multipart("https://catbox.moe/user/api.php", {"reqtype": "fileupload"}, "fileToUpload", video)
+def _confere_link(url, tamanho, log=log):
+    """O LINK FUNCIONA MESMO? Baixa os primeiros bytes de fora e confere o tamanho. Sem isso o link ruim ia para o
+    Instagram, ele não conseguia baixar (2207082 / código 0) e o vídeo gastava as 4 tentativas e caía nas falhas."""
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0", "Range": "bytes=0-65535"})
+        with urllib.request.urlopen(req, timeout=90) as r:
+            if r.status not in (200, 206):
+                return f"respondeu {r.status}"
+            tipo = (r.headers.get("Content-Type") or "").lower()
+            if "html" in tipo:
+                return f"devolveu página HTML em vez do vídeo ({tipo})"
+            faixa = r.headers.get("Content-Range") or ""
+            total = int(faixa.rsplit("/", 1)[-1]) if "/" in faixa and faixa.rsplit("/", 1)[-1].isdigit() else \
+                int(r.headers.get("Content-Length") or 0)
+            pedaco = r.read(65536)
+        if not pedaco:
+            return "não veio nenhum byte"
+        if b"ftyp" not in pedaco[:64] and b"moov" not in pedaco[:4096]:
+            return "o que veio não parece um MP4"
+        if total and r.status == 206 and abs(total - tamanho) > 1024:
+            return f"tamanho diferente ({total} em vez de {tamanho})"
+        return ""
+    except Exception as e:
+        return str(e)[:150]
+
+
+def _link_catbox(video, ctx):
+    url = _multipart("https://catbox.moe/user/api.php", {"reqtype": "fileupload"}, "fileToUpload", video, tempo=600)
     if not url.startswith("https://"):
         raise RuntimeError(f"catbox: {url[:120]}")
-    return url
+    return url, None
 
 
-def _link_litterbox(video):
-    url = _multipart("https://litterbox.catbox.moe/resources/internals/api.php", {"reqtype": "fileupload", "time": "1h"}, "fileToUpload", video)
+def _link_litterbox(video, ctx):
+    url = _multipart("https://litterbox.catbox.moe/resources/internals/api.php", {"reqtype": "fileupload", "time": "1h"},
+                     "fileToUpload", video, tempo=600)
     if not url.startswith("https://"):
         raise RuntimeError(f"litterbox: {url[:120]}")
-    return url
+    return url, None
 
 
-def _link_tmpfiles(video):
-    r = json.loads(_multipart("https://tmpfiles.org/api/v1/upload", {}, "file", video))
+def _link_0x0(video, ctx):
+    """0x0.st — upload anônimo simples, link direto (serve o arquivo com o tipo certo)"""
+    url = _multipart("https://0x0.st", {"expires": "2"}, "file", video, tempo=600)
+    if not url.startswith("https://"):
+        raise RuntimeError(f"0x0: {url[:120]}")
+    return url, None
+
+
+def _link_tmpfiles(video, ctx):
+    r = json.loads(_multipart("https://tmpfiles.org/api/v1/upload", {}, "file", video, tempo=600))
     url = (r.get("data") or {}).get("url", "")
     if not url.startswith("http"):
-        raise RuntimeError(f"tmpfiles: {r}")
-    return url.replace("http://", "https://").replace("tmpfiles.org/", "tmpfiles.org/dl/", 1)
+        raise RuntimeError(f"tmpfiles: {str(r)[:120]}")
+    return url.replace("http://", "https://").replace("tmpfiles.org/", "tmpfiles.org/dl/", 1), None
 
 
-def _link_facebook(cfg, base, conta, video):
-    """o vídeo sobe NÃO PUBLICADO na sua página do Facebook (ninguém vê) e o Instagram baixa do próprio servidor
-    da Meta — os sites de link temporário às vezes são bloqueados pelo Instagram (erro 2207082). Apagado depois."""
-    pid, token, _ = fb_pagina(cfg, base, conta)
-    v = cfg["instagram"]["versao"]
-    r = json.loads(_multipart(f"https://graph-video.facebook.com/{v}/{pid}/videos",
-                              {"published": "false", "description": "detto: reels teste (temporário)", "access_token": token},
-                              "source", video, tempo=1800))
-    vid = r.get("id")
-    if not vid:
-        raise RuntimeError(f"facebook: {r}")
-    for _ in range(40):  # até ~6 min processando
-        d = http("GET", f"{GRAPH}/{v}/{vid}?" + urllib.parse.urlencode({"fields": "source,status", "access_token": token}))
-        st = (d.get("status") or {}).get("video_status")
-        if d.get("source") and st in (None, "ready", "published"):
-            return d["source"], (lambda: http("DELETE", f"{GRAPH}/{v}/{vid}?" + urllib.parse.urlencode({"access_token": token})))
-        if st == "error":
-            raise RuntimeError(f"facebook: o vídeo deu erro no processamento ({d.get('status')})")
-        time.sleep(9)
-    raise RuntimeError("facebook: o vídeo demorou demais para processar")
+def _cloudflared(base, log=log):
+    """o programa do túnel (uma vez só, ~40 MB, direto do GitHub da Cloudflare)"""
+    pasta = Path(base) / "ferramentas"
+    pasta.mkdir(parents=True, exist_ok=True)
+    exe = pasta / ("cloudflared.exe" if os.name == "nt" else "cloudflared")
+    if exe.exists() and exe.stat().st_size > 1_000_000:
+        return exe
+    arq = {"nt": "cloudflared-windows-amd64.exe"}.get(os.name, "cloudflared-linux-amd64")
+    url = f"https://github.com/cloudflare/cloudflared/releases/latest/download/{arq}"
+    log(f"túnel: baixando o cloudflared uma vez só ({url})...")
+    tmp = exe.with_suffix(".baixando")
+    req = urllib.request.Request(url, headers={"User-Agent": "detto-postar"})
+    with urllib.request.urlopen(req, timeout=600) as r, open(tmp, "wb") as f:
+        shutil.copyfileobj(r, f)
+    tmp.replace(exe)
+    if os.name != "nt":
+        exe.chmod(0o755)
+    log("túnel: cloudflared pronto.")
+    return exe
+
+
+def _link_tunel(video, ctx):
+    """O VÍDEO FICA NO SEU PC e o Instagram baixa direto daqui, por um endereço público temporário da Cloudflare
+    (cloudflared "quick tunnel", de graça e sem conta). Não depende de site de hospedagem — é o que funciona quando
+    o Catbox e companhia estão fora do ar ou bloqueados pelo seu provedor. O endereço morre junto com o envio."""
+    import http.server
+    import socketserver
+    import threading
+
+    base, log_ = ctx["base"], ctx["log"]
+    exe = _cloudflared(base, log_)
+    video = Path(video)
+    nome = secrets.token_hex(8) + ".mp4"  # nome sorteado: ninguém acha o endereço por acaso
+    pasta = Path(base) / "tmp_tunel"
+    shutil.rmtree(pasta, ignore_errors=True)
+    pasta.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(video, pasta / nome)
+
+    class Servidor(http.server.SimpleHTTPRequestHandler):
+        def __init__(self, *a, **k):
+            super().__init__(*a, directory=str(pasta), **k)
+
+        def log_message(self, *a):
+            pass
+
+    socketserver.TCPServer.allow_reuse_address = True
+    httpd = socketserver.TCPServer(("127.0.0.1", 0), Servidor)
+    porta = httpd.server_address[1]
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    pr = subprocess.Popen([str(exe), "tunnel", "--url", f"http://127.0.0.1:{porta}", "--no-autoupdate"],
+                          stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace",
+                          **({"creationflags": 0x08000000} if os.name == "nt" else {}))
+
+    def fecha():
+        for f in (pr.terminate, pr.kill):
+            try:
+                f()
+                pr.wait(timeout=10)
+                break
+            except Exception:
+                continue
+        httpd.shutdown()
+        shutil.rmtree(pasta, ignore_errors=True)
+
+    try:
+        url, fim = "", time.time() + 75
+        while time.time() < fim and pr.poll() is None:
+            linha = pr.stdout.readline()
+            if not linha:
+                continue
+            m = re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", linha)
+            if m:
+                url = m.group(0)
+                break
+        if not url:
+            raise RuntimeError("o cloudflared não abriu o endereço público (sua internet bloqueia o túnel?)")
+        threading.Thread(target=lambda: [pr.stdout.readline() for _ in iter(int, 1)], daemon=True).start()
+        time.sleep(4)  # o endereço leva uns segundos para valer em toda a Cloudflare
+        return f"{url}/{nome}", fecha
+    except Exception:
+        fecha()
+        raise
+
+
+HOSPEDAGENS = {"tunel": ("seu PC (túnel Cloudflare)", _link_tunel), "catbox": ("Catbox", _link_catbox),
+               "0x0": ("0x0.st", _link_0x0), "tmpfiles": ("tmpfiles", _link_tmpfiles), "litterbox": ("Litterbox", _link_litterbox)}
+ORDEM_PADRAO = ["tunel", "catbox", "0x0", "tmpfiles", "litterbox"]
 
 
 def link_temporario(video, cfg=None, base=None, conta=None, tentativa=0):
     """O Reels TESTE só funciona com o vídeo num link público (o envio direto do arquivo ignora o "teste" e posta
-    normal). Devolve (url, apagar). Só o Catbox funcionou no PC dele (o Instagram baixa de lá); tmpfiles e a página do
-    Facebook não publicada SEMPRE deram erro (2207082/2207076) — gastavam as tentativas à toa e ficaram de fora.
-    Catbox até 3 vezes (falha passageira), depois o Litterbox (mesmo servidor); sem link = tenta na próxima rodada."""
+    normal). Devolve (url, fechar). Cada hospedagem é CONFERIDA antes de ir para o Instagram (baixa os primeiros
+    bytes de fora): link que não serve é descartado na hora, em vez de virar erro 2207082 e queimar as tentativas.
+    Ordem: o túnel do seu PC primeiro (não depende de ninguém), depois os sites. Troque em "hospedagem" no config."""
+    ordem = [x for x in ((cfg or {}).get("instagram", {}).get("hospedagem") or ORDEM_PADRAO) if x in HOSPEDAGENS] or ORDEM_PADRAO
+    ctx = {"base": Path(base or "."), "cfg": cfg or {}, "conta": conta, "log": log}
+    tamanho = Path(video).stat().st_size
     erros = []
-    for nome, f, vezes in (("Catbox", _link_catbox, 3), ("Litterbox", _link_litterbox, 1)):
-        for k in range(vezes):
-            try:
-                url = f(video)
-                log(f"{conta or ''}: Reels TESTE — vídeo em {nome}")
-                return url, None
-            except Exception as e:
-                erros.append(f"{nome}: {str(e)[:150]}")
-                log(f"{conta or ''}: {nome} não aceitou o envio ({str(e)[:120]})")
-                if k < vezes - 1:
-                    time.sleep(10 * (k + 1))
-    raise RuntimeError("não consegui o link para o Reels TESTE (" + " | ".join(erros)[:400] + "). Tenta de novo na próxima rodada.")
+    for chave in ordem:
+        nome, f = HOSPEDAGENS[chave]
+        fechar = None
+        try:
+            url, fechar = f(video, ctx)
+            ruim = _confere_link(url, tamanho)
+            if ruim:
+                raise RuntimeError(f"o link não serve: {ruim}")
+            log(f"{conta or ''}: Reels TESTE — vídeo em {nome} (link conferido)")
+            return url, fechar
+        except Exception as e:
+            erros.append(f"{nome}: {str(e)[:120]}")
+            log(f"{conta or ''}: {nome} não deu certo ({str(e)[:140]})")
+            if fechar:
+                try:
+                    fechar()
+                except Exception:
+                    pass
+    raise RuntimeError("não consegui um link que o Instagram consiga baixar (" + " | ".join(erros)[:400]
+                       + "). Tenta de novo na próxima rodada.")
 
 
 def ig_posta(cfg, base, conta, video, legenda, teste=False, graduar="manual", tentativa=0):
@@ -437,17 +550,17 @@ def ig_posta(cfg, base, conta, video, legenda, teste=False, graduar="manual", te
         params["trial_params"] = json.dumps({"graduation_strategy": "SS_PERFORMANCE" if graduar == "automatico" else "MANUAL"})
         params.pop("share_to_feed")
         params.pop("upload_type")
-        params["video_url"], apagar = link_temporario(video, cfg, base, conta, tentativa)
+        params["video_url"], fechar = link_temporario(video, cfg, base, conta, tentativa)
     else:
-        apagar = None
+        fechar = None
     try:
         return _ig_publica(cfg, base, conta, video, params, teste, graduar, G, v, igid, token)
     finally:
-        if apagar:
+        if fechar:
             try:
-                apagar()
+                fechar()  # derruba o túnel / apaga o arquivo temporário
             except Exception as e:
-                log(f"{conta}: não apaguei o vídeo temporário da página ({e}) — ele está NÃO publicado, ninguém vê")
+                log(f"{conta}: não consegui fechar a hospedagem temporária ({e})")
 
 
 def _ig_publica(cfg, base, conta, video, params, teste, graduar, G, v, igid, token):
@@ -1037,6 +1150,13 @@ def posta_da_fila(cfg, base, c, video, estado):
             # o PC ficou sem internet (DNS): não é culpa do vídeo — não conta erro, espera 10 min
             estado.setdefault(k, {})["pausa_ate"] = time.time() + 10 * 60
             log(f"{k}: sem internet no PC agora ({txt[:120]}) — tento de novo em 10 min (não conta como erro)")
+            grava_json(base / "estado.json", estado)
+            return None
+        if "não consegui um link" in txt:
+            # nenhuma hospedagem serviu (Catbox fora do ar, provedor bloqueando, túnel sem abrir): o VÍDEO está bom,
+            # quem falhou foi a hospedagem — não conta erro, senão o vídeo ia para falhas\ sem culpa nenhuma
+            estado.setdefault(k, {})["pausa_ate"] = time.time() + 10 * 60
+            log(f"{k}: nenhuma hospedagem serviu agora — tento de novo em 10 min (não conta como erro)")
             grava_json(base / "estado.json", estado)
             return None
         falhas = estado.setdefault(k, {}).setdefault("falhas", {})

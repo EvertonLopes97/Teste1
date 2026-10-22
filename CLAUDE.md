@@ -118,7 +118,12 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   na conta; o TESTE só vale com `video_url`: o vídeo sobe para o Catbox (link público; até 3 vezes) ou Litterbox e o IG
   baixa de lá (tmpfiles e FB não publicado SEMPRE falharam — 2207082/2207076 — e saíram); cada falha de envio aparece no
   registro — erro 2207082/2207076 = o IG não baixou/processou; antes de subir o vídeo é padronizado (`normaliza_ig`: H.264 High, mesmo fps até 60, keyframe a cada 2 s, ≤1080x1920, ≤12 Mbit/s,
-  AAC 48 kHz, faststart, em `tmp_ig\`); falha espera 15 min/45 min/2 h e vai para falhas na 4ª; depois de QUALQUER erro a conta pausa 10 min (`pausa_ate`; antes tentava o próximo da fila na hora → "muitas ações"); erro 2207078 (limite de Reels TESTE da API) ou código 9 "muitas ações" = conta pausa 24 h, o vídeo não conta erro; Instagram sem máx./dia = teto 10/dia (`teto_dia`); sem internet (getaddrinfo) = não conta erro, espera 10 min; vídeo que o FFmpeg não lê (`VideoQuebrado`, depois de 6 jeitos de `normaliza_ig`, os últimos tolerantes a quadro estragado) = falhas na hora, sem gastar ação no IG; contador de erros zera depois de 12 h e ao ir para falhas; painel mostra a pausa + "Tirar pausa"; `normaliza_ig` tenta 3 jeitos (áudio vazio → silêncio; sem source_fps → 30 fps); o envio direto ignorava o teste); views pelo insights (permissão instagram_manage_insights) a cada 30 min; mandar para os seguidores é no
+  AAC 48 kHz, faststart, em `tmp_ig\`); LINK DO REELS TESTE (22/out): cascata `HOSPEDAGENS`/`"hospedagem"` no config —
+  1 `tunel` (o vídeo FICA NO PC e o IG baixa por um endereço público da Cloudflare, `cloudflared` baixado 1x para
+  `postar\ferramentas\`, nome sorteado, cai no fim) · 2 Catbox · 3 0x0.st · 4 tmpfiles · 5 Litterbox; CADA link é
+  CONFERIDO antes (`_confere_link`: baixa os primeiros bytes de fora, recusa HTML/404/tamanho errado) — link ruim é
+  descartado na hora em vez de virar 2207082 e queimar as 4 tentativas; nenhuma hospedagem serviu = NÃO conta erro
+  (pausa 10 min, o vídeo fica na fila). Painel: "↻ Tentar todos de novo" devolve as falhas da conta para a fila; falha espera 15 min/45 min/2 h e vai para falhas na 4ª; depois de QUALQUER erro a conta pausa 10 min (`pausa_ate`; antes tentava o próximo da fila na hora → "muitas ações"); erro 2207078 (limite de Reels TESTE da API) ou código 9 "muitas ações" = conta pausa 24 h, o vídeo não conta erro; Instagram sem máx./dia = teto 10/dia (`teto_dia`); sem internet (getaddrinfo) = não conta erro, espera 10 min; vídeo que o FFmpeg não lê (`VideoQuebrado`, depois de 6 jeitos de `normaliza_ig`, os últimos tolerantes a quadro estragado) = falhas na hora, sem gastar ação no IG; contador de erros zera depois de 12 h e ao ir para falhas; painel mostra a pausa + "Tirar pausa"; `normaliza_ig` tenta 3 jeitos (áudio vazio → silêncio; sem source_fps → 30 fps); o envio direto ignorava o teste); views pelo insights (permissão instagram_manage_insights) a cada 30 min; mandar para os seguidores é no
   app (a API não faz) → painel avisa e tem "Já mandei". Roteiro sem linha de BLOCO vira um bloco só.
   TIKTOK = modo "studio" (padrão; o TikTok não aprova app para as próprias contas): nada vai pela API; o painel
   planeja horários (`P.planeja`: intervalo/janela/máx. por dia, 20 min a 10 dias), "Preparar pasta" →
@@ -203,6 +208,8 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   8–23 h; vlogs 10 min). Um trabalho pesado por vez (`EDI.OCUPADO`). Login por canal (token.json na pasta do canal);
   client_secret.json compartilhado em E:\DETTO\youtube. `--preparar`, `--postar <pronto>`, `DETTO_VOZ_FALSA=1` (teste: voz de computador pt — Windows SAPI "Maria" / espeak-ng —
   no lugar da clonada; painel: botão "Teste" no card Notícias = `--forcar --nao-postar` com essa voz).
+- FFMPEG: `-filter_complex_script` saiu na 8; use SEMPRE `tools\ffcompat.py` (`filtro_complexo`/`filtro_v`, o mesmo que o
+  `motion\ffopts.js` faz no Node) — o vlog quebrava com "Unrecognized option 'filter_complex_script'".
 - PYTHON 3.11 no PC dele: NADA de `\` dentro das chaves de f-string (no 3.12+ passa, lá quebra — aconteceu no canal.py). Conferir:
   `python3.11 -S -c "import ast,sys;ast.parse(open(sys.argv[1]).read())" arq.py`; o GitHub Actions roda compileall no 3.11.
   canal.py: UMA rodada por vez (`trava_rodada(pasta, ".canal_rodando")`; duas juntas apagavam o tmp\ da outra no meio da voz).

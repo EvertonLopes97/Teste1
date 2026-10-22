@@ -631,7 +631,7 @@ function contas(){
           <button class="mini perigo" title="Tirar da fila" onclick="tira(${ci},${i})">✕</button>
         </div></div>`;
     }).join("") : `<div class="vazio">Fila vazia — mande vídeos aqui em cima</div>`;
-    const falhas = c.falhas.length ? `<details open data-d="${c.k}-falhas"><summary style="color:var(--verm)">${c.falhas.length} com erro (3 tentativas)</summary><div class="lista">${c.falhas.map((v, i) =>
+    const falhas = c.falhas.length ? `<details open data-d="${c.k}-falhas"><summary style="color:var(--verm)">${c.falhas.length} com erro (3 tentativas)</summary><div style="margin:6px 0"><button class="mini" onclick="tentaTodas(${ci})">↻ Tentar todos de novo</button></div><div class="lista">${c.falhas.map((v, i) =>
       `<div class="l"><span>${esc(limpo(v.nome))}</span><span><button class="mini" onclick="tenta(${ci},${i})">Tentar de novo</button> <button class="mini perigo" onclick="tiraF(${ci},${i})">✕</button></span></div>`).join("")}</div></details>` : "";
     const ult = c.ultimos.length ? `<details data-d="${c.k}-ult"><summary>Últimos postados</summary><div class="lista">${c.ultimos.map(u =>
       `<div class="l"><span>${esc(u.quando)} · ${esc(limpo(u.nome))}</span>${u.link ? `<a href="${esc(u.link)}" target="_blank" rel="noopener">abrir</a>` : `<small style="color:var(--mut)">${u.modo === "rascunho" ? "rascunho" : u.modo === "studio" ? "agendado" : ""}</small>`}</div>`).join("")}</div></details>` : "";
@@ -686,6 +686,7 @@ async function tira(ci, i){
   await api("apagar", {k: c.k, nome: v.nome}); carrega(true);
 }
 async function tenta(ci, i){ const c = E.contas[ci]; await api("tentar", {k: c.k, nome: c.falhas[i].nome}); carrega(true); }
+async function tentaTodas(ci){ const c = E.contas[ci]; if(!confirm(`Devolver os ${c.falhas.length} vídeos com erro para a fila?`)) return; await api("tentar_todas", {k: c.k}); carrega(true); }
 async function tiraF(ci, i){ const c = E.contas[ci]; if(!confirm("Apagar este vídeo com erro?")) return; await api("apagar", {k: c.k, nome: c.falhas[i].nome, onde: "falhas"}); carrega(true); }
 function copia(ci, i){
   const t = E.contas[ci].pendentes[i].legenda;
