@@ -48,6 +48,10 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   preto/vinheta, nas `faixas`) + O ASSUNTO (2–4 palavras + destaque + selo; IA texto Gemini→grátis→Claude; sem IA = palavras do
   assunto, nunca nome de arquivo) + escudo/jogador. 3 versões (TV inclinada + seta | quadro cheio + texto | dividida + faixa);
   Chromium falhou/sem node → desenho simples pelo PIL (nunca fica sem thumb). Estilos noticia|futebol|vlog|gameplay.
+  MANCHETE (22/out, estilo `noticia`): o layout da thumb do canal que foi melhor — o QUADRO DA IMPRENSA em tela cheia e
+  nítido é o protagonista, escurecido à esquerda, manchete em 2 linhas (a 2ª colorida) com contorno grosso, selo
+  vermelho, escudo no canto e faixa com o nome do canal embaixo; você entra recortado e menor à direita. `listaVersoes`
+  põe ela em 1º (é a que sobe no YouTube).
   Onde: `thumb.py <job>` no fim do editar.py (rosto = gravação, quadro = horizontal.mp4, jogadores do jogadores.json);
   canal.py `thumb(..., sel)` (rosto = máscaras surpreso/bravo/rindo primeiro, quadro = o vídeo da imprensa no trecho
   principal, escudo, marca do canal) → `pronto\thumb_1.jpg` (sobe no YouTube; canal precisa ser VERIFICADO por telefone);

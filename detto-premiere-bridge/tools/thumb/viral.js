@@ -74,6 +74,16 @@ body { width: 1280px; height: 720px; overflow: hidden; background: #000; }
 .extra { position: absolute; border-radius: 50%; background: #111 center/cover; border: 8px solid #fff; box-shadow: 0 12px 30px rgba(0,0,0,.7); }
 .marca { position: absolute; font-family: Inter; font-weight: 900; font-size: 22px; color: #fff; background: rgba(0,0,0,.72); padding: 6px 14px; border-radius: 8px; letter-spacing: 1px; }
 .seta { position: absolute; }
+/* MANCHETE (o layout da thumb do canal que foi melhor): o quadro da imprensa é o protagonista,
+   o texto fica à esquerda sobre o escurecido, selo vermelho e faixa do canal embaixo. */
+.manchete { position: absolute; left: 36px; top: 54px; width: 620px; }
+.manchete .l { display: block; font-size: 138px; line-height: .96; color: #fff; text-transform: uppercase;
+  -webkit-text-stroke: 13px #000; paint-order: stroke fill; text-shadow: 0 9px 0 #000; letter-spacing: 1px; }
+.manchete .l.hl { color: ${s.cor}; }
+.faixa-canal { position: absolute; left: 0; right: 0; bottom: 0; height: 86px; background: rgba(8,8,10,.86);
+  display: flex; align-items: center; justify-content: center; }
+.faixa-canal span { font-family: Anton; font-size: 46px; color: #fff; letter-spacing: 3px; }
+.escuroesq { position: absolute; inset: 0; background: linear-gradient(100deg, rgba(0,0,0,.93) 0%, rgba(0,0,0,.72) 38%, rgba(0,0,0,.18) 62%, rgba(0,0,0,0) 80%); }
 `;
 
 const SETA = (cor) =>
@@ -94,6 +104,26 @@ function versoes(s) {
   const extra = (i, estilo) => (s.extras[i] ? `<div class="extra" style="${estilo};background-image:url('${url(s.extras[i])}')"></div>` : "");
   const marca = s.marca ? `<div class="marca" style="left:24px;bottom:22px">${esc(s.marca)}</div>` : "";
   const setaCor = s.estilo === "noticia" ? "#FF2D2D" : s.cor;
+  // o texto da manchete em 2 linhas: a 2ª (ou a marcada com destaque) sai colorida
+  const linhasManchete = () => {
+    const ws = String(s.texto).split(/\s+/).filter(Boolean);
+    const corte = ws.length <= 2 ? 1 : Math.ceil(ws.length / 2);
+    const alvo = String(s.destaque || "").toUpperCase().replace(/[^\p{L}\d]/gu, "");
+    const l1 = ws.slice(0, corte).join(" ");
+    const l2 = ws.slice(corte).join(" ");
+    const marcada = alvo && l1.toUpperCase().replace(/[^\p{L}\d ]/gu, "").split(" ").includes(alvo) ? 0 : 1;
+    return [l1, l2].filter(Boolean).map((t, i) =>
+      `<span class="l fit ${i === marcada ? "hl" : ""}" data-w="610" data-h="190">${esc(t)}</span>`).join("");
+  };
+  // MANCHETE — o layout da thumb que foi melhor no canal de notícias
+  s._manchete =
+    `<div class="bg nitido" style="background-image:url('${url(q(0))}')"></div>
+     <div class="escuroesq"></div>
+     ${extra(0, "left:28px;top:26px;width:150px;height:150px")}
+     <div class="manchete" style="${s.extras.length ? "top:200px" : "top:60px"}">${linhasManchete()}</div>
+     ${selo(`left:36px;bottom:${s.marca ? 120 : 40}px`)}
+     ${voceHtml(v(0), "right:-24px", 540, "bottom:86px")}
+     ${s.marca ? `<div class="faixa-canal"><span>${esc(s.marca)}</span></div>` : ""}`;
   return [
     // 1 TV: o quadro numa tela inclinada à esquerda, você à direita, seta apontando a tela
     `<div class="bg borrado" style="background-image:url('${url(q(0))}')"></div>
@@ -123,7 +153,15 @@ function versoes(s) {
      ${extra(1, "left:30px;bottom:170px;width:170px;height:170px") || extra(0, "left:30px;bottom:170px;width:170px;height:170px")}
      ${selo("left:30px;top:34px")}
      <div class="faixa" style="bottom:34px"><div class="t2 txt2 fit" data-w="1180" data-h="112">${esc(s.texto)}</div></div>`,
-  ].slice(0, Math.max(1, s.n || 3));
+  ];
+}
+
+/** a lista final: no canal de notícias a MANCHETE vai na frente (é a que sobe no YouTube) */
+function listaVersoes(s) {
+  const vs = versoes(s);
+  const out = s.estilo === "noticia" ? [s._manchete, ...vs] : vs;
+  return out.filter(Boolean).slice(0, Math.max(1, s.n || 3));
+
 }
 
 async function main() {
@@ -133,7 +171,7 @@ async function main() {
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   const html = path.join(spec.saida, "_thumb.html");
   const saidas = [];
-  for (const [i, corpo] of versoes(spec).entries()) {
+  for (const [i, corpo] of listaVersoes(spec).entries()) {
     fs.writeFileSync(html, `<!doctype html><html><head><meta charset="utf-8"><style>${CSS(spec)}</style></head><body><div class="t">${corpo}</div></body></html>`);
     await page.goto(url(html), { waitUntil: "load" });
     await page.evaluate(() => document.fonts.ready);
