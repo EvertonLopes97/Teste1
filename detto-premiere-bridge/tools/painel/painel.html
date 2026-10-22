@@ -798,7 +798,20 @@ function cardCanal(c, x){
       <div><label>Duração do vídeo (min)</label><input type="number" min="3" value="${x.duracao}" onchange="canCfg('${c}',{duracao_alvo_min:this.value})"></div>
       <div><label>Vídeos por dia (máx.)</label><input type="number" min="1" value="${x.max_dia}" onchange="canCfg('${c}',{max_videos_dia:this.value})"></div>
       <div><label>Shorts por vídeo</label><input type="number" min="0" max="5" value="${x.shorts}" onchange="canCfg('${c}',{shorts:this.value})"></div></div>
-      <div class="info">Máscara: ${x.mascaras.length ? x.mascaras.length + " gravações" : "<b style='color:var(--amar)'>nenhuma gravação</b>"} · Voz: ${x.voz ? "✔ minha_voz.wav" : "<b style='color:var(--amar)'>falta voz\\minha_voz.wav</b>"}
+      <div class="chave" style="display:block;margin-top:8px"><b>🎙️ Voz do vídeo</b>
+        <div class="info">${x.vs_ligado
+          ? `<b style="color:var(--verd,#7ddc6b)">VoiceStudio ligado</b> em ${esc(x.vs_url)} — é ele que narra (de graça, no seu PC)`
+          : `VoiceStudio <b style="color:var(--amar)">fechado</b> (${esc(x.vs_url || "127.0.0.1:3900")}) — abra o app para usar a voz boa; agora vai pelo Fish/Chatterbox`}</div>
+        ${x.vs_ligado ? `<div class="campos" style="margin-top:6px">
+          <div><label>Voz (perfil do VoiceStudio)</label><select onchange="canCfg('${c}',{voz_voicestudio:this.value})">
+            <option value="">padrão do VoiceStudio</option>
+            ${x.vs_vozes.map(v => `<option value="${esc(v.id)}" ${x.voz_voicestudio === v.id ? "selected" : ""}>${esc(v.nome)}</option>`).join("")}
+          </select></div>
+          <div><label>Velocidade</label><input type="number" min="0.5" max="2" step="0.05" value="${x.velocidade_voz}" onchange="canCfg('${c}',{velocidade_voz:this.value})"></div>
+        </div>` : ""}
+        <label class="dest"><input type="checkbox" ${x.sem_voicestudio ? "checked" : ""} onchange="canCfg('${c}',{sem_voicestudio:this.checked})"> Não usar o VoiceStudio (ir pelo Fish/Chatterbox)</label>
+      </div>
+      <div class="info">Máscara: ${x.mascaras.length ? x.mascaras.length + " gravações" : "<b style='color:var(--amar)'>nenhuma gravação</b>"} · Voz de referência: ${x.voz ? "✔ minha_voz.wav" : "<b style='color:var(--amar)'>falta voz\\minha_voz.wav</b>"}
       <div class="linha"><button class="mini" onclick="canAbrir('${c}','mascara')">Abrir pasta da máscara</button><button class="mini" onclick="canAbrir('${c}','voz')">Abrir pasta da voz</button></div></div></details>`;
   } else {
     esp = `<div class="chave" style="display:block"><b>Pasta no Drive</b> <small>Uma pasta por vlog, com os clipes dentro. Quando a pasta fica ${20} min sem arquivo novo, o vlog é montado.</small>

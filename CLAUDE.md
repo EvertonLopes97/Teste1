@@ -191,6 +191,12 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   (`legenda_youtube` json3 + `_janela`, ≥45% igual), baixa SÓ esse pedaço até 1080p (`--download-sections`, `fontes\orig_*.mp4`)
   e o crédito/`fonte` vira o canal original (ex. Band Minas); `juntado_por` guarda o outro. Não achou = fica o do juntador
   (`buscar_original` false desliga). Nome do canal: DETTO GALO NOTÍCIAS (`nome_canal`, migra o antigo) + `assinatura` na descrição.
+  VOICESTUDIO (22/out, github.com/debpalash/VoiceStudio — open source, roda NO PC dele, de graça e sem limite): é a PRIMEIRA
+  opção de voz. `voz.py` fala pela API local no padrão OpenAI (`POST <url>/v1/audio/speech`, loopback sem senha; padrão
+  `http://127.0.0.1:3900`, `DETTO_VOICESTUDIO`/`"voicestudio"` troca) com a fala INTEIRA de uma vez (entonação melhor que
+  frase a frase); `voicestudio_ligado` confere antes, `voicestudio_vozes` lista os perfis (`GET /v1/audio/voices`).
+  Fechado/erro → Fish Audio → Chatterbox. `--voz-vs`/`"voz_voicestudio"` = perfil da voz clonada, `--velocidade-vs`,
+  `--sem-voicestudio`/`"sem_voicestudio"`. Painel aba CANAIS: diz se está ligado, escolhe a voz e a velocidade.
   VOZ (20/out): `pronuncia` antes de qualquer voz (siglas soletradas CBF→"cê bê éfe", VAR/SAF/FIFA como palavra, números por
   extenso, "2 x 1"→"dois a um", 6º, 8,3, 33', R$); FISH AUDIO primeiro se `FISH_API_KEY` (voz clonada criada 1x → voz\fish_modelo.json,
   `s2.1-pro-free`, `FISH_MODELO=s2.1-pro` pago; sotaque BR — o Chatterbox puxava para Portugal), erro → Chatterbox;

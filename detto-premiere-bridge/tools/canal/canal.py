@@ -101,6 +101,11 @@ CONFIG_PADRAO = {
     "horas_entre_posts": 4,
     "privacidade": "public",
     "voz_ref": "voz/minha_voz.wav",
+    # VOZ: 1) VoiceStudio aberto no seu PC (open source, de graça) · 2) Fish Audio (FISH_API_KEY) · 3) Chatterbox
+    "voicestudio": "",            # endereço; vazio = http://127.0.0.1:3900 (o padrão do VoiceStudio)
+    "voz_voicestudio": "",        # nome ou id do perfil de voz clonada lá dentro; vazio = a voz padrão dele
+    "velocidade_voz": 1.0,
+    "sem_voicestudio": False,
     "exagero_voz": 0.6,
     "cor": "#FFD400",
     "auto_postar": False,  # False = monta e espera você aprovar no painel (aba Canais); True = posta sozinho
@@ -908,7 +913,17 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
     fj = tmp / "falas.json"
     grava_json(fj, falas)
     ref = pasta / cfg["voz_ref"]
-    subprocess.run([sys.executable, str(AQUI / "voz.py"), str(fj), str(pasta / "voz" / "cache"), "--ref", str(ref), "--exagero", str(cfg["exagero_voz"])], check=True)
+    cmd_voz = [sys.executable, str(AQUI / "voz.py"), str(fj), str(pasta / "voz" / "cache"), "--ref", str(ref),
+               "--exagero", str(cfg["exagero_voz"])]
+    if cfg.get("voicestudio"):
+        cmd_voz += ["--voicestudio", cfg["voicestudio"]]
+    if cfg.get("voz_voicestudio"):
+        cmd_voz += ["--voz-vs", cfg["voz_voicestudio"]]
+    if cfg.get("velocidade_voz"):
+        cmd_voz += ["--velocidade-vs", str(cfg["velocidade_voz"])]
+    if cfg.get("sem_voicestudio"):
+        cmd_voz.append("--sem-voicestudio")
+    subprocess.run(cmd_voz, check=True)
     falas = json.loads(fj.read_text(encoding="utf-8"))
     fala_antes = {f["antes"]: f for f in falas if "antes" in f}
     comenta = {}

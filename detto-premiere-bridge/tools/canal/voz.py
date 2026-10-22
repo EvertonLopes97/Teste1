@@ -119,6 +119,78 @@ def pronuncia(texto):
 
 
 # ------------------------------------------------------------------ Fish Audio (API; voz profissional, sotaque BR)
+VOICESTUDIO_PADRAO = "http://127.0.0.1:3900"
+
+
+def voicestudio_url():
+    """onde o VoiceStudio está ouvindo (DETTO_VOICESTUDIO troca a porta/endereço)"""
+    return (os.environ.get("DETTO_VOICESTUDIO") or VOICESTUDIO_PADRAO).rstrip("/")
+
+
+def voicestudio_ligado(url=None, tempo=4):
+    """o VoiceStudio está aberto no PC? (API local, sem senha em 127.0.0.1)"""
+    import urllib.request
+    try:
+        urllib.request.urlopen(f"{url or voicestudio_url()}/v1/models", timeout=tempo).read(1)
+        return True
+    except Exception:
+        return False
+
+
+def voicestudio_vozes(url=None):
+    """as vozes/perfis instalados (para escolher no painel)"""
+    import urllib.request
+    try:
+        d = json.loads(urllib.request.urlopen(f"{url or voicestudio_url()}/v1/audio/voices", timeout=20).read())
+    except Exception:
+        return []
+    itens = d.get("data") if isinstance(d, dict) else d
+    out = []
+    for v in itens or []:
+        if isinstance(v, dict):
+            out.append({"id": str(v.get("id") or v.get("voice_id") or v.get("name") or ""), "nome": str(v.get("name") or v.get("id") or "")})
+        elif isinstance(v, str):
+            out.append({"id": v, "nome": v})
+    return [x for x in out if x["id"]]
+
+
+def voicestudio_fala(texto, saida, voz="default", url=None, modelo="omnivoice", velocidade=1.0, instrucao=""):
+    """uma fala pelo VoiceStudio (open source, roda NO SEU PC — github.com/debpalash/VoiceStudio).
+    Fala pela API local no padrão da OpenAI: POST /v1/audio/speech. Devolve wav 24 kHz mono."""
+    import tempfile
+    import urllib.error
+    import urllib.request
+    url = url or voicestudio_url()
+    corpo = {"model": modelo, "input": texto[:4000], "voice": voz or "default", "response_format": "wav",
+             "speed": float(velocidade), "language": "pt"}
+    if instrucao:
+        corpo["instructions"] = instrucao
+    for tentativa in range(2):
+        req = urllib.request.Request(f"{url}/v1/audio/speech", data=json.dumps(corpo).encode(), method="POST",
+                                     headers={"Content-Type": "application/json"})
+        try:
+            dados = urllib.request.urlopen(req, timeout=600).read()
+            break
+        except urllib.error.HTTPError as e:
+            detalhe = e.read()[:300].decode("utf-8", "replace")
+            if tentativa == 0 and e.code in (400, 404, 422):
+                corpo.pop("language", None)  # versão sem o campo extra de idioma
+                corpo.pop("instructions", None)
+                continue
+            raise RuntimeError(f"VoiceStudio {e.code}: {detalhe}") from None
+        except Exception as e:
+            raise RuntimeError(f"VoiceStudio não respondeu em {url} ({str(e)[:120]})") from None
+    if len(dados) < 2000:
+        raise RuntimeError(f"VoiceStudio devolveu um áudio vazio ({len(dados)} bytes)")
+    tmp = Path(tempfile.gettempdir()) / f"detto_vs_{os.getpid()}.wav"
+    tmp.write_bytes(dados)
+    r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(tmp), "-ar", "24000", "-ac", "1", str(saida)],
+                       capture_output=True, text=True)
+    tmp.unlink(missing_ok=True)
+    if r.returncode != 0 or not Path(saida).exists():
+        raise RuntimeError(f"VoiceStudio: o áudio não abriu ({r.stderr[-150:]})")
+
+
 def fish_modelo(ref, pasta, chave, log=print):
     """a SUA voz clonada no Fish Audio (uma vez; o id fica guardado em voz\\fish_modelo.json)"""
     import urllib.request
@@ -311,6 +383,11 @@ def main():
     ap.add_argument("--exagero", type=float, default=0.6, help="emoção (0,3 calmo … 0,9 empolgado)")
     ap.add_argument("--fish-chave", default="", help="chave do Fish Audio (ou FISH_API_KEY)")
     ap.add_argument("--fish-modelo", default=os.environ.get("FISH_MODELO", "s2.1-pro-free"), help="s2.1-pro-free (grátis) ou s2.1-pro")
+    ap.add_argument("--voicestudio", default="", help=f"endereço do VoiceStudio (padrão {VOICESTUDIO_PADRAO}; DETTO_VOICESTUDIO)")
+    ap.add_argument("--voz-vs", default=os.environ.get("DETTO_VOZ_VS", ""), help="nome/id do perfil de voz no VoiceStudio")
+    ap.add_argument("--modelo-vs", default=os.environ.get("DETTO_MODELO_VS", "omnivoice"), help="motor do VoiceStudio")
+    ap.add_argument("--velocidade-vs", type=float, default=float(os.environ.get("DETTO_VELOCIDADE_VS", "1.0")))
+    ap.add_argument("--sem-voicestudio", action="store_true", help="não usar o VoiceStudio nesta rodada")
     ap.add_argument("--max-pausa", type=float, default=float(os.environ.get("DETTO_MAX_PAUSA", "0.13")),
                     help="maior silêncio no MEIO da fala (s); o resto é cortado")
     ap.add_argument("--com-pausas", action="store_true", help="não tira os silêncios do meio")
@@ -325,10 +402,18 @@ def main():
     chave_ref = hashlib.sha1(ref.read_bytes()).hexdigest()[:8] if ref else "padrao"
     if os.environ.get("DETTO_VOZ_FALSA"):
         chave_ref = "falsa"  # a voz de computador do TESTE nunca é reaproveitada num vídeo de verdade
+    # QUAL VOZ: 1) VoiceStudio aberto no seu PC (open source, de graça, sem limite) · 2) Fish Audio (chave) · 3) Chatterbox
+    url_vs = a.voicestudio or voicestudio_url()
+    usa_vs = False
+    if not a.sem_voicestudio and not os.environ.get("DETTO_VOZ_FALSA"):
+        usa_vs = voicestudio_ligado(url_vs)
+        if usa_vs:
+            print(f"voz: VoiceStudio ligado em {url_vs} (voz \"{a.voz_vs or 'default'}\")", flush=True)
     falta = []
     for f in falas:
-        motor = "fish" if (os.environ.get("FISH_API_KEY") or a.fish_chave) else "cb2"
-        h = hashlib.sha1(f"{chave_ref}|{a.exagero}|{motor}|{f['texto']}".encode()).hexdigest()[:10]
+        motor = "vs" if usa_vs else ("fish" if (os.environ.get("FISH_API_KEY") or a.fish_chave) else "cb2")
+        marca = f"{motor}:{a.voz_vs}" if motor == "vs" else motor
+        h = hashlib.sha1(f"{chave_ref}|{a.exagero}|{marca}|{f['texto']}".encode()).hexdigest()[:10]
         f["arquivo"] = str(out / f"{f['id']}_{h}.wav")
         if not Path(f["arquivo"]).exists():
             falta.append(f)
@@ -344,6 +429,18 @@ def main():
                 subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", f"sine=f=200:d={d:.2f}", "-af", "volume=0.05",
                                 "-ar", "24000", f["arquivo"]], check=True)
         falta = []
+    if falta and usa_vs:
+        # VOICESTUDIO: a fala INTEIRA de uma vez (entonação melhor que frase a frase); o que falhar vai para o resto da fila
+        for k, f in enumerate(list(falta)):
+            try:
+                voicestudio_fala(f["falado"], f["arquivo"], a.voz_vs or "default", url_vs, a.modelo_vs, a.velocidade_vs)
+                falta.remove(f)
+                print(f"voz (VoiceStudio): {k + 1}/{len(falta) + k + 1}", flush=True)
+            except Exception as e:
+                print(f"voz: VoiceStudio falhou em uma fala ({str(e)[:160]})", flush=True)
+                if k == 0:
+                    print("voz: deixo o VoiceStudio de lado nesta rodada; o resto vai pelo Fish/Chatterbox", flush=True)
+                    break
     chave_fish = os.environ.get("FISH_API_KEY") or a.fish_chave
     if falta and chave_fish and ref and not os.environ.get("DETTO_VOZ_FALSA"):
         # FISH AUDIO (sotaque brasileiro, mais natural): se der erro, o que faltar vai pelo Chatterbox

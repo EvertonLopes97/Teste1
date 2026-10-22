@@ -145,6 +145,20 @@ def estado():
             x["feitas"] = _tail(p / "pautas_feitas.txt", 8)
             x["mascaras"] = sorted(f.name for f in (p / "mascara").glob("*") if f.is_file()) if (p / "mascara").exists() else []
             x["voz"] = (p / "voz" / "minha_voz.wav").exists()
+            # VoiceStudio (open source, no PC dele): está aberto? quais vozes tem?
+            try:
+                sys.path.insert(0, str(TOOLS / "canal"))
+                import voz as _voz
+
+                url = cf.get("voicestudio") or _voz.voicestudio_url()
+                x["vs_url"] = url
+                x["vs_ligado"] = _voz.voicestudio_ligado(url, tempo=2)
+                x["vs_vozes"] = _voz.voicestudio_vozes(url) if x["vs_ligado"] else []
+            except Exception:
+                x["vs_url"], x["vs_ligado"], x["vs_vozes"] = "", False, []
+            x["voz_voicestudio"] = cf.get("voz_voicestudio", "")
+            x["sem_voicestudio"] = bool(cf.get("sem_voicestudio"))
+            x["velocidade_voz"] = cf.get("velocidade_voz", 1.0)
             x["nome_canal"] = cf.get("nome_canal", "")
             x["duracao"] = cf.get("duracao_alvo_min", 12)
             x["max_dia"] = cf.get("max_videos_dia", 2)
@@ -203,9 +217,13 @@ def acao(nome, d):
             for k in ("shorts", "duracao", "duracao_alvo_min", "max_videos_dia"):
                 if k in d:
                     x[k] = max(0, int(float(d[k])))
-            for k in ("estilo", "nome_canal", "drive", "privacidade"):
+            for k in ("estilo", "nome_canal", "drive", "privacidade", "voicestudio", "voz_voicestudio"):
                 if k in d:
                     x[k] = str(d[k]).strip()
+            if "sem_voicestudio" in d:
+                x["sem_voicestudio"] = bool(d["sem_voicestudio"])
+            if "velocidade_voz" in d:
+                x["velocidade_voz"] = max(0.5, min(2.0, float(d["velocidade_voz"])))
             if x.get("privacidade") not in ("public", "unlisted", "private"):
                 x["privacidade"] = "public"
         cfg_de(c)
