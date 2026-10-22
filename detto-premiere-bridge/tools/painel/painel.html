@@ -489,6 +489,16 @@ function avisos(){
   const sem = E.contas.filter(c => !c.login && !c.studio).map(nomeConta);
   if(sem.length) a.push("Sem login: " + sem.join(", ") + ".");
   if(E.disco_pouco) a.push("Pouco espaço no disco (" + E.disco + ").");
+  // Esta TELA vem do disco (sempre nova); o PYTHON fica em memória. Versões diferentes = precisa reiniciar.
+  if(E.versao !== VERSAO_TELA){
+    $("#avisos").innerHTML = `<div class="aviso" style="background:#3a1410;border-color:#8c2f22">
+      ⛔ <b>O painel está rodando o código ANTIGO.</b> Esta tela já é a nova (${esc(VERSAO_TELA)}), mas o programa em
+      memória é ${E.versao ? "de " + esc(E.versao) : "anterior às últimas correções"}. Enquanto isso o Instagram, as
+      histórias e as vozes continuam no jeito velho.<br>
+      <b>Feche o painel e abra de novo</b> (atalho <i>Painel DETTO</i> na Área de Trabalho).
+      <button class="mini pri" onclick="reinicia()">Tentar reiniciar daqui</button></div>`;
+    return;
+  }
   // depois de um `git pull` o painel continua rodando o código VELHO até ser fechado e aberto de novo
   const novo = (E.codigo_novo || []).length ? `<div class="aviso" style="background:#2a1f08;border-color:#6b5312">
       🔄 <b>Código atualizado no PC</b> (${E.codigo_novo.map(esc).join(", ")}${E.codigo_novo.length >= 6 ? "…" : ""}), mas o painel
@@ -496,9 +506,12 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
+const VERSAO_TELA = "2026-10-22c";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
-  try{ await api("reiniciar"); }catch(e){}
+  let ok = true;
+  try{ const r = await api("reiniciar"); ok = !!(r && r.ok); }catch(e){ ok = false; }
+  if(!ok){ alert("Este painel é antigo demais para se reiniciar sozinho.\n\nFeche a janela preta do painel e abra pelo atalho 'Painel DETTO' na Área de Trabalho."); return; }
   $("#agora").textContent = "reiniciando… recarrego em 12 s";
   setTimeout(() => location.reload(), 12000);
 }

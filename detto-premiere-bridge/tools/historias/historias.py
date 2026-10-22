@@ -40,7 +40,8 @@ CONFIG_PADRAO = {
     "por_dia": 1,
     "duracao_s": 80,              # os virais ficam entre 65 e 90 s
     "palavras_min": 170,          # ritmo da narração medido nos virais
-    "voz_voicestudio": "",        # perfil de voz no VoiceStudio; vazio = a voz padrão dele
+    "voz_voicestudio": "",        # perfil de voz no VoiceStudio; vazio = acha a SUA voz pelo nome (everton/detto)
+    "instrucao_voz": "",          # como a voz deve falar; vazio = o padrão (pt-BR claro, sem sotaque de Portugal)
     "voicestudio": "",
     "velocidade_voz": 1.0,
     "marca": "",                  # @ que aparece no rodapé do vídeo
@@ -93,6 +94,10 @@ LUZES = ["dia", "tarde", "noite", "escuro", "chuva", "alerta"]
 POSES = ["parado", "olhando", "carregando", "andando", "correndo", "agachado", "batendo", "apontando"]
 OBJETOS = ["balde", "banheira", "vela", "celular", "porta", "caixa", "moto", "carro", "mochila", "escada", "torneira"]
 MOVIMENTOS = ["zoom", "afasta", "direita", "esquerda", "sobe", "desce"]
+CARAS = ["", "serio", "bravo", "assustado", "feliz"]
+# efeitos sonoros (da pasta de sons dele, tools/biblioteca_sons.py)
+SFX = {"batida": "soco", "porta": "soco", "passos": "tick", "relogio": "tick", "susto": "boom", "trovao": "boom",
+       "whoosh": "whoosh", "tensao": "riser", "agua": "pop", "click": "click", "alerta": "ding", "glitch": "glitch"}
 
 
 def prompt_episodio(serie, cfg, n, resultado="", rumo=""):
@@ -173,6 +178,11 @@ def limpa_cena(c):
         "narracao": str(c.get("narracao", "")),
         "semente": abs(hash(str(c.get("narracao", "")))) % 97,
     }
+    if c.get("sfx") in SFX:
+        out["sfx"] = c["sfx"]
+    for k in ("fumaca", "chuva", "tremor", "escurece", "clarao"):
+        if c.get(k):
+            out[k] = True
     for k in ("relogio", "selo", "contador", "contador_sub", "onomatopeia"):
         if c.get(k):
             out[k] = str(c[k])[:28]
@@ -181,18 +191,26 @@ def limpa_cena(c):
             out[k] = max(0.02, min(0.95, float(c[k])))
     if c.get("chuva"):
         out["chuva"] = True
-    out["pessoas"] = [{"x": max(0.08, min(0.92, float(p.get("x", 0.5)))), "y": float(p.get("y", 0.66)),
-                       "alt": max(240, min(520, float(p.get("alt", 430)))),
+    out["pessoas"] = [{"x": max(0.06, min(0.94, float(p.get("x", 0.5)))), "y": float(p.get("y", 0.70)),
+                       **({"x2": max(0.06, min(0.94, float(p["x2"])))} if p.get("x2") is not None else {}),
+                       "alt": max(380, min(760, float(p.get("alt", 640)))),
                        "pose": p.get("pose") if p.get("pose") in POSES else "parado",
+                       "cara": p.get("cara") if p.get("cara") in CARAS else "",
+                       "falando": bool(p.get("falando")),
                        "olhando": -1 if str(p.get("olhando")) in ("-1", "-1.0") else 1,
-                       "cor": p.get("cor") or "#3f6f7a"}
+                       "cor": p.get("cor") or "#4a6b6b"}
                       for p in (c.get("pessoas") or [])[:3] if isinstance(p, dict)]
+    out["silhuetas"] = [{"x": max(-0.05, min(1.05, float(g.get("x", 0.3)))), "y": float(g.get("y", 0.76)),
+                         **({"x2": max(-0.05, min(1.05, float(g["x2"])))} if g.get("x2") is not None else {}),
+                         "alt": max(200, min(560, float(g.get("alt", 420))))}
+                        for g in (c.get("silhuetas") or [])[:5] if isinstance(g, dict)]
     out["objetos"] = [{"tipo": o.get("tipo"), "x": max(0.05, min(0.95, float(o.get("x", 0.5)))),
                        "y": float(o.get("y", 0.66)), "s": max(0.5, min(3.0, float(o.get("s", 1.4)))),
-                       **({"extra": str(o.get("extra"))[:18]} if o.get("extra") else {})}
+                       **({"extra": str(o.get("extra"))[:18]} if o.get("extra") else {}),
+                       **{k: True for k in ("enchendo", "jorrando", "seca", "batendo", "aberta", "alerta") if o.get(k)}}
                       for o in (c.get("objetos") or [])[:4] if isinstance(o, dict) and o.get("tipo") in OBJETOS]
-    out["gatos"] = [{"x": max(0.05, min(0.95, float(g.get("x", 0.7)))), "y": float(g.get("y", 0.68)),
-                     "alt": max(70, min(220, float(g.get("alt", 150))))}
+    out["gatos"] = [{"x": max(0.05, min(0.95, float(g.get("x", 0.7)))), "y": float(g.get("y", 0.70)),
+                     "alt": max(90, min(260, float(g.get("alt", 170))))}
                     for g in (c.get("gatos") or [])[:2] if isinstance(g, dict)]
     return out
 
@@ -205,9 +223,10 @@ def narra(texto, saida, cfg, log=log):
     falado = V.pronuncia(texto)
     url = cfg.get("voicestudio") or V.voicestudio_url()
     if V.voicestudio_ligado(url):
-        log(f"voz: VoiceStudio ({url})")
-        V.voicestudio_fala(falado, saida, cfg.get("voz_voicestudio") or "default", url,
-                           velocidade=float(cfg.get("velocidade_voz", 1.0)))
+        voz_id, voz_nome = V.voicestudio_escolhe(url, cfg.get("voz_voicestudio"), log)
+        log(f"voz: VoiceStudio ({url}) — voz \"{voz_nome}\"")
+        V.voicestudio_fala(falado, saida, voz_id, url, velocidade=float(cfg.get("velocidade_voz", 1.0)),
+                           instrucao=cfg.get("instrucao_voz") or V.INSTRUCAO_PADRAO)
     else:
         chave = os.environ.get("FISH_API_KEY")
         if not chave:
@@ -265,6 +284,52 @@ def encaixa_cenas(rot, words):
         if fim > pos:
             c["ate"] = round(words[min(fim, len(words)) - 1]["e"] + 0.12, 2)
             pos = fim
+
+
+def sons(video, rot, saida, log=log):
+    """mistura os efeitos sonoros da SUA pasta de sons nos tempos das cenas (~14 dB abaixo da narração).
+    Sem sons.json (ou sem a categoria) o vídeo segue igual, sem efeito."""
+    sys.path.insert(0, str(TOOLS))
+    from ffcompat import filtro_complexo
+
+    try:
+        from biblioteca_sons import arquivo
+    except Exception as e:
+        log(f"sfx: biblioteca de sons indisponível ({str(e)[:80]})")
+        return video
+    marcas = [(float(c.get("_ini", 0)), SFX[c["sfx"]]) for c in rot.get("cenas", []) if c.get("sfx") in SFX]
+    if not marcas:
+        return video
+    entradas, partes, usados, n = [], [], {}, 0
+    for t, cat in marcas[:14]:
+        f = arquivo(cat, usados.get(cat, 0))
+        usados[cat] = usados.get(cat, 0) + 1
+        if not f:
+            continue
+        n += 1
+        entradas += ["-i", str(f)]
+        partes.append(f"[{n}:a]atrim=0:1.8,afade=t=out:st=1.3:d=0.5,aresample=48000,aformat=channel_layouts=stereo,"
+                      f"loudnorm=I=-30:TP=-6,adelay={int(max(0, t) * 1000)}|{int(max(0, t) * 1000)}[s{n}]")
+    if not n:
+        log("sfx: nenhum arquivo de som para as categorias pedidas (rode o biblioteca_sons.py uma vez)")
+        return video
+    # o vídeo pode estar sem áudio (render sem narração): aí mistura só os efeitos
+    tem_audio = bool(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=index",
+                                     "-of", "csv=p=0", str(video)], capture_output=True, text=True).stdout.strip())
+    mix = "".join(f"[s{i}]" for i in range(1, n + 1))
+    grafo = ";".join(partes) + (f";[0:a]{mix}amix=inputs={n + 1}" if tem_audio else f";{mix}amix=inputs={n}") \
+        + ":normalize=0:duration=first,loudnorm=I=-14:TP=-1.5[a]"
+    g = Path(saida).parent / "grafo_sfx.txt"
+    g.write_text(grafo, encoding="utf-8")
+    r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(video), *entradas, *filtro_complexo(str(g)),
+                        "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", str(saida)],
+                       capture_output=True, text=True)
+    g.unlink(missing_ok=True)
+    if r.returncode != 0 or not Path(saida).exists():
+        log(f"sfx: não entraram ({(r.stderr or '')[-160:]})")
+        return video
+    log(f"sfx: {n} efeito(s) sonoro(s)")
+    return saida
 
 
 # ------------------------------------------------------------------ 3. votos do episódio anterior
@@ -356,6 +421,10 @@ def faz_episodio(serie_f, cfg, log=log, venceu="", rumo=""):
         grava_json(wf, palavras(wav, log))
     words = le_json(wf, [])
     encaixa_cenas(rot, words)
+    t0 = 0.0
+    for c in rot["cenas"]:  # a hora em que cada cena começa (o efeito sonoro entra aí)
+        c["_ini"] = round(t0, 2)
+        t0 = float(c.get("ate") or (t0 + 5))
     grava_json(rot_f, rot)
 
     saida = job / "episodio.mp4"
@@ -368,6 +437,13 @@ def faz_episodio(serie_f, cfg, log=log, venceu="", rumo=""):
         if r.returncode != 0 or not saida.exists():
             raise RuntimeError("o render do episódio falhou (veja as mensagens acima)")
 
+    # efeitos sonoros nos tempos das cenas
+    com_sfx = job / "episodio_sfx.mp4"
+    if not com_sfx.exists() and any(c.get("sfx") for c in rot.get("cenas", [])):
+        v = sons(saida, rot, com_sfx, log)
+        if Path(v) == com_sfx and com_sfx.exists():
+            saida.unlink(missing_ok=True)
+            com_sfx.replace(saida)
     esc = rot.get("escolha", {})
     legenda = rot.get("legenda_post") or f"{rot.get('titulo', '')}\n\n{esc.get('pergunta', '')}\nA: {esc.get('a', '')}\nB: {esc.get('b', '')}\n\nComenta A ou B 👇"
     (job / "post.txt").write_text(legenda, encoding="utf-8")

@@ -201,6 +201,10 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   frase a frase); `voicestudio_ligado` confere antes, `voicestudio_vozes` lista os perfis (`GET /v1/audio/voices`).
   Fechado/erro → Fish Audio → Chatterbox. `--voz-vs`/`"voz_voicestudio"` = perfil da voz clonada, `--velocidade-vs`,
   `--sem-voicestudio`/`"sem_voicestudio"`. Painel aba CANAIS: diz se está ligado, escolhe a voz e a velocidade.
+  QUAL VOZ (22/out, `voicestudio_escolhe`): "default" fazia o VoiceStudio SORTEAR (saía ora feminina, ora masculina, e
+  nunca a dele). Agora: a voz escolhida no painel → se ela sumiu ou não foi escolhida, procura a SUA voz clonada pelo
+  NOME (everton/detto/minha voz) → senão a primeira da lista; o registro diz qual voz entrou. `INSTRUCAO_PADRAO`
+  (`--instrucao-vs`/`"instrucao_voz"`) pede pt-BR neutro, bem pronunciado, SEM sotaque europeu.
   VOZ (20/out): `pronuncia` antes de qualquer voz (siglas soletradas CBF→"cê bê éfe", VAR/SAF/FIFA como palavra, números por
   extenso, "2 x 1"→"dois a um", 6º, 8,3, 33', R$); FISH AUDIO primeiro se `FISH_API_KEY` (voz clonada criada 1x → voz\fish_modelo.json,
   `s2.1-pro-free`, `FISH_MODELO=s2.1-pro` pago; sotaque BR — o Chatterbox puxava para Portugal), erro → Chatterbox;
@@ -223,10 +227,13 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
 - PYTHON 3.11 no PC dele: NADA de `\` dentro das chaves de f-string (no 3.12+ passa, lá quebra — aconteceu no canal.py). Conferir:
   `python3.11 -S -c "import ast,sys;ast.parse(open(sys.argv[1]).read())" arq.py`; o GitHub Actions roda compileall no 3.11.
   canal.py: UMA rodada por vez (`trava_rodada(pasta, ".canal_rodando")`; duas juntas apagavam o tmp\ da outra no meio da voz).
-- CÓDIGO NOVO x PAINEL ABERTO (22/out): o painel roda o Python que estava em disco QUANDO abriu — depois de um
-  `git pull` ele CONTINUA no código velho até ser fechado (foi o que segurou a correção do Instagram por horas).
-  `codigo_novo()` compara a data dos arquivos com `SUBIU_EM` e o painel mostra "Código atualizado — reinicie" com o
-  botão **Reiniciar o painel** (ação `reiniciar`, `os._exit(7)`; quem abriu pelo atalho/tarefa do Windows volta sozinho).
+- CÓDIGO NOVO x PAINEL ABERTO (22/out): o painel.html é lido DO DISCO a cada acesso, mas o Python fica em MEMÓRIA —
+  depois de um `git pull` o navegador recebe a tela nova e o programa continua o velho. Foi isso que deixou a aba
+  Histórias aparecendo VAZIA e o Instagram no caminho antigo por horas (o aviso de "reinicie" também não saía, porque
+  quem o gerava era o Python velho). Agora `PAINEL_VERSAO` (painel.py) × `VERSAO_TELA` (painel.html): diferente = a tela
+  mostra um aviso VERMELHO e para de desenhar o resto. **Ao mexer no painel.py, suba as duas versões juntas.**
+  `codigo_novo()` (data dos arquivos × `SUBIU_EM`) continua avisando quando só os arquivos mudaram; botão
+  **Reiniciar o painel** (ação `reiniciar`, `os._exit(7)`; o Python velho não tem a ação → a tela manda fechar na mão).
 - TESTES: `npm run check` (tipos + testes + teste VISUAL `test/visual.test.js`: quadros do palco × `test/visual/ref_*.png`).
   Mudou o visual de propósito → `npm run visual:aprovar`. GitHub Actions roda tudo a cada push (`.github/workflows/testes.yml`).
 
@@ -249,6 +256,13 @@ mandaram o Lucas pro mercadinho"). É isso que faz a série crescer. Vale para q
   episódio (`escreve_episodio`, Gemini → IAs grátis → Claude; `limpa_cena` descarta cenário/pose/objeto que o palco não
   sabe desenhar) → voz (VoiceStudio → Fish, com `sem_pausas`) → faster-whisper → `encaixa_cenas` (cada cena termina onde
   a frase dela acaba) → `render.js` → `<serie>\ep_NN\episodio.mp4` → fila de postagem do painel.
+- ANIMAÇÃO DE VERDADE (22/out): o palco tem DUAS camadas — `#fundo` (cenário, desenhado 1x por cena, só recebe o
+  movimento de câmera) e `#atores` (REDESENHADO a cada quadro). `anima(p, t)` recebe o progresso da cena E o tempo:
+  bonequinho com cabeça REDONDA (estilo stick), ciclo de caminhada com pés, respiração, piscar sozinho, boca falando
+  (`falando`), sobrancelha por `cara` (serio/bravo/assustado/feliz); silhuetas pretas (a multidão), gato com rabo
+  balançando, chuva caindo, fumaça subindo, vela tremendo, balde/banheira ENCHENDO (`enchendo`), porta `batendo`,
+  celular com `alerta` piscando, `tremor`/`escurece`/`clarao` na cena. Quem anda vai de `x` até `x2` pelo PROGRESSO da
+  cena (pelo relógio saía da tela). SFX (`sons`): `sfx` por cena → som da pasta dele nos tempos das cenas, -30 LUFS.
 - PALCO `tools\historias\palco\` (cena.html/css/js, Chromium): cenários `cidade predio quarto janela banheiro corredor
   rua laje garagem mercado escuro`, luz `dia tarde noite escuro chuva alerta`, bonequinho em 8 poses, gato, objetos
   (balde, banheira, vela, celular, porta, caixa, moto, carro, mochila, escada, torneira), chuva, relógio/contador/selo,

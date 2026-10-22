@@ -17,14 +17,19 @@ body {
   overflow: hidden;
   font-family: Anton, Inter, system-ui, sans-serif;
 }
-/* a ilustração; o movimento lento de câmera é um transform nela */
-#arte {
+/* duas camadas: o cenário (desenhado 1x por cena) e os atores (redesenhados a cada quadro) */
+#fundo,
+#atores {
   position: absolute;
   inset: 0;
   transform-origin: 50% 50%;
   will-change: transform;
 }
-#arte svg {
+#atores {
+  z-index: 2;
+}
+#fundo svg,
+#atores svg {
   display: block;
   width: 100%;
   height: 100%;

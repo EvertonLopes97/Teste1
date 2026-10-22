@@ -120,6 +120,9 @@ def pronuncia(texto):
 
 # ------------------------------------------------------------------ Fish Audio (API; voz profissional, sotaque BR)
 VOICESTUDIO_PADRAO = "http://127.0.0.1:3900"
+# como a narração deve soar: português do Brasil, sem sotaque de Portugal, falando claro
+INSTRUCAO_PADRAO = ("Narração em português do Brasil, sotaque brasileiro neutro, voz masculina natural e clara, "
+                    "ritmo de locutor de notícias, sem pressa, pronunciando bem todas as palavras, sem sotaque europeu.")
 
 
 def voicestudio_url():
@@ -152,6 +155,30 @@ def voicestudio_vozes(url=None):
         elif isinstance(v, str):
             out.append({"id": v, "nome": v})
     return [x for x in out if x["id"]]
+
+
+def voicestudio_escolhe(url=None, pedida="", log=print):
+    """QUAL VOZ usar: a que você escolheu; senão procura a SUA voz clonada pelo nome (everton/detto/minha voz);
+    senão a primeira da lista. "default" deixava o VoiceStudio sortear — por isso saía ora feminina, ora masculina."""
+    vozes = voicestudio_vozes(url)
+    if not vozes:
+        return pedida or "default", "nenhuma voz cadastrada no VoiceStudio"
+    pedida = (pedida or "").strip()
+    if pedida:
+        for v in vozes:  # confere se a escolhida ainda existe (id ou nome)
+            if pedida in (v["id"], v["nome"]) or norm_txt(pedida) == norm_txt(v["nome"]):
+                return v["id"], v["nome"]
+        log(f"voz: o perfil \"{pedida}\" não está mais no VoiceStudio — procurando a sua voz")
+    for alvo in ("everton", "detto", "minha voz", "eu"):
+        for v in vozes:
+            if alvo in norm_txt(v["nome"]):
+                return v["id"], v["nome"]
+    return vozes[0]["id"], vozes[0]["nome"]
+
+
+def norm_txt(t):
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFD", str(t).lower()) if unicodedata.category(c) != "Mn").strip()
 
 
 def voicestudio_fala(texto, saida, voz="default", url=None, modelo="omnivoice", velocidade=1.0, instrucao=""):
@@ -388,6 +415,8 @@ def main():
     ap.add_argument("--modelo-vs", default=os.environ.get("DETTO_MODELO_VS", "omnivoice"), help="motor do VoiceStudio")
     ap.add_argument("--velocidade-vs", type=float, default=float(os.environ.get("DETTO_VELOCIDADE_VS", "1.0")))
     ap.add_argument("--sem-voicestudio", action="store_true", help="não usar o VoiceStudio nesta rodada")
+    ap.add_argument("--instrucao-vs", default=os.environ.get("DETTO_INSTRUCAO_VS", INSTRUCAO_PADRAO),
+                    help="como a voz deve falar (estilo), quando o motor aceita")
     ap.add_argument("--max-pausa", type=float, default=float(os.environ.get("DETTO_MAX_PAUSA", "0.13")),
                     help="maior silêncio no MEIO da fala (s); o resto é cortado")
     ap.add_argument("--com-pausas", action="store_true", help="não tira os silêncios do meio")
@@ -408,7 +437,9 @@ def main():
     if not a.sem_voicestudio and not os.environ.get("DETTO_VOZ_FALSA"):
         usa_vs = voicestudio_ligado(url_vs)
         if usa_vs:
-            print(f"voz: VoiceStudio ligado em {url_vs} (voz \"{a.voz_vs or 'default'}\")", flush=True)
+            voz_id, voz_nome = voicestudio_escolhe(url_vs, a.voz_vs)
+            a.voz_vs = voz_id
+            print(f"voz: VoiceStudio em {url_vs} — voz \"{voz_nome}\"", flush=True)
     falta = []
     for f in falas:
         motor = "vs" if usa_vs else ("fish" if (os.environ.get("FISH_API_KEY") or a.fish_chave) else "cb2")
@@ -433,7 +464,8 @@ def main():
         # VOICESTUDIO: a fala INTEIRA de uma vez (entonação melhor que frase a frase); o que falhar vai para o resto da fila
         for k, f in enumerate(list(falta)):
             try:
-                voicestudio_fala(f["falado"], f["arquivo"], a.voz_vs or "default", url_vs, a.modelo_vs, a.velocidade_vs)
+                voicestudio_fala(f["falado"], f["arquivo"], a.voz_vs or "default", url_vs, a.modelo_vs, a.velocidade_vs,
+                                 a.instrucao_vs)
                 falta.remove(f)
                 print(f"voz (VoiceStudio): {k + 1}/{len(falta) + k + 1}", flush=True)
             except Exception as e:
