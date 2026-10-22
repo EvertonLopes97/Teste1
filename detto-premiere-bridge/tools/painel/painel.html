@@ -489,7 +489,18 @@ function avisos(){
   const sem = E.contas.filter(c => !c.login && !c.studio).map(nomeConta);
   if(sem.length) a.push("Sem login: " + sem.join(", ") + ".");
   if(E.disco_pouco) a.push("Pouco espaço no disco (" + E.disco + ").");
-  $("#avisos").innerHTML = (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
+  // depois de um `git pull` o painel continua rodando o código VELHO até ser fechado e aberto de novo
+  const novo = (E.codigo_novo || []).length ? `<div class="aviso" style="background:#2a1f08;border-color:#6b5312">
+      🔄 <b>Código atualizado no PC</b> (${E.codigo_novo.map(esc).join(", ")}${E.codigo_novo.length >= 6 ? "…" : ""}), mas o painel
+      ainda está rodando o antigo. <b>Reinicie para valer.</b>
+      <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
+  $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
+}
+async function reinicia(){
+  if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
+  try{ await api("reiniciar"); }catch(e){}
+  $("#agora").textContent = "reiniciando… recarrego em 12 s";
+  setTimeout(() => location.reload(), 12000);
 }
 function abreCfg(){ aba("config"); $("#detCfg").open = true; $("#detCfg").scrollIntoView({behavior:"smooth"}); }
 
@@ -810,9 +821,23 @@ function historias(){
         ${u.existe?`<div class="linha" style="margin-top:6px"><button class="mini" onclick="hisVer('${s.pasta}')">Assistir</button>
           <a class="mini" href="/historia?s=${encodeURIComponent(s.pasta)}&baixar=1" download>Baixar</a></div>`:""}
       </div>`:`<div class="info" style="margin-top:8px;opacity:.7">nenhum episódio ainda</div>`}
-      <div class="linha" style="margin-top:8px"><button class="pri" onclick="api('hist_episodio',{pasta:'${s.pasta}'}).then(()=>carrega(true))" ${H.rodando?"disabled":""}>Fazer o episódio ${s.n+1}</button></div>
+      ${u && u.escolha && u.escolha.pergunta ? `<div class="chave" style="display:block;margin-top:8px">
+        <b>Como continuar?</b>
+        <small style="display:block;opacity:.7;margin:3px 0 6px">Deixe em "contar os comentários" para apurar sozinho, ou escolha você mesmo.</small>
+        <select id="hc-${s.pasta}" style="width:100%">
+          <option value="">contar os comentários (automático)</option>
+          <option value="a">A venceu — ${esc(u.escolha.a || "")}</option>
+          <option value="b">B venceu — ${esc(u.escolha.b || "")}</option>
+        </select></div>` : ""}
+      <div style="margin-top:8px"><label style="font-size:13px;opacity:.75">O que acontece neste episódio (opcional)</label>
+        <input type="text" id="hr-${s.pasta}" placeholder="ex.: aparece um drone da prefeitura / vi um viral com isso e quero usar" style="width:100%"></div>
+      <div class="linha" style="margin-top:8px"><button class="pri" onclick="hisEp('${s.pasta}')" ${H.rodando?"disabled":""}>Fazer o episódio ${s.n+1}</button></div>
     </div>`;
   }).join("") : `<div class="card"><div class="info">Nenhuma história ainda — crie a primeira aí em cima.</div></div>`;
+}
+function hisEp(p){
+  const sel = $("#hc-" + p), txt = $("#hr-" + p);
+  api("hist_episodio", {pasta: p, continuar: sel ? sel.value : "", rumo: txt ? txt.value.trim() : ""}).then(() => { if(txt) txt.value = ""; carrega(true); });
 }
 function hisNovo(){
   const ideia = $("#hisIdeia").value.trim(); if(!ideia) return alert("Escreva a ideia da história.");

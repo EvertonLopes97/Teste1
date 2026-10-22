@@ -267,7 +267,29 @@ def estado_painel():
         "canais": CAN.estado(),
         "historias": HIS.estado(),
         "claude": claude_estado(),
+        "codigo_novo": codigo_novo(),
     }
+
+
+SUBIU_EM = time.time()
+
+
+def codigo_novo():
+    """O painel roda o Python que estava em disco QUANDO ele abriu. Depois de um `git pull` o processo continua com o
+    código velho (foi o que aconteceu com a correção do Instagram) — aqui ele percebe sozinho e avisa."""
+    try:
+        novos = []
+        for pasta in (TOOLS,):
+            for f in pasta.rglob("*"):
+                if f.suffix.lower() not in (".py", ".js", ".html", ".css") or "__pycache__" in f.parts or "node_modules" in f.parts:
+                    continue
+                if f.stat().st_mtime > SUBIU_EM + 2:
+                    novos.append(f.name)
+                if len(novos) >= 6:
+                    break
+        return sorted(set(novos))[:6]
+    except Exception:
+        return []
 
 
 def claude_estado():
@@ -336,6 +358,11 @@ def acao(nome, d):
         return CAN.acao(nome, d)
     if nome.startswith("hist_"):
         return HIS.acao(nome, d)
+    if nome == "reiniciar":
+        # fecha o painel; quem abriu pelo atalho/tarefa do Windows sobe de novo sozinho
+        P.log("painel: reiniciando para pegar o código novo")
+        threading.Timer(1.0, lambda: os._exit(7)).start()
+        return {"ok": True}
     if nome == "pausar":
         grava_cfg(lambda c: c.__setitem__("pausado", bool(d.get("pausado"))))
         P.log("postagem automática " + ("PAUSADA pelo painel" if d.get("pausado") else "LIGADA pelo painel"))

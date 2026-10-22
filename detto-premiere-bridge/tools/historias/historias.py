@@ -95,13 +95,15 @@ OBJETOS = ["balde", "banheira", "vela", "celular", "porta", "caixa", "moto", "ca
 MOVIMENTOS = ["zoom", "afasta", "direita", "esquerda", "sobe", "desce"]
 
 
-def prompt_episodio(serie, cfg, n, resultado=""):
+def prompt_episodio(serie, cfg, n, resultado="", rumo=""):
     pers = "; ".join(f"{p.get('nome')} ({p.get('quem', '')})" for p in serie.get("personagens", [])) or "crie 1 ou 2, de nome simples"
     antes = serie.get("episodios", [])[-3:]
     resumo = "\n".join(f"- Ep {e['n']}: {e.get('resumo', '')} → escolha: {e.get('escolha', {}).get('pergunta', '')}" for e in antes) or "(este é o primeiro)"
     palavras = int(cfg["duracao_s"] * cfg["palavras_min"] / 60)
     abertura = (f'ABRA pelo resultado da votação: "{resultado}". Uma frase, e siga a história por esse caminho.'
                 if resultado else "ABRA pelo gancho (não existe votação anterior).")
+    if rumo:
+        abertura += f"\n\nO QUE ACONTECE NESTE EPISÓDIO (mandado por quem faz o canal — vale mais que tudo, siga à risca): {rumo}"
     return f"""Você escreve REELS DE HISTÓRIA EM SÉRIE em português do Brasil, no formato que viralizou no Instagram
 (Histórias com Kaio, Manual do Benji, Tio do Fim, Insólito): sobrevivência/suspense do dia a dia, com o público
 escolhendo a continuação nos comentários.
@@ -149,11 +151,11 @@ Responda SÓ JSON:
  "legenda_post": "<legenda do post: 2 a 4 linhas + a pergunta + 'Comenta A ou B' + 4 hashtags>"}}"""
 
 
-def escreve_episodio(serie, cfg, n, resultado="", log=log):
+def escreve_episodio(serie, cfg, n, resultado="", log=log, rumo=""):
     """a IA escreve o episódio (Gemini → IAs grátis → Claude da assinatura, a mesma cadeia do resto do projeto)"""
     from reels import gemini_json
 
-    g = gemini_json([{"text": prompt_episodio(serie, cfg, n, resultado)}], temperatura=0.95)
+    g = gemini_json([{"text": prompt_episodio(serie, cfg, n, resultado, rumo)}], temperatura=0.95)
     if not g or not g.get("cenas"):
         raise RuntimeError("nenhuma IA escreveu o episódio (sem GEMINI_API_KEY/IAs grátis/Claude?)")
     g["cenas"] = [limpa_cena(c) for c in g["cenas"]][:18]
@@ -312,12 +314,25 @@ def apura(serie, pasta_base, cfg, log=log):
 
 
 # ------------------------------------------------------------------ 4. um episódio inteiro
-def faz_episodio(serie_f, cfg, log=log):
+def faz_episodio(serie_f, cfg, log=log, venceu="", rumo=""):
+    """venceu = "a"/"b" escolhido POR VOCÊ (em vez de contar os comentários); rumo = o que acontece, escrito por você"""
     serie = {**SERIE_PADRAO, **(le_json(serie_f, {}) or {})}
     base = Path(serie_f).parent
     n = len(serie.get("episodios", [])) + 1
     log(f"\n=== {serie.get('nome')} — episódio {n} ===")
-    resultado = apura(serie, base, cfg, log)
+    eps = serie.get("episodios", [])
+    # o que VOCÊ mandou (no painel ou na linha de comando) vale mais que a apuração automática
+    venceu = (venceu or serie.pop("proxima_escolha", "") or "").lower().strip()
+    rumo = rumo or serie.pop("proximo_rumo", "") or ""
+    if venceu in ("a", "b") and eps:
+        esc = eps[-1].get("escolha", {})
+        resultado = f"a maioria escolheu: {esc.get(venceu, venceu.upper())}"
+        eps[-1]["resultado"] = {"venceu": venceu, "texto": resultado, "por": "você"}
+        log(f"continuação escolhida por você: {venceu.upper()} — {esc.get(venceu, '')}")
+    else:
+        resultado = apura(serie, base, cfg, log)
+    if rumo:
+        log(f"rumo que você mandou: {rumo[:160]}")
     grava_json(serie_f, serie)
 
     job = base / f"ep_{n:02d}"
@@ -326,7 +341,7 @@ def faz_episodio(serie_f, cfg, log=log):
     rot = le_json(rot_f)
     if not rot:
         log("1/4 escrevendo o episódio...")
-        rot = escreve_episodio(serie, cfg, n, resultado, log)
+        rot = escreve_episodio(serie, cfg, n, resultado, log, rumo)
         rot["marca"] = cfg.get("marca") or f"@{(serie.get('conta') or '').split(':')[-1]}"
         grava_json(rot_f, rot)
     log(f"    \"{rot.get('titulo', '')}\" — {len(rot['cenas'])} cenas")
@@ -425,6 +440,8 @@ def main():
     ap.add_argument("--conta", default="", help="instagram:conta para a série nova")
     ap.add_argument("--apurar", action="store_true", help="só conta os votos dos episódios já postados")
     ap.add_argument("--quantos", type=int, default=0, help="quantos episódios fazer (padrão: o por_dia do config)")
+    ap.add_argument("--continuar", choices=["a", "b"], default="", help="a continuação é esta (em vez de contar os comentários)")
+    ap.add_argument("--rumo", default="", help='o que acontece neste episódio, escrito por você (ex.: "entra um drone da prefeitura")')
     a = ap.parse_args()
     pasta = Path(a.pasta)
     cfg = prepara(pasta)
@@ -449,7 +466,7 @@ def main():
         if feitos >= limite:
             break
         try:
-            faz_episodio(f, cfg)
+            faz_episodio(f, cfg, venceu=a.continuar, rumo=a.rumo)
             feitos += 1
         except Exception as e:
             log(f"{f.parent.name}: {str(e)[:300]}")

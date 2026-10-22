@@ -101,7 +101,12 @@ def acao(nome, d):
             return {"ok": False, "erro": "escreva a ideia da história"}
         return _roda(["--novo", ideia] + (["--conta", d["conta"]] if d.get("conta") else []), "nova")
     if nome == "hist_episodio":
-        return _roda(["--serie", d["pasta"], "--quantos", "1"], d.get("pasta", ""))
+        extra = []
+        if str(d.get("continuar", "")).lower() in ("a", "b"):
+            extra += ["--continuar", str(d["continuar"]).lower()]
+        if str(d.get("rumo", "")).strip():
+            extra += ["--rumo", str(d["rumo"]).strip()[:600]]
+        return _roda(["--serie", d["pasta"], "--quantos", "1", *extra], d.get("pasta", ""))
     if nome == "hist_apurar":
         return _roda(["--apurar"], "votos")
     if nome == "hist_serie_cfg":

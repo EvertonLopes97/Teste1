@@ -223,6 +223,10 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
 - PYTHON 3.11 no PC dele: NADA de `\` dentro das chaves de f-string (no 3.12+ passa, lá quebra — aconteceu no canal.py). Conferir:
   `python3.11 -S -c "import ast,sys;ast.parse(open(sys.argv[1]).read())" arq.py`; o GitHub Actions roda compileall no 3.11.
   canal.py: UMA rodada por vez (`trava_rodada(pasta, ".canal_rodando")`; duas juntas apagavam o tmp\ da outra no meio da voz).
+- CÓDIGO NOVO x PAINEL ABERTO (22/out): o painel roda o Python que estava em disco QUANDO abriu — depois de um
+  `git pull` ele CONTINUA no código velho até ser fechado (foi o que segurou a correção do Instagram por horas).
+  `codigo_novo()` compara a data dos arquivos com `SUBIU_EM` e o painel mostra "Código atualizado — reinicie" com o
+  botão **Reiniciar o painel** (ação `reiniciar`, `os._exit(7)`; quem abriu pelo atalho/tarefa do Windows volta sozinho).
 - TESTES: `npm run check` (tipos + testes + teste VISUAL `test/visual.test.js`: quadros do palco × `test/visual/ref_*.png`).
   Mudou o visual de propósito → `npm run visual:aprovar`. GitHub Actions roda tudo a cada push (`.github/workflows/testes.yml`).
 
@@ -250,6 +254,9 @@ mandaram o Lucas pro mercadinho"). É isso que faz a série crescer. Vale para q
   (balde, banheira, vela, celular, porta, caixa, moto, carro, mochila, escada, torneira), chuva, relógio/contador/selo,
   onomatopeia, movimento `zoom afasta direita esquerda sobe desce`. Legenda: `*palavra*` sai colorida; sem marcação o
   `destaca()` escolhe (número primeiro). Desenhar por código mantém a série IGUAL em todo episódio e é instantâneo.
+- VOCÊ MANDA NA CONTINUAÇÃO (22/out): no painel, antes de "Fazer o episódio N" dá para escolher **A venceu / B venceu**
+  (em vez de contar os comentários) e escrever **o que acontece neste episódio** (ex.: "vi um viral e quero usar isso").
+  O que você manda vale mais que a apuração e que a votação. Linha de comando: `--continuar a|b` e `--rumo "<texto>"`.
 - PAINEL aba **Histórias** (`tools\painel\historias_painel.py`): criar série pela ideia, ligar/desligar, "Fazer o
   episódio N", assistir/baixar, contar os votos, episódios por dia, duração, @ do rodapé. Faz sozinho 1x/dia (8–21 h),
   um por vez junto com canais e edição.
