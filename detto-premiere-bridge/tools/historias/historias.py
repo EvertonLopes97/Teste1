@@ -192,12 +192,12 @@ Peças de cada cena:
   luz: {', '.join(LUZES)}
   movimento: {', '.join(MOVIMENTOS)} · plano: {', '.join(PLANOS)} · foco: {{"x":0..1,"y":0..1}} (para onde a câmera fecha)
   andar / andares: só no cenario "predio"
-  pessoas: [{{"x":0..1,"y":0.70,"alt":640,"pose":"{'|'.join(POSES)}","cara":"serio|bravo|assustado|feliz",
-             "roupa":"{'|'.join(ROUPAS)}","cor":"#4a6b6b","mochila":true,"bone":false,"colete":false,"lanterna":false,
-             "falando":true,"olhando":1 ou -1,"x2":0..1 (para onde ele anda)}}]
-     A ROUPA SEGUE A HISTÓRIA e não muda no meio do episódio: quem acorda em casa está de "pijama", quem sai para a
-     rua põe "moletom"/"capuz" com "mochila":true, o porteiro usa "uniforme", a médica "jaleco". Repita a MESMA
-     roupa e a MESMA "cor" do personagem em todas as cenas (e nos próximos episódios).
+  pessoas: [{{"quem":"<NOME do personagem>","x":0..1,"y":0.70,"alt":640,"pose":"{'|'.join(POSES)}",
+             "cara":"serio|bravo|assustado|feliz","falando":true,"olhando":1 ou -1,"x2":0..1 (para onde ele anda)}}]
+     **"quem" é obrigatório sempre que alguém aparece** — é por ele que o desenho sabe a cara, o cabelo e a roupa
+     daquele personagem, iguais em todos os episódios. Use exatamente os nomes dos PERSONAGENS listados acima; se
+     entrar alguém novo (o porteiro, a vizinha), dê um nome e use o mesmo nome em todas as cenas dele.
+     NÃO escolha roupa nem cor: isso é do elenco da série.
   objetos: [{{"tipo":"{'|'.join(OBJETOS)}","x":0..1,"y":0.66,"s":1.5}}]
      celular aceita "extra":"TEXTO DO ALERTA" e "alerta":true (pisca) · balde/banheira aceitam "enchendo":true ·
      torneira aceita "seca":true/"jorrando":true · porta aceita "batendo":true/"aberta":true
@@ -233,6 +233,73 @@ def escreve_episodio(serie, cfg, n, resultado="", log=log, rumo=""):
     garante_apoio(g)
     fecha_com_escolha(g)
     return g
+
+
+# ------------------------------------------------------------------ o ELENCO (quem é quem na tela)
+# O PRINCIPAL é o bonequinho do modelo: cabeça redonda, cabelo de tigela com a faixa clara, moletom verde-acinzentado,
+# mochila nas costas e calça azul. Ele nunca muda — é a cara da série.
+LOOK_PRINCIPAL = {"corte": "tigela", "cabelo": "#5a3b26", "pele": "#f0d5a8", "roupa": "moletom",
+                  "cor": "#4a6b6b", "calca": "#3a5a86", "mochila": True, "barba": "", "oculos": False}
+# Os SECUNDÁRIOS têm que ser DIFERENTES do principal e entre si — corte, barba, pele, roupa e cor mudam juntos.
+LOOKS_SECUNDARIOS = [
+    {"corte": "grisalho", "cabelo": "#6b6b6b", "pele": "#d9b183", "roupa": "uniforme", "cor": "#3f5f86", "calca": "#2c3a4a", "barba": "bigode"},
+    {"corte": "rabo", "cabelo": "#2f2a26", "pele": "#c98f5e", "roupa": "camisa", "cor": "#9c4a52", "calca": "#39404d"},
+    {"corte": "careca", "cabelo": "#2f2a26", "pele": "#8d5a37", "roupa": "uniforme", "cor": "#4c7a52", "calca": "#2f3a44", "barba": "cheia"},
+    {"corte": "cacheado", "cabelo": "#241c16", "pele": "#a8693f", "roupa": "regata", "cor": "#d8a43a", "calca": "#48566b"},
+    {"corte": "curto", "cabelo": "#8a6a3a", "pele": "#f0d5a8", "roupa": "jaleco", "cor": "#eef2f3", "calca": "#5a6472", "oculos": True},
+    {"corte": "longo", "cabelo": "#45302a", "pele": "#e8c79b", "roupa": "moletom", "cor": "#7a5c86", "calca": "#2f3a44"},
+    {"corte": "bone", "cabelo": "#241c16", "pele": "#b87a4a", "roupa": "capuz", "cor": "#c0552f", "calca": "#39404d", "cor_bone": "#1f2630"},
+    {"corte": "curto", "cabelo": "#3b2d23", "pele": "#d9b183", "roupa": "terno", "cor": "#2f3540", "calca": "#2a2f38", "barba": "cavanhaque"},
+]
+TRACOS = ("corte", "cabelo", "pele", "roupa", "cor", "calca", "mochila", "barba", "oculos", "bone", "cor_bone")
+
+
+def elenco(serie, rot):
+    """guarda a APARÊNCIA de cada personagem na série, para ele ser o mesmo em todos os episódios.
+    O primeiro personagem (o protagonista) fica com o look do modelo; os outros recebem looks diferentes, sem repetir."""
+    el = serie.setdefault("elenco", {})
+    pers = [str(p.get("nome", "")).strip() for p in serie.get("personagens", []) if p.get("nome")]
+    principal = (serie.get("principal") or (pers[0] if pers else "")).strip()
+    # quem aparece nas cenas, na ordem em que entra
+    nomes = []
+    for c in rot.get("cenas", []):
+        for p in c.get("pessoas") or []:
+            n = str(p.get("quem", "")).strip()
+            if n and n not in nomes:
+                nomes.append(n)
+    if not principal:
+        principal = nomes[0] if nomes else "principal"
+    serie["principal"] = principal
+    for n in [principal] + [x for x in pers + nomes if x != principal]:
+        if n in el:
+            continue
+        if n == principal:
+            el[n] = dict(LOOK_PRINCIPAL)
+        else:  # o primeiro look ainda não usado — nunca o do principal
+            usados = {(v.get("corte"), v.get("cor")) for v in el.values()}
+            livre = next((lk for lk in LOOKS_SECUNDARIOS if (lk["corte"], lk["cor"]) not in usados), None)
+            el[n] = dict(livre or LOOKS_SECUNDARIOS[len(el) % len(LOOKS_SECUNDARIOS)])
+    return el
+
+
+def aplica_elenco(serie, rot):
+    """põe em cada pessoa da cena os traços do personagem dela (o palco só sabe desenhar, quem sabe quem é quem é aqui)"""
+    el = elenco(serie, rot)
+    principal = serie.get("principal") or next(iter(el), "")
+    for c in rot.get("cenas", []):
+        for p in c.get("pessoas") or []:
+            if p.get("livre"):  # roteiro mexido à mão: "livre": true manda no visual daquela pessoa
+                continue
+            nome = str(p.get("quem", "")).strip()
+            if not nome:  # cena com uma pessoa só e sem nome = o protagonista
+                nome = principal
+                p["quem"] = nome
+            look = el.get(nome) or el.get(principal) or LOOK_PRINCIPAL
+            for k in TRACOS:
+                if k in look:
+                    p[k] = look[k]
+            p["bone"] = look.get("corte") == "bone"
+    return rot
 
 
 # palavra da narração → o objeto que a cena de apoio mostra em close
@@ -363,6 +430,8 @@ def limpa_cena(c):
                        "falando": bool(p.get("falando")),
                        "olhando": -1 if str(p.get("olhando")) in ("-1", "-1.0") else 1,
                        "roupa": p.get("roupa") if p.get("roupa") in ROUPAS else "moletom",
+                       **({"quem": str(p["quem"])[:40]} if p.get("quem") else {}),
+                       **({"livre": True} if p.get("livre") else {}),
                        **{k: True for k in ("mochila", "bone", "colete", "lanterna") if p.get(k)},
                        "cor": p.get("cor") or "#4a6b6b"}
                       for p in (c.get("pessoas") or [])[:3] if isinstance(p, dict)]
@@ -672,7 +741,11 @@ def faz_episodio(serie_f, cfg, log=log, venceu="", rumo="", base="", refazer=0):
     else:
         fecha_com_escolha(rot)  # roteiro editado à mão sem a cartela A/B ganha a dela
         grava_json(rot_f, rot)
-    log(f"    \"{rot.get('titulo', '')}\" — {len(rot['cenas'])} cenas")
+    aplica_elenco(serie, rot)      # cada personagem com a MESMA cara de sempre (o principal é o do modelo)
+    grava_json(serie_f, serie)
+    grava_json(rot_f, rot)
+    log(f"    \"{rot.get('titulo', '')}\" — {len(rot['cenas'])} cenas"
+        + (f" — elenco: {', '.join(serie.get('elenco', {}))}" if serie.get("elenco") else ""))
 
     wav = job / "voz.wav"
     if not wav.exists():

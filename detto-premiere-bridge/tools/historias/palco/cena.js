@@ -142,12 +142,44 @@ function pessoa(q, t) {
     p.push(`<circle cx="${x + dx * u}" cy="${yCorpo + (9 + dy) * u}" r="${4.8 * u}" fill="${pele}"/>`);
   }
 
-  // ---- cabeça REDONDA com o cabelo de tigela (e a faixa mais clara do modelo)
+  // ---- cabeça REDONDA. O CORTE de cabelo é o que separa um personagem do outro (o principal é "tigela", o do
+  //      modelo; os secundários usam os outros, e a série guarda qual é de quem).
+  const corte = q.bone ? "bone" : q.corte || "tigela";
+  if (corte === "rabo") {  // o cabelo de trás vai antes da cabeça
+    p.push(`<ellipse cx="${x - olh * cabR * 0.95}" cy="${yCab + cabR * 0.1}" rx="${cabR * 0.34}" ry="${cabR * 0.52}" fill="${cabelo}"/>`);
+  } else if (corte === "longo") {
+    p.push(`<path d="M${x - cabR * 1.06} ${yCab} a${cabR * 1.06} ${cabR * 1.06} 0 0 1 ${cabR * 2.12} 0 l0 ${cabR * 1.25} l${-cabR * 0.5} 0 l0 ${-cabR * 0.7} l${-cabR * 1.12} 0 l0 ${cabR * 0.7} l${-cabR * 0.5} 0 z" fill="${cabelo}"/>`);
+  }
   p.push(`<circle cx="${x}" cy="${yCab}" r="${cabR}" fill="${pele}"/>`);
-  if (cabelo !== "none" && !q.bone) {
-    p.push(`<path d="M${x - cabR} ${yCab + cabR * 0.1} a${cabR} ${cabR} 0 0 1 ${cabR * 2} 0 l${-cabR * 0.17} 0 a${cabR * 0.83} ${cabR * 0.52} 0 0 0 ${-cabR * 1.66} 0 z" fill="${cabelo}"/>`);
-    p.push(`<path d="M${x - cabR} ${yCab + cabR * 0.1} a${cabR} ${cabR} 0 0 1 ${cabR * 2} 0 l0 ${-cabR * 0.5} a${cabR} ${cabR} 0 0 0 ${-cabR * 2} 0 z" fill="${cabelo}"/>`);
+  const calota = (alturaFranja, cor) =>
+    `<path d="M${x - cabR} ${yCab + cabR * alturaFranja} a${cabR} ${cabR} 0 0 1 ${cabR * 2} 0 l${-cabR * 0.17} 0 a${cabR * 0.83} ${cabR * 0.52} 0 0 0 ${-cabR * 1.66} 0 z" fill="${cor}"/>`
+    + `<path d="M${x - cabR} ${yCab + cabR * alturaFranja} a${cabR} ${cabR} 0 0 1 ${cabR * 2} 0 l0 ${-cabR * (0.4 + alturaFranja)} a${cabR} ${cabR} 0 0 0 ${-cabR * 2} 0 z" fill="${cor}"/>`;
+  if (corte === "tigela" || corte === "rabo" || corte === "longo") {
+    p.push(calota(0.1, cabelo));
     p.push(`<path d="M${x - cabR * 0.97} ${yCab - cabR * 0.17} a${cabR} ${cabR} 0 0 1 ${cabR * 1.94} 0" stroke="${tom(cabelo, 0.3)}" stroke-width="${cabR * 0.14}" fill="none"/>`);
+  } else if (corte === "curto") {
+    p.push(calota(-0.14, cabelo));
+  } else if (corte === "cacheado") {
+    p.push(calota(-0.06, cabelo));
+    for (let i = 0; i < 7; i++) {
+      const ang = Math.PI + (i / 6) * Math.PI;
+      p.push(`<circle cx="${r2(x + Math.cos(ang) * cabR * 0.9)}" cy="${r2(yCab + Math.sin(ang) * cabR * 0.9)}" r="${cabR * 0.26}" fill="${cabelo}"/>`);
+    }
+  } else if (corte === "grisalho") {  // calvo no alto, cabelo claro só nas laterais (o zelador, o porteiro antigo)
+    const gr = tom(cabelo, 0.62);
+    for (const lado of [-1, 1]) {
+      p.push(`<ellipse cx="${x + lado * cabR * 0.82}" cy="${yCab - cabR * 0.1}" rx="${cabR * 0.26}" ry="${cabR * 0.42}" fill="${gr}"/>`);
+    }
+    p.push(`<path d="M${x - cabR * 0.96} ${yCab - cabR * 0.28} a${cabR} ${cabR} 0 0 1 ${cabR * 1.92} 0" stroke="${gr}" stroke-width="${cabR * 0.17}" fill="none"/>`);
+  }  // "careca" não desenha nada
+
+  // barba / bigode — outra marca que separa os personagens
+  const barba = q.barba || "";
+  if (barba === "cheia") {
+    p.push(`<path d="M${x - cabR * 0.82} ${yCab + cabR * 0.14} a${cabR * 0.82} ${cabR * 0.95} 0 0 0 ${cabR * 1.64} 0 z" fill="${tom(cabelo, -0.1)}"/>`);
+    p.push(`<circle cx="${x}" cy="${yCab + cabR * 0.42}" r="${cabR * 0.2}" fill="${pele}"/>`);
+  } else if (barba === "cavanhaque") {
+    p.push(`<ellipse cx="${x}" cy="${yCab + cabR * 0.72}" rx="${cabR * 0.26}" ry="${cabR * 0.22}" fill="${tom(cabelo, -0.1)}"/>`);
   }
   if (q.bone) {
     const bc = q.cor_bone || "#c0392b";
@@ -166,6 +198,15 @@ function pessoa(q, t) {
     const cx = x + lado * 8.6 * u + ox;
     if (pisca) p.push(`<rect x="${cx - orx}" y="${oy - 0.9 * u}" width="${orx * 2}" height="${1.9 * u}" rx="${0.95 * u}" fill="#2b2b2b"/>`);
     else p.push(`<ellipse cx="${cx}" cy="${oy}" rx="${orx}" ry="${ory}" fill="#2b2b2b"/>`);
+  }
+  if (q.barba === "bigode") {
+    p.push(`<path d="M${x - 5.2 * u + ox * 0.5} ${oy + 7.4 * u} q${5.2 * u} ${3 * u} ${10.4 * u} 0" stroke="${tom(cabelo, -0.1)}" stroke-width="${2.6 * u}" fill="none" stroke-linecap="round"/>`);
+  }
+  if (q.oculos) {
+    for (const lado of [-1, 1]) {
+      p.push(`<circle cx="${x + lado * 8.6 * u + ox}" cy="${oy}" r="${7 * u}" fill="none" stroke="#2b2b2b" stroke-width="${1.6 * u}"/>`);
+    }
+    p.push(`<path d="M${x - 1.6 * u + ox} ${oy} L${x + 1.6 * u + ox} ${oy}" stroke="#2b2b2b" stroke-width="${1.6 * u}"/>`);
   }
   // sobrancelhas finas e curvas — sempre presentes (o modelo tem), inclinadas pela cara
   const cara = q.cara || "";

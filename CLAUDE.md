@@ -267,6 +267,13 @@ mandaram o Lucas pro mercadinho"). É isso que faz a série crescer. Vale para q
   (achada nas words do whisper, `marca_sfx`), não no começo da cena. Sem a pasta de sons catalogada, o som é
   SINTETIZADO pelo FFmpeg (`som_sintetico`) — o episódio nunca sai mudo. Plano manda no tamanho (close ≤ 500 px).
   A narração já vem pronta para a voz: números por extenso, sem siglas, símbolos nem abreviações (falas erradas).
+- ELENCO (22/out, `elenco`/`aplica_elenco`): cada cena diz `"quem": "<nome>"` e a APARÊNCIA vem do `"elenco"` do
+  serie.json — assim o personagem é o MESMO em todos os episódios e um não sai igual ao outro (o zelador saía igual
+  ao protagonista). O PRINCIPAL (`"principal"`, o 1º personagem) é exatamente o bonequinho do modelo dele: corte
+  `tigela` com a faixa clara, pele clara, moletom `#4a6b6b`, mochila e calça azul. Os secundários pegam um look ainda
+  não usado de `LOOKS_SECUNDARIOS` (corte `grisalho|rabo|careca|cacheado|curto|longo|bone`, barba `cheia|cavanhaque|
+  bigode`, óculos, pele, roupa e cor diferentes). A IA NÃO escolhe roupa nem cor — só o nome. Para mandar no visual
+  de uma pessoa no roteiro à mão, ponha `"livre": true` nela.
 - ANDAR CERTO: cenário `predio` com `andar: 12` e `andares: 15` desenha o prédio inteiro, acende a janela daquele
   andar, numera os outros e põe a etiqueta amarela **12º ANDAR** DENTRO do prédio (na borda ela sumia no zoom).
 - FIM COM AS DUAS ESCOLHAS (22/out, `fecha_com_escolha`): todo episódio ganha a última cena com a cartela A/B e a
