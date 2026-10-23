@@ -55,6 +55,8 @@ def estado():
             "mundo": s.get("mundo", ""),
             "conta": s.get("conta", ""),
             "ligada": bool(s.get("ligada", True)),
+            "contexto": s.get("contexto", ""),
+            "emoji": s.get("emoji", ""),
             "n": len(eps),
             "personagens": s.get("personagens", []),
             "ultimo": ({"n": ult["n"], "titulo": ult.get("titulo", ""), "escolha": ult.get("escolha", {}),
@@ -94,6 +96,16 @@ def _roda(args, serie=""):
 
     threading.Thread(target=lendo, daemon=True).start()
     return {"ok": True}
+
+
+def _job(serie, n=0):
+    """a pasta de um episódio (n=0 → o último)"""
+    base = pasta() / "series" / serie
+    jobs = sorted(base.glob("ep_*"))
+    if n:
+        p = base / f"ep_{int(n):02d}"
+        return p if p.exists() else None
+    return jobs[-1] if jobs else None
 
 
 def _roda_capa(serie):
@@ -145,11 +157,39 @@ def acao(nome, d):
         for k in ("ligada",):
             if k in d:
                 s[k] = bool(d[k])
-        for k in ("conta", "mundo", "tema"):
+        for k in ("conta", "mundo", "tema", "contexto", "emoji"):
             if k in d:
                 s[k] = str(d[k]).strip()
         H.grava_json(f, s)
         return {"ok": True}
+    if nome == "hist_apagar":
+        # só apaga com o nome da pasta digitado igual: é definitivo
+        if str(d.get("confirma", "")).strip() != str(d.get("pasta", "")).strip():
+            return {"ok": False, "erro": "para apagar, digite o nome da pasta igualzinho"}
+        return {"ok": True, "msg": H.apaga_serie(pasta(), d["pasta"])}
+    if nome == "hist_roteiro":
+        # o roteiro do episódio pedido (ou o último), para você copiar e mexer
+        job = _job(d.get("pasta", ""), int(d.get("n") or 0))
+        if not job or not (job / "roteiro.json").exists():
+            return {"ok": False, "erro": "esse episódio não tem roteiro"}
+        return {"ok": True, "n": int(job.name.split("_")[1]),
+                "texto": (job / "roteiro.json").read_text(encoding="utf-8-sig")}
+    if nome == "hist_salva_roteiro":
+        texto = str(d.get("texto", ""))
+        try:
+            json.loads(texto)
+        except ValueError as e:
+            return {"ok": False, "erro": f"o roteiro não é um JSON válido: {str(e)[:120]}"}
+        if d.get("como") == "base":  # só serve de modelo para o PRÓXIMO episódio
+            f = pasta() / "series" / d["pasta"] / "base_roteiro.json"
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(texto, encoding="utf-8")
+            return _roda(["--serie", d["pasta"], "--quantos", "1", "--base-roteiro", str(f)], d["pasta"])
+        job = _job(d.get("pasta", ""), int(d.get("n") or 0))   # refaz ESTE episódio com o roteiro editado
+        if not job:
+            return {"ok": False, "erro": "não achei o episódio"}
+        (job / "roteiro.json").write_text(texto, encoding="utf-8")
+        return _roda(["--serie", d["pasta"], "--refazer", job.name.split("_")[1]], d["pasta"])
     if nome == "hist_cfg":
         f = pasta() / "config.json"
         c = H.le_json(f, {}) or {}

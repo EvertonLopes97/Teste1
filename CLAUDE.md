@@ -269,9 +269,27 @@ mandaram o Lucas pro mercadinho"). É isso que faz a série crescer. Vale para q
   A narração já vem pronta para a voz: números por extenso, sem siglas, símbolos nem abreviações (falas erradas).
 - ANDAR CERTO: cenário `predio` com `andar: 12` e `andares: 15` desenha o prédio inteiro, acende a janela daquele
   andar, numera os outros e põe a etiqueta amarela **12º ANDAR** DENTRO do prédio (na borda ela sumia no zoom).
-- FIM COM AS DUAS ESCOLHAS (22/out, `fecha_com_escolha`): todo episódio ganha a última cena com a cartela A/B
-  (pergunta + card A + card B + "COMENTA A OU B") e a pergunta entra na NARRAÇÃO, para o narrador ler. A legenda
-  some nessa cena (quem lê são os cards). Sem isso não há comentário — e sem comentário não há próximo episódio.
+- FIM COM AS DUAS ESCOLHAS (22/out, `fecha_com_escolha`): todo episódio ganha a última cena com a cartela A/B e a
+  pergunta entra na NARRAÇÃO, para o narrador ler. A legenda some nessa cena (quem lê são os cards). Sem isso não há
+  comentário — e sem comentário não há próximo episódio. A cartela é como a dos virais: pergunta GIGANTE, dois blocos
+  de tela cheia (A amarelo, B laranja) com a letra num quadrado preto, e "COMENTA A OU B" pulsando; entra em partes
+  (pergunta → A → B → chamada) e fica pelo menos 5 s na tela.
+- CENAS DE APOIO — o "B-roll" (22/out, `garante_apoio`): a IA punha o boneco em TODA cena e o vídeo ficava igual do
+  começo ao fim. Agora, 3 cenas seguidas com pessoa = a do meio vira CLOSE num objeto, SEM pessoa, escolhido pela
+  PALAVRA da narração (`APOIO`: celular/mensagem → celular, água/bomba → torneira, litros → balde, hora → relógio...).
+  Alvo de ~30% das cenas sem pessoa; o prompt também exige 1 em cada 3.
+- SINCRONIZAÇÃO (22/out): `encaixa_cenas` só ancora a cena quando METADE da frase bate com a transcrição; as que não
+  batem (voz falou o número por extenso, trocou palavra) não ficam sem hora — o tempo entre as âncoras é repartido na
+  proporção do tamanho da fala de cada uma. LEGENDA: nunca fecha em palavra fraca ("NÃO CORRA PARA A" não acontece
+  mais, `FRACAS` no render.js), bloco de 1 palavra junta com o anterior e cada legenda fica na tela ATÉ a próxima
+  entrar (sem buraco).
+- CONTEXTO, APAGAR E MEXER NO ROTEIRO (22/out): `"contexto"` no serie.json (quem é quem, as regras, o tom, o que não
+  pode acontecer) entra em TODOS os prompts — painel: "Contexto da história e ajustes"; linha de comando
+  `--contexto "<texto>" --serie X`. APAGAR a série: botão no painel (precisa digitar o nome da pasta) ou
+  `--serie X --apagar`. ROTEIRO: painel "Ver e mexer no roteiro" abre o roteiro.json do episódio para editar →
+  **Refazer este episódio** (`--refazer N`: apaga voz, legendas e vídeo e monta de novo com o que você escreveu, sem
+  criar episódio novo) ou **Usar como base do próximo** (`--base-roteiro <arquivo>`: a IA escreve o seguinte seguindo
+  a estrutura e o tom desse).
 - CAPAS E ARTE DO PERFIL (22/out, `tools\historias\capa.py` + `arte.js` + `palco\arte.html`): a capa sai junto com
   cada episódio (`ep_NN\capa.jpg`, 1080x1920, com TUDO dentro do quadrado do meio que o Instagram mostra na GRADE;
   `capa_grade.jpg` é esse quadrado). Padrão dos perfis que viralizaram: "EPISÓDIO" pequeno, NÚMERO gigante dourado,
@@ -297,8 +315,9 @@ mandaram o Lucas pro mercadinho"). É isso que faz a série crescer. Vale para q
   (em vez de contar os comentários) e escrever **o que acontece neste episódio** (ex.: "vi um viral e quero usar isso").
   O que você manda vale mais que a apuração e que a votação. Linha de comando: `--continuar a|b` e `--rumo "<texto>"`.
 - PAINEL aba **Histórias** (`tools\painel\historias_painel.py`): criar série pela ideia, ligar/desligar, "Fazer o
-  episódio N", assistir/baixar, contar os votos, episódios por dia, duração, @ do rodapé. Faz sozinho 1x/dia (8–21 h),
-  um por vez junto com canais e edição.
+  episódio N", assistir/baixar, capa, contar os votos, episódios por dia, duração, @ do rodapé, contexto da história,
+  emoji da capa, "Ver e mexer no roteiro" (refazer ou usar como base), "Refazer capas + arte" e apagar a série.
+  Faz sozinho 1x/dia (8–21 h), um por vez junto com canais e edição.
 
 ## Vídeo gravado COM o roteiro dele (padrão)
 

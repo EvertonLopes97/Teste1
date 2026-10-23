@@ -527,6 +527,21 @@ const CENA = {
     if (c.clarao) a.push(`<rect width="${W}" height="${H}" fill="#fff" opacity="${r2(Math.max(0, 0.85 - q * 4))}"/>`);
     atoresEl.innerHTML =
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${a.join("")}</svg>`;
+
+    // a cartela A/B entra em partes (pergunta → A → B → chamada) e a chamada pulsa: é o que segura o comentário
+    if (c.escolha) {
+      const el = document.getElementById("escolha");
+      const partes = el.querySelectorAll(".perg, .op, .cta");
+      partes.forEach((n, i) => {
+        const ini = 0.06 + i * 0.13;
+        const k = Math.max(0, Math.min(1, (q - ini) / 0.16));
+        n.style.opacity = String(k);
+        const lado = n.classList.contains("op") ? (n.classList.contains("b") ? 1 : -1) : 0;
+        n.style.transform = `translateX(${r2((1 - k) * lado * 14)}%) translateY(${r2((1 - k) * 8)}px)`;
+      });
+      const cta = el.querySelector(".cta");
+      if (cta && q > 0.58) cta.style.transform = `scale(${r2(1 + Math.sin(t * 7) * 0.05)})`;
+    }
   },
 };
 

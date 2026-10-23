@@ -506,7 +506,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-10-22d";
+const VERSAO_TELA = "2026-10-22e";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -854,7 +854,20 @@ function historias(){
         </select></div>` : ""}
       <div style="margin-top:8px"><label style="font-size:13px;opacity:.75">O que acontece neste episódio (opcional)</label>
         <input type="text" id="hr-${s.pasta}" placeholder="ex.: aparece um drone da prefeitura / vi um viral com isso e quero usar" style="width:100%"></div>
-      <div class="linha" style="margin-top:8px"><button class="pri" onclick="hisEp('${s.pasta}')" ${H.rodando?"disabled":""}>Fazer o episódio ${s.n+1}</button></div>
+      <div class="linha" style="margin-top:8px"><button class="pri" onclick="hisEp('${s.pasta}')" ${H.rodando?"disabled":""}>Fazer o episódio ${s.n+1}</button>
+        ${u?`<button class="mini" onclick="hisRoteiro('${s.pasta}')">Ver e mexer no roteiro</button>`:""}</div>
+      <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;opacity:.8">Contexto da história e ajustes</summary>
+        <label style="font-size:13px;opacity:.75;display:block;margin-top:6px">Contexto — vale para TODOS os episódios (quem é quem, as regras, o tom, o que não pode acontecer)</label>
+        <textarea id="hx-${s.pasta}" rows="5" style="width:100%" placeholder="ex.: o Marcos tem 34 anos, é advogado e mora sozinho no 12º andar com a gata Paçoca. A luz cai às 18h todo dia. Nunca matar personagem. Tom de suspense, sem sangue.">${esc(s.contexto||"")}</textarea>
+        <div class="linha" style="margin-top:6px">
+          <input type="text" id="he-${s.pasta}" value="${esc(s.emoji||"")}" placeholder="emoji da capa (🧟)" style="width:140px">
+          <button class="mini" onclick="api('hist_serie_cfg',{pasta:'${s.pasta}',contexto:$('#hx-${s.pasta}').value,emoji:$('#he-${s.pasta}').value}).then(()=>carrega(true))">Salvar contexto</button>
+        </div>
+        <div class="linha" style="margin-top:10px;border-top:1px solid rgba(255,255,255,.1);padding-top:8px">
+          <input type="text" id="hd-${s.pasta}" placeholder="digite ${esc(s.pasta)} para apagar" style="flex:1">
+          <button class="mini" style="color:#ff8a7a" onclick="hisApaga('${s.pasta}')">Apagar esta história</button>
+        </div>
+      </details>
     </div>`;
   }).join("") : `<div class="card"><div class="info">Nenhuma história ainda — crie a primeira aí em cima.</div></div>`;
 }
@@ -865,6 +878,31 @@ function hisEp(p){
 function hisNovo(){
   const ideia = $("#hisIdeia").value.trim(); if(!ideia) return alert("Escreva a ideia da história.");
   api("hist_novo", {ideia, conta: $("#hisConta").value.trim()}).then(()=>{ $("#hisIdeia").value=""; carrega(true); });
+}
+function hisApaga(p){
+  const c = $("#hd-" + p);
+  if(!c || c.value.trim() !== p) return alert("Para apagar, digite o nome da pasta igualzinho: " + p);
+  if(!confirm("Apagar a história \"" + p + "\" com todos os episódios? Não dá para desfazer.")) return;
+  api("hist_apagar", {pasta: p, confirma: c.value.trim()}).then(r => { if(r && r.msg) alert(r.msg); carrega(true); });
+}
+function hisRoteiro(p){
+  api("hist_roteiro", {pasta: p}).then(r => {
+    if(!r || !r.ok) return alert((r && r.erro) || "não consegui abrir o roteiro");
+    $("#modal").innerHTML = `<div class="ctop" style="margin-bottom:10px"><b style="flex:1">Roteiro do episódio ${r.n}</b><button class="mini" onclick="fecha()">✕</button></div>
+      <div class="info" style="margin-bottom:6px">Mexa no que quiser (as falas, as cenas, os efeitos). "Refazer este episódio" apaga a voz e o vídeo e monta de novo com o que está aqui; "Usar como base" manda a IA escrever o próximo seguindo este.</div>
+      <textarea id="hrot" rows="18" style="width:100%;font-family:ui-monospace,monospace;font-size:12px">${esc(r.texto)}</textarea>
+      <div class="linha" style="margin-top:8px">
+        <button class="pri" onclick="hisSalvaRot('${p}',${r.n},'refazer')">Refazer este episódio</button>
+        <button class="mini" onclick="hisSalvaRot('${p}',${r.n},'base')">Usar como base do próximo</button>
+      </div>`;
+    $("#fundo").classList.add("on");
+  });
+}
+function hisSalvaRot(p, n, como){
+  api("hist_salva_roteiro", {pasta: p, n, como, texto: $("#hrot").value}).then(r => {
+    if(r && r.ok === false) return alert(r.erro || "não deu");
+    fecha(); carrega(true);
+  });
 }
 function hisVer(s){
   const se = (E.historias.series || []).find(x => x.pasta === s) || {};

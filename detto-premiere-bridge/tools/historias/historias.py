@@ -53,6 +53,7 @@ CONFIG_PADRAO = {
 SERIE_PADRAO = {
     "nome": "",
     "tema": "",
+    "contexto": "",   # o que VOCÊ escreve sobre a história: vale para todos os episódios
     "mundo": "",
     "personagens": [],
     "conta": "",
@@ -129,6 +130,14 @@ def prompt_episodio(serie, cfg, n, resultado="", rumo=""):
                 if resultado else "ABRA pelo gancho (não existe votação anterior).")
     if rumo:
         abertura += f"\n\nO QUE ACONTECE NESTE EPISÓDIO (mandado por quem faz o canal — vale mais que tudo, siga à risca): {rumo}"
+    ctx = (serie.get("contexto") or "").strip()
+    if ctx:
+        abertura += ("\n\nCONTEXTO DA SÉRIE (escrito por quem faz o canal; vale para TODOS os episódios, respeite "
+                     f"cada detalhe — nomes, lugares, regras, tom):\n{ctx}")
+    base = (serie.get("_roteiro_base") or "").strip()
+    if base:
+        abertura += ("\n\nUSE ESTE ROTEIRO COMO BASE (foi ajustado à mão): siga a estrutura, o tom e as cenas dele, "
+                     f"mudando só o que o episódio novo pede.\n{base[:6000]}")
     return f"""Você escreve REELS DE HISTÓRIA EM SÉRIE em português do Brasil, no formato que viralizou no Instagram
 (Histórias com Kaio, Manual do Benji, Tio do Fim, Insólito): sobrevivência/suspense do dia a dia, com o público
 escolhendo a continuação nos comentários.
@@ -165,9 +174,10 @@ De 14 a 18 cenas, cada uma com 1 ou 2 frases de narração (4 a 6 s).
 VOCÊ TAMBÉM DIRIGE A EDIÇÃO. Cada cena é um desenho feito por código (não existe foto nem filmagem), e você escolhe
 o enquadramento, o movimento, a roupa do personagem e o efeito sonoro. Três regras de direção, que são o que separa
 um vídeo chato de um viral:
-  A) VARIE O PLANO. Nunca mais de 2 cenas seguidas no mesmo "plano". Use "close" em pelo menos 4 cenas, com "foco"
-     no objeto que importa (o celular na hora da mensagem, a torneira, o relógio). O close é o corte de apoio do
-     formato: a cena mostra O DETALHE enquanto a narração explica.
+  A) UMA EM CADA TRÊS CENAS NÃO TEM PESSOA. É a regra mais importante: o personagem em todas as cenas deixa o vídeo
+     igual do começo ao fim. Essas cenas de apoio são "plano":"close" com "pessoas":[] e UM objeto grande no meio
+     ("s" entre 1.8 e 2.4) com o "foco" nele — o celular na hora da mensagem, a torneira, o relógio, o balde. E nunca
+     mais de 2 cenas seguidas no mesmo "plano": alterne geral, médio e close.
   B) PONHA O PERSONAGEM FAZENDO A COISA. Se a narração diz que ele enche o balde, a cena tem o balde "enchendo" e a
      pessoa com pose "agachado"/"carregando". Cena com a pessoa parada no meio do nada é cena perdida.
   C) EFEITO SONORO NA PALAVRA CERTA. Em pelo menos 6 cenas ponha "sfx" e "sfx_palavra": a palavra EXATA da narração
@@ -220,8 +230,72 @@ def escreve_episodio(serie, cfg, n, resultado="", log=log, rumo=""):
     g["cenas"] = [limpa_cena(c) for c in g["cenas"]][:20]
     if not g.get("narracao"):
         g["narracao"] = " ".join(c.get("narracao", "") for c in g["cenas"])
+    garante_apoio(g)
     fecha_com_escolha(g)
     return g
+
+
+# palavra da narração → o objeto que a cena de apoio mostra em close
+APOIO = [(("celular", "mensagem", "telefone", "whatsapp", "zap", "aviso", "alerta", "liga"), "celular"),
+         (("porta", "tranca", "fechadura", "corrente"), "porta"),
+         (("relógio", "relogio", "hora", "minuto", "segundo", "tempo", "faltam"), "relogio"),
+         (("torneira", "água", "agua", "bomba"), "torneira"),
+         (("balde", "litro", "litros"), "balde"),
+         (("banheira", "banho"), "banheira"),
+         (("vela", "luz", "escuro", "lanterna", "lâmpada", "lampada"), "vela"),
+         (("garrafa", "térmica", "termica", "bebe", "sede"), "garrafa"),
+         (("mochila", "bolsa", "peso", "quilo"), "mochila"),
+         (("carro", "rua", "motor"), "carro"),
+         (("moto", "entregador"), "moto"),
+         (("escada", "degrau", "andar", "subir", "descer"), "escada"),
+         (("caixa", "comida", "mercado", "mantimento"), "caixa")]
+
+
+def garante_apoio(rot, minimo=0.3):
+    """CENAS DE APOIO (o "B-roll" do formato): a IA tende a pôr o personagem em TODA cena, e o vídeo fica igual do
+    começo ao fim. Aqui, toda vez que o boneco aparece em 3 cenas seguidas, a do meio vira um CLOSE no objeto de que
+    a narração está falando — sem pessoa. É o corte que dá respiro e faz o vídeo parecer editado."""
+    cenas = [c for c in rot.get("cenas", []) if not c.get("escolha")]
+    if len(cenas) < 4:
+        return rot
+    def objeto_da(c):
+        txt = str(c.get("narracao", "")).lower()
+        for palavras, tipo in APOIO:
+            if any(p in txt for p in palavras):
+                return tipo
+        return "relogio"
+
+    def vira_apoio(c):
+        obj = next((o for o in c.get("objetos") or [] if o.get("tipo") in OBJETOS), None)
+        if not obj:
+            obj = {"tipo": objeto_da(c), "x": 0.5, "y": 0.62, "s": 1.9}
+            c["objetos"] = [obj]
+        else:
+            obj["x"], obj["y"] = 0.5, obj.get("y", 0.62)
+            obj["s"] = max(1.6, float(obj.get("s", 1.4)))
+        c["pessoas"] = []
+        c["plano"] = "close"
+        c["foco"] = {"x": 0.5, "y": max(0.25, float(obj.get("y", 0.62)) - 0.12)}
+        c["_apoio"] = True
+
+    seguidas = 0
+    for c in cenas:
+        if c.get("pessoas"):
+            seguidas += 1
+            if seguidas >= 3:
+                vira_apoio(c)
+                seguidas = 0
+        else:
+            seguidas = 0
+    # ainda com pouca variação? o close entra nas cenas que já tinham objeto
+    faltam = int(len(cenas) * minimo) - sum(1 for c in cenas if not c.get("pessoas"))
+    for c in cenas[1:-1]:
+        if faltam <= 0:
+            break
+        if c.get("pessoas") and (c.get("objetos") or []):
+            vira_apoio(c)
+            faltam -= 1
+    return rot
 
 
 def fecha_com_escolha(rot):
@@ -360,7 +434,11 @@ def palavras(wav, log=log):
 
 
 def encaixa_cenas(rot, words):
-    """cada cena termina onde a frase dela termina na narração (assim a imagem acompanha a fala)"""
+    """cada cena termina onde a frase dela termina na narração (assim a imagem acompanha a fala).
+
+    A voz nem sempre fala igualzinho ao roteiro (número por extenso, palavra trocada). Quando a cena não casa com a
+    transcrição, ela não fica sem hora: o tempo é repartido entre as cenas vizinhas que casaram, na proporção do
+    tamanho da fala de cada uma. É isso que mantém imagem e narração juntas do começo ao fim."""
     if not words:
         return
     import unicodedata
@@ -370,19 +448,47 @@ def encaixa_cenas(rot, words):
         return re.sub(r"[^a-z0-9 ]", " ", t).split()
 
     faladas = [norm(w["w"])[0] if norm(w["w"]) else "" for w in words]
+    cenas = rot["cenas"]
     pos = 0
-    for c in rot["cenas"]:
+    for c in cenas:
+        c.pop("ate", None)
         alvo = norm(c.get("narracao", ""))
+        c["_pal"] = max(1, len(alvo))
         if not alvo:
             continue
-        fim = pos
+        fim, casou = pos, 0
         for p in alvo:  # anda na transcrição enquanto as palavras baterem
             achou = next((k for k in range(fim, min(len(faladas), fim + 14)) if faladas[k] == p), None)
             if achou is not None:
                 fim = achou + 1
-        if fim > pos:
+                casou += 1
+        if fim > pos and casou >= max(2, len(alvo) * 0.5):  # só ancora quando metade da frase bateu
             c["ate"] = round(words[min(fim, len(words)) - 1]["e"] + 0.12, 2)
             pos = fim
+
+    # as cenas que não casaram ficam entre as âncoras, proporcionais ao tamanho da fala delas
+    fim_total = round(words[-1]["e"] + 0.5, 2)
+    ini = 0.0
+    i = 0
+    while i < len(cenas):
+        if cenas[i].get("ate"):
+            ini = cenas[i]["ate"]
+            i += 1
+            continue
+        j = i
+        while j < len(cenas) and not cenas[j].get("ate"):
+            j += 1
+        prox = cenas[j]["ate"] if j < len(cenas) else fim_total
+        vao = max(0.6, prox - ini)
+        peso = sum(cenas[k]["_pal"] for k in range(i, j)) or 1
+        t = ini
+        for k in range(i, j):
+            t += vao * cenas[k]["_pal"] / peso
+            cenas[k]["ate"] = round(min(t, prox), 2)
+        ini = prox
+        i = j
+    for c in cenas:
+        c.pop("_pal", None)
 
 
 def som_sintetico(cat, destino):
@@ -527,11 +633,17 @@ def apura(serie, pasta_base, cfg, log=log):
 
 
 # ------------------------------------------------------------------ 4. um episódio inteiro
-def faz_episodio(serie_f, cfg, log=log, venceu="", rumo=""):
-    """venceu = "a"/"b" escolhido POR VOCÊ (em vez de contar os comentários); rumo = o que acontece, escrito por você"""
+def faz_episodio(serie_f, cfg, log=log, venceu="", rumo="", base="", refazer=0):
+    """venceu = "a"/"b" escolhido POR VOCÊ (em vez de contar os comentários); rumo = o que acontece, escrito por você;
+    base = um roteiro anterior (texto) para a IA seguir; refazer = N refaz o episódio N com o roteiro.json que está lá"""
     serie = {**SERIE_PADRAO, **(le_json(serie_f, {}) or {})}
-    base = Path(serie_f).parent
-    n = len(serie.get("episodios", [])) + 1
+    pasta_serie = Path(serie_f).parent
+    n = int(refazer) if refazer else len(serie.get("episodios", [])) + 1
+    if refazer:  # refazer = apaga voz, legendas e vídeo; o roteiro.json (que você editou) fica
+        job0 = pasta_serie / f"ep_{n:02d}"
+        for f0 in ("voz.wav", "words.json", "episodio.mp4", "episodio_sfx.mp4"):
+            (job0 / f0).unlink(missing_ok=True)
+        log(f"refazendo o episódio {n} com o roteiro que está em {job0 / 'roteiro.json'}")
     log(f"\n=== {serie.get('nome')} — episódio {n} ===")
     eps = serie.get("episodios", [])
     # o que VOCÊ mandou (no painel ou na linha de comando) vale mais que a apuração automática
@@ -543,19 +655,22 @@ def faz_episodio(serie_f, cfg, log=log, venceu="", rumo=""):
         eps[-1]["resultado"] = {"venceu": venceu, "texto": resultado, "por": "você"}
         log(f"continuação escolhida por você: {venceu.upper()} — {esc.get(venceu, '')}")
     else:
-        resultado = apura(serie, base, cfg, log)
+        resultado = apura(serie, pasta_serie, cfg, log)
     if rumo:
         log(f"rumo que você mandou: {rumo[:160]}")
     grava_json(serie_f, serie)
 
-    job = base / f"ep_{n:02d}"
+    job = pasta_serie / f"ep_{n:02d}"
     job.mkdir(parents=True, exist_ok=True)
     rot_f = job / "roteiro.json"
     rot = le_json(rot_f)
     if not rot:
         log("1/4 escrevendo o episódio...")
-        rot = escreve_episodio(serie, cfg, n, resultado, log, rumo)
+        rot = escreve_episodio({**serie, "_roteiro_base": base} if base else serie, cfg, n, resultado, log, rumo)
         rot["marca"] = cfg.get("marca") or f"@{(serie.get('conta') or '').split(':')[-1]}"
+        grava_json(rot_f, rot)
+    else:
+        fecha_com_escolha(rot)  # roteiro editado à mão sem a cartela A/B ganha a dela
         grava_json(rot_f, rot)
     log(f"    \"{rot.get('titulo', '')}\" — {len(rot['cenas'])} cenas")
 
@@ -603,8 +718,14 @@ def faz_episodio(serie_f, cfg, log=log, venceu="", rumo=""):
     esc = rot.get("escolha", {})
     legenda = rot.get("legenda_post") or f"{rot.get('titulo', '')}\n\n{esc.get('pergunta', '')}\nA: {esc.get('a', '')}\nB: {esc.get('b', '')}\n\nComenta A ou B 👇"
     (job / "post.txt").write_text(legenda, encoding="utf-8")
-    serie.setdefault("episodios", []).append({"n": n, "titulo": rot.get("titulo", ""), "resumo": rot.get("resumo", ""),
-                                              "escolha": esc, "arquivo": str(saida), "feito": dt.datetime.now().isoformat(timespec="minutes")})
+    reg = {"n": n, "titulo": rot.get("titulo", ""), "resumo": rot.get("resumo", ""), "escolha": esc,
+           "arquivo": str(saida), "feito": dt.datetime.now().isoformat(timespec="minutes")}
+    eps_l = serie.setdefault("episodios", [])
+    antigo = next((i for i, e in enumerate(eps_l) if e.get("n") == n), None)
+    if antigo is None:
+        eps_l.append(reg)
+    else:  # refazer: atualiza o episódio em vez de criar outro (e guarda o resultado da votação dele)
+        eps_l[antigo] = {**eps_l[antigo], **reg}
     grava_json(serie_f, serie)
     if cfg.get("auto_postar"):
         enfileira(saida, legenda, serie, cfg, log)
@@ -628,7 +749,21 @@ def enfileira(video, legenda, serie, cfg, log=log):
 
 
 # ------------------------------------------------------------------ 5. séries
-def nova_serie(pasta, ideia, conta, cfg, log=log):
+def apaga_serie(pasta, nome):
+    """apaga a série inteira (os testes que não servem mais) — pasta, episódios e vídeos"""
+    import shutil
+
+    alvo = Path(pasta) / "series" / nome
+    if not (alvo / "serie.json").exists():
+        alvo = next((f.parent for f in series(pasta) if slug(nome) in f.parent.name), None)
+    if not alvo or not alvo.exists():
+        return f"não achei a série \"{nome}\""
+    s = le_json(alvo / "serie.json", {}) or {}
+    shutil.rmtree(alvo, ignore_errors=True)
+    return f"apaguei a série \"{s.get('nome', alvo.name)}\" ({alvo})"
+
+
+def nova_serie(pasta, ideia, conta, cfg, log=log, contexto=""):
     """a IA monta o mundo e os personagens da série a partir de uma ideia sua"""
     from reels import gemini_json
 
@@ -642,7 +777,8 @@ Responda SÓ JSON: {{"nome": "<nome curto da série>", "tema": "<1 frase>",
                     temperatura=0.95)
     if not g or not g.get("nome"):
         raise RuntimeError("a IA não montou a série")
-    s = {**SERIE_PADRAO, **g, "conta": conta or (cfg.get("contas") or [""])[0], "ligada": True, "episodios": []}
+    s = {**SERIE_PADRAO, **g, "conta": conta or (cfg.get("contas") or [""])[0], "ligada": True, "episodios": [],
+         "contexto": contexto or ideia}
     f = Path(pasta) / "series" / slug(g["nome"]) / "serie.json"
     grava_json(f, s)
     log(f"série nova: {g['nome']} → {f}")
@@ -674,12 +810,37 @@ def main():
     ap.add_argument("--quantos", type=int, default=0, help="quantos episódios fazer (padrão: o por_dia do config)")
     ap.add_argument("--continuar", choices=["a", "b"], default="", help="a continuação é esta (em vez de contar os comentários)")
     ap.add_argument("--rumo", default="", help='o que acontece neste episódio, escrito por você (ex.: "entra um drone da prefeitura")')
+    ap.add_argument("--contexto", default="", help="grava o contexto da série (vale para todos os episódios)")
+    ap.add_argument("--base-roteiro", default="", help="arquivo com um roteiro anterior para a IA seguir")
+    ap.add_argument("--refazer", type=int, default=0, help="refaz o episódio N com o roteiro.json que está na pasta dele")
+    ap.add_argument("--apagar", action="store_true", help="APAGA a série (com --serie); pede o nome exato da pasta")
     a = ap.parse_args()
     pasta = Path(a.pasta)
     cfg = prepara(pasta)
     if a.novo:
-        nova_serie(pasta, a.novo, a.conta, cfg)
+        nova_serie(pasta, a.novo, a.conta, cfg, contexto=a.contexto)
         return
+    if a.apagar:
+        if not a.serie:
+            log("diga qual série apagar: --serie <pasta> --apagar")
+            return
+        log(apaga_serie(pasta, a.serie))
+        return
+    if a.contexto and a.serie:
+        f = pasta / "series" / slug(a.serie) / "serie.json"
+        f = f if f.exists() else next((x for x in series(pasta) if slug(a.serie) in x.parent.name), None)
+        if not f:
+            log("não achei essa série")
+            return
+        s = le_json(f, {}) or {}
+        s["contexto"] = a.contexto
+        grava_json(f, s)
+        log(f"contexto gravado em {f}")
+        return
+    base_rot = ""
+    if a.base_roteiro and Path(a.base_roteiro).exists():
+        base_rot = Path(a.base_roteiro).read_text(encoding="utf-8-sig")[:8000]
+        log(f"seguindo o roteiro base: {a.base_roteiro}")
     fs = [f for f in series(pasta) if not a.serie or slug(a.serie) in f.parent.name]
     if not fs:
         log(f"nenhuma série em {pasta / 'series'}. Crie uma:\n"
@@ -698,7 +859,7 @@ def main():
         if feitos >= limite:
             break
         try:
-            faz_episodio(f, cfg, venceu=a.continuar, rumo=a.rumo)
+            faz_episodio(f, cfg, venceu=a.continuar, rumo=a.rumo, base=base_rot, refazer=a.refazer)
             feitos += 1
         except Exception as e:
             log(f"{f.parent.name}: {str(e)[:300]}")

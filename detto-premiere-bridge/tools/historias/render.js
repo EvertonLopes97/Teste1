@@ -58,20 +58,38 @@ const arg = (nome, padrao = "") => {
   return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : padrao;
 };
 
-/** as legendas: 2 a 4 palavras por vez, a partir das palavras com tempo da narração */
+/* palavras que não podem FECHAR uma legenda: ninguém lê "NÃO CORRA PARA A" e entende — elas puxam a seguinte */
+const FRACAS = new Set(("a as o os um uma uns umas de do da dos das em no na nos nas ao aos à às para pra por pelo pela "
+  + "com sem sob sobre entre e ou que se mas porque quando onde como até seu sua seus suas meu minha o's").split(" "));
+
+/** as legendas: 2 a 4 palavras por vez, quebrando em lugar que dá para ler (pontuação, nunca em palavra fraca) */
 function blocosLegenda(words, maxPal = 4, maxSeg = 2.2) {
   const out = [];
   let atual = [];
-  for (const w of words) {
+  const limpa = (w) => String(w || "").toLowerCase().replace(/[^\wÀ-ÿ]/g, "");
+  for (const [i, w] of words.entries()) {
     atual.push(w);
     const dur = atual[atual.length - 1].e - atual[0].s;
-    const fim = /[.!?,;:]$/.test(w.w);
-    if (atual.length >= maxPal || dur >= maxSeg || fim) {
+    const pont = /[.!?,;:]$/.test(w.w);
+    const ultimo = i === words.length - 1;
+    let fecha = pont || atual.length >= maxPal || dur >= maxSeg;
+    // não fecha em palavra fraca (a, de, para…) nem deixa a próxima sozinha
+    if (fecha && !pont && !ultimo && (FRACAS.has(limpa(w.w)) || atual.length < 2) && atual.length < maxPal + 2) fecha = false;
+    if (fecha || ultimo) {
       out.push({ s: atual[0].s, e: atual[atual.length - 1].e, txt: atual.map((x) => x.w).join(" ") });
       atual = [];
     }
   }
   if (atual.length) out.push({ s: atual[0].s, e: atual[atual.length - 1].e, txt: atual.map((x) => x.w).join(" ") });
+  // bloco de uma palavra só pisca na tela: junta com o anterior
+  for (let i = out.length - 1; i > 0; i--) {
+    if (out[i].txt.trim().split(/\s+/).length === 1 && out[i - 1].txt.split(/\s+/).length <= 4) {
+      out[i - 1] = { s: out[i - 1].s, e: out[i].e, txt: `${out[i - 1].txt} ${out[i].txt}` };
+      out.splice(i, 1);
+    }
+  }
+  // a legenda fica na tela até a próxima entrar: sem buraco, a leitura acompanha a fala
+  for (const [i, b] of out.entries()) b.ate = i + 1 < out.length ? out[i + 1].s - 0.02 : b.e + 0.5;
   return out;
 }
 
@@ -122,7 +140,10 @@ async function main() {
     if (c._fim <= c._ini + 0.3) c._fim = c._ini + 0.9;
     t0 = c._fim;
   }
-  cenas[cenas.length - 1]._fim = Math.max(cenas[cenas.length - 1]._fim, durAudio);
+  const fim = cenas[cenas.length - 1];
+  fim._fim = Math.max(fim._fim, durAudio);
+  // a cartela A/B precisa de tempo na tela para o público ler e comentar
+  if (fim.escolha) fim._fim = Math.max(fim._fim, fim._ini + 5, durAudio + 1.2);
 
   const { chromium } = playwright();
   const browser = await chromium.launch({ executablePath: chromiumPath(), args: ["--font-render-hinting=none", "--allow-file-access-from-files"] });
@@ -155,7 +176,7 @@ async function main() {
     }
     const c = cenas[idx];
     await page.evaluate(({ p, tt }) => window.CENA.anima(p, tt), { p: (t - c._ini) / Math.max(0.3, c._fim - c._ini), tt: t });
-    const bloco = legendas.find((b) => t >= b.s - 0.05 && t <= b.e + 0.12);
+    const bloco = legendas.find((b) => t >= b.s - 0.05 && t <= b.ate);
     // na cartela A/B a legenda sai: quem lê são os dois cards
     const txt = c.escolha ? "" : bloco ? bloco.txt : c.legenda_fixa || "";
     if (txt !== legAtual) {
