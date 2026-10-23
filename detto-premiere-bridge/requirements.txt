@@ -1,0 +1,14 @@
+# pip install -r requirements.txt   (Python 3.11)
+numpy
+opencv-python
+pillow
+scipy
+mediapipe
+faster-whisper
+yt-dlp
+curl_cffi
+google-api-python-client
+google-auth-oauthlib
+# opcionais
+# rembg            (recorte de fotos com fundo — Galo)
+# chatterbox-tts   (voz clonada — canal de notícias; baixa ~3 GB na 1ª vez)

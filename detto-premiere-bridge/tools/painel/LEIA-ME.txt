@@ -1,0 +1,89 @@
+PAINEL DETTO — LEIA-ME
+
+==================== LIGAR (uma vez só) ====================
+PowerShell:
+   cd C:\Users\guebe\Teste1
+   git pull
+   cd detto-premiere-bridge
+   python tools\painel\painel.py              (teste: abre no navegador; Ctrl+C fecha)
+   python tools\painel\painel.py --instalar   (liga sozinho com o Windows + atalho "Painel DETTO")
+Firewall perguntando: marque "Redes privadas" → Permitir (é o que deixa abrir pelo celular).
+Endereço: http://localhost:8730
+
+==================== CONFIGURAÇÕES (uma vez só) ====================
+1. Chave do app da Meta (como criar: tools\postar\LEIA-ME.txt) → ID + chave secreta → Salvar.
+   TikTok NÃO precisa de app nem de login: é pelo TikTok Studio (veja abaixo).
+2. Login do Instagram → "Conectar" (abre o navegador NO PC; entre no Facebook dono da página e autorize).
+3. PIN do celular (4 a 8 números) → no celular, no mesmo Wi-Fi, abra o endereço mostrado ali → "Adicionar à tela inicial".
+4. PC: Configurações do Windows → Sistema → Energia → Suspender = Nunca (na tomada). Desligado/dormindo não posta.
+
+==================== ABA EDIÇÃO ====================
+Escolha o TIPO no topo:
+  🎬 Vídeo com roteiro ........ sua gravação lendo o roteiro → horizontal (YouTube), vertical completo, cortes 9:16,
+                                 thumbs. Mande: a gravação + o roteiro (.txt/.docx ou colado; sem roteiro o Gemini
+                                 escreve) + imagens (camisa = nome do time: Vasco.jpg). Opções: teste 1 min, sem lances,
+                                 sem thumbs, sem cortes, 60/30 fps, volume dos efeitos.
+  🐓 Galo — bater nos jogadores  gravação no estádio → os jogadores entram ao seu lado, você bate/passa/joga longe
+                                 (lê seus gestos). Jogo (ex.: "Atletico Mineiro Cruzeiro") = notas do SofaScore:
+                                 quem apanha = pior nota. Sai em 9:16, sem música.
+  📺 DETTO REAGE .............. 3 vídeos: sua câmera, a gravação da tela (com as pausas) e o original. Título da faixa
+                                 e formato (horizontal/vertical). Bata uma palma no começo (ajuda a sincronizar).
+  📱 Vertical de vídeo pronto .. vídeo já editado em 16:9 → 9:16 com recorte no rosto (gráfico grande + você no canto,
+                                 só o gráfico, ou metade/metade); pode cortar em partes de 60/90 s.
+  🎥 Vlog ....................... os clipes do dia (pasta do Google Drive, caminho no PC ou arrastados) viram o vlog:
+                                 cor certa (HDR→SDR), ordem de gravação, gancho no começo, cortes sem silêncio/enrolação,
+                                 cenas de apoio, transições (chicote, zoom, flash, fade), textos na tela, efeitos sonoros e
+                                 trilha por CLIMA (E:\DETTO\musicas\animado, tranquilo, engracado, emocionante, tenso,
+                                 epico). Estilo (texto livre), formato, duração alvo, legendas. "Refazer (mesmo roteiro)"
+                                 usa o plano.json da pasta saidas (se você ajustou); "Refazer do zero" monta de novo.
+GOOGLE DRIVE: instale o "Google Drive para computador" e crie Meu Drive\DETTO\vlogs\<nome do vlog>\ — suba os
+  clipes pelo celular (app do Drive) e eles aparecem na lista da aba Edição. Pasta do Drive diferente: Configurações.
+COR (HDR do iPhone): tudo agora é convertido para SDR ANTES de editar, com o mesmo critério do CapCut/iPhone (branco
+  do HLG em 203 nits) — não precisa mais passar pelo CapCut. Avulso: python tools\sdr.py "video.MOV" (ou a pasta).
+Vídeo: arraste/escolha OU cole o caminho no PC (não copia, é mais rápido).
+"Quando ficar pronto, mandar para a fila de": marque as contas e o vídeo já entra na fila de postagem.
+Uma edição por vez; o resto espera. Pronto → ▶ assistir, ⬇ baixar, "Postar" (escolhe as contas + legenda).
+Roteiro: "Ajustar roteiro e refazer" (não transcreve de novo). Galo: "Refazer lendo os gestos de novo".
+Pasta: E:\DETTO\edicao\<data título>\. Disco cheio → "Apagar" nas edições velhas.
+
+==================== ABA POSTAGEM ====================
+Enviar vídeos: arraste, marque as contas e a legenda → cai na fila certa.
+Cada conta: liga/desliga, de quanto em quanto tempo posta, das X às Y horas, máximo por dia.
+Fila: ↑ ↓ ordem, ✎ ver/editar legenda (e mandar para outra conta), 🚀 posta já, ✕ tira.
+REELS TESTE (Instagram, ligado): vai só para quem não te segue. O painel mostra as views e avisa (🔥) quando bate a
+  meta → abra o reel no app → "Compartilhar com seguidores" → no painel "Já mandei". (O Instagram não deixa a API
+  fazer esse passo.) "O Instagram decide" = ele manda sozinho se for bem.
+FACEBOOK TAMBÉM (cartão do Instagram, ligado): cada vídeo do Instagram vai em seguida para a página do Facebook
+  (Reels). Precisa da permissão pages_manage_posts e de conectar o Instagram de novo — passo a passo em
+  tools\postar\LEIA-ME.txt, parte 1b. Falhou = aviso vermelho no cartão e nova tentativa sozinha (até 3).
+TIKTOK (@detto.galo e @detto.tv) = pelo TIKTOK STUDIO (o TikTok não aprova app para postar nas próprias contas;
+  o agendador do Studio é oficial). Cada vídeo da fila mostra "agendar: sex 16/10 08:00" (pelo intervalo, horário e
+  máximo por dia da conta; até 10 dias à frente).
+  1. "Preparar pasta" → abre E:\DETTO\postar\tiktok_studio\<conta>\ com os vídeos numerados com dia e hora
+     ("01 - 16-10 08h00 - nome.mp4") + "LEGENDAS - <conta>.txt".
+  2. "Abrir o TikTok Studio" (entre na conta certa) → Enviar → escolha o arquivo → cole a legenda do LEGENDAS.txt →
+     Agendar → a data e a hora do nome do arquivo. Repita para cada um (uma vez por semana resolve).
+  3. No painel: "✔ Agendei os N da pasta" (ou o ✔ de cada vídeo). Eles saem da fila e o próximo horário continua dali.
+  Também dá para baixar (⬇) e copiar a legenda (📋) de cada vídeo direto pelo celular.
+
+==================== ABA REELS AUTOMÁTICOS ====================
+LINKS: cole um ou VÁRIOS links (TikTok/Insta/YouTube, um por linha) → "Pôr na lista". Com "Fazer os links da lista
+sozinho" ligado, o PC faz um atrás do outro (igual ao original, só a pessoa vira você) e cada reel pronto já entra na
+fila das contas marcadas. A lista e os "Links já feitos" (✔/✖) aparecem ao lado. "Fazer o 1º agora" = só o primeiro,
+com o começo e o modo que você escolher. "Gerar N reels" busca virais sozinho.
+Começos com nome do que você faz ("cruzando os braços.mov") são mais rápidos que "IMG_7442" (o Gemini precisa assistir).
+Começos novos: aba Postagem → Enviar vídeos → "Começo de reel" (o nome diz o que você faz).
+Ou pelo celular: suba as gravações numa pasta "Começo" no Google Drive (raiz do Meu Drive). A cada 10 min o PC puxa
+as novas, o Gemini dá o nome do que você faz (e o melhor trecho, se a gravação for longa), renomeia no Drive também
+e deixa em inicios\ prontas para os reels.
+
+==================== ABA CANAIS (YouTube automático) ====================
+Dois canais: NOTÍCIAS (Galo da imprensa + sua voz clonada + máscara; PAUTAS = outras notícias quando quiser: link,
+arquivo do PC ou assunto) e VLOGS (pasta no Drive Meu Drive\DETTO\canal_vlogs\<vlog> → editor de vlog). Os dois fazem
+vídeo longo + Shorts. Uma vez: credencial do Google ("Mande o arquivo aqui") e "Conectar" em cada canal (escolha o
+canal certo no login). "Ligado" = roda sozinho; "Postar sozinho" desligado = espera você assistir e "Aprovar e
+postar" (dá para mudar título, descrição e tags). Passo a passo: tools\canal\LEIA-ME.txt.
+
+==================== DEU PROBLEMA ====================
+Não abre (conexão recusada): rode  python tools\painel\painel.py  e mande o print do erro.
+Desligar o início automático:  python tools\painel\painel.py --desinstalar

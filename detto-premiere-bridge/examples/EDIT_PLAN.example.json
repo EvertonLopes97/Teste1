@@ -1,0 +1,37 @@
+{
+  "version": "1.0",
+  "job_id": "job-001",
+  "project": {
+    "name": "detto-video-001",
+    "fps": 30,
+    "width": 1920,
+    "height": 1080
+  },
+  "media": [
+    { "id": "camera_001", "path": "C:/videos/camera001.mp4", "duration": 120 },
+    { "id": "broll_001", "path": "C:/videos/broll001.mp4" }
+  ],
+  "sequence": {
+    "name": "DETTO_MASTER",
+    "width": 1920,
+    "height": 1080,
+    "fps": 30
+  },
+  "cuts": [
+    { "id": "cut_001", "source": "camera_001", "start": 0, "end": 4.3, "timeline": 0 },
+    { "id": "cut_002", "source": "camera_001", "start": 10, "end": 18.5, "timeline": 4.3 },
+    { "id": "cut_003", "source": "broll_001", "start": 2, "end": 5, "timeline": 6, "track": "B-ROLL", "audioTrack": "AMBIENCE" }
+  ],
+  "markers": [
+    { "time": 12.4, "name": "PLAYER_MENTION", "color": "red", "comment": "Jogador citado" }
+  ],
+  "graphics": [
+    { "type": "headline", "start": 12.4, "duration": 2, "text": "AS 5 CAMISAS MAIS NOVAS" }
+  ],
+  "vfx": [
+    { "name": "ZOOM_PUNCH_IN", "start": 4.3, "duration": 0.5, "description": "Punch-in 110% no corte" }
+  ],
+  "effects": [
+    { "name": "Lumetri Color", "target": "cut_001" }
+  ]
+}

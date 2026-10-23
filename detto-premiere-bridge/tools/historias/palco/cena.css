@@ -1,0 +1,211 @@
+/* PALCO DAS HISTÓRIAS — 1080x1920. O visual segue os reels que viralizaram:
+   ilustração chapada, legenda GRANDE em caixa alta embaixo (palavra-chave colorida) e relógio no alto. */
+* {
+  margin: 0;
+  box-sizing: border-box;
+}
+body {
+  width: 1080px;
+  height: 1920px;
+  overflow: hidden;
+  background: #000;
+}
+#palco {
+  position: relative;
+  width: 1080px;
+  height: 1920px;
+  overflow: hidden;
+  font-family: Anton, Inter, system-ui, sans-serif;
+}
+/* duas camadas: o cenário (desenhado 1x por cena) e os atores (redesenhados a cada quadro) */
+#fundo,
+#atores {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
+  will-change: transform;
+}
+#atores {
+  z-index: 2;
+}
+#fundo svg,
+#atores svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* relógio / contador / selo, no alto */
+#topo {
+  position: absolute;
+  top: 70px;
+  left: 0;
+  right: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  z-index: 3;
+}
+#topo .hora {
+  font-size: 104px;
+  line-height: 1;
+  color: #fff;
+  letter-spacing: 2px;
+  text-shadow: 0 6px 0 rgba(0, 0, 0, 0.55), 0 0 36px rgba(0, 0, 0, 0.6);
+}
+#topo .selo {
+  font-size: 34px;
+  background: #c0392b;
+  color: #fff;
+  padding: 8px 20px 5px;
+  border-radius: 7px;
+  letter-spacing: 2px;
+  box-shadow: 0 5px 0 rgba(0, 0, 0, 0.45);
+}
+#topo .cont {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(10, 12, 16, 0.82);
+  border: 3px solid rgba(255, 255, 255, 0.22);
+  border-radius: 14px;
+  padding: 10px 22px 8px;
+}
+#topo .cont b {
+  font-size: 62px;
+  line-height: 1;
+  color: #ffd400;
+  font-weight: 400;
+}
+#topo .cont span {
+  font-family: Inter, sans-serif;
+  font-weight: 800;
+  font-size: 19px;
+  color: #cdd4dc;
+  letter-spacing: 1.5px;
+  margin-top: 4px;
+}
+
+/* onomatopeia (PLIC..., TRRRUM!) */
+#ono {
+  position: absolute;
+  display: none;
+  font-size: 86px;
+  color: #fff;
+  letter-spacing: 2px;
+  transform: rotate(-7deg);
+  text-shadow: 0 6px 0 #000, 0 0 30px rgba(0, 0, 0, 0.7);
+  z-index: 3;
+}
+
+/* CARTELA DE ESCOLHA — o fim de todo episódio. É ela que traz o comentário (e o episódio seguinte). */
+#escolha {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 30px;
+  padding: 0 48px;
+  background: rgba(8, 10, 14, 0.88);
+  z-index: 5;
+}
+#escolha .perg {
+  font-size: 96px;
+  line-height: 1.0;
+  color: #fff;
+  text-align: center;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  -webkit-text-stroke: 10px #000;
+  paint-order: stroke fill;
+  text-shadow: 0 9px 0 #000;
+  margin-bottom: 18px;
+}
+/* os dois blocos GRANDES — é assim nos virais: a tela inteira vira a escolha */
+#escolha .op {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  width: 100%;
+  min-height: 320px;
+  border-radius: 34px;
+  padding: 34px 44px;
+  box-shadow: 0 14px 0 rgba(0, 0, 0, 0.5);
+  background: #ffc21f;
+}
+#escolha .op.b {
+  background: #e8623c;
+}
+#escolha .op i {
+  font-style: normal;
+  font-size: 150px;
+  line-height: 0.9;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.78);
+  border-radius: 26px;
+  padding: 26px 38px 16px;
+  flex: 0 0 auto;
+}
+#escolha .op span {
+  font-size: 70px;
+  line-height: 1.02;
+  color: #15171b;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+#escolha .op.b span {
+  color: #fff;
+  -webkit-text-stroke: 5px rgba(0, 0, 0, 0.45);
+  paint-order: stroke fill;
+}
+#escolha .cta {
+  font-size: 68px;
+  color: #fff;
+  letter-spacing: 3px;
+  text-align: center;
+  margin-top: 14px;
+  text-shadow: 0 8px 0 #000;
+}
+#escolha .cta b {
+  color: #ffc21f;
+  font-weight: 400;
+}
+
+/* legenda grande — o jeito dos virais: caixa alta, 2 a 4 palavras, uma colorida */
+#leg {
+  position: absolute;
+  left: 60px;
+  right: 60px;
+  bottom: 360px;
+  display: none;
+  text-align: center;
+  font-size: 92px;
+  line-height: 1.04;
+  color: #fff;
+  letter-spacing: 1px;
+  -webkit-text-stroke: 11px #000;
+  paint-order: stroke fill;
+  text-shadow: 0 8px 0 #000, 0 10px 34px rgba(0, 0, 0, 0.55);
+  z-index: 4;
+}
+#leg em {
+  font-style: normal;
+  color: #ffd400;
+}
+
+#marca {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 96px;
+  text-align: center;
+  font-family: Inter, sans-serif;
+  font-weight: 900;
+  font-size: 26px;
+  letter-spacing: 3px;
+  color: rgba(255, 255, 255, 0.55);
+  z-index: 4;
+}
