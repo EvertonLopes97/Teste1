@@ -138,7 +138,9 @@ def estado():
              "login": (p / "token.json").exists(), "canal_yt": el.get("canal_yt", ""), "ultimo": el.get("ultimo", ""),
              "rodando": PESADO["id"] == c and ocupado(), "postando": POSTANDO["o_que"] if POSTANDO["o_que"].startswith(c) else "",
              "prontos": prs, "esperando": sum(1 for x in prs if x["status"] == "aguardando"),
-             "log": _tail(p / "canal.log"), "shorts": cf.get("shorts", 2), "privacidade": cf.get("privacidade", "public")}
+             "log": _tail(p / "canal.log"), "shorts": cf.get("shorts", 2), "privacidade": cf.get("privacidade", "public"),
+             "mesclar_assunto": bool(cf.get("mesclar_assunto", False)),
+             "campeonatos_ligado": bool(cf.get("campeonatos_ligado", True))}
         if c == "noticias":
             pf = p / "pautas.txt"
             x["pautas"] = [l.strip() for l in pf.read_text(encoding="utf-8").splitlines() if l.strip() and not l.startswith("#")] if pf.exists() else []
@@ -211,7 +213,7 @@ def acao(nome, d):
             grava_estado(c, ligado=bool(d["ligado"]))
 
         def muda(x):
-            for k in ("auto_postar",):
+            for k in ("auto_postar", "mesclar_assunto", "campeonatos_ligado"):
                 if k in d:
                     x[k] = bool(d[k])
             for k in ("shorts", "duracao", "duracao_alvo_min", "max_videos_dia"):

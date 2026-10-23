@@ -94,7 +94,18 @@ def pronuncia(texto):
     "2 x 1" → "dois a um", "6º" → "sexto", "8,3" → "oito vírgula três", "33'" → "trinta e três minutos", "R$ 10 milhões"."""
     t = f" {texto} "
     t = re.sub(r"(\d+)\s*[xX×]\s*(\d+)", lambda m: f"{m.group(1)} a {m.group(2)}", t)
-    t = re.sub(r"R\$\s*([\d.,]+)\s*(milhões|milhão|bilhões|bilhão|mil\b)?", lambda m: f"{m.group(1)} {(m.group(2) + ' de') if m.group(2) and m.group(2) != 'mil' else (m.group(2) or '')} reais", t)
+    # HORA: "20h30" → "oito e meia da noite"/"vinte e trinta"; "8h" → "oito horas" (a voz lia "vinte agá trinta")
+    def _hora(m):
+        h, mi = int(m.group(1)), int(m.group(2) or 0)
+        hh = por_extenso(str(h if h <= 12 else h - 12))
+        if not mi:
+            return f"{hh} {'hora' if h in (1, 13) else 'horas'}"
+        return f"{hh} e meia" if mi == 30 else f"{hh} e {por_extenso(str(mi))}"
+    t = re.sub(r"\b(\d{1,2})\s*[hH]\s*(\d{2})?\b(?!\w)", _hora, t)
+    # MENOS: subsolo -2, -3 graus (o traço virava parte da palavra)
+    t = re.sub(r"(?<![\w.,])-\s*(\d)", lambda m: f"menos {m.group(1)}", t)
+    t = re.sub(r"R\$\s*(\d+(?:[.,]\d+)*)\s*(milhões|milhão|bilhões|bilhão|mil\b)?",
+               lambda m: f"{m.group(1)} {(m.group(2) + ' de') if m.group(2) and m.group(2) != 'mil' else (m.group(2) or '')} reais ", t)
     t = re.sub(r"(?<=\w)\s+[xX]\s+(?=\w)", " contra ", t)
     t = re.sub(r"(\d+)\s*[ºª°]", lambda m: ordinal(m.group(1)), t)
     t = re.sub(r"(\d+)\s*'", lambda m: por_extenso(m.group(1)) + " minutos", t)
@@ -115,6 +126,7 @@ def pronuncia(texto):
         t = re.sub(r"\b[A-Z]{2,5}\b", sigla, t)
     else:
         t = t.capitalize()
+    t = re.sub(r"\s+([,.!?;:])", r"\1", t)   # "reais ." → "reais."
     return re.sub(r"\s+", " ", t).strip()
 
 

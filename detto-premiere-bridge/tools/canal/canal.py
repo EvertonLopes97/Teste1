@@ -93,9 +93,12 @@ CONFIG_PADRAO = {
     "buscar_original": True,  # trecho de canal que JUNTA notícias → baixa do vídeo original (crédito para quem fez)
     "original_max_candidatos": 6,
     "parecido_max": 0.35,  # notícia repetida (o mesmo assunto em 2 canais / já postada) fica de fora
-    # Assunto JÁ POSTADO HOJE: não pode ser o foco do vídeo novo, mas pode voltar como notícia secundária (no máximo
-    # `max_repetidas` por vídeo, sempre no fim). Postado em dias anteriores continua fora.
+    # Assunto JÁ POSTADO HOJE: só volta (como notícia secundária, nunca no título/thumb) quando VOCÊ liga a mesclagem
+    # no painel E a notícia traz FATO NOVO de verdade — nota alta e palavras que não estavam no que já foi postado.
+    "mesclar_assunto": False,
     "max_repetidas": 1,
+    "mesclar_nota_min": 7.0,      # abaixo disso não é fato relevante, é a mesma notícia de novo
+    "mesclar_novidade_min": 0.35,  # quanto do assunto precisa ser palavra NOVA
     # OS PRINCIPAIS CAMPEONATOS: em dia de Libertadores, Champions etc., o vídeo também dá a volta pelo mundo.
     # Entram DEPOIS das notícias do Galo e no máximo `max_trechos_campeonato` por vídeo.
     "campeonatos_ligado": True,
@@ -428,6 +431,18 @@ def parecido(a, b):
     if not A or not B:
         return 0.0
     return len(A & B) / min(len(A), len(B))
+
+
+def novidade(tx, postados):
+    """0..1: quanto do assunto é FATO NOVO — palavras que não apareceram em nada que já foi postado hoje.
+    É o que separa "a mesma notícia de novo" de "a notícia andou"."""
+    A = _palavras_chave(tx)
+    if not A:
+        return 0.0
+    velhas = set()
+    for p in postados:
+        velhas |= _palavras_chave(p)
+    return len(A - velhas) / len(A)
 
 
 def fim_de_frase(words, ini, alvo):
@@ -1546,16 +1561,28 @@ def main():
         por_video[x["video"]] = por_video.get(x["video"], 0) + 1
         sel.append(x)
         tot += x["fim"] - x["ini"]
-    # o assunto que já saiu hoje pode voltar como notícia SECUNDÁRIA (nunca como foco) e só uma vez
+    # o assunto que já saiu hoje só volta se VOCÊ ligou a mesclagem no painel E a notícia trouxe FATO NOVO
+    if adiadas and not cfg.get("mesclar_assunto"):
+        log(f"   {len(adiadas)} trecho(s) do assunto que já saiu hoje ficaram de fora "
+            "(ligue \"Mesclar assunto do dia\" no painel para eles voltarem como notícia secundária)")
+        adiadas = []
     for x in adiadas:
         if not sel or n_rep >= int(cfg.get("max_repetidas", 1)) or total_estimado() >= alvo:
             break
-        if any(parecido(x.get("texto") or x.get("manchete", ""), y.get("texto") or y.get("manchete", "")) >= lim_p for y in sel):
+        tx = x.get("texto") or x.get("manchete", "")
+        if any(parecido(tx, y.get("texto") or y.get("manchete", "")) >= lim_p for y in sel):
+            continue
+        nota = float(x.get("nota", 5))
+        nov = novidade(tx, hoje_txt)
+        if nota < float(cfg.get("mesclar_nota_min", 7)) or nov < float(cfg.get("mesclar_novidade_min", 0.35)):
+            log(f"   mesclagem recusada ({x.get('manchete', '')[:40]}): nota {nota:.0f}, fato novo {nov * 100:.0f}% "
+                "— é a mesma notícia, não entra")
             continue
         x["repetida"] = True
         n_rep += 1
         sel.append(x)
         tot += x["fim"] - x["ini"]
+        log(f"   mesclado: \"{x.get('manchete', '')[:46]}\" ({nov * 100:.0f}% de fato novo)")
     # ordem no vídeo: pautas → notícias novas do Galo (da mais nova para a mais antiga) → o assunto que já saiu hoje
     # → a volta pelo mundo (campeonatos). O FOCO (título e thumb) é sempre o primeiro, nunca um assunto repetido.
     def grupo(x):

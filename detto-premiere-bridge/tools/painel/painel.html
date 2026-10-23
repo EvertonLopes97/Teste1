@@ -506,7 +506,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-10-22f";
+const VERSAO_TELA = "2026-10-23a";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -998,6 +998,9 @@ function cardCanal(c, x){
     <div class="linha">${login}</div>
     <div class="chave"><span><b>Ligado</b><small>${c === "noticias" ? "Monta sozinho a cada 2 h (8h às 23h), com as notícias do dia e as suas pautas" : "Olha a pasta do Drive a cada 10 min e monta os vlogs novos"}</small></span>${sw(c, "ligado", x.ligado)}</div>
     <div class="chave"><span><b>Postar sozinho</b><small>${x.auto_postar ? "Posta assim que fica pronto (vídeo + Shorts a cada 3 h)" : "Desligado: espera você assistir e aprovar aqui embaixo"}</small></span>${sw(c, "auto_postar", x.auto_postar)}</div>
+    ${c === "noticias" ? `
+    <div class="chave"><span><b>Mesclar assunto do dia</b><small>${x.mesclar_assunto ? "Um assunto que já saiu hoje pode voltar como notícia secundária — só com FATO NOVO (nota alta e informação que não estava no vídeo anterior). Nunca vira título nem thumb." : "Desligado: o que já saiu hoje fica de fora do próximo vídeo"}</small></span>${sw(c, "mesclar_assunto", x.mesclar_assunto)}</div>
+    <div class="chave"><span><b>A volta pelo mundo</b><small>${x.campeonatos_ligado ? "Em dia de Libertadores, Champions, Copa do Brasil ou rodada, entram 2 trechos no fim do vídeo" : "Desligado: só notícia do Galo"}</small></span>${sw(c, "campeonatos_ligado", x.campeonatos_ligado)}</div>` : ""}
     ${esp}
     <h2 style="margin:16px 0 8px">Vídeos ${x.esperando ? `<span class="st aguardando">${x.esperando} esperando você</span>` : ""}</h2>
     <div class="fila">${prs || `<div class="vazio">Nenhum vídeo montado ainda.</div>`}</div>

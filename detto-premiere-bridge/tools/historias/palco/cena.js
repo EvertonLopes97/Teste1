@@ -29,6 +29,22 @@ const LUZ = {
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const r2 = (n) => Math.round(n * 10) / 10;
 
+/* quebra um texto em linhas de no máximo `max` letras (sem cortar palavra) */
+function quebra(txt, max = 13) {
+  const out = [];
+  let linha = "";
+  for (const p of String(txt || "").trim().split(/\s+/)) {
+    if (!linha) linha = p;
+    else if ((linha + " " + p).length <= max) linha += " " + p;
+    else {
+      out.push(linha);
+      linha = p;
+    }
+  }
+  if (linha) out.push(linha);
+  return out;
+}
+
 /* clareia/escurece uma cor #rrggbb (para a faixa do cabelo, a sombra da roupa etc.) */
 function tom(hex, k) {
   const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
@@ -292,12 +308,67 @@ const OBJ = {
       <ellipse cx="${x}" cy="${y - 54 * s}" rx="${8 * s / f}" ry="${15 * s * f}" fill="#ffb648"/>
       <ellipse cx="${x}" cy="${y - 50 * s}" rx="${4 * s / f}" ry="${8 * s * f}" fill="#fff2b8"/>`;
   },
+  /* celular com a TELA LEGÍVEL: a mensagem é o que a cena está contando, então ela ocupa a tela inteira */
   celular: (x, y, s, o, t) => {
-    const pisca = o.alerta ? (Math.sin(t * 6) > -0.2 ? 1 : 0.25) : 1;
-    return `<rect x="${x - 52 * s}" y="${y - 104 * s}" width="${104 * s}" height="${196 * s}" rx="${16 * s}" fill="#1b1f27" stroke="#3b4350" stroke-width="${3 * s}"/>
-      <rect x="${x - 44 * s}" y="${y - 94 * s}" width="${88 * s}" height="${176 * s}" rx="${10 * s}" fill="${o.extra ? "#2a1013" : "#0e1117"}"/>
-      ${o.extra ? `<g opacity="${pisca}"><rect x="${x - 38 * s}" y="${y - 70 * s}" width="${76 * s}" height="${44 * s}" rx="${7 * s}" fill="#c0392b"/>
-        <text x="${x}" y="${y - 44 * s}" text-anchor="middle" font-family="Inter,sans-serif" font-weight="900" font-size="${14 * s}" fill="#fff">${esc(o.extra)}</text></g>` : ""}`;
+    const pisca = o.alerta ? (Math.sin(t * 6) > -0.2 ? 1 : 0.42) : 1;
+    const linhas = quebra(String(o.extra || ""), 11).slice(0, 4);
+    const fs = 13.5 * s;
+    const topo = y - 94 * s;
+    return `<rect x="${x - 52 * s}" y="${y - 104 * s}" width="${104 * s}" height="${196 * s}" rx="${16 * s}" fill="#15181e" stroke="#434b58" stroke-width="${3 * s}"/>
+      <rect x="${x - 44 * s}" y="${topo}" width="${88 * s}" height="${176 * s}" rx="${9 * s}" fill="${o.extra ? "#1d1013" : "#0e1117"}"/>
+      ${o.extra ? `<g opacity="${pisca}">
+        <rect x="${x - 44 * s}" y="${topo}" width="${88 * s}" height="${30 * s}" rx="${9 * s}" fill="#c0392b"/>
+        <rect x="${x - 44 * s}" y="${topo + 20 * s}" width="${88 * s}" height="${10 * s}" fill="#c0392b"/>
+        <text x="${x}" y="${topo + 21 * s}" text-anchor="middle" font-family="Anton,sans-serif" font-size="${19 * s}" fill="#fff" letter-spacing="${1 * s}">ALERTA</text>
+        ${linhas.map((l, i) => `<text x="${x}" y="${topo + (54 + i * 18) * s}" text-anchor="middle" font-family="Inter,sans-serif" font-weight="900" font-size="${fs}" fill="#ffd8d0">${esc(l)}</text>`).join("")}
+        <circle cx="${x}" cy="${topo + 148 * s}" r="${13 * s}" fill="#c0392b"/>
+        <text x="${x}" y="${topo + 155 * s}" text-anchor="middle" font-family="Anton,sans-serif" font-size="${18 * s}" fill="#fff">!</text></g>`
+      : `<rect x="${x - 30 * s}" y="${y - 10 * s}" width="${60 * s}" height="${5 * s}" rx="${2.5 * s}" fill="#2a3039"/>`}`;
+  },
+  /* quadro de luz / interruptor na parede (o "apaga a luz" da história) */
+  interruptor: (x, y, s, o, t) => {
+    const luz = o.travado ? (Math.sin(t * 8) > 0 ? "#c0392b" : "#6e2019") : "#4b8b5a";
+    return `<rect x="${x - 46 * s}" y="${y - 62 * s}" width="${92 * s}" height="${124 * s}" rx="${8 * s}" fill="#e6e2d7"/>
+      <rect x="${x - 46 * s}" y="${y - 62 * s}" width="${92 * s}" height="${124 * s}" rx="${8 * s}" fill="none" stroke="#8d8b80" stroke-width="${3 * s}"/>
+      <rect x="${x - 30 * s}" y="${y - 44 * s}" width="${60 * s}" height="${40 * s}" rx="${5 * s}" fill="#cfcabc"/>
+      <rect x="${x - 30 * s}" y="${y + 6 * s}" width="${60 * s}" height="${40 * s}" rx="${5 * s}" fill="#cfcabc"/>
+      <rect x="${x - 24 * s}" y="${y - 38 * s}" width="${48 * s}" height="${15 * s}" rx="${4 * s}" fill="${luz}"/>
+      <rect x="${x - 24 * s}" y="${y + 26 * s}" width="${48 * s}" height="${14 * s}" rx="${4 * s}" fill="#8d8b80"/>
+      ${o.travado ? `<g stroke="#c0392b" stroke-width="${4.5 * s}" stroke-linecap="round" opacity="${Math.sin(t * 7) > 0 ? 1 : 0.45}">
+        <line x1="${x - 17 * s}" y1="${y - 37 * s}" x2="${x + 17 * s}" y2="${y - 17 * s}"/>
+        <line x1="${x + 17 * s}" y1="${y - 37 * s}" x2="${x - 17 * s}" y2="${y - 17 * s}"/></g>` : ""}`;
+  },
+  /* elevador: duas folhas de metal, painel e o número do andar aceso */
+  elevador: (x, y, s, o, t) => {
+    const abre = o.aberta ? Math.min(1, 0.3 + 0.7 * ((t * 0.5) % 1)) : 0;
+    const lg = 62 * s * (1 - abre);
+    const seta = o.subindo ? "▲" : "▼";
+    return `<rect x="${x - 76 * s}" y="${y - 230 * s}" width="${152 * s}" height="${230 * s}" fill="#3e444d"/>
+      <rect x="${x - 68 * s}" y="${y - 214 * s}" width="${136 * s}" height="${214 * s}" fill="#10131a"/>
+      <rect x="${x - 68 * s}" y="${y - 214 * s}" width="${lg}" height="${214 * s}" fill="#aab2bb"/>
+      <rect x="${x + 68 * s - lg}" y="${y - 214 * s}" width="${lg}" height="${214 * s}" fill="#9aa2ab"/>
+      <rect x="${x - 2 * s}" y="${y - 214 * s}" width="${4 * s}" height="${214 * s}" fill="#6d757e" opacity="${1 - abre}"/>
+      <rect x="${x - 50 * s}" y="${y - 268 * s}" width="${100 * s}" height="${40 * s}" rx="${6 * s}" fill="#15181e"/>
+      <text x="${x - 14 * s}" y="${y - 238 * s}" text-anchor="middle" font-family="Anton,sans-serif" font-size="${30 * s}" fill="#ffb648">${esc(o.extra || "12")}</text>
+      <text x="${x + 26 * s}" y="${y - 239 * s}" text-anchor="middle" font-family="Inter,sans-serif" font-weight="900" font-size="${22 * s}" fill="${o.apagado ? "#4a4a4a" : "#ffb648"}">${seta}</text>`;
+  },
+  /* gerador do subsolo: máquina industrial com grade, escapamento e luz piscando */
+  gerador: (x, y, s, o, t) => {
+    const luz = Math.sin(t * 7) > 0 ? "#ffb648" : "#7a5a26";
+    return `<rect x="${x - 95 * s}" y="${y - 110 * s}" width="${190 * s}" height="${110 * s}" rx="${8 * s}" fill="#5a6069"/>
+      <rect x="${x - 95 * s}" y="${y - 110 * s}" width="${190 * s}" height="${22 * s}" rx="${6 * s}" fill="#474d55"/>
+      ${Array.from({ length: 7 }, (_, i) => `<rect x="${x - 76 * s + i * 22 * s}" y="${y - 76 * s}" width="${12 * s}" height="${52 * s}" rx="${3 * s}" fill="#353a42"/>`).join("")}
+      <rect x="${x + 44 * s}" y="${y - 168 * s}" width="${22 * s}" height="${60 * s}" rx="${4 * s}" fill="#474d55"/>
+      <circle cx="${x - 70 * s}" cy="${y - 99 * s}" r="${8 * s}" fill="${luz}"/>
+      <rect x="${x - 95 * s}" y="${y - 12 * s}" width="${190 * s}" height="${12 * s}" fill="#3a3f47"/>`;
+  },
+  /* lâmpada de teto (a luz que tem de apagar) */
+  lampada: (x, y, s, o, t) => {
+    const on = o.apagado ? 0 : 1;
+    return `<rect x="${x - 2 * s}" y="${y - 120 * s}" width="${4 * s}" height="${56 * s}" fill="#6d757e"/>
+      <path d="M${x - 46 * s} ${y - 20 * s} L${x - 26 * s} ${y - 66 * s} L${x + 26 * s} ${y - 66 * s} L${x + 46 * s} ${y - 20 * s} z" fill="#c9cfd6"/>
+      <ellipse cx="${x}" cy="${y - 20 * s}" rx="${46 * s}" ry="${9 * s}" fill="${on ? "#ffe9a8" : "#7c8088"}"/>
+      ${on ? `<path d="M${x - 46 * s} ${y - 20 * s} L${x - 120 * s} ${y + 150 * s} L${x + 120 * s} ${y + 150 * s} L${x + 46 * s} ${y - 20 * s} z" fill="#ffe9a8" opacity="${0.16 + Math.sin(t * 3) * 0.02}"/>` : ""}`;
   },
   porta: (x, y, s, o, t) => {
     const tr = o.batendo ? Math.sin(t * 26) * 2.6 * s : 0;

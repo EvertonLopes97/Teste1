@@ -97,7 +97,7 @@ LUZES = ["dia", "tarde", "noite", "escuro", "chuva", "alerta"]
 POSES = ["parado", "olhando", "carregando", "segurando", "andando", "correndo", "agachado", "batendo", "apontando",
          "assustado", "pensando"]
 OBJETOS = ["balde", "banheira", "vela", "celular", "porta", "caixa", "moto", "carro", "mochila", "escada", "torneira",
-           "relogio", "garrafa"]
+           "relogio", "garrafa", "interruptor", "elevador", "gerador", "lampada"]
 MOVIMENTOS = ["zoom", "afasta", "direita", "esquerda", "sobe", "desce"]
 CARAS = ["", "serio", "bravo", "assustado", "feliz"]
 PLANOS = ["geral", "medio", "close"]
@@ -234,6 +234,7 @@ def escreve_episodio(serie, cfg, n, resultado="", log=log, rumo=""):
     g["cenas"] = [limpa_cena(c) for c in g["cenas"]][:20]
     if not g.get("narracao"):
         g["narracao"] = " ".join(c.get("narracao", "") for c in g["cenas"])
+    uma_cena_por_frase(g)
     garante_apoio(g)
     garante_sfx(g)
     fecha_com_escolha(g)
@@ -309,6 +310,10 @@ def aplica_elenco(serie, rot):
 
 # palavra da narração → o objeto que a cena de apoio mostra em close
 APOIO = [(("celular", "mensagem", "telefone", "whatsapp", "zap", "aviso", "alerta", "liga"), "celular"),
+         (("interruptor", "quadro de luz", "disjuntor", "chave geral"), "interruptor"),
+         (("elevador",), "elevador"),
+         (("gerador", "motor do predio", "subsolo"), "gerador"),
+         (("lâmpada", "lampada", "luz do teto", "luminária", "luminaria"), "lampada"),
          (("porta", "tranca", "fechadura", "corrente"), "porta"),
          (("relógio", "relogio", "hora", "minuto", "segundo", "tempo", "faltam"), "relogio"),
          (("torneira", "água", "agua", "bomba"), "torneira"),
@@ -375,6 +380,44 @@ def garante_sfx(rot, a_cada=2):
         if achou[1]:
             c["sfx_palavra"] = achou[1]
         desde = 0
+    return rot
+
+
+def uma_cena_por_frase(rot, maximo=26):
+    """UMA CENA POR FRASE. A IA escreve 2 ou 3 frases numa cena só e a imagem fica parada enquanto a narração anda
+    (o boneco mexendo as perninhas no mesmo lugar). Aqui a cena é partida: cada frase ganha a sua, com plano e
+    movimento diferentes — e a segunda vira o CLOSE no que está sendo falado."""
+    novas = []
+    planos = ["geral", "medio", "close"]
+    movs = ["zoom", "direita", "afasta", "esquerda", "sobe", "desce"]
+    for c in rot.get("cenas", []):
+        txt = str(c.get("narracao", "")).strip()
+        frases = [f.strip() for f in re.split(r"(?<=[.!?])\s+", txt) if f.strip()]
+        # só parte o que é longo de verdade: duas frases curtas cabem numa cena de 4 s
+        if c.get("escolha") or len(frases) < 2 or len(txt.split()) < 15 or len(novas) >= maximo:
+            novas.append(c)
+            continue
+        base_plano = planos.index(c.get("plano", "geral")) if c.get("plano") in planos else 0
+        for i, f in enumerate(frases):
+            n = {**{k: v for k, v in c.items() if k not in ("ate", "_ini")}, "narracao": f,
+                 "semente": (int(c.get("semente", 3)) + i * 17) % 97,
+                 "plano": planos[(base_plano + i) % 3],
+                 "movimento": movs[(movs.index(c.get("movimento", "zoom")) + i * 2) % len(movs)] if c.get("movimento") in movs else movs[i % len(movs)]}
+            # a frase seguinte fecha no OBJETO — mas só quando ela fala do objeto, não do personagem
+            sobre_pessoa = re.search(r"\b(ele|ela|henrique|lucas|marcos)\b", f.lower()) is not None
+            if i and n["plano"] == "close" and not sobre_pessoa:
+                obj = (n.get("objetos") or [{}])[0]
+                if obj.get("tipo"):
+                    n["pessoas"] = []
+                    n["objetos"] = [{**obj, "x": 0.5, "s": max(2.0, float(obj.get("s", 1.4)) * 1.5)}]
+                    n["foco"] = {"x": 0.5, "y": max(0.2, float(obj.get("y", 0.66)) - 0.12)}
+            if i:   # a continuação não repete relógio/selo/onomatopeia da primeira
+                for k in ("onomatopeia", "selo", "contador", "contador_sub"):
+                    n.pop(k, None)
+            novas.append(n)
+            if len(novas) >= maximo:
+                break
+    rot["cenas"] = novas
     return rot
 
 
@@ -478,6 +521,7 @@ Responda SÓ JSON com as MESMAS {len(cenas)} cenas, na mesma ordem e com a MESMA
                 nova[k] = c[k]
         saida.append(nova)
     rot["cenas"] = saida + [c for c in rot.get("cenas", []) if c.get("escolha")]
+    uma_cena_por_frase(rot)
     garante_apoio(rot)
     garante_sfx(rot)
     apoio = sum(1 for c in rot["cenas"] if not c.get("pessoas") and not c.get("escolha"))
@@ -562,8 +606,9 @@ def limpa_cena(c):
                         for g in (c.get("silhuetas") or [])[:5] if isinstance(g, dict)]
     out["objetos"] = [{"tipo": o.get("tipo"), "x": max(0.05, min(0.95, float(o.get("x", 0.5)))),
                        "y": float(o.get("y", 0.66)), "s": max(0.5, min(3.0, float(o.get("s", 1.4)))),
-                       **({"extra": str(o.get("extra"))[:18]} if o.get("extra") else {}),
-                       **{k: True for k in ("enchendo", "jorrando", "seca", "batendo", "aberta", "alerta") if o.get(k)}}
+                       **({"extra": str(o.get("extra"))[:44]} if o.get("extra") else {}),
+                       **{k: True for k in ("enchendo", "jorrando", "seca", "batendo", "aberta", "alerta",
+                                            "travado", "apagado", "subindo") if o.get(k)}}
                       for o in (c.get("objetos") or [])[:4] if isinstance(o, dict) and o.get("tipo") in OBJETOS]
     out["gatos"] = [{"x": max(0.05, min(0.95, float(g.get("x", 0.7)))), "y": float(g.get("y", 0.70)),
                      "alt": max(90, min(260, float(g.get("alt", 170))))}
@@ -943,14 +988,35 @@ def faz_episodio(serie_f, cfg, log=log, venceu="", rumo="", base="", refazer=0, 
     grava_json(rot_f, rot)
 
     saida = job / "episodio.mp4"
-    if not saida.exists():
-        log("4/4 desenhando e montando...")
+
+    def monta_video():
         dur = (words[-1]["e"] + 0.7) if words else (dur_wav(wav) or cfg["duracao_s"])
         r = subprocess.run(["node", str(AQUI / "render.js"), str(rot_f), "--voz", str(wav), "--words", str(wf),
                             "--out", str(saida), "--work", str(job / "tmp"), "--fps", str(cfg.get("fps", 30)),
                             "--duracao", f"{dur:.2f}", "--marca", rot.get("marca", "")], cwd=str(PONTE))
         if r.returncode != 0 or not saida.exists():
             raise RuntimeError("o render do episódio falhou (veja as mensagens acima)")
+
+    if not saida.exists():
+        log("4/5 desenhando e montando...")
+        monta_video()
+
+    # CONFERÊNCIA antes de entregar: pronúncia, o que a voz falou e cada cena desenhada.
+    # Achou problema que dá para corrigir → corrige e MONTA DE NOVO (uma vez).
+    log("5/5 conferindo antes de entregar...")
+    try:
+        import confere as CF
+
+        refazer, _ = CF.confere(job, rot, words, saida, log)
+        if refazer:
+            grava_json(rot_f, rot)
+            if any(c.get("narracao") for c in rot["cenas"]) and not wav.exists():
+                narra(rot["narracao"], wav, cfg, log)
+            saida.unlink(missing_ok=True)
+            monta_video()
+            CF.confere(job, rot, words, saida, log, corrigir=False)
+    except Exception as e:
+        log(f"conferência: não rodou ({str(e)[:140]})")
 
     # efeitos sonoros, cada um na palavra que a cena marcou
     com_sfx = job / "episodio_sfx.mp4"

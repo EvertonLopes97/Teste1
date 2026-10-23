@@ -38,12 +38,12 @@
   color: rgba(255, 255, 255, 0.78);
 }
 #capa .num {
-  font-size: 250px;
-  line-height: 0.86;
+  font-size: 215px;
+  line-height: 0.9;
   color: #ffc21f;
   letter-spacing: 2px;
   text-shadow: 0 10px 0 rgba(0, 0, 0, 0.55);
-  margin: 6px 0 14px;
+  margin: 4px 0 30px;
 }
 #capa .tit {
   font-size: 108px;

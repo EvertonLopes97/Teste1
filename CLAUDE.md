@@ -192,9 +192,11 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   fixar é no Studio) + descrição + faixa "Imagens: origem"; notícia repetida em outro canal ou já
   postada nos últimos 3 dias (`parecido` ≥ `parecido_max` 0,35 nas palavras do assunto, `ja_postado`) fica fora; créditos
   com o programa original (`programa`, "via canal");
-  FOCO DO DIA (22/out): o assunto que JÁ FOI o vídeo de hoje (a classificação, por exemplo) não some mais — ele volta
-  como notícia SECUNDÁRIA, no máximo `max_repetidas` 1 por vídeo, nunca em primeiro e nunca no título/thumb (o roteiro
-  recebe o aviso "este assunto já saiu hoje"). O de ONTEM continua fora de vez.
+  FOCO DO DIA (22/out, mesclagem com botão em 23/out): o assunto que JÁ FOI o vídeo de hoje só volta se VOCÊ ligar
+  **"Mesclar assunto do dia"** no painel (`mesclar_assunto`, padrão DESLIGADO) **e** a notícia trouxer FATO NOVO:
+  nota ≥ `mesclar_nota_min` 7 e `novidade` ≥ `mesclar_novidade_min` 0,35 (palavras do assunto que não estavam no que
+  já foi postado). Aí entra como notícia SECUNDÁRIA, `max_repetidas` 1 por vídeo, nunca em primeiro e nunca no
+  título/thumb. Recusa e mesclagem aparecem no registro. O de ONTEM continua fora de vez.
   A VOLTA PELO MUNDO (22/out, `coleta_campeonatos`): em dia de Libertadores, Champions, Copa do Brasil, Sul-Americana,
   Mundial ou rodada do Brasileirão, a rodada busca também 1 vídeo da imprensa por campeonato (`"campeonatos"` no
   config: nome, `termos` do título e `busca` por data; hora pelo feed, prioridade 5). Entram no FIM do vídeo
@@ -302,6 +304,20 @@ mandaram o Lucas pro mercadinho"). É isso que faz a série crescer. Vale para q
   comida — cada cena termina onde caiu a ÚLTIMA palavra dela. Cena sem âncora divide o espaço entre as vizinhas pelo
   tamanho da fala. Custa ~2 ms. LEGENDA: nunca fecha em palavra fraca ("NÃO CORRA PARA A" não acontece mais, `FRACAS`
   no render.js), bloco de 1 palavra junta com o anterior e cada legenda fica na tela ATÉ a próxima entrar.
+- UMA CENA POR FRASE (23/out, `uma_cena_por_frase`): a IA punha 2 ou 3 frases numa cena só e a imagem ficava parada
+  enquanto a narração andava (o boneco mexendo as perninhas no mesmo lugar). Agora a cena com 2+ frases e 15+ palavras
+  é PARTIDA: cada frase ganha plano e movimento diferentes, e a frase que fala do OBJETO (não do personagem) vira o
+  close nele — "ele enche a garrafa" mostra ele enchendo, "quatro litros pesam quatro quilos" fecha na garrafa.
+- OBJETOS QUE FALTAVAM (23/out): `interruptor` (quadro de luz, `travado` pisca o X vermelho), `elevador` (duas folhas,
+  painel com o andar, `aberta`/`apagado`), `gerador` (máquina industrial com grade e luz) e `lampada` (`apagado`
+  desliga o facho) — antes o roteiro usava uma `porta` aleatória para tudo isso. O `celular` ganhou TELA LEGÍVEL:
+  faixa vermelha "ALERTA" e o `extra` quebrado em até 4 linhas dentro do aparelho (saía uma tela preta).
+- CONFERÊNCIA ANTES DE ENTREGAR (23/out, `tools\historias\confere.py`): roda depois do render e antes de entregar.
+  1) NARRAÇÃO falável — número em algarismo, R$, %, 12º, hora "20h30", subsolo "-2", sigla, símbolo: tudo reescrito
+  pelo `pronuncia` (que aprendeu hora e número negativo) e o roteiro é corrigido. 2) O QUE A VOZ FALOU × o roteiro —
+  mede quanto bateu e lista as palavras que não saíram; abaixo de 85% o episódio é refeito. 3) IMAGEM cena a cena —
+  quadro quase preto ou chapado vira problema e a cena é clareada. Achou problema → corrige e MONTA DE NOVO uma vez.
+  Saídas: `<job>\conferencia.txt` e `conferencia.jpg` (um quadro de cada cena, em folha).
 - EFEITO SONORO SEMPRE (22/out, `garante_sfx`): a IA esquecia de marcar `sfx` e o episódio saía MUDO. Agora toda cena
   sem efeito ganha um pela PALAVRA da narração (`GATILHOS`: celular/vibra → mensagem, porta → porta, luz/apagou →
   click, carro/ronco → motor, água/enche → agua, tiro/grito → susto...), tensão nas cenas de escuro/tremor e um
