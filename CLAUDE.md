@@ -78,6 +78,10 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   cena (`legenda_parada`: letra clara em QUALQUER cor — canal mais forte —, linha centralizada e letras de altura parecida;
   copiada pixel a pixel) e o mesmo fade; os lances e o áudio ficam iguais (`troca_partes`).
   COMEÇO dos reels: `trecho_do_inicio` SEMPRE tira o toque no botão de gravar (`cortes_botao`, movimento das pontas, cache
+  LINK JÁ FEITO NÃO REFAZ (22/out): `chave_link` tira a IDENTIDADE do vídeo no endereço (yt:ID, ig:CÓDIGO, tt:ID),
+  então o mesmo vídeo colado de outro jeito (com ?si=, /shorts/, /p/ no lugar de /reel/, com ou sem www) é reconhecido;
+  `links_ja_feitos` junta o `historico.json` (`"links"`) com o `links_feitos.txt` antigo. O link repetido sai do
+  links.txt e vai para o próximo, sem gastar download nem Gemini. `--refazer-links` força refazer.
   inicios\.cortes.json); `enquadra` põe o ROSTO no meio e ABAIXO do texto do topo (YuNet, zoom até 1,6x; se não dá, estende a borda
   espelhada) — vale no modo normal (`monta`) e no TROCA (`troca_partes`, fim do texto pelo PNG). Um reels.py por vez (`trava_rodada`, `.reels_rodando`: painel + tarefa do Windows juntos faziam o mesmo link 2x); links repetidos no links.txt = um só. Link DELE nunca cai no modo normal: sem pessoa/lance achados = "NÃO FIZ" no registro e o link vai como FALHOU.
   COMEÇOS PELO DRIVE (`importa_inicios`, `reels.py --importar`; o painel roda a cada 10 min): pasta "Começo"/"Começos"/
@@ -180,7 +184,7 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   (@alterosaesporteAE; programa do dia = live gravada), ESPN, Cortes TNT · 2 TV Galo às vezes (1 vídeo/1 trecho) · 3 canais que JUNTAM
   notícias do Galo (`juntador`: Notícias do Galo/@diariodogalo940, Galotícias, Trinca Galo, Resenha Atleticana, Eterno Galo News,
   Jornal do Galo, Vibra Torcedor, Galo Noticiou, Eu Sou Galo — Gemini marca SÓ a fala da imprensa, ignora o narrador do canal) ·
-  4 qualquer canal da busca por data (`busca_qualquer_canal`); `fora` = react/ao vivo/jogo); hora pelo FEED RSS (`rss`), hoje e
+  4 qualquer canal da busca por data (`busca_qualquer_canal`) · 5 CAMPEONATOS; `fora` = react/ao vivo/jogo); hora pelo FEED RSS (`rss`), hoje e
   ontem (`max_horas` 48), sem Shorts; `max_videos_rodada` 8 por rodada (o resto na próxima); notícia INTEIRA (15 s a
   `trecho_max_s` 180, corte só no fim de frase), máx. 3 por vídeo; vídeo de PELO MENOS 16 min (`duracao_alvo_min` 16 = imprensa + falas ~12 s cada; sem material e sem --forcar espera; `fontes_versao` 5);
   cada fala CITA a origem do trecho seguinte (`origem`/`origem_falada`: "Globo Esporte MG, no canal X") e o fechamento diz que os créditos estão nos
@@ -188,6 +192,14 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   fixar é no Studio) + descrição + faixa "Imagens: origem"; notícia repetida em outro canal ou já
   postada nos últimos 3 dias (`parecido` ≥ `parecido_max` 0,35 nas palavras do assunto, `ja_postado`) fica fora; créditos
   com o programa original (`programa`, "via canal");
+  FOCO DO DIA (22/out): o assunto que JÁ FOI o vídeo de hoje (a classificação, por exemplo) não some mais — ele volta
+  como notícia SECUNDÁRIA, no máximo `max_repetidas` 1 por vídeo, nunca em primeiro e nunca no título/thumb (o roteiro
+  recebe o aviso "este assunto já saiu hoje"). O de ONTEM continua fora de vez.
+  A VOLTA PELO MUNDO (22/out, `coleta_campeonatos`): em dia de Libertadores, Champions, Copa do Brasil, Sul-Americana,
+  Mundial ou rodada do Brasileirão, a rodada busca também 1 vídeo da imprensa por campeonato (`"campeonatos"` no
+  config: nome, `termos` do título e `busca` por data; hora pelo feed, prioridade 5). Entram no FIM do vídeo
+  (`max_trechos_campeonato` 2, `max_videos_campeonato` 3) e a fala antes do primeiro avisa que agora é a volta pelo
+  mundo. Não teve jogo = a busca por data não traz nada e o bloco simplesmente não existe. `"campeonatos_ligado": false` desliga.
   VOZ SEM PAUSAS (20/out): `voz.sem_pausas` corta todo silêncio no MEIO da fala para ≤0,13 s (`--max-pausa`/`DETTO_MAX_PAUSA`,
   `--com-pausas` desliga) — Fish, Chatterbox e as do cache (marca `.sp`); entre frases do Chatterbox 0,08 s; depois da fala 0,2 s.
   ORIGINAL (20/out, `busca_original`): trecho de canal JUNTADOR (Galotícias etc.) → acha o vídeo original (links da descrição, busca

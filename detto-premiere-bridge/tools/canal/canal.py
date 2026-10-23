@@ -93,6 +93,27 @@ CONFIG_PADRAO = {
     "buscar_original": True,  # trecho de canal que JUNTA notícias → baixa do vídeo original (crédito para quem fez)
     "original_max_candidatos": 6,
     "parecido_max": 0.35,  # notícia repetida (o mesmo assunto em 2 canais / já postada) fica de fora
+    # Assunto JÁ POSTADO HOJE: não pode ser o foco do vídeo novo, mas pode voltar como notícia secundária (no máximo
+    # `max_repetidas` por vídeo, sempre no fim). Postado em dias anteriores continua fora.
+    "max_repetidas": 1,
+    # OS PRINCIPAIS CAMPEONATOS: em dia de Libertadores, Champions etc., o vídeo também dá a volta pelo mundo.
+    # Entram DEPOIS das notícias do Galo e no máximo `max_trechos_campeonato` por vídeo.
+    "campeonatos_ligado": True,
+    "max_trechos_campeonato": 2,
+    "max_videos_campeonato": 3,   # quantos vídeos de campeonato a rodada baixa (pesa transcrever)
+    "campeonatos": [
+        {"nome": "Libertadores", "termos": ["libertadores"],
+         "busca": ["libertadores resultados de hoje", "libertadores classificados jogos"]},
+        {"nome": "Champions League", "termos": ["champions", "liga dos campeoes", "liga dos campeões", "uefa"],
+         "busca": ["champions league resultados de hoje", "champions league rodada gols"]},
+        {"nome": "Brasileirão", "termos": ["brasileirao", "brasileirão", "serie a", "série a"],
+         "busca": ["brasileirão rodada resultados hoje", "brasileirão tabela classificação hoje"]},
+        {"nome": "Copa do Brasil", "termos": ["copa do brasil"], "busca": ["copa do brasil resultados de hoje"]},
+        {"nome": "Sul-Americana", "termos": ["sul-americana", "sul americana", "sudamericana"],
+         "busca": ["sul-americana resultados de hoje"]},
+        {"nome": "Mundial de Clubes", "termos": ["mundial de clubes", "intercontinental"],
+         "busca": ["mundial de clubes resultados hoje"]},
+    ],
     "por_fonte": 15,
     "max_min_fonte": 120,
     "duracao_alvo_min": 16,  # o vídeo tem PELO MENOS isso (imprensa + suas falas)
@@ -249,6 +270,65 @@ def coleta(cfg, hist):
     for v in novos:
         hist["vistos"][v["id"]] = dt.date.today().isoformat()
     log(f"coleta: {len(novos)} vídeo(s) de hoje sobre o {cfg['time']}: " + "; ".join(f"{x['fonte']} {x['publicado'][11:]}" for x in novos[:8]))
+    return novos
+
+
+def coleta_campeonatos(cfg, hist, ja_vistos):
+    """A VOLTA PELO MUNDO: em dia de Libertadores, Champions, Copa do Brasil (ou rodada do Brasileirão), traz também
+    um ou dois vídeos da imprensa sobre o campeonato. Não force nada: se não teve jogo, a busca por data não devolve
+    vídeo novo e o bloco simplesmente não existe naquele dia."""
+    if not cfg.get("campeonatos_ligado", True):
+        return []
+    import urllib.parse
+
+    limite = dt.datetime.now() - dt.timedelta(hours=min(30, cfg.get("max_horas", 30)))
+    ok_nomes = [norm(x) for x in cfg.get("outras_fontes", [])]
+    fora = [norm(x) for x in cfg.get("fora", [])]
+    novos, feeds = [], {}
+    for camp in cfg.get("campeonatos", []):
+        termos = [norm(t) for t in camp.get("termos", [])]
+        achou = 0
+        for q in camp.get("busca", []):
+            if achou:
+                break
+            r = ytdlp(["--flat-playlist", "--dump-json", "--playlist-end", "12", "--extractor-args", "youtube:lang=pt",
+                       "https://www.youtube.com/results?search_query=" + urllib.parse.quote(q) + "&sp=CAI%253D"])
+            for linha in (r.stdout or "").splitlines():
+                try:
+                    v = json.loads(linha)
+                except ValueError:
+                    continue
+                cid, nome = v.get("channel_id"), v.get("channel") or ""
+                if not cid or v.get("id") in hist["vistos"] or v.get("id") in ja_vistos:
+                    continue
+                imprensa = any(o in norm(nome) for o in ok_nomes)
+                if not (imprensa or cfg.get("busca_qualquer_canal")):
+                    continue
+                tit = norm(v.get("title", ""))
+                if not any(t in tit for t in termos) or any(re.search(rf"\b{re.escape(x)}\b", tit) for x in fora):
+                    continue
+                dur_s = v.get("duration") or 0
+                if dur_s and not (0.5 <= dur_s / 60 <= cfg.get("max_min_fonte", 120)):
+                    continue
+                if cid not in feeds:
+                    feeds[cid] = {x["id"]: x for x in rss(cid)}
+                f = feeds[cid].get(v["id"])
+                if not f or f["quando"] < limite:
+                    continue  # sem a hora do feed não dá para saber se é de hoje
+                ja_vistos.add(v["id"])
+                novos.append({"id": v["id"], "url": f"https://www.youtube.com/watch?v={v['id']}", "titulo": f["titulo"],
+                              "fonte": nome, "canal": v.get("uploader_id") or "", "dur": dur_s,
+                              "publicado": f["quando"].isoformat(timespec="minutes"), "max_trechos": 1,
+                              "prioridade": 5, "juntador": not imprensa, "campeonato": camp["nome"],
+                              "assunto": f"{camp['nome']}: os jogos, os gols e como ficou a situação dos times"})
+                achou += 1
+                break
+    novos.sort(key=lambda x: "".join(chr(255 - ord(c)) for c in x["publicado"]))
+    novos = novos[: int(cfg.get("max_videos_campeonato", 3))]
+    for v in novos:
+        hist["vistos"][v["id"]] = dt.date.today().isoformat()
+    if novos:
+        log("campeonatos: " + "; ".join(f"{x['campeonato']} ({x['fonte']})" for x in novos))
     return novos
 
 
@@ -587,7 +667,11 @@ def falas_do_trecho(x, passo=7.0):
 
 
 def roteiro(sel, cfg):
-    lista = "\n".join(f"{i + 1}. [ORIGEM: {origem(x)}] {x['manchete']} — {x.get('resumo', '')} (clima: {x['clima']}; {x['fim'] - x['ini']:.0f} s)"
+    lista = "\n".join(f"{i + 1}. [ORIGEM: {origem(x)}]"
+                      + (f" [NÃO É DO GALO — {x['campeonato']}, a volta pelo mundo no fim do vídeo]" if x.get("campeonato") else "")
+                      + (" [ESTE ASSUNTO JÁ SAIU NUM VÍDEO SEU HOJE: trate como notícia secundária, com um ângulo "
+                         "novo, e NUNCA como a manchete]" if x.get("repetida") else "")
+                      + f" {x['manchete']} — {x.get('resumo', '')} (clima: {x['clima']}; {x['fim'] - x['ini']:.0f} s)"
                       for i, x in enumerate(sel))
     longos = "\n\n".join(f"TRECHO {i + 1} ({x['fim'] - x['ini']:.0f} s) — o que é dito:\n{falas_do_trecho(x)}"
                           for i, x in enumerate(sel) if x["fim"] - x["ini"] >= cfg.get("comentario_min_s", 45))
@@ -608,6 +692,10 @@ COMENTÁRIOS NO MEIO: nos trechos longos abaixo, entre UMA reação sua no meio 
 quem pausa e comenta o que acabou de ouvir ("Olha isso, Massa!", "Concordo demais com ele", "Aí não, né?") — só onde
 combina, nunca nos primeiros 10 s nem nos últimos 10 s do trecho.
 {longos}
+
+O TÍTULO e a THUMB saem SEMPRE da notícia do GALO mais forte (nunca de um trecho marcado como "a volta pelo mundo"
+nem de um que já saiu hoje). Se houver trechos de campeonato, a fala antes do primeiro deles avisa que agora é a volta
+pelo mundo ("e pra fechar, como é que ficou a Libertadores ontem") e o fechamento volta a ser sobre o Galo.
 
 Uma fala antes de CADA trecho (antes_do = 1, 2, 3...). CADA fala DIZ DE ONDE VEM o trecho seguinte, pelo nome do programa/emissora
 da ORIGEM (ex.: "olha o que falaram no Globo Esporte Minas", "o pessoal do Jogo Aberto, da Band, comentou"; se for "via" um canal,
@@ -1345,6 +1433,11 @@ def main():
         return {"id": "local_" + hashlib.sha1(v.encode()).hexdigest()[:8], "arquivo": v, "fonte": fonte, "canal": "",
                 "titulo": re.sub(r"\s+", " ", d.get("description") or d.get("title") or Path(v).stem)[:200]}
     novos = [local(v) for v in a.video] if a.video else ([] if a.sem_coleta else coleta(cfg, hist))
+    if not a.video and not a.sem_coleta:
+        try:  # a volta pelo mundo: Libertadores, Champions, Copa do Brasil... no dia em que teve
+            novos += coleta_campeonatos(cfg, hist, {x["id"] for x in novos})
+        except Exception as e:
+            log(f"campeonatos: {str(e)[:140]}")
     grava_json(pasta / "historico.json", hist)
     try:
         pautas(pasta, cfg, hist)
@@ -1361,14 +1454,15 @@ def main():
             v["descricao"] = (info or {}).get("description") or ""
         log(f"transcrevendo: {Path(v['arquivo']).name}")
         words = transcreve(v["arquivo"])
-        tr = acha_trechos(words, v, cfg)
-        log(f"   {len(tr)} trecho(s) sobre o Galo")
+        tr = acha_trechos(words, v, cfg, assunto=v.get("assunto"))
+        log(f"   {len(tr)} trecho(s) sobre " + (v["campeonato"] if v.get("campeonato") else "o Galo"))
         dv = dur(v["arquivo"]) or 1e9
         tr = [{**x, "fim": min(x["fim"], dv - 0.2)} for x in tr if min(x["fim"], dv - 0.2) - x["ini"] >= 8]  # nunca além do fim do vídeo
         for x in tr:
             t = {**x, "video": v["id"], "arquivo": v["arquivo"], "fonte": v["fonte"], "canal": v.get("canal", ""), "data": hoje,
                  "publicado": v.get("publicado") or dt.datetime.now().isoformat(timespec="minutes"), "usado": False,
-                 "prioridade": v.get("prioridade", 1)}
+                 "prioridade": v.get("prioridade", 1),
+                 **({"campeonato": v["campeonato"]} if v.get("campeonato") else {})}
             if v.get("juntador") and cfg.get("buscar_original", True):
                 # canal que só junta: vai até o vídeo ORIGINAL (melhor qualidade, crédito para quem fez)
                 try:
@@ -1424,6 +1518,11 @@ def main():
         # imprensa + suas falas (~12 s antes de cada notícia) + abertura e fechamento (~30 s)
         return tot + 12 * len(sel) + 30
     por_video = {}
+    lim_p = float(cfg.get("parecido_max", 0.35))
+    # o que já saiu HOJE pode voltar como notícia secundária (com outro foco); o de ontem/anteontem fica fora de vez
+    hoje_txt = [u["texto"] for u in hist.get("ja_postado", []) if u.get("data") == hoje]
+    antes_txt = [u["texto"] for u in hist.get("ja_postado", []) if u.get("data") != hoje]
+    n_rep, n_camp, adiadas = 0, 0, []
     # pautas primeiro; depois as melhores notas, desempate pela mais nova (notícia do dia na frente)
     for x in sorted(recentes, key=lambda x: (not x.get("pauta"), -round(float(x.get("nota", 5))), int(x.get("prioridade", 1)),
                                              "".join(chr(255 - ord(c)) for c in x.get("publicado", "")))):
@@ -1431,18 +1530,41 @@ def main():
             break
         if por_video.get(x["video"], 0) >= int(cfg.get("max_trechos_video", 3)):
             continue
-        lim_p = float(cfg.get("parecido_max", 0.35))
         tx = x.get("texto") or x.get("manchete", "")
         if any(parecido(tx, y.get("texto") or y.get("manchete", "")) >= lim_p for y in sel):
             continue  # a mesma notícia já entrou por outro canal
-        if any(parecido(tx, t) >= lim_p for t in [u["texto"] for u in hist.get("ja_postado", [])]):
-            x["usado"] = True  # já saiu num vídeo nosso (hoje/ontem): não repete
+        if any(parecido(tx, t) >= lim_p for t in antes_txt):
+            x["usado"] = True  # já saiu num vídeo de ontem: notícia velha, não volta
+            continue
+        if x.get("campeonato"):  # a volta pelo mundo entra em dose pequena
+            if n_camp >= int(cfg.get("max_trechos_campeonato", 2)):
+                continue
+            n_camp += 1
+        elif any(parecido(tx, t) >= lim_p for t in hoje_txt):
+            adiadas.append(x)  # assunto do vídeo de hoje: decide no fim, quando já houver uma manchete nova
             continue
         por_video[x["video"]] = por_video.get(x["video"], 0) + 1
         sel.append(x)
         tot += x["fim"] - x["ini"]
-    # no vídeo, a ordem é da mais nova para a mais antiga (manchete do dia abre)
-    sel = [x for x in sel if x.get("pauta")] + sorted([x for x in sel if not x.get("pauta")], key=lambda x: x.get("publicado", ""), reverse=True)
+    # o assunto que já saiu hoje pode voltar como notícia SECUNDÁRIA (nunca como foco) e só uma vez
+    for x in adiadas:
+        if not sel or n_rep >= int(cfg.get("max_repetidas", 1)) or total_estimado() >= alvo:
+            break
+        if any(parecido(x.get("texto") or x.get("manchete", ""), y.get("texto") or y.get("manchete", "")) >= lim_p for y in sel):
+            continue
+        x["repetida"] = True
+        n_rep += 1
+        sel.append(x)
+        tot += x["fim"] - x["ini"]
+    # ordem no vídeo: pautas → notícias novas do Galo (da mais nova para a mais antiga) → o assunto que já saiu hoje
+    # → a volta pelo mundo (campeonatos). O FOCO (título e thumb) é sempre o primeiro, nunca um assunto repetido.
+    def grupo(x):
+        return 3 if x.get("campeonato") else 2 if x.get("repetida") else 0 if x.get("pauta") else 1
+    sel = sorted(sel, key=lambda x: (grupo(x), "".join(chr(255 - ord(c)) for c in x.get("publicado", ""))))
+    if n_rep:
+        log(f"   {n_rep} assunto que já saiu hoje volta como notícia secundária (o foco é outro)")
+    if n_camp:
+        log(f"   {n_camp} trecho(s) de campeonato: " + ", ".join(sorted({x["campeonato"] for x in sel if x.get("campeonato")})))
     if total_estimado() < alvo:
         if not a.forcar:
             log(f"ainda não dá {cfg['duracao_alvo_min']} min (tem ~{total_estimado() / 60:.1f} min de notícia nova); espera a próxima rodada")

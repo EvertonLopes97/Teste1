@@ -1639,6 +1639,7 @@ def main():
     ap = argparse.ArgumentParser(description="reels automáticos: seu começo + viral de futebol + texto")
     ap.add_argument("--pasta", default=str(pasta_padrao()))
     ap.add_argument("--quantos", type=int, default=10)
+    ap.add_argument("--refazer-links", action="store_true", help="refaz mesmo os links que já viraram reels")
     ap.add_argument("--so-links", action="store_true", help="só os links do links.txt (não busca virais); o painel usa")
     ap.add_argument("--importar", action="store_true", help="só puxa os começos novos da pasta do Drive (Começo) e sai")
     ap.add_argument("--cookies", default=None, help="chrome, edge ou firefox (Instagram/TikTok/YouTube pedindo login)")
@@ -1692,10 +1693,20 @@ def main():
 
     # fila: links seus primeiro, depois os virais das hashtags
     links = list(dict.fromkeys(l.strip() for l in (base / "links.txt").read_text(encoding="utf-8").splitlines() if re.match(r"https?://", l.strip())))
+    # link que JÁ virou reels (mesmo colado de outro jeito) não é refeito: sai do links.txt e segue para o próximo
+    ja = links_ja_feitos(base, hist)
+    if not a.refazer_links:
+        repetidos = [u for u in links if chave_link(u) in ja]
+        for u in repetidos:
+            _tira_link(base, u, ok=True, hist=hist)
+        if repetidos:
+            log(f"{len(repetidos)} link(s) já viraram reels antes; pulei: " + ", ".join(u[:60] for u in repetidos[:4]))
+            links = [u for u in links if chave_link(u) not in ja]
+            grava_json(base / "historico.json", hist)
     fila = [{"url": u, "chave": None, "seu": True} for u in links]
     if a.so_links:
         if not links:
-            log("nenhum link no links.txt")
+            log("nenhum link novo no links.txt")
             return
         a.quantos = max(a.quantos, len(links))
     if a.clip:
@@ -1727,7 +1738,7 @@ def main():
         chave = c.get("chave") or chave_de(info, c.get("url"))
         if chave in hist["usados"] and not c.get("arquivo"):
             if c.get("seu"):
-                _tira_link(base, c["url"], ok=True)
+                _tira_link(base, c["url"], ok=True, hist=hist)
             continue
         if not c.get("seu") and not recente(info, cfg["max_dias"]):
             log("   velho demais, próximo")
@@ -1833,7 +1844,7 @@ def main():
                 usos_hoje.append(nome_inicio)
                 grava_json(base / "historico.json", hist)
                 if c.get("url"):
-                    _tira_link(base, c["url"], ok=True)
+                    _tira_link(base, c["url"], ok=True, hist=hist)
                 _para_postar(cfg, saida, destino / f"{nome}.txt")
                 feitos += 1
                 log(f"   pronto: {saida}")
@@ -1897,7 +1908,7 @@ def main():
         usos_hoje.append(nome_inicio)
         grava_json(base / "historico.json", hist)
         if c.get("seu") and c.get("url"):
-            _tira_link(base, c["url"], ok=True)
+            _tira_link(base, c["url"], ok=True, hist=hist)
         _para_postar(cfg, saida, destino / f"{nome}.txt")
         feitos += 1
         log(f"   pronto: {saida}")
@@ -1942,12 +1953,46 @@ def _para_postar(cfg, video, txt):
         log(f"   não entrou na fila de postagem ({e}); poste manual")
 
 
-def _tira_link(base, url, ok):
+def chave_link(url):
+    """a IDENTIDADE do vídeo no link: é por ela que dá para saber se esse link JÁ virou reels, mesmo que você cole
+    o endereço de outro jeito (com ?si=..., com /shorts/, sem a barra do fim, com www ou sem)."""
+    u = str(url or "").strip()
+    m = re.search(r"(?:youtu\.be/|youtube\.com/(?:shorts/|live/|embed/|watch\?(?:.*&)?v=))([\w-]{6,})", u, re.I)
+    if m:
+        return f"yt:{m.group(1)}"
+    m = re.search(r"instagram\.com/(?:[\w.]+/)?(?:reels?|p|tv)/([\w-]+)", u, re.I)
+    if m:
+        return f"ig:{m.group(1)}"
+    m = re.search(r"tiktok\.com/.*?/video/(\d+)", u, re.I)
+    if m:
+        return f"tt:{m.group(1)}"
+    m = re.search(r"(?:vm|vt)\.tiktok\.com/([\w-]+)", u, re.I)
+    if m:
+        return f"tt:{m.group(1)}"
+    u = re.sub(r"[?#].*$", "", u).rstrip("/").lower()
+    return re.sub(r"^https?://(www\.)?", "", u)
+
+
+def links_ja_feitos(base, hist):
+    """as chaves dos links que já viraram reels — do historico.json e do links_feitos.txt (o registro antigo)"""
+    feitos = set(hist.get("links", {}))
+    f = base / "links_feitos.txt"
+    if f.exists():
+        for linha in f.read_text(encoding="utf-8", errors="replace").splitlines():
+            m = re.search(r"(https?://\S+)", linha)
+            if m and " ok " in linha:
+                feitos.add(chave_link(m.group(1)))
+    return feitos
+
+
+def _tira_link(base, url, ok, hist=None):
     f = base / "links.txt"
     linhas = [l for l in f.read_text(encoding="utf-8").splitlines() if l.strip() != url]
     f.write_text("\n".join(linhas) + "\n", encoding="utf-8")
     with open(base / "links_feitos.txt", "a", encoding="utf-8") as g:
         g.write(f"{dt.date.today()} {'ok' if ok else 'FALHOU'} {url}\n")
+    if ok and hist is not None:  # guarda a identidade do vídeo: se você colar esse link de novo, não refaz
+        hist.setdefault("links", {})[chave_link(url)] = {"dia": dt.date.today().isoformat(), "url": url}
 
 
 if __name__ == "__main__":
