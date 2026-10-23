@@ -7,7 +7,7 @@
  * episódios da série e é instantâneo.
  *
  * DUAS CAMADAS, para dar para ANIMAR de verdade sem refazer o desenho caro a cada quadro:
- *   #fundo  — o cenário, desenhado UMA vez por cena (só recebe o movimento lento de câmera)
+ *   #fundo  — o cenário, desenhado UMA vez por cena (recebe o movimento de câmera e o parallax)
  *   #atores — personagens, objetos e efeitos, REDESENHADOS a cada quadro (andar, piscar, falar, chuva, fumaça, água)
  *
  * window.CENA.monta(cena) → prepara a cena;  window.CENA.anima(p, t) → p = 0..1 dentro da cena, t = segundos do vídeo.
@@ -29,17 +29,32 @@ const LUZ = {
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const r2 = (n) => Math.round(n * 10) / 10;
 
-/* ---------------------------------------------------------------- bonequinho (estilo Kaio: cabeça grande, sem pescoço)
-   x,y = pés; alt = altura total. A cabeça fica com ~40% da altura — é isso que dá a cara do formato. */
+/* clareia/escurece uma cor #rrggbb (para a faixa do cabelo, a sombra da roupa etc.) */
+function tom(hex, k) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(String(hex || ""));
+  if (!m) return hex;
+  const v = parseInt(m[1], 16);
+  const f = (c) => Math.max(0, Math.min(255, Math.round(c + (k > 0 ? (255 - c) * k : c * k))));
+  return `#${[(v >> 16) & 255, (v >> 8) & 255, v & 255].map((c) => f(c).toString(16).padStart(2, "0")).join("")}`;
+}
+
+/* ---------------------------------------------------------------- bonequinho
+   Estilo do modelo: cabeça REDONDA grande sem pescoço, cabelo de tigela com faixa clara, olhos ovais grandes,
+   sobrancelhas finas, boca pequena aberta, braços com MÃOS REDONDAS, calça e sapatos escuros.
+   A ROUPA vem da história (`roupa`: moletom, camisa, jaleco, uniforme, terno, pijama, regata, capuz) e os
+   acessórios também (`mochila`, `bone`, `colete`, `lanterna`) — assim o personagem veste o que a cena pede. */
+const ROUPAS = ["moletom", "camisa", "jaleco", "uniforme", "terno", "pijama", "regata", "capuz"];
+
 function pessoa(q, t) {
   const x = q.x * W;
   const y = q.y * H;
   const alt = q.alt || 430;
   const u = alt / 100;
   const pose = q.pose || "parado";
-  const cor = q.cor || "#4a6b6b";
+  const roupa = ROUPAS.includes(q.roupa) ? q.roupa : "moletom";
+  const cor = q.cor || (roupa === "jaleco" ? "#eef2f3" : roupa === "terno" ? "#2f3540" : "#4a6b6b");
   const pele = q.pele || "#f0d5a8";
-  const cabelo = q.cabelo || "#3b2d23";
+  const cabelo = q.cabelo || "#5a3b26";
   const olh = q.olhando == null ? 1 : q.olhando;
 
   const andando = pose === "andando" || pose === "correndo";
@@ -56,11 +71,18 @@ function pessoa(q, t) {
   const yCab = yCorpo - cabR * 0.86;
   const p = [];
 
-  // pernas
-  const calca = q.calca || "#2f3a44";
+  // ---- mochila ATRÁS do corpo (aparece pelos lados; as alças vêm depois, por cima do tronco)
+  if (q.mochila) {
+    const mc = q.cor_mochila || "#7a5637";
+    p.push(`<rect x="${x - 24 * u}" y="${yCorpo + 1 * u}" width="${48 * u}" height="${corpoH * 0.92}" rx="${9 * u}" fill="${tom(mc, -0.25)}"/>`);
+  }
+
+  // ---- pernas
+  const calca = q.calca || (roupa === "pijama" ? "#6d7f9c" : roupa === "terno" ? "#2a2f38" : "#3a5a86");
   if (pose === "agachado") {
-    p.push(`<path d="M${x - 7 * u} ${yCorpo + corpoH} L${x - 17 * u} ${yPes - 6 * u} L${x - 23 * u} ${yPes}" stroke="${calca}" stroke-width="${10 * u}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`);
-    p.push(`<path d="M${x + 7 * u} ${yCorpo + corpoH} L${x + 17 * u} ${yPes - 6 * u} L${x + 23 * u} ${yPes}" stroke="${calca}" stroke-width="${10 * u}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`);
+    for (const lado of [-1, 1]) {
+      p.push(`<path d="M${x + lado * 7 * u} ${yCorpo + corpoH} L${x + lado * 17 * u} ${yPes - 6 * u} L${x + lado * 23 * u} ${yPes}" stroke="${calca}" stroke-width="${10 * u}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`);
+    }
   } else {
     const a1 = passo * 11 * u;
     for (const [lado, d] of [[-1, a1], [1, -a1]]) {
@@ -70,63 +92,106 @@ function pessoa(q, t) {
     }
   }
 
-  // tronco (ombros arredondados, largo, sem pescoço)
-  p.push(`<rect x="${x - 19 * u}" y="${yCorpo}" width="${38 * u}" height="${corpoH + 2 * u}" rx="${12 * u}" fill="${cor}"/>`);
-  p.push(`<rect x="${x - 11 * u}" y="${yCorpo + corpoH * 0.62}" width="${22 * u}" height="${3.4 * u}" rx="${1.7 * u}" fill="rgba(0,0,0,.18)"/>`);
+  // ---- tronco (ombros arredondados, largo, sem pescoço)
+  const larg = roupa === "regata" ? 33 : 38;
+  if (roupa === "regata") {  // ombros de pele, camiseta mais estreita
+    p.push(`<rect x="${x - 19 * u}" y="${yCorpo}" width="${38 * u}" height="${corpoH + 2 * u}" rx="${12 * u}" fill="${pele}"/>`);
+  }
+  p.push(`<rect x="${x - larg / 2 * u}" y="${yCorpo}" width="${larg * u}" height="${corpoH + 2 * u}" rx="${12 * u}" fill="${cor}"/>`);
 
-  // braços
-  const BR = {
-    parado: [[-24, 22], [24, 22]], olhando: [[-24, 18], [26, 8]], carregando: [[-26, 4], [26, 4]],
-    andando: [[-25 - passo * 7, 16], [25 + passo * 7, 16]], correndo: [[-30 - passo * 9, 4], [30 + passo * 9, 4]],
-    agachado: [[-26, 10], [26, 10]], batendo: [[-24, 20], [27, -20]], apontando: [[-24, 20], [34, -8]],
-    assustado: [[-28, -16], [28, -16]], pensando: [[-24, 20], [16, -14]],
-  }[pose] || [[-24, 22], [24, 22]];
-  // no plano fechado o estilo não mostra braço (o tronco é o corpo inteiro) — só aparecem quando a pose pede
-  if (!["parado", "olhando"].includes(pose)) {
-    for (const [dx, dy] of BR) {
-      const ox = x + (dx > 0 ? 15 : -15) * u;
-      p.push(`<path d="M${ox} ${yCorpo + 9 * u} L${x + dx * u} ${yCorpo + (9 + dy) * u}" stroke="${cor}" stroke-width="${9.5 * u}" fill="none" stroke-linecap="round"/>`);
-      p.push(`<circle cx="${x + dx * u}" cy="${yCorpo + (9 + dy) * u}" r="${4.4 * u}" fill="${pele}"/>`);
+  // detalhes por tipo de roupa — é o que faz o personagem "vestir" a cena
+  if (roupa === "moletom" || roupa === "capuz") {
+    p.push(`<rect x="${x - 11 * u}" y="${yCorpo + corpoH * 0.6}" width="${22 * u}" height="${9 * u}" rx="${4 * u}" fill="${tom(cor, -0.18)}"/>`); // bolso canguru
+    if (roupa === "capuz") p.push(`<path d="M${x - 17 * u} ${yCorpo + 3 * u} q${17 * u} ${-16 * u} ${34 * u} 0 z" fill="${tom(cor, -0.14)}"/>`);
+  } else if (roupa === "camisa") {
+    p.push(`<path d="M${x - 8 * u} ${yCorpo + 1 * u} L${x} ${yCorpo + 11 * u} L${x + 8 * u} ${yCorpo + 1 * u}" fill="${tom(cor, 0.5)}"/>`);
+    for (let i = 0; i < 3; i++) p.push(`<circle cx="${x}" cy="${yCorpo + (16 + i * 7) * u}" r="${1.3 * u}" fill="${tom(cor, -0.35)}"/>`);
+  } else if (roupa === "jaleco") {
+    p.push(`<rect x="${x - 1 * u}" y="${yCorpo + 2 * u}" width="${2 * u}" height="${corpoH - 2 * u}" fill="${tom(cor, -0.12)}"/>`);
+    p.push(`<rect x="${x + 6 * u}" y="${yCorpo + 17 * u}" width="${10 * u}" height="${8 * u}" rx="${1.5 * u}" fill="${tom(cor, -0.1)}"/>`);
+  } else if (roupa === "uniforme") {
+    p.push(`<rect x="${x - larg / 2 * u}" y="${yCorpo + 13 * u}" width="${larg * u}" height="${6 * u}" fill="${tom(cor, 0.45)}"/>`);
+  } else if (roupa === "terno") {
+    p.push(`<path d="M${x - 9 * u} ${yCorpo + 1 * u} L${x} ${yCorpo + 14 * u} L${x + 9 * u} ${yCorpo + 1 * u} L${x + 9 * u} ${yCorpo + 9 * u} L${x} ${yCorpo + 20 * u} L${x - 9 * u} ${yCorpo + 9 * u} z" fill="${tom(cor, 0.22)}"/>`);
+    p.push(`<path d="M${x - 2.6 * u} ${yCorpo + 9 * u} L${x + 2.6 * u} ${yCorpo + 9 * u} L${x + 1.8 * u} ${yCorpo + 24 * u} L${x - 1.8 * u} ${yCorpo + 24 * u} z" fill="#9b2d2d"/>`);
+  } else if (roupa === "pijama") {
+    for (let i = 0; i < 4; i++) p.push(`<rect x="${x - larg / 2 * u + (3 + i * 9) * u}" y="${yCorpo + 2 * u}" width="${3 * u}" height="${corpoH - 2 * u}" fill="${tom(cor, 0.35)}" opacity=".7"/>`);
+  }
+  if (q.colete) p.push(`<rect x="${x - 15 * u}" y="${yCorpo + 4 * u}" width="${30 * u}" height="${corpoH - 6 * u}" rx="${5 * u}" fill="#e8a33d" opacity=".92"/>
+    <rect x="${x - 15 * u}" y="${yCorpo + 16 * u}" width="${30 * u}" height="${4 * u}" fill="#f4f1e6"/>`);
+
+  // alças da mochila, por cima do tronco (é o que se vê de frente, como no modelo)
+  if (q.mochila) {
+    const mc = tom(q.cor_mochila || "#7a5637", -0.08);
+    for (const lado of [-1, 1]) {
+      p.push(`<path d="M${x + lado * 11 * u} ${yCorpo + 1 * u} L${x + lado * 13 * u} ${yCorpo + 23 * u}" stroke="${mc}" stroke-width="${5 * u}" stroke-linecap="round" fill="none"/>`);
     }
   }
 
-  // cabeça REDONDA (o estilo "stick" bonito) com o cabelo como calota por cima
-  p.push(`<circle cx="${x}" cy="${yCab}" r="${cabR}" fill="${pele}"/>`);
-  if (cabelo !== "none") {
-    // calota: metade de cima da mesma circunferência, com a franja descendo um pouco na testa
-    p.push(`<path d="M${x - cabR} ${yCab} a${cabR} ${cabR} 0 0 1 ${cabR * 2} 0 l${-cabR * 0.22} 0 a${cabR * 0.78} ${cabR * 0.6} 0 0 0 ${-cabR * 1.56} 0 z" fill="${cabelo}"/>`);
-    p.push(`<path d="M${x - cabR} ${yCab + cabR * 0.06} a${cabR} ${cabR} 0 0 1 ${cabR * 2} 0 l0 ${-cabR * 0.42} a${cabR} ${cabR} 0 0 0 ${-cabR * 2} 0 z" fill="${cabelo}"/>`);
+  // ---- braços com MÃOS REDONDAS (sempre visíveis, como no modelo)
+  const BR = {
+    parado: [[-25, 20], [25, 20]], olhando: [[-25, 18], [27, 10]], carregando: [[-26, 4], [26, 4]],
+    andando: [[-26 - passo * 7, 16], [26 + passo * 7, 16]], correndo: [[-31 - passo * 9, 4], [31 + passo * 9, 4]],
+    agachado: [[-27, 10], [27, 10]], batendo: [[-25, 20], [28, -20]], apontando: [[-25, 20], [35, -8]],
+    assustado: [[-29, -16], [29, -16]], pensando: [[-25, 20], [16, -14]], segurando: [[-25, 20], [14, -2]],
+  }[pose] || [[-25, 20], [25, 20]];
+  const corBraco = roupa === "regata" ? pele : cor;
+  for (const [dx, dy] of BR) {
+    const ox = x + (dx > 0 ? larg / 2.6 : -larg / 2.6) * u;
+    p.push(`<path d="M${ox} ${yCorpo + 9 * u} L${x + dx * u} ${yCorpo + (9 + dy) * u}" stroke="${corBraco}" stroke-width="${9.5 * u}" fill="none" stroke-linecap="round"/>`);
+    p.push(`<circle cx="${x + dx * u}" cy="${yCorpo + (9 + dy) * u}" r="${4.8 * u}" fill="${pele}"/>`);
   }
 
-  // olhos (grandes, ovais, sem branco) — piscam sozinhos
+  // ---- cabeça REDONDA com o cabelo de tigela (e a faixa mais clara do modelo)
+  p.push(`<circle cx="${x}" cy="${yCab}" r="${cabR}" fill="${pele}"/>`);
+  if (cabelo !== "none" && !q.bone) {
+    p.push(`<path d="M${x - cabR} ${yCab + cabR * 0.1} a${cabR} ${cabR} 0 0 1 ${cabR * 2} 0 l${-cabR * 0.17} 0 a${cabR * 0.83} ${cabR * 0.52} 0 0 0 ${-cabR * 1.66} 0 z" fill="${cabelo}"/>`);
+    p.push(`<path d="M${x - cabR} ${yCab + cabR * 0.1} a${cabR} ${cabR} 0 0 1 ${cabR * 2} 0 l0 ${-cabR * 0.5} a${cabR} ${cabR} 0 0 0 ${-cabR * 2} 0 z" fill="${cabelo}"/>`);
+    p.push(`<path d="M${x - cabR * 0.97} ${yCab - cabR * 0.17} a${cabR} ${cabR} 0 0 1 ${cabR * 1.94} 0" stroke="${tom(cabelo, 0.3)}" stroke-width="${cabR * 0.14}" fill="none"/>`);
+  }
+  if (q.bone) {
+    const bc = q.cor_bone || "#c0392b";
+    p.push(`<path d="M${x - cabR} ${yCab - cabR * 0.1} a${cabR} ${cabR} 0 0 1 ${cabR * 2} 0 z" fill="${bc}"/>`);
+    p.push(`<rect x="${x - cabR * 1.05}" y="${yCab - cabR * 0.17}" width="${cabR * 2.1}" height="${cabR * 0.2}" rx="${cabR * 0.1}" fill="${tom(bc, -0.2)}"/>`);
+    p.push(`<path d="M${x + cabR * 0.9} ${yCab - cabR * 0.14} q${cabR * 0.7} ${cabR * 0.06} ${cabR * 0.72} ${cabR * 0.2} l${-cabR * 0.72} 0 z" fill="${tom(bc, -0.2)}"/>`);
+  }
+
+  // ---- olhos GRANDES ovais (sem branco), piscando sozinhos
   const pisca = (t * 1000 + (q.x || 0) * 3000) % 3400 < 130;
   const ox = olh * 2.6 * u;
-  const oy = yCab + cabR * 0.12;
-  const or_ = 3.5 * u;
+  const oy = yCab + cabR * 0.14;
+  const orx = 4.3 * u;
+  const ory = 5.6 * u;
   for (const lado of [-1, 1]) {
-    const cx = x + lado * 8.4 * u + ox;
-    if (pisca) p.push(`<rect x="${cx - or_}" y="${oy - 0.8 * u}" width="${or_ * 2}" height="${1.8 * u}" rx="${0.9 * u}" fill="#2b2b2b"/>`);
-    else p.push(`<ellipse cx="${cx}" cy="${oy}" rx="${or_}" ry="${or_ * 1.18}" fill="#2b2b2b"/>`);
+    const cx = x + lado * 8.6 * u + ox;
+    if (pisca) p.push(`<rect x="${cx - orx}" y="${oy - 0.9 * u}" width="${orx * 2}" height="${1.9 * u}" rx="${0.95 * u}" fill="#2b2b2b"/>`);
+    else p.push(`<ellipse cx="${cx}" cy="${oy}" rx="${orx}" ry="${ory}" fill="#2b2b2b"/>`);
   }
-  // sobrancelhas (só quando a cena pede uma cara)
+  // sobrancelhas finas e curvas — sempre presentes (o modelo tem), inclinadas pela cara
   const cara = q.cara || "";
-  if (cara === "bravo" || cara === "assustado" || cara === "serio") {
-    const inc = cara === "bravo" ? 3.2 * u : cara === "assustado" ? -3.2 * u : 0;
-    for (const lado of [-1, 1]) {
-      const cx = x + lado * 8.4 * u + ox;
-      p.push(`<path d="M${cx - 4.4 * u} ${oy - 7.4 * u + lado * inc * 0} L${cx + 4.4 * u} ${oy - 7.4 * u + inc * lado * -1}" stroke="${cabelo}" stroke-width="${2.2 * u}" stroke-linecap="round"/>`);
-    }
+  const inc = cara === "bravo" ? 3.4 : cara === "assustado" ? -3.0 : cara === "serio" ? 1.2 : 0;
+  for (const lado of [-1, 1]) {
+    const cx = x + lado * 8.6 * u + ox;
+    const dy = inc * lado * -1 * u;
+    p.push(`<path d="M${cx - 4.6 * u} ${oy - 8.6 * u + dy * 0.2} q${4.6 * u} ${-2.6 * u} ${9.2 * u} ${dy}" stroke="${tom(cabelo === "none" ? "#5a3b26" : cabelo, -0.1)}" stroke-width="${2 * u}" stroke-linecap="round" fill="none"/>`);
   }
-  // boca: fala (abre e fecha), ou linha/arco conforme a cara
+  // boca: fala (abre e fecha) ou a cara da cena — sempre desenhada
   if (q.falando) {
-    const a = (0.5 + 0.5 * Math.sin(t * 17)) * 4.2 * u + 1.1 * u;
-    p.push(`<ellipse cx="${x + ox * 0.5}" cy="${oy + 9.4 * u}" rx="${3.4 * u}" ry="${a}" fill="#2b2b2b"/>`);
+    const a = (0.5 + 0.5 * Math.sin(t * 17)) * 4.2 * u + 1.4 * u;
+    p.push(`<ellipse cx="${x + ox * 0.5}" cy="${oy + 10 * u}" rx="${3.6 * u}" ry="${a}" fill="#2b2b2b"/>`);
   } else if (cara === "feliz") {
-    p.push(`<path d="M${x - 4 * u + ox * 0.5} ${oy + 8.6 * u} q${4 * u} ${4 * u} ${8 * u} 0" stroke="#2b2b2b" stroke-width="${1.9 * u}" fill="none" stroke-linecap="round"/>`);
+    p.push(`<path d="M${x - 4.4 * u + ox * 0.5} ${oy + 9 * u} q${4.4 * u} ${4.4 * u} ${8.8 * u} 0" stroke="#2b2b2b" stroke-width="${2 * u}" fill="none" stroke-linecap="round"/>`);
   } else if (cara === "assustado") {
-    p.push(`<ellipse cx="${x + ox * 0.5}" cy="${oy + 9.4 * u}" rx="${2.6 * u}" ry="${3.4 * u}" fill="#2b2b2b"/>`);
+    p.push(`<ellipse cx="${x + ox * 0.5}" cy="${oy + 10 * u}" rx="${2.9 * u}" ry="${3.8 * u}" fill="#2b2b2b"/>`);
   } else {
-    p.push(`<rect x="${x - 3.6 * u + ox * 0.5}" y="${oy + 8.6 * u}" width="${7.2 * u}" height="${1.7 * u}" rx="${0.85 * u}" fill="#2b2b2b"/>`);
+    p.push(`<ellipse cx="${x + ox * 0.5}" cy="${oy + 10 * u}" rx="${2.8 * u}" ry="${2.1 * u}" fill="#2b2b2b"/>`);
+  }
+  // lanterna na mão (cena escura)
+  if (q.lanterna) {
+    const lx = x + 28 * u;
+    const ly = yCorpo + 22 * u;
+    p.push(`<rect x="${lx - 4 * u}" y="${ly - 3 * u}" width="${13 * u}" height="${6 * u}" rx="${2 * u}" fill="#3b4350"/>
+      <path d="M${lx + 9 * u} ${ly - 3 * u} L${lx + 52 * u} ${ly - 22 * u} L${lx + 52 * u} ${ly + 22 * u} L${lx + 9 * u} ${ly + 3 * u} z" fill="#ffe9a8" opacity=".32"/>`);
   }
   return p.join("");
 }
@@ -212,9 +277,9 @@ const OBJ = {
       <path d="M${x - 50 * s} ${y - 58 * s} L${x - 38 * s} ${y - 80 * s} L${x + 40 * s} ${y - 80 * s} L${x + 52 * s} ${y - 58 * s} z" fill="#cfe0ee" opacity=".8"/>
       <circle cx="${x - 56 * s}" cy="${y - 12 * s}" r="${16 * s}" fill="#22282f"/><circle cx="${x + 56 * s}" cy="${y - 12 * s}" r="${16 * s}" fill="#22282f"/>`;
   },
-  mochila: (x, y, s) => `<rect x="${x - 38 * s}" y="${y - 82 * s}" width="${76 * s}" height="${82 * s}" rx="${16 * s}" fill="#4b6b4a"/>
-    <rect x="${x - 28 * s}" y="${y - 46 * s}" width="${56 * s}" height="${30 * s}" rx="${7 * s}" fill="#3c5a3c"/>
-    <rect x="${x - 14 * s}" y="${y - 94 * s}" width="${28 * s}" height="${16 * s}" rx="${7 * s}" fill="#3c5a3c"/>`,
+  mochila: (x, y, s) => `<rect x="${x - 38 * s}" y="${y - 82 * s}" width="${76 * s}" height="${82 * s}" rx="${16 * s}" fill="#7a5637"/>
+    <rect x="${x - 28 * s}" y="${y - 46 * s}" width="${56 * s}" height="${30 * s}" rx="${7 * s}" fill="#5f4129"/>
+    <rect x="${x - 14 * s}" y="${y - 94 * s}" width="${28 * s}" height="${16 * s}" rx="${7 * s}" fill="#5f4129"/>`,
   escada: (x, y, s) => Array.from({ length: 6 }, (_, i) =>
     `<rect x="${x - 70 * s + i * 22 * s}" y="${y - i * 34 * s - 30 * s}" width="${110 * s}" height="${30 * s}" fill="#9aa3ab"/>`).join(""),
   torneira: (x, y, s, o, t) => {
@@ -225,6 +290,17 @@ const OBJ = {
         ? `<rect x="${x - 4 * s}" y="${y - 34 * s}" width="${8 * s}" height="${34 * s}" fill="#7cc4e8"/>`
         : `<circle cx="${x}" cy="${y - 34 * s + g * 34 * s}" r="${6 * s}" fill="#7cc4e8" opacity="${1 - g * 0.5}"/>`}`;
   },
+  // relógio de parede: o ponteiro anda (bom para os closes de apoio)
+  relogio: (x, y, s, o, t) => {
+    const ang = (t * 0.9) % (Math.PI * 2);
+    return `<circle cx="${x}" cy="${y}" r="${58 * s}" fill="#f4efe2" stroke="#2e2a26" stroke-width="${7 * s}"/>
+      <line x1="${x}" y1="${y}" x2="${x}" y2="${y - 36 * s}" stroke="#2e2a26" stroke-width="${6 * s}" stroke-linecap="round"/>
+      <line x1="${x}" y1="${y}" x2="${x + Math.sin(ang) * 46 * s}" y2="${y - Math.cos(ang) * 46 * s}" stroke="#c0392b" stroke-width="${4 * s}" stroke-linecap="round"/>
+      <circle cx="${x}" cy="${y}" r="${5 * s}" fill="#2e2a26"/>`;
+  },
+  garrafa: (x, y, s) => `<rect x="${x - 20 * s}" y="${y - 96 * s}" width="${40 * s}" height="${96 * s}" rx="${10 * s}" fill="#5a8f9c"/>
+    <rect x="${x - 11 * s}" y="${y - 114 * s}" width="${22 * s}" height="${22 * s}" rx="${5 * s}" fill="#36606b"/>
+    <rect x="${x - 20 * s}" y="${y - 58 * s}" width="${40 * s}" height="${14 * s}" fill="#cfd8d5"/>`,
 };
 
 /* ---------------------------------------------------------------- cenários (desenhados UMA vez por cena) */
@@ -246,14 +322,53 @@ function predios(p, n, base, acesas, semente) {
   return out.join("");
 }
 
+/** O PRÉDIO DA HISTÓRIA, com os andares contados de baixo para cima e o ANDAR DA CENA marcado.
+    `andar` (ex. 12) e `andares` (ex. 15) vêm do roteiro: a janela do andar acende, ganha seta e o rótulo "12º ANDAR",
+    e os vizinhos ficam apagados. É o que faz o público ENTENDER onde a pessoa está. */
+function predioAndares(p, c) {
+  const total = Math.max(4, Math.min(24, Number(c.andares) || 15));
+  const alvo = Math.max(1, Math.min(total, Number(c.andar) || 0));
+  const topo = H * 0.09;
+  const base = H * 0.88;
+  const hA = (base - topo) / total;
+  const px = W * 0.2;
+  const pw = W * 0.6;
+  const out = [`<rect width="${W}" height="${H}" fill="${p.ceu}"/>`, predios(p, 4, base, 0.06, (c.semente || 1) + 3)];
+  out.push(`<rect x="${px}" y="${topo}" width="${pw}" height="${base - topo}" fill="${p.predio}"/>`);
+  out.push(`<rect x="${px}" y="${topo - 18}" width="${pw}" height="18" fill="${p.predio2}"/>`);
+  for (let a = 0; a < total; a++) {
+    const andar = total - a;                          // desenha de cima para baixo, numera de baixo para cima
+    const y = topo + a * hA;
+    const marcado = andar === alvo;
+    out.push(`<rect x="${px}" y="${y + hA - 3}" width="${pw}" height="3" fill="rgba(0,0,0,.18)"/>`);
+    for (let b = 0; b < 4; b++) {
+      const jx = px + pw * 0.08 + b * (pw * 0.23);
+      const jw = pw * 0.16;
+      const jh = Math.min(hA * 0.56, 70);
+      const on = marcado || ((a * 4 + b) % 7 === 0 && !alvo);
+      out.push(`<rect x="${jx}" y="${y + hA * 0.2}" width="${jw}" height="${jh}" fill="${on ? p.vidroOn : p.vidro}"/>`);
+    }
+    if (marcado) {
+      // a etiqueta fica DENTRO do prédio: na borda ela some quando a câmera dá zoom
+      out.push(`<rect x="${px - 6}" y="${y}" width="${pw + 12}" height="${hA}" fill="none" stroke="#ffd400" stroke-width="8"/>`);
+      const eh = Math.min(hA * 0.78, 86);
+      const ey = y + (hA - eh) / 2;
+      const ew = 236;
+      out.push(`<rect x="${px + 18}" y="${ey}" width="${ew}" height="${eh}" rx="10" fill="#ffd400"/>`);
+      out.push(`<path d="M${px + 18 + ew} ${ey + eh / 2 - 17} l26 17 l-26 17 z" fill="#ffd400"/>`);
+      out.push(`<text x="${px + 18 + ew / 2}" y="${ey + eh * 0.74}" text-anchor="middle" font-family="Anton,sans-serif" font-size="${eh * 0.66}" fill="#1a1c20">${andar}º ANDAR</text>`);
+    } else if (andar % 3 === 0) {
+      out.push(`<text x="${px + pw + 16}" y="${y + hA * 0.68}" font-family="Inter,sans-serif" font-weight="900" font-size="24" fill="${p.tinta}" opacity=".45">${andar}</text>`);
+    }
+  }
+  out.push(`<rect y="${base}" width="${W}" height="${H - base}" fill="${p.chao}"/>`);
+  return out.join("");
+}
+
 const CENARIO = {
   cidade: (p, c) => `<rect width="${W}" height="${H}" fill="${p.ceu}"/>${predios(p, 7, H * 0.7, c.luz === "noite" ? 0.2 : c.luz === "escuro" ? 0.02 : 0.08, c.semente)}
     <rect y="${H * 0.7}" width="${W}" height="${H * 0.3}" fill="${p.chao}"/>`,
-  predio: (p, c) => `<rect width="${W}" height="${H}" fill="${p.ceu}"/>${predios(p, 4, H * 0.82, 0.08, c.semente + 3)}
-    <rect x="${W * 0.18}" y="${H * 0.12}" width="${W * 0.64}" height="${H * 0.7}" fill="${p.predio}"/>
-    ${Array.from({ length: 7 }, (_, a) => Array.from({ length: 4 }, (_, b) =>
-      `<rect x="${W * 0.22 + b * 140}" y="${H * 0.17 + a * 160}" width="90" height="110" fill="${(a * 4 + b) % 5 === 0 ? p.vidroOn : p.vidro}"/>`).join("")).join("")}
-    <rect y="${H * 0.82}" width="${W}" height="${H * 0.18}" fill="${p.chao}"/>`,
+  predio: (p, c) => predioAndares(p, c),
   quarto: (p) => `<rect width="${W}" height="${H}" fill="${p.parede}"/>
     <rect y="${H * 0.6}" width="${W}" height="${H * 0.4}" fill="${p.rodape}"/>
     <rect y="${H * 0.6}" width="${W}" height="14" fill="rgba(0,0,0,.14)"/>
@@ -284,6 +399,9 @@ const CENARIO = {
   garagem: (p) => `<rect width="${W}" height="${H}" fill="#3a3f45"/>
     <rect y="${H * 0.72}" width="${W}" height="${H * 0.28}" fill="#2b3036"/>
     ${Array.from({ length: 4 }, (_, i) => `<rect x="${i * 290 + 30}" y="${H * 0.18}" width="14" height="${H * 0.54}" fill="#474d55"/>`).join("")}`,
+  escadaria: (p) => `<rect width="${W}" height="${H}" fill="${p.parede}"/>
+    ${Array.from({ length: 9 }, (_, i) => `<rect x="${W * 0.1 + i * 36}" y="${H * 0.42 + i * 68}" width="${W * 0.8 - i * 36}" height="68" fill="${i % 2 ? p.rodape : p.chao}"/>`).join("")}
+    <rect x="${W * 0.06}" y="0" width="18" height="${H}" fill="rgba(0,0,0,.12)"/>`,
   mercado: (p) => `<rect width="${W}" height="${H}" fill="#e8e3d6"/>
     ${Array.from({ length: 3 }, (_, i) => `<rect x="60" y="${H * 0.26 + i * 150}" width="${W - 120}" height="20" fill="#b9a98c"/>
       ${Array.from({ length: 9 }, (_, b) => `<rect x="${80 + b * 100}" y="${H * 0.26 + i * 150 - 54}" width="56" height="54" rx="5" fill="${["#c0392b", "#3b6ea5", "#d8a43a", "#4b8b5a"][(i + b) % 4]}"/>`).join("")}`).join("")}
@@ -314,6 +432,8 @@ function fumaca(t, semente, n = 9) {
 }
 
 /* ---------------------------------------------------------------- montagem */
+const PLANO = { geral: 1.04, medio: 1.3, close: 1.85 };
+
 const CENA = {
   monta(cena) {
     const c = cena || {};
@@ -338,6 +458,16 @@ const CENA = {
       ono.style.left = `${(c.ono_x == null ? 0.62 : c.ono_x) * 100}%`;
       ono.style.top = `${(c.ono_y == null ? 0.3 : c.ono_y) * 100}%`;
     }
+    // CARTELA DE ESCOLHA (o fim de todo episódio: é ela que traz o comentário e o próximo episódio)
+    const el = document.getElementById("escolha");
+    const e = c.escolha;
+    if (e && (e.a || e.b)) {
+      el.style.display = "flex";
+      el.innerHTML = `<div class="perg">${esc(e.pergunta || "O QUE ELE FAZ AGORA?")}</div>
+        <div class="op"><i>A</i><span>${esc(e.a || "")}</span></div>
+        <div class="op b"><i>B</i><span>${esc(e.b || "")}</span></div>
+        <div class="cta">COMENTA <b>A</b> OU <b>B</b> 👇</div>`;
+    } else el.style.display = "none";
     this.legenda("");
     this.anima(0, 0);
   },
@@ -354,20 +484,29 @@ const CENA = {
     const c = this._c || {};
     const q = Math.max(0, Math.min(1, p));
     const m = c.movimento || "zoom";
-    let tr = "scale(1.05)";
-    if (m === "zoom") tr = `scale(${1.04 + q * 0.1})`;
-    else if (m === "afasta") tr = `scale(${1.16 - q * 0.1})`;
-    else if (m === "direita") tr = `scale(1.12) translateX(${(0.5 - q) * 5}%)`;
-    else if (m === "esquerda") tr = `scale(1.12) translateX(${(q - 0.5) * 5}%)`;
-    else if (m === "sobe") tr = `scale(1.12) translateY(${(q - 0.5) * 5}%)`;
-    else if (m === "desce") tr = `scale(1.12) translateY(${(0.5 - q) * 5}%)`;
+    // o PLANO decide o tamanho: geral (a cena), médio (a pessoa) e close (o detalhe — é o "corte de apoio" do formato)
+    const z = PLANO[c.plano] || PLANO.geral;
+    const fx = c.foco && c.foco.x != null ? c.foco.x : 0.5;
+    const fy = c.foco && c.foco.y != null ? c.foco.y : 0.5;
+    let tr = `scale(${z})`;
+    if (m === "zoom") tr = `scale(${z + q * 0.1})`;
+    else if (m === "afasta") tr = `scale(${z + 0.12 - q * 0.1})`;
+    else if (m === "direita") tr = `scale(${z + 0.08}) translateX(${(0.5 - q) * 5}%)`;
+    else if (m === "esquerda") tr = `scale(${z + 0.08}) translateX(${(q - 0.5) * 5}%)`;
+    else if (m === "sobe") tr = `scale(${z + 0.08}) translateY(${(q - 0.5) * 5}%)`;
+    else if (m === "desce") tr = `scale(${z + 0.08}) translateY(${(0.5 - q) * 5}%)`;
     // tremor (porta batendo, explosão, susto)
     if (c.tremor) {
       const k = Math.max(0, 1 - q * 1.6);
       tr += ` translate(${r2(Math.sin(t * 40) * 9 * k)}px, ${r2(Math.cos(t * 37) * 7 * k)}px)`;
     }
-    document.getElementById("fundo").style.transform = tr;
-    document.getElementById("atores").style.transform = tr;
+    const fundoEl = document.getElementById("fundo");
+    const atoresEl = document.getElementById("atores");
+    fundoEl.style.transformOrigin = `${fx * 100}% ${fy * 100}%`;
+    atoresEl.style.transformOrigin = `${fx * 100}% ${fy * 100}%`;
+    // PARALLAX: o fundo anda um pouco menos que os atores — é o que dá sensação de profundidade (o "motion")
+    fundoEl.style.transform = `${tr} translateZ(0) scale(0.985)`;
+    atoresEl.style.transform = tr;
 
     // ---- camada animada
     const a = [];
@@ -386,10 +525,12 @@ const CENA = {
     if (c.chuva) a.push(chuva(t, c.semente || 3));
     if (c.escurece) a.push(`<rect width="${W}" height="${H}" fill="#000" opacity="${r2(Math.min(0.82, q * 1.4))}"/>`);
     if (c.clarao) a.push(`<rect width="${W}" height="${H}" fill="#fff" opacity="${r2(Math.max(0, 0.85 - q * 4))}"/>`);
-    document.getElementById("atores").innerHTML =
+    atoresEl.innerHTML =
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${a.join("")}</svg>`;
   },
 };
 
 window.CENA = CENA;
 window.CENA_LUZ = LUZ;
+window.CENA_PESSOA = pessoa;
+window.CENA_CENARIO = CENARIO;

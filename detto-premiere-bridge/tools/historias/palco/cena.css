@@ -99,6 +99,72 @@ body {
   z-index: 3;
 }
 
+/* CARTELA DE ESCOLHA — o fim de todo episódio. É ela que traz o comentário (e o episódio seguinte). */
+#escolha {
+  position: absolute;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 34px;
+  padding: 0 70px;
+  background: rgba(8, 10, 14, 0.76);
+  z-index: 5;
+}
+#escolha .perg {
+  font-size: 76px;
+  line-height: 1.05;
+  color: #fff;
+  text-align: center;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  text-shadow: 0 7px 0 rgba(0, 0, 0, 0.6);
+  margin-bottom: 10px;
+}
+#escolha .op {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  width: 100%;
+  background: #f4efe2;
+  border-radius: 24px;
+  padding: 28px 34px;
+  box-shadow: 0 10px 0 rgba(0, 0, 0, 0.45);
+}
+#escolha .op i {
+  font-style: normal;
+  font-size: 78px;
+  line-height: 1;
+  color: #1a1c20;
+  background: #ffd400;
+  border-radius: 18px;
+  padding: 14px 30px 8px;
+}
+#escolha .op.b i {
+  background: #e8623c;
+  color: #fff;
+}
+#escolha .op span {
+  font-family: Inter, sans-serif;
+  font-weight: 900;
+  font-size: 42px;
+  line-height: 1.12;
+  color: #1a1c20;
+  text-transform: uppercase;
+}
+#escolha .cta {
+  font-size: 50px;
+  color: #fff;
+  letter-spacing: 2px;
+  margin-top: 16px;
+  text-shadow: 0 6px 0 rgba(0, 0, 0, 0.55);
+}
+#escolha .cta b {
+  color: #ffd400;
+  font-weight: 400;
+}
+
 /* legenda grande — o jeito dos virais: caixa alta, 2 a 4 palavras, uma colorida */
 #leg {
   position: absolute;

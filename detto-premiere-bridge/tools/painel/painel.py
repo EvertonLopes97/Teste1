@@ -276,7 +276,7 @@ SUBIU_EM = time.time()
 # Versão do PYTHON que está rodando. O painel.html é lido do disco a cada acesso, então depois de um `git pull` o
 # navegador recebe a tela NOVA enquanto o Python continua o VELHO (foi o que aconteceu: a aba Histórias apareceu
 # vazia e o Instagram continuou no caminho antigo). A tela compara esta versão com a dela e avisa.
-PAINEL_VERSAO = "2026-10-22c"
+PAINEL_VERSAO = "2026-10-22d"
 
 
 def codigo_novo():
@@ -862,7 +862,8 @@ class Painel(hserver.BaseHTTPRequestHandler):
             if u.path == "/canal_arquivo":
                 return self._manda(CAN.arquivo(q.get("c", ""), q.get("id", ""), q.get("nome", "")), baixar=q.get("baixar") == "1")
             if caminho == "/historia":
-                return self._manda(HIS.arquivo(q.get("s", ""), q.get("nome", "episodio.mp4")), baixar=q.get("baixar") == "1")
+                return self._manda(HIS.arquivo(q.get("s", ""), q.get("a") or q.get("nome", "episodio.mp4")),
+                                   baixar=q.get("baixar") == "1")
             if u.path == "/ed_arquivo":
                 return self._manda(EDI.arquivo(q.get("id", ""), q.get("rel", "")), baixar=q.get("baixar") == "1")
             self._json({"erro": "não achei"}, 404)

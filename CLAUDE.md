@@ -260,6 +260,25 @@ mandaram o Lucas pro mercadinho"). É isso que faz a série crescer. Vale para q
   episódio (`escreve_episodio`, Gemini → IAs grátis → Claude; `limpa_cena` descarta cenário/pose/objeto que o palco não
   sabe desenhar) → voz (VoiceStudio → Fish, com `sem_pausas`) → faster-whisper → `encaixa_cenas` (cada cena termina onde
   a frase dela acaba) → `render.js` → `<serie>\ep_NN\episodio.mp4` → fila de postagem do painel.
+- A IA DIRIGE A EDIÇÃO (22/out, Gemini API dele): além do texto, o roteiro traz `plano` (geral|medio|close) com `foco`
+  — o CLOSE é o corte de apoio do formato (o celular na hora da mensagem, a torneira, o relógio) —, a ROUPA do
+  personagem (`roupa`: moletom|camisa|jaleco|uniforme|terno|pijama|regata|capuz + `mochila`/`bone`/`colete`/`lanterna`,
+  a MESMA em todo o episódio e nos seguintes) e `sfx` + **`sfx_palavra`**: o efeito entra na PALAVRA da narração
+  (achada nas words do whisper, `marca_sfx`), não no começo da cena. Sem a pasta de sons catalogada, o som é
+  SINTETIZADO pelo FFmpeg (`som_sintetico`) — o episódio nunca sai mudo. Plano manda no tamanho (close ≤ 500 px).
+  A narração já vem pronta para a voz: números por extenso, sem siglas, símbolos nem abreviações (falas erradas).
+- ANDAR CERTO: cenário `predio` com `andar: 12` e `andares: 15` desenha o prédio inteiro, acende a janela daquele
+  andar, numera os outros e põe a etiqueta amarela **12º ANDAR** DENTRO do prédio (na borda ela sumia no zoom).
+- FIM COM AS DUAS ESCOLHAS (22/out, `fecha_com_escolha`): todo episódio ganha a última cena com a cartela A/B
+  (pergunta + card A + card B + "COMENTA A OU B") e a pergunta entra na NARRAÇÃO, para o narrador ler. A legenda
+  some nessa cena (quem lê são os cards). Sem isso não há comentário — e sem comentário não há próximo episódio.
+- CAPAS E ARTE DO PERFIL (22/out, `tools\historias\capa.py` + `arte.js` + `palco\arte.html`): a capa sai junto com
+  cada episódio (`ep_NN\capa.jpg`, 1080x1920, com TUDO dentro do quadrado do meio que o Instagram mostra na GRADE;
+  `capa_grade.jpg` é esse quadrado). Padrão dos perfis que viralizaram: "EPISÓDIO" pequeno, NÚMERO gigante dourado,
+  título em caixa alta (última linha amarela), o desenho da cena mais cheia atrás e o nome da série no rodapé
+  (última palavra colorida + selo com o emoji da série, `"emoji"` no serie.json). Arte de perfil em `arte\perfil.png`
+  (1080x1080, o personagem com a roupa dele) e `arte\grade.jpg` = as capas lado a lado, para ver o perfil montado.
+  `python tools\historias\capa.py [--serie X] [--perfil]` refaz tudo; painel: "Refazer capas + arte".
 - ANIMAÇÃO DE VERDADE (22/out): o palco tem DUAS camadas — `#fundo` (cenário, desenhado 1x por cena, só recebe o
   movimento de câmera) e `#atores` (REDESENHADO a cada quadro). `anima(p, t)` recebe o progresso da cena E o tempo:
   bonequinho com cabeça REDONDA (estilo stick), ciclo de caminhada com pés, respiração, piscar sozinho, boca falando
@@ -270,7 +289,9 @@ mandaram o Lucas pro mercadinho"). É isso que faz a série crescer. Vale para q
 - PALCO `tools\historias\palco\` (cena.html/css/js, Chromium): cenários `cidade predio quarto janela banheiro corredor
   rua laje garagem mercado escuro`, luz `dia tarde noite escuro chuva alerta`, bonequinho em 8 poses, gato, objetos
   (balde, banheira, vela, celular, porta, caixa, moto, carro, mochila, escada, torneira), chuva, relógio/contador/selo,
-  onomatopeia, movimento `zoom afasta direita esquerda sobe desce`. Legenda: `*palavra*` sai colorida; sem marcação o
+  onomatopeia, movimento `zoom afasta direita esquerda sobe desce` + PARALLAX (o fundo anda menos que os atores).
+  O bonequinho segue o modelo dele: cabeça redonda, cabelo de tigela com faixa clara, olhos ovais grandes,
+  sobrancelhas, boca sempre desenhada, mãos redondas e a roupa que a história pedir. Legenda: `*palavra*` sai colorida; sem marcação o
   `destaca()` escolhe (número primeiro). Desenhar por código mantém a série IGUAL em todo episódio e é instantâneo.
 - VOCÊ MANDA NA CONTINUAÇÃO (22/out): no painel, antes de "Fazer o episódio N" dá para escolher **A venceu / B venceu**
   (em vez de contar os comentários) e escrever **o que acontece neste episódio** (ex.: "vi um viral e quero usar isso").

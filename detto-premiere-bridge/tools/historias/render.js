@@ -156,7 +156,8 @@ async function main() {
     const c = cenas[idx];
     await page.evaluate(({ p, tt }) => window.CENA.anima(p, tt), { p: (t - c._ini) / Math.max(0.3, c._fim - c._ini), tt: t });
     const bloco = legendas.find((b) => t >= b.s - 0.05 && t <= b.e + 0.12);
-    const txt = bloco ? bloco.txt : c.legenda_fixa || "";
+    // na cartela A/B a legenda sai: quem lê são os dois cards
+    const txt = c.escolha ? "" : bloco ? bloco.txt : c.legenda_fixa || "";
     if (txt !== legAtual) {
       legAtual = txt;
       await page.evaluate((x) => window.CENA.legenda(x), txt ? destaca(txt) : "");

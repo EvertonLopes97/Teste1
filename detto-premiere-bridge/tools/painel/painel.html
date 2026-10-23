@@ -506,7 +506,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-10-22c";
+const VERSAO_TELA = "2026-10-22d";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -832,8 +832,18 @@ function historias(){
         ${u.escolha&&u.escolha.pergunta?`<div class="info">${esc(u.escolha.pergunta)} <br><b>A)</b> ${esc(u.escolha.a||"")} · <b>B)</b> ${esc(u.escolha.b||"")}</div>`:""}
         ${u.resultado?`<div class="info" style="color:var(--lima)">🗳️ ${esc(u.resultado)}</div>`:`<div class="info" style="opacity:.6">votos ainda não contados</div>`}
         ${u.existe?`<div class="linha" style="margin-top:6px"><button class="mini" onclick="hisVer('${s.pasta}')">Assistir</button>
-          <a class="mini" href="/historia?s=${encodeURIComponent(s.pasta)}&baixar=1" download>Baixar</a></div>`:""}
+          <a class="mini" href="/historia?s=${encodeURIComponent(s.pasta)}&baixar=1" download>Baixar</a>
+          ${u.capa?`<a class="mini" href="/historia?s=${encodeURIComponent(s.pasta)}&a=${encodeURIComponent(u.capa)}" target="_blank">Capa</a>`:""}</div>`:""}
       </div>`:`<div class="info" style="margin-top:8px;opacity:.7">nenhum episódio ainda</div>`}
+      <div class="chave" style="display:block;margin-top:8px">
+        <b>Perfil do Instagram</b>
+        <small style="display:block;opacity:.7;margin:3px 0 6px">A capa de cada episódio e a foto de perfil, no mesmo padrão — é o que faz a grade parecer uma série.</small>
+        <div class="linha">
+          <button class="mini" onclick="api('hist_capas',{pasta:'${s.pasta}'}).then(()=>carrega(true))" ${H.rodando?"disabled":""}>Refazer capas + arte</button>
+          ${s.perfil?`<a class="mini" href="/historia?s=${encodeURIComponent(s.pasta)}&a=${encodeURIComponent(s.perfil)}" download>Foto de perfil</a>`:""}
+          ${s.grade?`<a class="mini" href="/historia?s=${encodeURIComponent(s.pasta)}&a=${encodeURIComponent(s.grade)}" target="_blank">Ver a grade</a>`:""}
+        </div>
+      </div>
       ${u && u.escolha && u.escolha.pergunta ? `<div class="chave" style="display:block;margin-top:8px">
         <b>Como continuar?</b>
         <small style="display:block;opacity:.7;margin:3px 0 6px">Deixe em "contar os comentários" para apurar sozinho, ou escolha você mesmo.</small>

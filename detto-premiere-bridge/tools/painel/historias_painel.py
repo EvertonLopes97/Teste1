@@ -60,7 +60,10 @@ def estado():
             "ultimo": ({"n": ult["n"], "titulo": ult.get("titulo", ""), "escolha": ult.get("escolha", {}),
                         "resultado": (ult.get("resultado") or {}).get("texto", ""),
                         "arquivo": Path(ult.get("arquivo", "")).name if ult.get("arquivo") else "",
+                        "capa": f"ep_{ult['n']:02d}/capa.jpg" if (f.parent / f"ep_{ult['n']:02d}" / "capa.jpg").exists() else "",
                         "existe": bool(ult.get("arquivo") and Path(ult["arquivo"]).exists())} if ult else None),
+            "perfil": "arte/perfil.png" if (f.parent / "arte" / "perfil.png").exists() else "",
+            "grade": "arte/grade.jpg" if (f.parent / "arte" / "grade.jpg").exists() else "",
         })
     return {"pasta": str(p), "series": out, "rodando": rodando(), "serie_rodando": PROC["serie"],
             "log": PROC["log"][-14:], "contas": c.get("contas", []), "por_dia": c.get("por_dia", 1),
@@ -93,6 +96,31 @@ def _roda(args, serie=""):
     return {"ok": True}
 
 
+def _roda_capa(serie):
+    """refaz as capas dos episódios e a arte de perfil (o mesmo programa, só que o capa.py)"""
+    if rodando():
+        return {"ok": False, "erro": "espere o episódio terminar"}
+    exe = Path(sys.executable)
+    if exe.name.lower() == "pythonw.exe":
+        exe = exe.with_name("python.exe")
+    PROC["serie"] = serie or "capas"
+    PROC["log"] = []
+    cmd = [str(exe), "-u", str(TOOLS / "historias" / "capa.py"), "--pasta", str(pasta())] + (["--serie", serie] if serie else [])
+    pr = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding="utf-8",
+                          errors="replace", cwd=str(PONTE), env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+                          **({"creationflags": 0x08000000} if os.name == "nt" else {}))
+    PROC["p"] = pr
+
+    def lendo():
+        for linha in pr.stdout:
+            PROC["log"].append(linha.rstrip()[:300])
+            del PROC["log"][:-200]
+        PROC["serie"] = ""
+
+    threading.Thread(target=lendo, daemon=True).start()
+    return {"ok": True}
+
+
 def acao(nome, d):
     H = _h()
     if nome == "hist_novo":
@@ -109,6 +137,8 @@ def acao(nome, d):
         return _roda(["--serie", d["pasta"], "--quantos", "1", *extra], d.get("pasta", ""))
     if nome == "hist_apurar":
         return _roda(["--apurar"], "votos")
+    if nome == "hist_capas":
+        return _roda_capa(d.get("pasta", ""))
     if nome == "hist_serie_cfg":
         f = pasta() / "series" / d["pasta"] / "serie.json"
         s = H.le_json(f, {}) or {}
@@ -143,9 +173,14 @@ def acao(nome, d):
 
 
 def arquivo(serie, nome):
-    """o mp4 de um episódio, para assistir/baixar no painel"""
-    f = pasta() / "series" / serie
-    for p in list(f.glob(f"ep_*/{nome}")) + list(f.glob("ep_*/episodio.mp4")):
+    """um arquivo da série para o painel mostrar/baixar: o mp4 do episódio, a capa ou a arte de perfil.
+    `nome` pode vir como "episodio.mp4" (acha o último) ou com a pasta junto ("ep_03/capa.jpg", "arte/perfil.png")."""
+    f = (pasta() / "series" / serie).resolve()
+    nome = str(nome or "").replace("\\", "/").strip("/")
+    if "/" in nome:
+        p = (f / nome).resolve()
+        return p if p.exists() and str(p).startswith(str(f)) and ".." not in nome else None
+    for p in sorted(f.glob(f"ep_*/{nome}")) + sorted(f.glob("ep_*/episodio.mp4")):
         if p.exists():
             return p
     return None

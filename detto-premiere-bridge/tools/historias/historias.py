@@ -31,6 +31,7 @@ from pathlib import Path
 AQUI = Path(__file__).resolve().parent
 TOOLS = AQUI.parent
 PONTE = TOOLS.parent
+sys.path.insert(0, str(AQUI))
 sys.path.insert(0, str(TOOLS))
 sys.path.insert(0, str(TOOLS / "reels"))
 sys.path.insert(0, str(TOOLS / "canal"))
@@ -89,15 +90,34 @@ def slug(s, n=40):
 
 
 # ------------------------------------------------------------------ 1. o roteiro (IA)
-CENARIOS = ["cidade", "predio", "quarto", "janela", "banheiro", "corredor", "rua", "laje", "garagem", "mercado", "escuro"]
+CENARIOS = ["cidade", "predio", "quarto", "janela", "banheiro", "corredor", "rua", "laje", "garagem", "escadaria",
+            "mercado", "escuro"]
 LUZES = ["dia", "tarde", "noite", "escuro", "chuva", "alerta"]
-POSES = ["parado", "olhando", "carregando", "andando", "correndo", "agachado", "batendo", "apontando"]
-OBJETOS = ["balde", "banheira", "vela", "celular", "porta", "caixa", "moto", "carro", "mochila", "escada", "torneira"]
+POSES = ["parado", "olhando", "carregando", "segurando", "andando", "correndo", "agachado", "batendo", "apontando",
+         "assustado", "pensando"]
+OBJETOS = ["balde", "banheira", "vela", "celular", "porta", "caixa", "moto", "carro", "mochila", "escada", "torneira",
+           "relogio", "garrafa"]
 MOVIMENTOS = ["zoom", "afasta", "direita", "esquerda", "sobe", "desce"]
 CARAS = ["", "serio", "bravo", "assustado", "feliz"]
-# efeitos sonoros (da pasta de sons dele, tools/biblioteca_sons.py)
+PLANOS = ["geral", "medio", "close"]
+ROUPAS = ["moletom", "camisa", "jaleco", "uniforme", "terno", "pijama", "regata", "capuz"]
+# efeitos sonoros (da pasta de sons dele, tools/biblioteca_sons.py). Sem a pasta catalogada, o som é SINTETIZADO
+# pelo próprio FFmpeg (`som_sintetico`) — o episódio nunca sai mudo.
 SFX = {"batida": "soco", "porta": "soco", "passos": "tick", "relogio": "tick", "susto": "boom", "trovao": "boom",
-       "whoosh": "whoosh", "tensao": "riser", "agua": "pop", "click": "click", "alerta": "ding", "glitch": "glitch"}
+       "whoosh": "whoosh", "tensao": "riser", "agua": "pop", "click": "click", "alerta": "ding", "glitch": "glitch",
+       "mensagem": "ding", "sirene": "riser", "vidro": "glitch", "motor": "boom"}
+# como sintetizar cada categoria quando não há arquivo na pasta dele (filtro lavfi + duração)
+SINTETICO = {
+    "ding": ("sine=frequency=880:duration=0.45,volume=0.9", 0.45),
+    "tick": ("sine=frequency=1600:duration=0.07", 0.07),
+    "boom": ("sine=frequency=62:duration=0.9", 0.9),
+    "soco": ("sine=frequency=150:duration=0.3", 0.3),
+    "pop": ("sine=frequency=520:duration=0.14", 0.14),
+    "click": ("anoisesrc=color=white:duration=0.05:amplitude=0.5", 0.05),
+    "whoosh": ("anoisesrc=color=brown:duration=0.6:amplitude=0.6", 0.6),
+    "riser": ("sine=frequency=180:duration=1.4", 1.4),
+    "glitch": ("anoisesrc=color=violet:duration=0.25:amplitude=0.5", 0.25),
+}
 
 
 def prompt_episodio(serie, cfg, n, resultado="", rumo=""):
@@ -133,26 +153,60 @@ A FÓRMULA (siga à risca — foi medida nos vídeos que deram certo):
 6. CLIFFHANGER curto e seco na última frase da narração.
 7. ESCOLHA A/B: pergunta fechada, as duas opções plausíveis e perigosas, ligada ao cliffhanger.
 
-TAMANHO: cerca de {palavras} palavras de narração no total ({cfg['duracao_s']} s falados).
-De 12 a 16 cenas, cada uma com 1 ou 2 frases de narração (4 a 6 s).
+COMO ESCREVER A NARRAÇÃO (a voz LÊ exatamente o que você escrever, então o texto já sai pronto para falar):
+  - números SEMPRE por extenso: "cento e oitenta litros", "doze horas", "o décimo segundo andar", "oito quilômetros";
+  - horas por extenso no texto falado ("sete e dez da manhã"), mesmo que o campo "relogio" da cena mostre "07:10";
+  - nada de siglas, símbolos (%, °, R$, x), abreviações, parênteses, aspas, travessões ou reticências;
+  - frases curtas, de no máximo 18 palavras, terminadas em ponto — é o que mantém o ritmo de narração.
 
-Monte cada cena com estas peças (é um desenho feito por código, não existe foto):
+TAMANHO: cerca de {palavras} palavras de narração no total ({cfg['duracao_s']} s falados).
+De 14 a 18 cenas, cada uma com 1 ou 2 frases de narração (4 a 6 s).
+
+VOCÊ TAMBÉM DIRIGE A EDIÇÃO. Cada cena é um desenho feito por código (não existe foto nem filmagem), e você escolhe
+o enquadramento, o movimento, a roupa do personagem e o efeito sonoro. Três regras de direção, que são o que separa
+um vídeo chato de um viral:
+  A) VARIE O PLANO. Nunca mais de 2 cenas seguidas no mesmo "plano". Use "close" em pelo menos 4 cenas, com "foco"
+     no objeto que importa (o celular na hora da mensagem, a torneira, o relógio). O close é o corte de apoio do
+     formato: a cena mostra O DETALHE enquanto a narração explica.
+  B) PONHA O PERSONAGEM FAZENDO A COISA. Se a narração diz que ele enche o balde, a cena tem o balde "enchendo" e a
+     pessoa com pose "agachado"/"carregando". Cena com a pessoa parada no meio do nada é cena perdida.
+  C) EFEITO SONORO NA PALAVRA CERTA. Em pelo menos 6 cenas ponha "sfx" e "sfx_palavra": a palavra EXATA da narração
+     daquela cena em que o som deve estourar (ex.: sfx "mensagem" com sfx_palavra "celular"). Sem a palavra o som
+     entra no começo da cena, que é pior.
+
+ONDE A PESSOA ESTÁ: quando a história se passa num andar, use cenario "predio" com "andar": 12 e "andares": 15 —
+o desenho marca a janela daquele andar com seta e o rótulo "12º ANDAR". Use isso toda vez que o andar for citado.
+
+Peças de cada cena:
   cenario: {', '.join(CENARIOS)}
   luz: {', '.join(LUZES)}
-  movimento: {', '.join(MOVIMENTOS)}
-  pessoas: [{{"x":0..1,"y":0.66,"alt":430,"pose":"{'|'.join(POSES)}","olhando":1 ou -1}}]   (y=0.66 é o chão; alt 400-470)
-  objetos: [{{"tipo":"{'|'.join(OBJETOS)}","x":0..1,"y":0.66,"s":1.5}}]   (celular aceita "extra":"TEXTO DO ALERTA")
-  gatos: [{{"x":0..1,"y":0.68,"alt":150}}]
-  chuva: true/false · relogio: "03:47" · selo: "ALERTA" · contador: "58:50" + contador_sub: "ATÉ A ENERGIA CAIR"
+  movimento: {', '.join(MOVIMENTOS)} · plano: {', '.join(PLANOS)} · foco: {{"x":0..1,"y":0..1}} (para onde a câmera fecha)
+  andar / andares: só no cenario "predio"
+  pessoas: [{{"x":0..1,"y":0.70,"alt":640,"pose":"{'|'.join(POSES)}","cara":"serio|bravo|assustado|feliz",
+             "roupa":"{'|'.join(ROUPAS)}","cor":"#4a6b6b","mochila":true,"bone":false,"colete":false,"lanterna":false,
+             "falando":true,"olhando":1 ou -1,"x2":0..1 (para onde ele anda)}}]
+     A ROUPA SEGUE A HISTÓRIA e não muda no meio do episódio: quem acorda em casa está de "pijama", quem sai para a
+     rua põe "moletom"/"capuz" com "mochila":true, o porteiro usa "uniforme", a médica "jaleco". Repita a MESMA
+     roupa e a MESMA "cor" do personagem em todas as cenas (e nos próximos episódios).
+  objetos: [{{"tipo":"{'|'.join(OBJETOS)}","x":0..1,"y":0.66,"s":1.5}}]
+     celular aceita "extra":"TEXTO DO ALERTA" e "alerta":true (pisca) · balde/banheira aceitam "enchendo":true ·
+     torneira aceita "seca":true/"jorrando":true · porta aceita "batendo":true/"aberta":true
+  gatos: [{{"x":0..1,"y":0.68,"alt":150}}] · silhuetas: [{{"x":0..1,"y":0.76,"alt":420,"x2":0..1}}] (a multidão)
+  chuva/fumaca/tremor/escurece/clarao: true/false
+  relogio: "03:47" · selo: "ALERTA" · contador: "58:50" + contador_sub: "ATÉ A ENERGIA CAIR"
   onomatopeia: "TRRRUM!" + ono_x/ono_y (0..1)
+  sfx: {' | '.join(sorted(SFX))} + sfx_palavra: "<palavra da narração desta cena>"
 
 Responda SÓ JSON:
-{{"titulo": "<até 60 letras, com o número do episódio>",
+{{"titulo": "<até 60 letras, SEM o número do episódio>",
  "resumo": "<1 frase do que acontece, para o próximo episódio>",
  "narracao": "<o texto COMPLETO que o narrador fala, seguido, sem marcações>",
+ "figurino": {{"<nome do personagem>": {{"roupa": "...", "cor": "#...", "mochila": true}}}},
  "cenas": [{{"narracao": "<a frase desta cena, copiada da narração>", "cenario": "...", "luz": "...", "movimento": "...",
-            "pessoas": [], "objetos": [], "relogio": "", "onomatopeia": ""}}],
- "escolha": {{"pergunta": "<a pergunta fechada>", "a": "<opção A, curta>", "b": "<opção B, curta>"}},
+            "plano": "geral|medio|close", "foco": {{"x":0.5,"y":0.5}}, "pessoas": [], "objetos": [],
+            "relogio": "", "onomatopeia": "", "sfx": "", "sfx_palavra": ""}}],
+ "escolha": {{"pergunta": "<a pergunta fechada>", "a": "<opção A, curta, até 6 palavras>", "b": "<opção B, curta>"}},
+ "capa": {{"titulo": "<2 a 4 palavras em caixa alta para a capa do episódio>"}},
  "legenda_post": "<legenda do post: 2 a 4 linhas + a pergunta + 'Comenta A ou B' + 4 hashtags>"}}"""
 
 
@@ -163,10 +217,34 @@ def escreve_episodio(serie, cfg, n, resultado="", log=log, rumo=""):
     g = gemini_json([{"text": prompt_episodio(serie, cfg, n, resultado, rumo)}], temperatura=0.95)
     if not g or not g.get("cenas"):
         raise RuntimeError("nenhuma IA escreveu o episódio (sem GEMINI_API_KEY/IAs grátis/Claude?)")
-    g["cenas"] = [limpa_cena(c) for c in g["cenas"]][:18]
+    g["cenas"] = [limpa_cena(c) for c in g["cenas"]][:20]
     if not g.get("narracao"):
         g["narracao"] = " ".join(c.get("narracao", "") for c in g["cenas"])
+    fecha_com_escolha(g)
     return g
+
+
+def fecha_com_escolha(rot):
+    """TODO episódio termina na cartela A/B — é ela que traz o comentário (e o episódio seguinte).
+    A pergunta entra na narração (o narrador lê) e vira a última cena, com os dois cards na tela."""
+    e = rot.get("escolha") or {}
+    a, b = str(e.get("a", "")).strip(), str(e.get("b", "")).strip()
+    if not (a and b):
+        return rot
+    if any(c.get("escolha") for c in rot.get("cenas", [])):
+        return rot
+    perg = str(e.get("pergunta", "")).strip() or "O que ele faz agora?"
+    fala = f"{perg} Comenta A, {a.rstrip('.')}. Ou B, {b.rstrip('.')}."
+    rot["narracao"] = (rot.get("narracao", "").rstrip() + " " + fala).strip()
+    ultima = (rot.get("cenas") or [{}])[-1]
+    rot.setdefault("cenas", []).append({
+        "cenario": ultima.get("cenario", "escuro"), "luz": ultima.get("luz", "escuro"),
+        "movimento": "zoom", "plano": "geral", "narracao": fala, "semente": 7,
+        "escolha": {"pergunta": perg, "a": a, "b": b},
+        "pessoas": [], "objetos": [], "gatos": [], "silhuetas": [],
+        "sfx": "tensao", "sfx_palavra": "comenta",
+    })
+    return rot
 
 
 def limpa_cena(c):
@@ -175,11 +253,23 @@ def limpa_cena(c):
         "cenario": c.get("cenario") if c.get("cenario") in CENARIOS else "quarto",
         "luz": c.get("luz") if c.get("luz") in LUZES else "noite",
         "movimento": c.get("movimento") if c.get("movimento") in MOVIMENTOS else "zoom",
+        "plano": c.get("plano") if c.get("plano") in PLANOS else "geral",
         "narracao": str(c.get("narracao", "")),
         "semente": abs(hash(str(c.get("narracao", "")))) % 97,
     }
+    f = c.get("foco")
+    if isinstance(f, dict):
+        out["foco"] = {"x": max(0.0, min(1.0, float(f.get("x", 0.5)))), "y": max(0.0, min(1.0, float(f.get("y", 0.5))))}
+    for k in ("andar", "andares"):  # o andar da história, marcado no desenho do prédio
+        try:
+            if c.get(k) is not None:
+                out[k] = max(1, min(24, int(c[k])))
+        except (TypeError, ValueError):
+            pass
     if c.get("sfx") in SFX:
         out["sfx"] = c["sfx"]
+        if c.get("sfx_palavra"):
+            out["sfx_palavra"] = str(c["sfx_palavra"])[:30]
     for k in ("fumaca", "chuva", "tremor", "escurece", "clarao"):
         if c.get(k):
             out[k] = True
@@ -198,6 +288,8 @@ def limpa_cena(c):
                        "cara": p.get("cara") if p.get("cara") in CARAS else "",
                        "falando": bool(p.get("falando")),
                        "olhando": -1 if str(p.get("olhando")) in ("-1", "-1.0") else 1,
+                       "roupa": p.get("roupa") if p.get("roupa") in ROUPAS else "moletom",
+                       **{k: True for k in ("mochila", "bone", "colete", "lanterna") if p.get(k)},
                        "cor": p.get("cor") or "#4a6b6b"}
                       for p in (c.get("pessoas") or [])[:3] if isinstance(p, dict)]
     out["silhuetas"] = [{"x": max(-0.05, min(1.05, float(g.get("x", 0.3)))), "y": float(g.get("y", 0.76)),
@@ -212,6 +304,13 @@ def limpa_cena(c):
     out["gatos"] = [{"x": max(0.05, min(0.95, float(g.get("x", 0.7)))), "y": float(g.get("y", 0.70)),
                      "alt": max(90, min(260, float(g.get("alt", 170))))}
                     for g in (c.get("gatos") or [])[:2] if isinstance(g, dict)]
+    # o plano manda no tamanho: num close a câmera já aproxima, então a pessoa desenhada tem que ser menor
+    teto = {"close": 500, "medio": 620}.get(out["plano"], 720)
+    for p in out["pessoas"]:
+        p["alt"] = min(p["alt"], teto)
+    e = c.get("escolha")
+    if isinstance(e, dict) and e.get("a") and e.get("b"):
+        out["escolha"] = {"pergunta": str(e.get("pergunta", ""))[:90], "a": str(e["a"])[:60], "b": str(e["b"])[:60]}
     return out
 
 
@@ -286,23 +385,70 @@ def encaixa_cenas(rot, words):
             pos = fim
 
 
-def sons(video, rot, saida, log=log):
-    """mistura os efeitos sonoros da SUA pasta de sons nos tempos das cenas (~14 dB abaixo da narração).
-    Sem sons.json (ou sem a categoria) o vídeo segue igual, sem efeito."""
+def som_sintetico(cat, destino):
+    """gera o efeito pelo próprio FFmpeg quando não há arquivo na pasta dele — assim o episódio NUNCA sai mudo"""
+    filtro, dur = SINTETICO.get(cat, SINTETICO["pop"])
+    env = f"afade=t=out:st={max(0.02, dur * 0.35):.2f}:d={max(0.03, dur * 0.65):.2f}"
+    if cat == "riser":  # tensão: a frequência sobe
+        env = f"asetrate=48000*1.0,atempo=1.0,{env}"
+    r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", filtro,
+                        "-af", f"{env},aformat=channel_layouts=stereo,aresample=48000", str(destino)],
+                       capture_output=True, text=True)
+    return destino if r.returncode == 0 and Path(destino).exists() else None
+
+
+def marca_sfx(rot, words):
+    """a HORA de cada efeito: na palavra que a cena mandou (`sfx_palavra`), procurada na transcrição dentro da
+    janela daquela cena. É isso que faz o som estourar junto com "o celular vibra", e não no começo da cena."""
+    import unicodedata
+
+    def norm(t):
+        t = "".join(c for c in unicodedata.normalize("NFD", str(t).lower()) if unicodedata.category(c) != "Mn")
+        return re.sub(r"[^a-z0-9]", "", t)
+
+    faladas = [(norm(w.get("w", "")), float(w.get("s", 0))) for w in (words or [])]
+    marcas = []
+    for c in rot.get("cenas", []):
+        if c.get("sfx") not in SFX:
+            continue
+        ini = float(c.get("_ini", 0))
+        fim = float(c.get("ate") or (ini + 6))
+        t = ini + 0.15
+        alvo = norm(c.get("sfx_palavra", ""))
+        if alvo:
+            achou = next((s for p, s in faladas if p == alvo and ini - 0.3 <= s <= fim + 0.3), None)
+            if achou is None:  # a voz pode ter falado diferente: aceita começo igual
+                achou = next((s for p, s in faladas if alvo and p.startswith(alvo[:5]) and ini - 0.3 <= s <= fim + 0.3), None)
+            if achou is not None:
+                t = max(0.0, achou - 0.06)
+        marcas.append((round(t, 2), SFX[c["sfx"]]))
+    return sorted(marcas)
+
+
+def sons(video, rot, saida, log=log, words=None):
+    """mistura os efeitos sonoros nos tempos CERTOS (a palavra da narração), ~16 dB abaixo da voz.
+    Usa a pasta de sons dele; sem ela, o som é sintetizado pelo FFmpeg."""
     sys.path.insert(0, str(TOOLS))
     from ffcompat import filtro_complexo
 
     try:
         from biblioteca_sons import arquivo
     except Exception as e:
-        log(f"sfx: biblioteca de sons indisponível ({str(e)[:80]})")
-        return video
-    marcas = [(float(c.get("_ini", 0)), SFX[c["sfx"]]) for c in rot.get("cenas", []) if c.get("sfx") in SFX]
+        log(f"sfx: biblioteca de sons indisponível ({str(e)[:80]}) — vou sintetizar")
+        arquivo = lambda *a, **k: None  # noqa: E731
+    marcas = marca_sfx(rot, words)
     if not marcas:
         return video
+    tmp = Path(saida).parent / "sfx_tmp"
+    tmp.mkdir(parents=True, exist_ok=True)
     entradas, partes, usados, n = [], [], {}, 0
-    for t, cat in marcas[:14]:
-        f = arquivo(cat, usados.get(cat, 0))
+    for t, cat in marcas[:16]:
+        try:
+            f = arquivo(cat, usados.get(cat, 0))
+        except Exception:
+            f = None
+        if not f:
+            f = som_sintetico(cat, tmp / f"{cat}_{usados.get(cat, 0)}.wav")
         usados[cat] = usados.get(cat, 0) + 1
         if not f:
             continue
@@ -311,14 +457,16 @@ def sons(video, rot, saida, log=log):
         partes.append(f"[{n}:a]atrim=0:1.8,afade=t=out:st=1.3:d=0.5,aresample=48000,aformat=channel_layouts=stereo,"
                       f"loudnorm=I=-30:TP=-6,adelay={int(max(0, t) * 1000)}|{int(max(0, t) * 1000)}[s{n}]")
     if not n:
-        log("sfx: nenhum arquivo de som para as categorias pedidas (rode o biblioteca_sons.py uma vez)")
+        log("sfx: não consegui nenhum som")
         return video
     # o vídeo pode estar sem áudio (render sem narração): aí mistura só os efeitos
     tem_audio = bool(subprocess.run(["ffprobe", "-v", "error", "-select_streams", "a", "-show_entries", "stream=index",
                                      "-of", "csv=p=0", str(video)], capture_output=True, text=True).stdout.strip())
     mix = "".join(f"[s{i}]" for i in range(1, n + 1))
-    grafo = ";".join(partes) + (f";[0:a]{mix}amix=inputs={n + 1}" if tem_audio else f";{mix}amix=inputs={n}") \
-        + ":normalize=0:duration=first,loudnorm=I=-14:TP=-1.5[a]"
+    # com narração, o tamanho é o dela (duration=first); sem narração, vale o efeito mais longo
+    grafo = ";".join(partes) + (f";[0:a]{mix}amix=inputs={n + 1}:normalize=0:duration=first" if tem_audio
+                                else f";{mix}amix=inputs={n}:normalize=0:duration=longest") \
+        + ",loudnorm=I=-14:TP=-1.5[a]"
     g = Path(saida).parent / "grafo_sfx.txt"
     g.write_text(grafo, encoding="utf-8")
     r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(video), *entradas, *filtro_complexo(str(g)),
@@ -328,7 +476,7 @@ def sons(video, rot, saida, log=log):
     if r.returncode != 0 or not Path(saida).exists():
         log(f"sfx: não entraram ({(r.stderr or '')[-160:]})")
         return video
-    log(f"sfx: {n} efeito(s) sonoro(s)")
+    log(f"sfx: {n} efeito(s) sonoro(s), na palavra de cada cena")
     return saida
 
 
@@ -437,13 +585,21 @@ def faz_episodio(serie_f, cfg, log=log, venceu="", rumo=""):
         if r.returncode != 0 or not saida.exists():
             raise RuntimeError("o render do episódio falhou (veja as mensagens acima)")
 
-    # efeitos sonoros nos tempos das cenas
+    # efeitos sonoros, cada um na palavra que a cena marcou
     com_sfx = job / "episodio_sfx.mp4"
     if not com_sfx.exists() and any(c.get("sfx") for c in rot.get("cenas", [])):
-        v = sons(saida, rot, com_sfx, log)
+        v = sons(saida, rot, com_sfx, log, words)
         if Path(v) == com_sfx and com_sfx.exists():
             saida.unlink(missing_ok=True)
             com_sfx.replace(saida)
+
+    # capa do episódio (a grade do perfil) — sai junto, sempre
+    try:
+        import capa as CAPA
+
+        CAPA.capa_episodio(serie, rot, n, job / "capa.jpg", log=log)
+    except Exception as e:
+        log(f"capa: não saiu ({str(e)[:120]})")
     esc = rot.get("escolha", {})
     legenda = rot.get("legenda_post") or f"{rot.get('titulo', '')}\n\n{esc.get('pergunta', '')}\nA: {esc.get('a', '')}\nB: {esc.get('b', '')}\n\nComenta A ou B 👇"
     (job / "post.txt").write_text(legenda, encoding="utf-8")
