@@ -111,9 +111,11 @@ async function main() {
     }, { c: cena, tipo: p.tipo });
     const serie = nomeSerie(p.serie);
     await page.evaluate(
-      ({ tipo, numero, titulo, serie, emoji, sub }) => {
+      ({ tipo, numero, titulo, serie, emoji, sub, semVeu }) => {
         const arte = document.getElementById("arte");
         arte.className = tipo === "perfil" ? "perfil" : "capa";
+        // foto de perfil só com o personagem: sem o véu que escurece o desenho
+        document.getElementById("grade").style.display = semVeu ? "none" : "block";
         document.querySelector("#capa .num").textContent = numero == null ? "" : String(numero);
         document.querySelector("#capa .tit").innerHTML = titulo || "";
         document.querySelector("#rodape .emoji").textContent = emoji || "";
@@ -122,7 +124,7 @@ async function main() {
         document.querySelector("#perfil .pnome").innerHTML = serie.i ? `${serie.b}<br><em>${serie.i}</em>` : serie.b;
         document.querySelector("#perfil .psub").textContent = sub || "";
       },
-      { tipo: p.tipo, numero: p.numero, titulo: linhasTitulo(p.titulo), serie, emoji: p.emoji, sub: p.sub }
+      { tipo: p.tipo, numero: p.numero, titulo: linhasTitulo(p.titulo), serie, emoji: p.emoji, sub: p.sub, semVeu: !!p.sem_veu }
     );
     fs.mkdirSync(path.dirname(p.saida), { recursive: true });
     const png = p.saida.toLowerCase().endsWith(".png");
