@@ -104,9 +104,13 @@ PLANOS = ["geral", "medio", "close"]
 ROUPAS = ["moletom", "camisa", "jaleco", "uniforme", "terno", "pijama", "regata", "capuz"]
 # efeitos sonoros (da pasta de sons dele, tools/biblioteca_sons.py). Sem a pasta catalogada, o som é SINTETIZADO
 # pelo próprio FFmpeg (`som_sintetico`) — o episódio nunca sai mudo.
-SFX = {"batida": "soco", "porta": "soco", "passos": "tick", "relogio": "tick", "susto": "boom", "trovao": "boom",
-       "whoosh": "whoosh", "tensao": "riser", "agua": "pop", "click": "click", "alerta": "ding", "glitch": "glitch",
-       "mensagem": "ding", "sirene": "riser", "vidro": "glitch", "motor": "boom"}
+SFX = {"batida": "soco", "porta": "porta", "passos": "passos", "relogio": "relogio", "susto": "boom",
+       "trovao": "trovao", "whoosh": "whoosh", "tensao": "riser", "agua": "agua", "click": "click",
+       "alerta": "ding", "glitch": "glitch", "mensagem": "ding", "sirene": "sirene", "vidro": "vidro",
+       "motor": "motor"}
+# quando não há arquivo da categoria, o sintetizado mais parecido
+PARECIDO = {"porta": "soco", "passos": "tick", "relogio": "tick", "trovao": "boom", "agua": "pop",
+            "sirene": "riser", "vidro": "glitch", "motor": "boom"}
 # como sintetizar cada categoria quando não há arquivo na pasta dele (filtro lavfi + duração)
 SINTETICO = {
     "ding": ("sine=frequency=880:duration=0.45,volume=0.9", 0.45),
@@ -231,6 +235,7 @@ def escreve_episodio(serie, cfg, n, resultado="", log=log, rumo=""):
     if not g.get("narracao"):
         g["narracao"] = " ".join(c.get("narracao", "") for c in g["cenas"])
     garante_apoio(g)
+    garante_sfx(g)
     fecha_com_escolha(g)
     return g
 
@@ -318,6 +323,61 @@ APOIO = [(("celular", "mensagem", "telefone", "whatsapp", "zap", "aviso", "alert
          (("caixa", "comida", "mercado", "mantimento"), "caixa")]
 
 
+# palavra da narração → efeito sonoro (e é NELA que o som estoura)
+GATILHOS = [
+    (("mensagem", "celular", "telefone", "vibra", "aviso", "notificacao", "zap", "whatsapp", "toca"), "mensagem"),
+    (("alarme", "sirene", "ambulancia", "policia", "bombeiro"), "sirene"),
+    (("porta", "tranca", "fechadura", "corrente", "trinco", "bateu", "batendo"), "porta"),
+    (("tiro", "disparo", "estrondo", "explosao", "explode", "grito", "gritou", "susto", "barulho", "baque", "estouro"), "susto"),
+    (("trovao", "raio", "tempestade", "relampago"), "trovao"),
+    (("passos", "correu", "corre", "correndo", "subiu", "desceu", "escada", "degraus", "pisou"), "passos"),
+    (("relogio", "hora", "horas", "minuto", "minutos", "segundos", "contagem", "tempo"), "relogio"),
+    (("agua", "torneira", "enche", "encheu", "balde", "banheira", "chuveiro", "litros", "pingando"), "agua"),
+    (("luz", "apagou", "apaga", "acendeu", "interruptor", "lampada", "disjuntor", "energia"), "click"),
+    (("motor", "carro", "moto", "ronco", "acelera", "acelerou", "freou", "pneu"), "motor"),
+    (("vidro", "quebrou", "quebra", "estilhacou", "janela", "estilhaco"), "vidro"),
+    (("tela", "sinal", "internet", "desligou", "sumiu", "apagão", "apagao"), "glitch"),
+]
+
+
+def garante_sfx(rot, a_cada=2):
+    """O EPISÓDIO NÃO SAI MUDO. A IA esquece de marcar `sfx`, então aqui toda cena sem efeito ganha um, escolhido
+    pela PALAVRA da narração (e é nessa palavra que ele estoura). Cena de tensão/tremor/escuro leva o riser."""
+    import unicodedata
+
+    def sem_acento(t):
+        return "".join(c for c in unicodedata.normalize("NFD", str(t).lower()) if unicodedata.category(c) != "Mn")
+
+    desde = 99
+    for c in rot.get("cenas", []):
+        if c.get("sfx") in SFX:
+            desde = 0
+            continue
+        desde += 1
+        txt = sem_acento(c.get("narracao", ""))
+        achou = None
+        for palavras, efeito in GATILHOS:
+            for p in palavras:
+                if re.search(rf"\b{re.escape(p)}\w*", txt):
+                    achou = (efeito, p)
+                    break
+            if achou:
+                break
+        if not achou and (c.get("tremor") or c.get("clarao")):
+            achou = ("susto", "")
+        if not achou and (c.get("escurece") or c.get("escolha")):
+            achou = ("tensao", "")
+        if not achou and desde >= a_cada:   # faz tempo que não tem som: entra um whoosh na virada da cena
+            achou = ("whoosh", "")
+        if not achou:
+            continue
+        c["sfx"] = achou[0]
+        if achou[1]:
+            c["sfx_palavra"] = achou[1]
+        desde = 0
+    return rot
+
+
 def garante_apoio(rot, minimo=0.3):
     """CENAS DE APOIO (o "B-roll" do formato): a IA tende a pôr o personagem em TODA cena, e o vídeo fica igual do
     começo ao fim. Aqui, toda vez que o boneco aparece em 3 cenas seguidas, a do meio vira um CLOSE no objeto de que
@@ -362,6 +422,67 @@ def garante_apoio(rot, minimo=0.3):
         if c.get("pessoas") and (c.get("objetos") or []):
             vira_apoio(c)
             faltam -= 1
+    return rot
+
+
+def melhora_roteiro(serie, cfg, rot, log=log):
+    """MAIS EDIÇÃO, mesma história: a IA recebe o roteiro pronto e devolve as cenas mais ricas (closes de apoio,
+    objetos, onomatopeia, relógio, tremor, movimento variado, efeito sonoro na palavra). A NARRAÇÃO não muda —
+    por isso a voz e as legendas já feitas continuam valendo e só o desenho é remontado."""
+    from reels import gemini_json
+
+    cenas = [c for c in rot.get("cenas", []) if not c.get("escolha")]
+    if not cenas:
+        return rot
+    atual = [{k: v for k, v in c.items() if not k.startswith("_") and k not in ("semente",)} for c in cenas]
+    pers = ", ".join(serie.get("elenco", {})) or "o protagonista"
+    g = gemini_json([{"text": f"""Você dirige a EDIÇÃO de um reels de história ilustrado (desenho por código, estilo
+Histórias com Kaio). Abaixo está o roteiro COMO ESTÁ. A narração está pronta e NÃO PODE MUDAR — mude só a edição.
+
+O QUE MELHORAR, cena a cena:
+1. CENAS DE APOIO: pelo menos 1 em cada 3 cenas sem pessoa ("pessoas": []), em "plano":"close", com UM objeto grande
+   ("s" de 1.8 a 2.4) e "foco" nele — o objeto de que a narração está falando naquele momento.
+2. VARIAR O PLANO e o MOVIMENTO: nunca 2 cenas seguidas iguais. Alterne geral/medio/close e zoom/afasta/direita/
+   esquerda/sobe/desce.
+3. EFEITO SONORO em quase toda cena: "sfx" + "sfx_palavra" (a palavra EXATA da narração daquela cena em que o som
+   estoura). Efeitos: {' | '.join(sorted(SFX))}.
+4. VIDA NA CENA: onomatopeia ("TRRRUM!", "PLIM!") com ono_x/ono_y, relogio ("20:14"), selo ("ALERTA"), contador,
+   tremor/escurece/clarao/chuva/fumaca onde a história pede, objetos com estado (celular "alerta", balde "enchendo",
+   porta "batendo", torneira "seca").
+5. O CENÁRIO tem que casar com a frase: se a narração fala da rua, cenario "rua"; do prédio, "predio" com "andar"
+   (o número do andar citado) e "andares"; da escada, "escadaria".
+6. Pessoas: só "quem" (o nome: {pers}), "pose", "cara", "falando", "x"/"y"/"alt"/"x2". NÃO escolha roupa nem cor.
+
+Peças que o desenho conhece:
+  cenario: {', '.join(CENARIOS)} · luz: {', '.join(LUZES)} · movimento: {', '.join(MOVIMENTOS)} · plano: {', '.join(PLANOS)}
+  pose: {', '.join(POSES)} · objetos: {', '.join(OBJETOS)}
+
+ROTEIRO ATUAL ({len(cenas)} cenas, na ordem):
+{json.dumps(atual, ensure_ascii=False)[:14000]}
+
+Responda SÓ JSON com as MESMAS {len(cenas)} cenas, na mesma ordem e com a MESMA "narracao" de cada uma:
+{{"cenas": [{{"narracao": "<igual>", "cenario": "...", "luz": "...", "plano": "...", "movimento": "...",
+  "foco": {{"x":0.5,"y":0.5}}, "andar": 0, "andares": 0, "pessoas": [], "objetos": [], "gatos": [], "silhuetas": [],
+  "relogio": "", "selo": "", "onomatopeia": "", "ono_x": 0.6, "ono_y": 0.3,
+  "sfx": "", "sfx_palavra": "", "tremor": false, "escurece": false, "clarao": false, "chuva": false, "fumaca": false}}]}}"""}],
+                    temperatura=0.8)
+    novas = (g or {}).get("cenas") or []
+    if len(novas) < max(2, len(cenas) - 2):
+        log(f"mais edição: a IA devolveu {len(novas)} cena(s) de {len(cenas)} — fica o roteiro de antes")
+        return rot
+    saida = []
+    for i, c in enumerate(cenas):
+        nova = limpa_cena({**novas[i], "narracao": c.get("narracao", "")}) if i < len(novas) else c
+        for k in ("ate", "_ini"):   # os tempos já alinhados com a voz continuam valendo
+            if c.get(k) is not None:
+                nova[k] = c[k]
+        saida.append(nova)
+    rot["cenas"] = saida + [c for c in rot.get("cenas", []) if c.get("escolha")]
+    garante_apoio(rot)
+    garante_sfx(rot)
+    apoio = sum(1 for c in rot["cenas"] if not c.get("pessoas") and not c.get("escolha"))
+    log(f"mais edição: {len(saida)} cenas refeitas, {apoio} de apoio (close sem pessoa), "
+        f"{sum(1 for c in rot['cenas'] if c.get('sfx'))} com efeito sonoro")
     return rot
 
 
@@ -518,27 +639,68 @@ def encaixa_cenas(rot, words):
 
     faladas = [norm(w["w"])[0] if norm(w["w"]) else "" for w in words]
     cenas = rot["cenas"]
-    pos = 0
-    for c in cenas:
+    # a fala do roteiro, palavra a palavra, sabendo de que cena cada palavra é
+    roteiro, de_quem = [], []
+    for i, c in enumerate(cenas):
         c.pop("ate", None)
-        alvo = norm(c.get("narracao", ""))
-        c["_pal"] = max(1, len(alvo))
-        if not alvo:
-            continue
-        fim, casou = pos, 0
-        for p in alvo:  # anda na transcrição enquanto as palavras baterem
-            achou = next((k for k in range(fim, min(len(faladas), fim + 14)) if faladas[k] == p), None)
-            if achou is not None:
-                fim = achou + 1
-                casou += 1
-        if fim > pos and casou >= max(2, len(alvo) * 0.5):  # só ancora quando metade da frase bateu
-            c["ate"] = round(words[min(fim, len(words)) - 1]["e"] + 0.12, 2)
-            pos = fim
+        for p in norm(c.get("narracao", "")):
+            roteiro.append(p)
+            de_quem.append(i)
+    if not roteiro:
+        return
 
-    # as cenas que não casaram ficam entre as âncoras, proporcionais ao tamanho da fala delas
+    # ALINHAMENTO GLOBAL (o mesmo jeito do roteiro × transcrição dos vídeos dele): programação dinâmica, aceitando
+    # palavra trocada, falada a mais ou comida. É isso que faz a imagem virar na hora certa mesmo quando a voz não
+    # falou igualzinho ao roteiro.
+    n, m = len(roteiro), len(faladas)
+    INF = float("inf")
+    # custo: 0 se a palavra é a mesma, 0.4 se é parecida (mesmo começo), 1 se é outra; 0.9 por pular
+    d = [[0.0] * (m + 1) for _ in range(n + 1)]
+    for i in range(1, n + 1):
+        d[i][0] = i * 0.9
+    for j in range(1, m + 1):
+        d[0][j] = j * 0.9
+    for i in range(1, n + 1):
+        a = roteiro[i - 1]
+        li = d[i]
+        lp = d[i - 1]
+        for j in range(1, m + 1):
+            b = faladas[j - 1]
+            troca = 0.0 if a == b else (0.4 if a[:4] and a[:4] == b[:4] else 1.0)
+            li[j] = min(lp[j - 1] + troca, lp[j] + 0.9, li[j - 1] + 0.9)
+    # volta pelo caminho mais barato: para cada palavra do roteiro, em que palavra falada ela caiu
+    onde = [None] * n
+    i, j = n, m
+    while i > 0 and j > 0:
+        a, b = roteiro[i - 1], faladas[j - 1]
+        troca = 0.0 if a == b else (0.4 if a[:4] and a[:4] == b[:4] else 1.0)
+        if abs(d[i][j] - (d[i - 1][j - 1] + troca)) < 1e-9:
+            onde[i - 1] = j - 1
+            i -= 1
+            j -= 1
+        elif abs(d[i][j] - (d[i - 1][j] + 0.9)) < 1e-9:
+            i -= 1
+        else:
+            j -= 1
+
+    # cada cena termina onde caiu a ÚLTIMA palavra dela
+    ult = {}
+    for k, w in enumerate(onde):
+        if w is not None:
+            ult[de_quem[k]] = w
     fim_total = round(words[-1]["e"] + 0.5, 2)
-    ini = 0.0
-    i = 0
+    anterior = 0.0
+    for i, c in enumerate(cenas):
+        w = ult.get(i)
+        if w is None:
+            continue
+        t = round(float(words[w]["e"]) + 0.1, 2)
+        if t > anterior + 0.4:  # nunca para trás nem cena de meio segundo
+            c["ate"] = t
+            anterior = t
+    # cena sem âncora (fala comida): divide o espaço entre as vizinhas pelo tamanho da fala
+    ini, i = 0.0, 0
+    tam = [max(1, len(norm(c.get("narracao", "")))) for c in cenas]
     while i < len(cenas):
         if cenas[i].get("ate"):
             ini = cenas[i]["ate"]
@@ -549,20 +711,19 @@ def encaixa_cenas(rot, words):
             j += 1
         prox = cenas[j]["ate"] if j < len(cenas) else fim_total
         vao = max(0.6, prox - ini)
-        peso = sum(cenas[k]["_pal"] for k in range(i, j)) or 1
+        peso = sum(tam[k] for k in range(i, j)) or 1
         t = ini
         for k in range(i, j):
-            t += vao * cenas[k]["_pal"] / peso
+            t += vao * tam[k] / peso
             cenas[k]["ate"] = round(min(t, prox), 2)
         ini = prox
         i = j
-    for c in cenas:
-        c.pop("_pal", None)
+    cenas[-1]["ate"] = max(float(cenas[-1].get("ate") or 0), fim_total)
 
 
 def som_sintetico(cat, destino):
     """gera o efeito pelo próprio FFmpeg quando não há arquivo na pasta dele — assim o episódio NUNCA sai mudo"""
-    filtro, dur = SINTETICO.get(cat, SINTETICO["pop"])
+    filtro, dur = SINTETICO.get(cat) or SINTETICO.get(PARECIDO.get(cat, ""), SINTETICO["pop"])
     env = f"afade=t=out:st={max(0.02, dur * 0.35):.2f}:d={max(0.03, dur * 0.65):.2f}"
     if cat == "riser":  # tensão: a frequência sobe
         env = f"asetrate=48000*1.0,atempo=1.0,{env}"
@@ -606,11 +767,24 @@ def sons(video, rot, saida, log=log, words=None):
     sys.path.insert(0, str(TOOLS))
     from ffcompat import filtro_complexo
 
+    import sons_web
+
     try:
-        from biblioteca_sons import arquivo
-    except Exception as e:
-        log(f"sfx: biblioteca de sons indisponível ({str(e)[:80]}) — vou sintetizar")
-        arquivo = lambda *a, **k: None  # noqa: E731
+        from biblioteca_sons import arquivo as arq_dele
+    except Exception:
+        arq_dele = None
+
+    def acha(cat, i):
+        """1) a pasta de efeitos das histórias (baixada do site) · 2) a pasta de efeitos do PC · 3) o sintetizado"""
+        f = sons_web.arquivo(cat, i)
+        if not f and PARECIDO.get(cat):
+            f = sons_web.arquivo(PARECIDO[cat], i)
+        if not f and arq_dele:
+            try:
+                f = arq_dele(PARECIDO.get(cat, cat), i)
+            except Exception:
+                f = None
+        return f
     marcas = marca_sfx(rot, words)
     if not marcas:
         return video
@@ -618,10 +792,7 @@ def sons(video, rot, saida, log=log, words=None):
     tmp.mkdir(parents=True, exist_ok=True)
     entradas, partes, usados, n = [], [], {}, 0
     for t, cat in marcas[:16]:
-        try:
-            f = arquivo(cat, usados.get(cat, 0))
-        except Exception:
-            f = None
+        f = acha(cat, usados.get(cat, 0))
         if not f:
             f = som_sintetico(cat, tmp / f"{cat}_{usados.get(cat, 0)}.wav")
         usados[cat] = usados.get(cat, 0) + 1
@@ -702,17 +873,22 @@ def apura(serie, pasta_base, cfg, log=log):
 
 
 # ------------------------------------------------------------------ 4. um episódio inteiro
-def faz_episodio(serie_f, cfg, log=log, venceu="", rumo="", base="", refazer=0):
+def faz_episodio(serie_f, cfg, log=log, venceu="", rumo="", base="", refazer=0, melhorar=0):
     """venceu = "a"/"b" escolhido POR VOCÊ (em vez de contar os comentários); rumo = o que acontece, escrito por você;
     base = um roteiro anterior (texto) para a IA seguir; refazer = N refaz o episódio N com o roteiro.json que está lá"""
     serie = {**SERIE_PADRAO, **(le_json(serie_f, {}) or {})}
     pasta_serie = Path(serie_f).parent
-    n = int(refazer) if refazer else len(serie.get("episodios", [])) + 1
+    n = int(melhorar or refazer) if (melhorar or refazer) else len(serie.get("episodios", [])) + 1
     if refazer:  # refazer = apaga voz, legendas e vídeo; o roteiro.json (que você editou) fica
         job0 = pasta_serie / f"ep_{n:02d}"
         for f0 in ("voz.wav", "words.json", "episodio.mp4", "episodio_sfx.mp4"):
             (job0 / f0).unlink(missing_ok=True)
         log(f"refazendo o episódio {n} com o roteiro que está em {job0 / 'roteiro.json'}")
+    elif melhorar:  # mais edição: a narração (e a voz) continua a mesma, só o desenho é remontado
+        job0 = pasta_serie / f"ep_{n:02d}"
+        for f0 in ("episodio.mp4", "episodio_sfx.mp4"):
+            (job0 / f0).unlink(missing_ok=True)
+        log(f"pedindo mais edição à IA para o episódio {n} (a narração e a voz continuam as mesmas)")
     log(f"\n=== {serie.get('nome')} — episódio {n} ===")
     eps = serie.get("episodios", [])
     # o que VOCÊ mandou (no painel ou na linha de comando) vale mais que a apuração automática
@@ -739,7 +915,10 @@ def faz_episodio(serie_f, cfg, log=log, venceu="", rumo="", base="", refazer=0):
         rot["marca"] = cfg.get("marca") or f"@{(serie.get('conta') or '').split(':')[-1]}"
         grava_json(rot_f, rot)
     else:
-        fecha_com_escolha(rot)  # roteiro editado à mão sem a cartela A/B ganha a dela
+        if melhorar:
+            melhora_roteiro(serie, cfg, rot, log)
+        garante_sfx(rot)        # roteiro editado à mão também não sai mudo
+        fecha_com_escolha(rot)  # e sem a cartela A/B ganha a dela
         grava_json(rot_f, rot)
     aplica_elenco(serie, rot)      # cada personagem com a MESMA cara de sempre (o principal é o do modelo)
     grava_json(serie_f, serie)
@@ -886,6 +1065,7 @@ def main():
     ap.add_argument("--contexto", default="", help="grava o contexto da série (vale para todos os episódios)")
     ap.add_argument("--base-roteiro", default="", help="arquivo com um roteiro anterior para a IA seguir")
     ap.add_argument("--refazer", type=int, default=0, help="refaz o episódio N com o roteiro.json que está na pasta dele")
+    ap.add_argument("--melhorar", type=int, default=0, help="pede MAIS EDIÇÃO à IA no episódio N (a narração e a voz continuam as mesmas)")
     ap.add_argument("--apagar", action="store_true", help="APAGA a série (com --serie); pede o nome exato da pasta")
     a = ap.parse_args()
     pasta = Path(a.pasta)
@@ -932,7 +1112,7 @@ def main():
         if feitos >= limite:
             break
         try:
-            faz_episodio(f, cfg, venceu=a.continuar, rumo=a.rumo, base=base_rot, refazer=a.refazer)
+            faz_episodio(f, cfg, venceu=a.continuar, rumo=a.rumo, base=base_rot, refazer=a.refazer, melhorar=a.melhorar)
             feitos += 1
         except Exception as e:
             log(f"{f.parent.name}: {str(e)[:300]}")

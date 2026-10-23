@@ -67,7 +67,14 @@ def estado():
             "perfil": "arte/perfil.png" if (f.parent / "arte" / "perfil.png").exists() else "",
             "grade": "arte/grade.jpg" if (f.parent / "arte" / "grade.jpg").exists() else "",
         })
-    return {"pasta": str(p), "series": out, "rodando": rodando(), "serie_rodando": PROC["serie"],
+    try:
+        sys.path.insert(0, str(TOOLS / "historias"))
+        import sons_web
+
+        n_sons = sum(sons_web.inventario().values())
+    except Exception:
+        n_sons = 0
+    return {"pasta": str(p), "series": out, "rodando": rodando(), "serie_rodando": PROC["serie"], "sons": n_sons,
             "log": PROC["log"][-14:], "contas": c.get("contas", []), "por_dia": c.get("por_dia", 1),
             "duracao_s": c.get("duracao_s", 80), "auto_postar": bool(c.get("auto_postar", True)),
             "marca": c.get("marca", ""), "voz_voicestudio": c.get("voz_voicestudio", "")}
@@ -106,6 +113,35 @@ def _job(serie, n=0):
         p = base / f"ep_{int(n):02d}"
         return p if p.exists() else None
     return jobs[-1] if jobs else None
+
+
+def _outro(prog, args, titulo):
+    """roda outro programa da pasta historias (capa.py, sons_web.py) mostrando o registro no painel"""
+    if rodando():
+        return {"ok": False, "erro": "espere o que está rodando terminar"}
+    exe = Path(sys.executable)
+    if exe.name.lower() == "pythonw.exe":
+        exe = exe.with_name("python.exe")
+    PROC["serie"] = titulo
+    PROC["log"] = []
+    pr = subprocess.Popen([str(exe), "-u", str(TOOLS / "historias" / prog), *args], stdout=subprocess.PIPE,
+                          stderr=subprocess.STDOUT, text=True, encoding="utf-8", errors="replace", cwd=str(PONTE),
+                          env={**os.environ, "PYTHONIOENCODING": "utf-8"},
+                          **({"creationflags": 0x08000000} if os.name == "nt" else {}))
+    PROC["p"] = pr
+
+    def lendo():
+        for linha in pr.stdout:
+            PROC["log"].append(linha.rstrip()[:300])
+            del PROC["log"][:-200]
+        PROC["serie"] = ""
+
+    threading.Thread(target=lendo, daemon=True).start()
+    return {"ok": True}
+
+
+def _roda_sons(quantos=4):
+    return _outro("sons_web.py", ["--quantos", str(max(1, min(20, quantos)))], "efeitos sonoros")
 
 
 def _roda_capa(serie):
@@ -151,6 +187,13 @@ def acao(nome, d):
         return _roda(["--apurar"], "votos")
     if nome == "hist_capas":
         return _roda_capa(d.get("pasta", ""))
+    if nome == "hist_melhorar":
+        job = _job(d.get("pasta", ""), int(d.get("n") or 0))
+        if not job:
+            return {"ok": False, "erro": "não achei o episódio"}
+        return _roda(["--serie", d["pasta"], "--melhorar", job.name.split("_")[1]], d["pasta"])
+    if nome == "hist_sons":
+        return _roda_sons(int(d.get("quantos") or 4))
     if nome == "hist_serie_cfg":
         f = pasta() / "series" / d["pasta"] / "serie.json"
         s = H.le_json(f, {}) or {}

@@ -297,11 +297,27 @@ mandaram o Lucas pro mercadinho"). É isso que faz a série crescer. Vale para q
   começo ao fim. Agora, 3 cenas seguidas com pessoa = a do meio vira CLOSE num objeto, SEM pessoa, escolhido pela
   PALAVRA da narração (`APOIO`: celular/mensagem → celular, água/bomba → torneira, litros → balde, hora → relógio...).
   Alvo de ~30% das cenas sem pessoa; o prompt também exige 1 em cada 3.
-- SINCRONIZAÇÃO (22/out): `encaixa_cenas` só ancora a cena quando METADE da frase bate com a transcrição; as que não
-  batem (voz falou o número por extenso, trocou palavra) não ficam sem hora — o tempo entre as âncoras é repartido na
-  proporção do tamanho da fala de cada uma. LEGENDA: nunca fecha em palavra fraca ("NÃO CORRA PARA A" não acontece
-  mais, `FRACAS` no render.js), bloco de 1 palavra junta com o anterior e cada legenda fica na tela ATÉ a próxima
-  entrar (sem buraco).
+- SINCRONIZAÇÃO (22/out, v2): `encaixa_cenas` faz ALINHAMENTO GLOBAL por programação dinâmica (o mesmo jeito do
+  `roteiro/align.js` dos vídeos dele): a fala do roteiro × a transcrição da voz, aceitando palavra trocada, a mais ou
+  comida — cada cena termina onde caiu a ÚLTIMA palavra dela. Cena sem âncora divide o espaço entre as vizinhas pelo
+  tamanho da fala. Custa ~2 ms. LEGENDA: nunca fecha em palavra fraca ("NÃO CORRA PARA A" não acontece mais, `FRACAS`
+  no render.js), bloco de 1 palavra junta com o anterior e cada legenda fica na tela ATÉ a próxima entrar.
+- EFEITO SONORO SEMPRE (22/out, `garante_sfx`): a IA esquecia de marcar `sfx` e o episódio saía MUDO. Agora toda cena
+  sem efeito ganha um pela PALAVRA da narração (`GATILHOS`: celular/vibra → mensagem, porta → porta, luz/apagou →
+  click, carro/ronco → motor, água/enche → agua, tiro/grito → susto...), tensão nas cenas de escuro/tremor e um
+  whoosh na virada quando passa muito tempo sem som. Nunca mais sai mudo.
+- PASTA DE EFEITOS (22/out, `tools\historias\sons_web.py`): baixa do myinstants.com e monta
+  `<DETTO>\historias\sons\<categoria>\` (ding, tick, relogio, passos, boom, soco, porta, pop, click, whoosh, riser,
+  glitch, trovao, agua, sirene, vidro, motor). `python tools\historias\sons_web.py [--quantos 4] [--categoria X]
+  [--listar]`; painel: "🔊 Baixar efeitos sonoros" (completa só o que falta; o que já tem não baixa de novo; aceita
+  só 0,2 a 8 s). O `sons()` procura nessa ordem: pasta das histórias → pasta de efeitos do PC → sintetizado (`PARECIDO`
+  troca a categoria que não existe pela mais próxima).
+- MAIS EDIÇÃO NO EPISÓDIO PRONTO (22/out, `melhora_roteiro`, `--melhorar N`, painel "✨ Mais edição"): a IA recebe o
+  roteiro já feito e devolve as cenas mais ricas (closes de apoio, objetos com estado, onomatopeia, relógio, tremor,
+  movimento variado, sfx na palavra) com a NARRAÇÃO INTACTA — por isso a voz e as legendas já prontas continuam
+  valendo e só o desenho é remontado (rápido e sem gastar voz).
+- ANDAR SÓ QUANDO PEDIDO (22/out): `andar` vazio caía em 1 e TODO prédio saía com a etiqueta "1º ANDAR"; agora sem
+  `andar` no roteiro o prédio não marca nada.
 - CONTEXTO, APAGAR E MEXER NO ROTEIRO (22/out): `"contexto"` no serie.json (quem é quem, as regras, o tom, o que não
   pode acontecer) entra em TODOS os prompts — painel: "Contexto da história e ajustes"; linha de comando
   `--contexto "<texto>" --serie X`. APAGAR a série: botão no painel (precisa digitar o nome da pasta) ou

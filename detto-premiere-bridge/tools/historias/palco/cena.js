@@ -368,7 +368,9 @@ function predios(p, n, base, acesas, semente) {
     e os vizinhos ficam apagados. É o que faz o público ENTENDER onde a pessoa está. */
 function predioAndares(p, c) {
   const total = Math.max(4, Math.min(24, Number(c.andares) || 15));
-  const alvo = Math.max(1, Math.min(total, Number(c.andar) || 0));
+  // sem `andar` no roteiro não se marca nada (antes caía em 1 e todo prédio saía com "1º ANDAR")
+  const pedido = Number(c.andar) || 0;
+  const alvo = pedido > 0 ? Math.max(1, Math.min(total, pedido)) : 0;
   const topo = H * 0.09;
   const base = H * 0.88;
   const hA = (base - topo) / total;

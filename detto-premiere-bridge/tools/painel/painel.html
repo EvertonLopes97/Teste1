@@ -506,7 +506,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-10-22e";
+const VERSAO_TELA = "2026-10-22f";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -813,7 +813,9 @@ function historias(){
         </div>
         <label class="dest" style="margin-top:6px"><input type="checkbox" ${H.auto_postar?"checked":""} onchange="api('hist_cfg',{auto_postar:this.checked}).then(()=>carrega(true))"> Fazer e postar sozinho</label>
         <div class="linha" style="margin-top:6px"><button class="mini" onclick="api('hist_apurar').then(()=>carrega(true))" ${H.rodando?"disabled":""}>Contar os votos agora</button>
+          <button class="mini" onclick="api('hist_sons',{quantos:4}).then(()=>carrega(true))" ${H.rodando?"disabled":""}>🔊 Baixar efeitos sonoros</button>
           ${H.rodando?`<button class="mini perigo" onclick="api('hist_parar').then(()=>carrega(true))">Parar</button>`:""}</div>
+        <div class="info" style="margin-top:4px">Pasta de efeitos: <b>${H.sons||0}</b> som(ns) — o botão completa as categorias que faltam.</div>
       </div>
     </div>
     ${H.rodando?`<div class="info" style="margin-top:8px">⏳ fazendo: <b>${esc(H.serie_rodando)}</b></div>`:""}
@@ -855,7 +857,8 @@ function historias(){
       <div style="margin-top:8px"><label style="font-size:13px;opacity:.75">O que acontece neste episódio (opcional)</label>
         <input type="text" id="hr-${s.pasta}" placeholder="ex.: aparece um drone da prefeitura / vi um viral com isso e quero usar" style="width:100%"></div>
       <div class="linha" style="margin-top:8px"><button class="pri" onclick="hisEp('${s.pasta}')" ${H.rodando?"disabled":""}>Fazer o episódio ${s.n+1}</button>
-        ${u?`<button class="mini" onclick="hisRoteiro('${s.pasta}')">Ver e mexer no roteiro</button>`:""}</div>
+        ${u?`<button class="mini" onclick="hisRoteiro('${s.pasta}')">Ver e mexer no roteiro</button>
+        <button class="mini" onclick="api('hist_melhorar',{pasta:'${s.pasta}'}).then(()=>carrega(true))" ${H.rodando?"disabled":""}>✨ Mais edição no ep ${u.n}</button>`:""}</div>
       <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;opacity:.8">Contexto da história e ajustes</summary>
         <label style="font-size:13px;opacity:.75;display:block;margin-top:6px">Contexto — vale para TODOS os episódios (quem é quem, as regras, o tom, o que não pode acontecer)</label>
         <textarea id="hx-${s.pasta}" rows="5" style="width:100%" placeholder="ex.: o Marcos tem 34 anos, é advogado e mora sozinho no 12º andar com a gata Paçoca. A luz cai às 18h todo dia. Nunca matar personagem. Tom de suspense, sem sangue.">${esc(s.contexto||"")}</textarea>
@@ -893,6 +896,7 @@ function hisRoteiro(p){
       <textarea id="hrot" rows="18" style="width:100%;font-family:ui-monospace,monospace;font-size:12px">${esc(r.texto)}</textarea>
       <div class="linha" style="margin-top:8px">
         <button class="pri" onclick="hisSalvaRot('${p}',${r.n},'refazer')">Refazer este episódio</button>
+        <button class="mini" onclick="api('hist_melhorar',{pasta:'${p}',n:${r.n}}).then(()=>{fecha();carrega(true);})">✨ Pedir mais edição à IA</button>
         <button class="mini" onclick="hisSalvaRot('${p}',${r.n},'base')">Usar como base do próximo</button>
       </div>`;
     $("#fundo").classList.add("on");
