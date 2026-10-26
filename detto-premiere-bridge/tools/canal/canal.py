@@ -1605,6 +1605,12 @@ def main():
     pronto = pasta / "prontos" / f"{dt.datetime.now():%Y-%m-%d_%H%M} - {slug(rot['titulo'], 50)}"
     pronto.mkdir(parents=True, exist_ok=True)
     video = monta(sel, rot, cfg, pasta, tmp, pronto / "video.mp4")
+    try:   # vinheta de abertura do canal (feita uma vez e guardada; "vinheta": false no config desliga)
+        import vinheta as VIN
+
+        video = VIN.abre(video, "noticias", cfg.get("nome_canal", ""), cfg, log=log)
+    except Exception as e:
+        log(f"vinheta: não entrou ({str(e)[:120]})")
     th = thumb(video, rot, {**cfg, "_pasta": str(pasta)}, pronto, sel)
     creditos = sorted({origem(x) + (f" — youtube.com/{x['canal']}" if x.get("canal") else "") for x in sel})
     tags = [t.strip("#") for t in rot.get("tags", [])][:15]

@@ -221,6 +221,7 @@ section.aba.on{display:block}
     <label>Que tipo de edição?</label>
     <div class="destinos tipos" id="edTipos">
       <label class="dest sel"><input type="radio" name="edTipo" value="roteiro" checked> 🎬 Vídeo com roteiro</label>
+      <label class="dest"><input type="radio" name="edTipo" value="reels"> 📲 Reels com roteiro (9:16)</label>
       <label class="dest"><input type="radio" name="edTipo" value="galo"> 🐓 Galo — bater nos jogadores</label>
       <label class="dest"><input type="radio" name="edTipo" value="react"> 📺 DETTO REAGE</label>
       <label class="dest"><input type="radio" name="edTipo" value="vertical"> 📱 Vertical de vídeo já editado</label>
@@ -506,7 +507,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-10-23a";
+const VERSAO_TELA = "2026-10-25a";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -1128,7 +1129,7 @@ function edicao(){
                e.status === "na_fila" ? `Na fila${e.na_frente ? " (" + e.na_frente + " antes)" : ""}` :
                e.status === "pronto" ? `Pronto em ${mmss(e.duracao)}` : ST[e.status] || e.status;
     const op = e.opcoes || {}, ex = e.extra || {};
-    const tags = e.tipo === "roteiro" ? [op.teste && "teste 1 min", op.sem_lances && "sem lances", op.fps == 30 && "30 fps", e.imagens && e.imagens + " imagens", e.roteiro ? "com roteiro" : "roteiro do Gemini"]
+    const tags = (e.tipo === "roteiro" || e.tipo === "reels") ? [op.teste && "teste 1 min", op.sem_lances && "sem lances", op.fps == 30 && "30 fps", e.imagens && e.imagens + " imagens", e.roteiro ? "com roteiro" : "roteiro do Gemini"]
       : e.tipo === "galo" ? [ex.jogo, ex.com_placar && "com placar"] : e.tipo === "react" ? [ex.formato]
       : e.tipo === "vlog" ? [ex.formato, "~" + ex.duracao + " min", ex.estilo, ex.pasta && ex.pasta.split(/[\\/]/).slice(-1)[0]]
       : [ex.grafico, ex.partes && "partes de " + ex.partes + " s"];
@@ -1151,7 +1152,7 @@ function edicao(){
     const bts = [];
     if(e.status === "editando" || e.status === "na_fila") bts.push(`<button class="perigo" onclick="edAcao('ed_cancelar',${ei},'Cancelar esta edição?')">Cancelar</button>`);
     if(e.status === "rascunho") bts.push(`<button class="pri" onclick="edAcao('ed_iniciar',${ei})">Começar</button>`);
-    if(["pronto","erro","interrompido","cancelado"].includes(e.status) && e.tipo === "roteiro") bts.push(`<button onclick="ajusta(${ei})">Ajustar roteiro e refazer</button>`);
+    if(["pronto","erro","interrompido","cancelado"].includes(e.status) && (e.tipo === "roteiro" || e.tipo === "reels")) bts.push(`<button onclick="ajusta(${ei})">Ajustar roteiro e refazer</button>`);
     if(["pronto","erro","interrompido","cancelado"].includes(e.status) && e.tipo === "galo") bts.push(`<button onclick="regestos(${ei})" title="Apaga os gestos lidos e lê de novo">Refazer lendo os gestos de novo</button>`);
     if(e.status === "pronto" && !["roteiro", "vlog"].includes(e.tipo)) bts.push(`<button onclick="edAcao('ed_iniciar',${ei})">Refazer</button>`);
     if(["pronto","erro","interrompido","cancelado"].includes(e.tipo === "vlog" ? e.status : "") ) {
@@ -1177,7 +1178,7 @@ function verEd(ei, vi){
   $("#fundo").classList.add("on");
 }
 function postaEd(ei, vi){
-  const e = E.edicao[ei], v = e.saidas.videos[vi], vert = e.tipo === "roteiro" ? /vertical/.test(v.nome) : !(e.tipo === "react" && (e.extra || {}).formato !== "vertical");
+  const e = E.edicao[ei], v = e.saidas.videos[vi], vert = e.tipo === "reels" ? true : e.tipo === "roteiro" ? /vertical/.test(v.nome) : !(e.tipo === "react" && (e.extra || {}).formato !== "vertical");
   $("#modal").innerHTML = `<div class="ctop" style="margin-bottom:10px"><b style="flex:1">Postar: ${esc(nomeSaida(v.nome))}</b><button class="mini" onclick="fecha()">✕</button></div>
     ${vert ? "" : `<div class="info alerta">Este é o horizontal (16:9). Para Reels/TikTok o normal é o vertical.</div>`}
     <div class="info">Mandar para a fila de:</div>
@@ -1214,6 +1215,7 @@ async function ajusta(ei){
 /* nova edição: tipo, arquivos escolhidos */
 const TIPOS = {
   roteiro: {campos: [["video", "A gravação"]], info: "Sua gravação lendo o roteiro → horizontal (YouTube), vertical completo e cortes 9:16, com gráficos, cards, efeitos, lances e thumbs."},
+  reels: {campos: [["video", "A gravação (lendo o roteiro do reels)"]], info: "O vídeo INTEIRO vira um reels 9:16, com o gancho escrito na tela nos 3 primeiros segundos, legendas, gráficos e efeitos. Sem horizontal, sem cortes, sem thumb — sai um reels pronto para a fila."},
   galo: {campos: [["video", "A gravação no estádio"]], info: "Os jogadores do Galo entram ao seu lado e você bate/passa/joga longe — o sistema lê seus gestos. Sai em 9:16, sem música (você põe no app)."},
   react: {campos: [["video", "Sua câmera"], ["tela", "A gravação da tela (com as pausas)"], ["original", "O vídeo original (o que você reagiu)"]], info: "Layout DETTO REAGE: o vídeo na moldura e você no quadro; nas pausas, zoom em você em tela cheia. Sincroniza pelo áudio (bater palma no começo ajuda)."},
   vertical: {campos: [["video", "O vídeo já editado (16:9)"]], info: "Vira 9:16 com recorte no seu rosto; quando tem gráfico ou foto grande, ele aparece grande e você no canto."},

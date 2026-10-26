@@ -833,16 +833,17 @@ def texto_do_original(clip, t0, t1, saida):
                 xs = np.where(claro[ini:y].any(axis=0))[0]
                 linhas.append((ini, y, xs.min(), xs.max()))
             ini = None
-    # junta pedaços da mesma linha (acentos, "ç") e fica com o bloco centralizado do topo
+    # junta pedaços da mesma linha (acentos, "ç") e fica com o bloco centralizado do topo.
+    # Uma linha CURTA no meio do texto ("1 mês isolados") não encerra o bloco — antes ela cortava a legenda pela
+    # metade; o bloco só termina quando há um buraco de verdade entre as linhas.
     bloco = []
     for l in linhas:
-        centro = abs(l[2] - (W - 1 - l[3])) < W * 0.12 and (l[3] - l[2]) > W * 0.12
-        if not centro:
-            if bloco:
-                break
-            continue
+        larg = l[3] - l[2]
+        centrada_ = abs(l[2] - (W - 1 - l[3])) < W * 0.14
+        if not centrada_ or larg <= W * (0.07 if bloco else 0.12):
+            continue   # ruído (sombra, acento solto, placar fora do centro): pula, não encerra
         if bloco and l[0] - bloco[-1][1] > 3 * max(10, np.median([b[1] - b[0] for b in bloco])):
-            break
+            break      # buraco grande: o que vem depois é outro texto (legenda de baixo, @ do perfil)
         bloco.append(l)
     if not bloco:
         return None
@@ -1146,7 +1147,7 @@ def legenda_parada(clip, t0, t1, saida):
             return None
         blocos = [[linhas[0]]]
         for l in linhas[1:]:
-            if l["y"] - blocos[-1][-1]["y"] < alt * 2.6:
+            if l["y"] - blocos[-1][-1]["y"] < alt * 3.6:
                 blocos[-1].append(l)
             else:
                 blocos.append([l])
@@ -1247,14 +1248,33 @@ def le_texto_duplo(png, quadro_original=None):
     if l1 and l2:
         ok = min(_bate(l1, l2), _bate(l2, l1)) >= 0.85
         if not ok:
-            log(f"   conferência de letra: leituras diferentes — PNG: {l1!r} × tela: {l2!r}")
+            # o PNG ser o COMEÇO do texto da tela = o recorte cortou o resto (é o caso que estraga o vídeo).
+            # Palavras trocadas, sem faltar o fim, costuma ser só o OCR lendo mal — o PNG está inteiro.
+            n1 = re.sub(r"\s+", " ", l1).strip().lower()
+            n2 = re.sub(r"\s+", " ", l2).strip().lower()
+            if len(n2) > len(n1) * 1.25 and n2.startswith(n1[: max(8, int(len(n1) * 0.7))]):
+                log(f"   conferência de letra: o recorte pegou SÓ O COMEÇO do texto — falta {n2[len(n1):].strip()!r}")
+            else:
+                log(f"   conferência de letra: leituras diferentes (pode ser o OCR) — PNG: {l1!r} × tela: {l2!r}")
         return (l2 if len(l2) >= len(l1) * 0.8 else l1), ok
     return (l1 or l2), bool(l1 or l2)
+
+
+def _cala_opencv():
+    """tira os avisos "Targets are not supported by the new graph engine" do YuNet, que enchiam o registro"""
+    try:
+        import cv2
+
+        cv2.utils.logging.setLogLevel(cv2.utils.logging.LOG_LEVEL_ERROR)
+    except Exception:
+        pass
 
 
 def _rosto(img):
     """tem rosto de gente na imagem? (YuNet; sem o modelo: Haar do OpenCV)"""
     import cv2
+
+    _cala_opencv()
     modelo = TOOLS.parent / "yunet.onnx"
     try:
         if modelo.exists():

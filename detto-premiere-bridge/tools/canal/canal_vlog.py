@@ -227,6 +227,12 @@ def monta(vlog, cfg, pasta):
         os.replace(ed / "vlog.mp4", video)
     except OSError:
         shutil.copyfile(ed / "vlog.mp4", video)
+    try:   # a mesma abertura do canal EVERTON LOPES
+        import vinheta as VIN
+
+        video = VIN.abre(video, "vlog", cfg.get("nome_canal", ""), cfg)
+    except Exception as e:
+        print(f"vinheta: não entrou ({str(e)[:120]})", flush=True)
     plano = comum.le(ed / "plano.json", {}) or {}
     tx = textos(plano, vlog.name, info, cfg)
     # thumb viral: VOCÊ (melhor reação dos seus clipes) + o quadro mais bonito do vlog + o assunto

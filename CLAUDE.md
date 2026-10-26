@@ -120,8 +120,8 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   caminho no PC, hardlink; pelo caminho pega também o roteiro .txt/.docx e a pasta imagens\ ao LADO do vídeo — `junto_do_video`) + roteiro (.txt/.docx/colado) + imagens → `E:\DETTO\edicao\<data título>\` → roda o
   `editar.py` (um por vez; `painel.json` = situação, `painel_log.txt` = registro); saídas para assistir/baixar/postar,
   "Ajustar roteiro e refazer" (grava o roteiro.txt do job), vertical completo pode ir sozinho para a fila.
-  Tipos de edição: roteiro (editar.py) | galo (passagem.py, jogo.json com "jogo") | react (react.py, 3 vídeos) |
-  vertical (vertical916.py); os não-roteiro saem em `<pasta>\saidas\`.
+  Tipos de edição: roteiro (editar.py) | REELS com roteiro (editar.py --reels, 9:16) | galo (passagem.py, jogo.json
+  com "jogo") | react (react.py, 3 vídeos) | vertical (vertical916.py); os não-roteiro saem em `<pasta>\saidas\`.
   Instagram = REELS TESTE por padrão (`trial_params` MANUAL; `"teste"`, `"graduar"` manual|automatico, `"meta_views"`
   na conta; o TESTE só vale com `video_url`: o vídeo sobe para o Catbox (link público; até 3 vezes) ou Litterbox e o IG
   baixa de lá (tmpfiles e FB não publicado SEMPRE falharam — 2207082/2207076 — e saíram); cada falha de envio aparece no
@@ -236,6 +236,24 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   8–23 h; vlogs 10 min). Um trabalho pesado por vez (`EDI.OCUPADO`). Login por canal (token.json na pasta do canal);
   client_secret.json compartilhado em E:\DETTO\youtube. `--preparar`, `--postar <pronto>`, `DETTO_VOZ_FALSA=1` (teste: voz de computador pt — Windows SAPI "Maria" / espeak-ng —
   no lugar da clonada; painel: botão "Teste" no card Notícias = `--forcar --nao-postar` com essa voz).
+- VINHETA DE ABERTURA (25/out, `tools\canal\vinheta.py` + `vinheta.js` + `vinheta\`): abertura de 2,4–3 s nos vídeos
+  HORIZONTAIS, com a identidade do canal. 3 presets em `CANAIS`: `noticias` (DETTO GALO NOTÍCIAS: listras, faixas
+  amarelas, selo PLANTÃO piscando), `galo` (DETTO GALO, a mesma cara sem plantão, sub "RESENHA DO GALO") e `vlog`
+  (EVERTON LOPES: luz lima de um lado, roxa do outro). Tempo: entrada → BATIDA aos 45% (flash branco + o nome trava,
+  o impacto do som bate junto) → luz passando, selo e risco. Áudio feito no FFmpeg (whoosh + impacto, -16 LUFS).
+  Fica guardada em `<DETTO>\marca\vinheta_<canal>_<LxA>_<fps>.mp4` e só é refeita quando o nome muda (`--refazer`);
+  o vídeo de todo dia só EMENDA (`emenda` padroniza tamanho/fps/áudio, e o vídeo sem áudio ganha silêncio).
+  Onde entra sozinha: `canal.py` (notícias), `canal_vlog.py` (vlogs) e `editar.py` no horizontal.mp4 e no
+  horizontal_lances.mp4 (`--canal galo|noticias|vlog|sem`, padrão galo). No 9:16 ela NÃO entra (reels não tem
+  abertura). `"vinheta": false` no config do canal desliga; `"vinheta_s"` muda a duração.
+  Testar: `python tools\canal\vinheta.py --canal galo --ver "<video.mp4>"`.
+- REELS COM ROTEIRO (25/out, `editar.py --reels`; painel: tipo **Reels com roteiro (9:16)**): o mesmo fluxo do vídeo
+  com roteiro, mas o vídeo INTEIRO vira UM reels 9:16 — sem horizontal, sem cortes, sem thumb e sem vinheta. O
+  GANCHO entra escrito na tela nos 3 primeiros segundos (`--gancho` no render-dynamic, que antes só existia com
+  `--cut`): vem da linha `GANCHO: ...` do roteiro, senão do 1º corte vertical, senão da 1ª TELA, senão do título.
+  A IA escreve o roteiro no formato de reels (`roteiro_ia.py --reels`, `REGRAS_REELS`): gancho nos 2 primeiros
+  segundos, TELA a cada ~5 s com 2 a 4 palavras, sem seção de cortes verticais, CTA nos últimos 2 s.
+  Saídas: `<job>\reels.mp4` (+ `_lances`) e `<job>\post.txt` com a legenda.
 - FFMPEG: `-filter_complex_script` saiu na 8; use SEMPRE `tools\ffcompat.py` (`filtro_complexo`/`filtro_v`, o mesmo que o
   `motion\ffopts.js` faz no Node) — o vlog quebrava com "Unrecognized option 'filter_complex_script'".
 - PYTHON 3.11 no PC dele: NADA de `\` dentro das chaves de f-string (no 3.12+ passa, lá quebra — aconteceu no canal.py). Conferir:
@@ -408,6 +426,11 @@ monta o roteiro de edição SEGUINDO o dele com os tempos da fala; plano ainda f
   da camisa. Descarta: outra marca, outro clube parecido (`"nao"` em times.json: Inter Miami, Atlético Madrid),
   goleiro/treino/polo, concept/vazamento/arte/PES, e foto cuja COR não bate com o roteiro (camisa vinho ≠ foto branca).
   Mesmo time no vídeo = mesma imagem (a da descrição mais completa). Sem foto na rodada rápida = escudo no lugar.
+  TEXTO DO MEME (25/out): `texto_do_original` não encerra mais o bloco na primeira linha que não passa no teste —
+  uma linha CURTA no meio ("1 mês isolados") cortava a legenda pela metade; agora ela é pulada e o bloco só termina
+  num buraco de verdade. `legenda_parada` aceita gap de parágrafo (3,6x a altura). Quando a leitura do PNG é o
+  COMEÇO do texto da tela, o registro diz "o recorte pegou SÓ O COMEÇO" (é erro de recorte); palavra trocada sem
+  faltar o fim é marcado como possível erro só do OCR. Os avisos do OpenCV (YuNet) foram calados.
   Busca: 3 imagens por vez, todas as buscas de cada imagem (mostra [n/total]); Ctrl+C pula e segue com o que achou.
   Pasta `imagens\`: camisa = arquivo com o NOME DO TIME (Vasco.jpg); foto de apoio = palavras da busca
   (Santos 1997.jpg, colar Pataxó.jpg, torcida Santos Vila.jpg). Vale antes da internet.

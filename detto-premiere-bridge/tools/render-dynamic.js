@@ -156,6 +156,9 @@ async function main() {
     const vc = ((plan.meta && plan.meta.vertical_cuts) || []).find((v) => String(v.index) === String(a.cut));
     const gancho = vc && (vc.hook || vc.title);
     if (gancho) d.items.push({ id: "gancho", type: "gancho", start: ranges[0][0], end: ranges[0][0] + 3.0, data: { text: gancho }, z: 45 });
+  } else if (a.gancho) {
+    // reels do vídeo inteiro: o gancho escrito na tela nos 3 primeiros segundos (é o que segura quem passa)
+    d.items.push({ id: "gancho", type: "gancho", start: ranges[0][0], end: ranges[0][0] + 3.0, data: { text: a.gancho }, z: 45 });
   }
   // vídeo dos lances (versão "com lances")
   const lancesOk = a.lances ? adicionaLances(d, a.lances, work, format, log) : [];

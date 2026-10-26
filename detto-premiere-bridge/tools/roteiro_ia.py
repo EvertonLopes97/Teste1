@@ -206,6 +206,25 @@ def gemini(prompt):
 
 
 
+# ------------------------------------------------------------------ REELS COM ROTEIRO (9:16, curto)
+REGRAS_REELS = """
+
+=====================================================================
+ ATENÇÃO: ESTE É UM REELS (9:16, VERTICAL, CURTO) — não é o vídeo longo
+=====================================================================
+O vídeo INTEIRO vira UM reels. Então:
+1. GANCHO nos 2 primeiros segundos, na primeira linha do roteiro, como "GANCHO: <frase>" logo abaixo do título.
+   É a frase que aparece ESCRITA na tela no começo (até 7 palavras, sem ponto final). Ela tem que dar vontade de
+   ficar: uma pergunta, um número ou uma afirmação forte do que ele fala no vídeo.
+2. NÃO escreva a seção "CORTES VERTICAIS": o vídeo todo já é o corte.
+3. TELA/GRÁFICO mais frequente que no vídeo longo (1 a cada ~5 s): no reels a tela precisa mudar sempre.
+   Use placas curtas, de 2 a 4 palavras — no 9:16 não cabe texto comprido.
+4. EFEITO: punch-in nas frases de impacto e tremida nos números/placares. Sem vinheta, sem bloco de abertura:
+   o reels começa na FALA.
+5. No fim, uma TELA de CTA curta ("COMENTA AÍ", "SEGUE PRO PARTE 2") nos últimos 2 segundos.
+"""
+
+
 # ------------------------------------------------------------------ IAs GRÁTIS de texto (antes do Claude)
 # cada uma com a sua chave (setx NOME_DA_CHAVE ...); a primeira que responder fica. Ordem: as de cota maior primeiro.
 PROVEDORES = [
@@ -499,13 +518,14 @@ def main():
     p.add_argument("saida")
     p.add_argument("--titulo", default="")
     p.add_argument("--base", help="o roteiro que o criador escreveu (sem tempos / em outro formato): a IA segue ele")
+    p.add_argument("--reels", action="store_true", help="roteiro de REELS (9:16, curto, gancho nos 2 primeiros segundos)")
     a = p.parse_args()
     words = json.loads(Path(a.words).read_text(encoding="utf-8"))
     base = ""
     if a.base and Path(a.base).exists():
         b = Path(a.base).read_bytes()
         base = b.decode("utf-8", "replace") if b"\xef\xbf\xbd" not in b and b.decode("utf-8", "replace").count("\ufffd") < 3 else b.decode("latin1")
-    prompt = REGRAS + (f"\nTítulo sugerido: {a.titulo}\n" if a.titulo else "")
+    prompt = REGRAS + (REGRAS_REELS if a.reels else "") + (f"\nTítulo sugerido: {a.titulo}\n" if a.titulo else "")
     if base:
         prompt += ("\nO CRIADOR GRAVOU LENDO O ROTEIRO ABAIXO (mudando algumas falas). Use-o como GUIA: mesma ordem, os mesmos "
                    "blocos, os gráficos/placares/cards/efeitos/fotos/cortes verticais/ERRATA que ele pediu, nos trechos em que "

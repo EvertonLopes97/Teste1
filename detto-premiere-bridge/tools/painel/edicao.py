@@ -43,6 +43,7 @@ ETAPAS = [  # (texto no registro, nome da etapa) — a última que aparecer é a
 
 TIPOS = {  # tipo de edição → arquivos que precisa
     "roteiro": {"nome": "Vídeo com roteiro", "arquivos": ["video"]},
+    "reels": {"nome": "Reels com roteiro (9:16)", "arquivos": ["video"]},
     "react": {"nome": "DETTO REAGE", "arquivos": ["video", "tela", "original"]},
     "galo": {"nome": "Galo — elenco passando", "arquivos": ["video"]},
     "vertical": {"nome": "Vertical de vídeo pronto", "arquivos": ["video"]},
@@ -148,7 +149,7 @@ def registro(p, n=40):
 
 def saidas(p):
     rel = lambda f: str(f.relative_to(p)).replace("\\", "/")  # noqa: E731
-    if info(p).get("tipo", "roteiro") != "roteiro":
+    if info(p).get("tipo", "roteiro") not in ("roteiro", "reels"):
         pasta = p / "saidas"
         vids = [{"rel": rel(f), "nome": f.name, "tam": f.stat().st_size, "quando": dt.datetime.fromtimestamp(f.stat().st_mtime).strftime("%d/%m %H:%M")}
                 for f in sorted(pasta.glob("*.mp4")) if not f.name.startswith("vlog_")] if pasta.exists() else []
@@ -160,7 +161,8 @@ def saidas(p):
     job = job_de(p)
     if not job or not job.exists():
         return {"videos": [], "imagens": [], "textos": {}}
-    ordem = lambda f: (0 if f.stem.startswith("horizontal") else 1 if f.stem.startswith("vertical_completo") else 2, f.name)  # noqa: E731
+    ordem = lambda f: (0 if f.stem.startswith("reels") else 0 if f.stem.startswith("horizontal")  # noqa: E731
+                       else 1 if f.stem.startswith("vertical_completo") else 2, f.name)
     vids = [{"rel": rel(f), "nome": f.name, "tam": f.stat().st_size, "quando": dt.datetime.fromtimestamp(f.stat().st_mtime).strftime("%d/%m %H:%M")}
             for f in sorted(job.glob("*.mp4"), key=ordem)]
     imgs = []
@@ -521,6 +523,10 @@ def comando(p):
             cmd += ["--partes", str(ex["partes"])]
         return cmd
     cmd = [str(exe), "-u", str(TOOLS / "editar.py"), str(video_de(p)), "--titulo", d.get("titulo", ""), "--fps", str(op.get("fps", 60))]
+    if tipo == "reels":   # o vídeo inteiro vira UM reels 9:16, com o gancho na tela
+        cmd.append("--reels")
+    if op.get("canal") in ("galo", "noticias", "vlog", "sem"):
+        cmd += ["--canal", op["canal"]]
     for chave, flag in (("teste", "--teste"), ("sem_lances", "--sem-lances"), ("sem_thumbs", "--sem-thumbs"), ("sem_verticais", "--sem-verticais")):
         if op.get(chave):
             cmd.append(flag)

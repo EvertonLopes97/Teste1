@@ -62,6 +62,10 @@ def main():
     p.add_argument("--sem-thumbs", action="store_true", help="não faz as 4 thumbs")
     p.add_argument("--cookies", default=None, help="navegador logado no YouTube (chrome, edge, firefox) se pedir login")
     p.add_argument("--sem-sdr", action="store_true", help="não faz o master SDR antes (gravação HDR do iPhone)")
+    p.add_argument("--reels", action="store_true",
+                   help="REELS COM ROTEIRO: o vídeo inteiro vira um reels 9:16 (sem horizontal, sem cortes, sem thumb)")
+    p.add_argument("--canal", default="galo", choices=["galo", "noticias", "vlog", "sem"],
+                   help="vinheta de abertura do horizontal (padrão galo; 'sem' = nenhuma)")
     a = p.parse_args()
     video = Path(a.video).resolve()
     if not video.exists() and video.parent.exists():
@@ -115,14 +119,16 @@ def main():
             shutil.copyfile(seu, alvo)
             print(f"\nRoteiro: {seu.name} (o seu) → alinhado com o que você falou")
     if not (job / "roteiro.txt").exists():
-        roda([py, T / "roteiro_ia.py", job / "words.json", job / "roteiro.txt", "--titulo", a.titulo])
+        roda([py, T / "roteiro_ia.py", job / "words.json", job / "roteiro.txt", "--titulo", a.titulo]
+             + (["--reels"] if a.reels else []))
     elif not tem_trechos(job / "roteiro.txt"):
         # o SEU roteiro não está no formato com tempos ([0:00 – 0:08] + FALA:) — ex.: o roteiro de gravação, escrito antes:
         # a IA monta o roteiro de edição SEGUINDO o seu (ordem, gráficos, nomes) com os tempos da fala. Antes parava com erro.
         seu_txt = job / "roteiro_seu.txt"
         shutil.copyfile(job / "roteiro.txt", seu_txt)
         print("\nO seu roteiro não tem os tempos ([0:00 – 0:08] + FALA:). Monto o roteiro de edição a partir dele + do que você falou...")
-        roda([py, T / "roteiro_ia.py", job / "words.json", job / "roteiro.txt", "--titulo", a.titulo, "--base", seu_txt])
+        roda([py, T / "roteiro_ia.py", job / "words.json", job / "roteiro.txt", "--titulo", a.titulo, "--base", seu_txt]
+             + (["--reels"] if a.reels else []))
     plano = [T / "roteiro-to-plan.js", job / "roteiro.txt", "--media", video, "--duration", f"{dur:.2f}",
              "--words", job / "words.json", "--gap", "0.8", "--job", orig.stem, "--out", job / "EDIT_PLAN.json",
              "--report", job / "alinhamento.json", "--ajustes", job / "ajustes.txt"]
@@ -173,8 +179,47 @@ def main():
             except subprocess.CalledProcessError:
                 print(f"Aviso: a versão com lances de {saida.name} falhou; a sem lances está pronta.")
 
+    # ---------------------------------------------------------------- REELS COM ROTEIRO
+    # o vídeo inteiro em 9:16, com o gancho escrito na tela nos 3 primeiros segundos. Sem horizontal, sem cortes,
+    # sem thumb: o que sai é UM reels pronto para a fila de postagem.
+    if a.reels:
+        vc = (plano.get("meta") or {}).get("vertical_cuts") or []
+        gancho = (vc[0].get("hook") or vc[0].get("title") or "") if vc else ""
+        if not gancho:   # a linha "GANCHO: ..." que a IA escreve no roteiro de reels
+            m = re.search(r"^\s*GANCHO:\s*(.+)$", (job / "roteiro.txt").read_text(encoding="utf-8"), re.M)
+            gancho = (m.group(1).strip().strip('"') if m else "")
+        if not gancho:   # sem gancho no roteiro: a primeira TELA, senão o título
+            tela = next((c.get("data", {}).get("text", "") for it in (plano.get("meta") or {}).get("segments", [])
+                         for c in it.get("comps", []) if c.get("type") in ("tela", "texto")), "")
+            gancho = tela or a.titulo or ""
+        saida = job / "reels.mp4"
+        roda(base + trecho + ["--format", "vertical"] + (["--gancho", gancho] if gancho else []) + ["--out", saida])
+        com_lances(trecho + ["--format", "vertical"] + (["--gancho", gancho] if gancho else []), saida)
+        try:
+            roda([py, T / "conferir.py", saida, video, "--job", job])
+        except subprocess.CalledProcessError:
+            print("Aviso: a conferência automática falhou; confira o vídeo antes de postar.")
+        shutil.rmtree(job / "tmp", ignore_errors=True)
+        print(f"\nREELS pronto: {saida}" + (f"\nGancho na tela: {gancho}" if gancho else ""))
+        legenda = job / "post.txt"
+        if not legenda.exists():
+            titulo = a.titulo or orig.stem
+            legenda.write_text(f"{titulo}\n\n#futebol #galo #atleticomineiro\n", encoding="utf-8")
+        print(f"Legenda do post: {legenda}")
+        return
     roda(base + trecho + ["--fps", str(a.fps), "--out", job / "horizontal.mp4"])
     com_lances(trecho + ["--fps", str(a.fps)], job / "horizontal.mp4")
+    # VINHETA DE ABERTURA do canal, na frente do horizontal (o vertical não leva: reels não tem abertura)
+    if a.canal != "sem":
+        try:
+            sys.path.insert(0, str(T / "canal"))
+            import vinheta as VIN
+
+            for h_ in (job / "horizontal.mp4", job / "horizontal_lances.mp4"):
+                if h_.exists():
+                    VIN.abre(h_, a.canal)
+        except Exception as e:
+            print(f"Aviso: a vinheta não entrou ({str(e)[:140]})")
     # conferência antes de entregar: cor × gravação (HDR do iPhone), fotos, volume
     try:
         roda([py, T / "conferir.py", job / "horizontal.mp4", video, "--job", job])
