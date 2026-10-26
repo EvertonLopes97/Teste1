@@ -57,7 +57,7 @@ CONFIG_PADRAO = {
         # seguidores no app quando bater a meta_views (o painel avisa); "automatico" = o Instagram decide pelo desempenho
         # facebook = posta o mesmo vídeo (Reels) na página do Facebook ligada ao Instagram, logo depois do Instagram
         {"plataforma": "instagram", "conta": "detto.galo", "intervalo_min": 80, "horas": "08-23", "max_dia": 0, "ativo": True,
-         "teste": True, "graduar": "manual", "meta_views": 10000, "facebook": True, "max_teste_dia": 0},
+         "teste": True, "graduar": "manual", "meta_views": 10000, "facebook": True, "max_teste": 0},
         {"plataforma": "tiktok", "conta": "detto.galo", "intervalo_min": 80, "horas": "08-23", "max_dia": 0, "ativo": True},
         {"plataforma": "tiktok", "conta": "detto.tv", "intervalo_min": 120, "horas": "08-23", "max_dia": 0, "ativo": True},
     ],
@@ -170,7 +170,7 @@ def prepara(base):
         grava_json(cfg_f, d)
     for c in cfg["contas"]:
         for k_, v_ in CONFIG_PADRAO["contas"][0].items():
-            if k_ in ("teste", "graduar", "meta_views", "max_teste_dia") and c.get("plataforma") != "instagram":
+            if k_ in ("teste", "graduar", "meta_views", "max_teste", "teste_cai_para_normal") and c.get("plataforma") != "instagram":
                 continue
             c.setdefault(k_, v_ if k_ not in ("plataforma", "conta") else c.get(k_))
         for p in ("entrada", "postados", "falhas"):
@@ -1019,6 +1019,8 @@ def testes_ativos(base, k):
         d = le_json(f, {})
         if not isinstance(d, dict) or not d.get("teste") or d.get("situacao") in ("promovido", "ignorado"):
             continue
+        if d.get("via") == "app":
+            continue  # postado POR VOCÊ no celular: o limite do 2207078 é só do que sobe pela API
         try:
             q = dt.datetime.fromisoformat(d.get("quando", ""))
         except ValueError:
@@ -1062,12 +1064,14 @@ def sem_vaga_de_teste(base, k, estado):
 
 
 def cai_para_normal(cfg, c):
-    """sem vaga de teste, o vídeo sobe como reels NORMAL em vez de ficar parado na fila (ele escolheu assim).
-    Desligar: "teste_cai_para_normal": false na conta ou no config do Instagram."""
+    """sem vaga de teste, o vídeo sobe como reels NORMAL? PADRÃO: NÃO (26/out). Ele quer tudo em Reels TESTE —
+    subir como normal mandava o vídeo para a página principal, para todos os seguidores, que é o contrário do
+    teste. Sem vaga, o vídeo espera (e a pasta do celular resolve os que não cabem pela API).
+    Ligar: "teste_cai_para_normal": true na conta ou no config do Instagram."""
     v = c.get("teste_cai_para_normal")
     if v is None:
         v = cfg.get("instagram", {}).get("teste_cai_para_normal")
-    return True if v is None else bool(v)
+    return False if v is None else bool(v)
 
 
 def proximo(c, estado, k):

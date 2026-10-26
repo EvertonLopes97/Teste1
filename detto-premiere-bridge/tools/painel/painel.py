@@ -228,6 +228,8 @@ def estado_painel():
             "teste_sem_vaga": P.vaga_de_teste(c_, BASE, c, est, k)[0],
             "teste_libera": (lambda q: q.strftime("%d/%m %H:%M") if q else "")(P.vaga_de_teste(c_, BASE, c, est, k)[1]),
             "teste_normal": P.cai_para_normal(c_, c) if P.ig_e_teste(c_, c) else False,
+            "teste_pasta": str(pasta_teste(c)) if P.ig_e_teste(c_, c) else "",
+            "teste_preparados": len(P.le_json(arq_teste_preparados(c), [])) if P.ig_e_teste(c_, c) else 0,
             "testes": testes_de(c) if c["plataforma"] == "instagram" else [],
             "intervalo_min": c.get("intervalo_min", 80), "horas": c.get("horas", "08-23"), "max_dia": c.get("max_dia", 0),
             "login": (BASE / "tokens" / f"{c['plataforma']}_{c['conta']}.json").exists(),
@@ -285,7 +287,7 @@ SUBIU_EM = time.time()
 # Versão do PYTHON que está rodando. O painel.html é lido do disco a cada acesso, então depois de um `git pull` o
 # navegador recebe a tela NOVA enquanto o Python continua o VELHO (foi o que aconteceu: a aba Histórias apareceu
 # vazia e o Instagram continuou no caminho antigo). A tela compara esta versão com a dela e avisa.
-PAINEL_VERSAO = "2026-10-26c"
+PAINEL_VERSAO = "2026-10-26d"
 
 
 def codigo_novo():
@@ -408,6 +410,11 @@ def acao(nome, d):
                         x["graduar"] = d["graduar"]
                     if "meta_views" in d:
                         x["meta_views"] = max(0, int(d["meta_views"]))
+                    if "teste_cai_para_normal" in d:
+                        # ligado = sem vaga de teste o vídeo sobe para TODO MUNDO; desligado (padrão) = espera
+                        x["teste_cai_para_normal"] = bool(d["teste_cai_para_normal"])
+                    if "max_teste" in d:
+                        x["max_teste"] = max(0, int(d["max_teste"]))
         grava_cfg(muda)
     elif nome == "nova_conta":
         plat, conta = d["plataforma"], d["conta"].strip().lstrip("@").lower()
@@ -599,6 +606,10 @@ def acao(nome, d):
             limpa_studio(c)
             (arq_preparados(c)).unlink(missing_ok=True)
         return {"ok": True, "feitos": feitos}
+    elif nome == "teste_preparar":
+        return prepara_teste(conta_de(d["k"]), int(d.get("quantos") or 0))
+    elif nome == "teste_postei":
+        return teste_postei(conta_de(d["k"]), d.get("nomes"))
     elif nome == "studio_preparar":
         return prepara_studio(conta_de(d["k"]), int(d.get("quantos") or 0))
     elif nome == "teste_marca":
@@ -647,6 +658,86 @@ def arq_preparados(c):
     """lista dos vídeos que estão na pasta preparada (TikTok: o nome antigo, por conta)"""
     (BASE / "tiktok_studio").mkdir(parents=True, exist_ok=True)
     return BASE / "tiktok_studio" / (f"_preparados_{c['conta']}.json" if c["plataforma"] == "tiktok" else f"_preparados_{P.chave(c)}.json")
+
+
+def pasta_teste(c):
+    """pasta do REELS TESTE que VOCÊ posta pelo celular. A API tem um limite próprio e pequeno de reels teste
+    (2207078: "máximo publicado pela Content Publishing API"); no app do Instagram você consegue os 10 do dia.
+    Então o que não cabe pela API vai para esta pasta no Drive, com a legenda, e você posta como TESTE pelo app."""
+    try:
+        raiz = EDI.drive_raiz()
+    except Exception:
+        raiz = None
+    return (Path(raiz) / "DETTO" / "reels_teste" / c["conta"]) if raiz else (BASE / "reels_teste" / c["conta"])
+
+
+def arq_teste_preparados(c):
+    (BASE / "reels_teste").mkdir(parents=True, exist_ok=True)
+    return BASE / "reels_teste" / f"_preparados_{P.chave(c)}.json"
+
+
+def prepara_teste(c, quantos=0):
+    """põe os próximos vídeos da fila do Instagram na pasta do celular, com LEGENDAS.txt"""
+    k = P.chave(c)
+    fila = P.fila_de(BASE, k)
+    if not fila:
+        raise ValueError("a fila do Instagram está vazia")
+    fila = fila[:quantos] if quantos else fila[:10]
+    p = pasta_teste(c)
+    p.mkdir(parents=True, exist_ok=True)
+    for f in p.iterdir():
+        try:
+            f.unlink()
+        except OSError:
+            pass
+    linhas = [f"REELS TESTE — @{c['conta']}  (pelo APP do Instagram, no celular)",
+              "A API do Instagram só deixa alguns reels teste ativos; no app você consegue os 10 do dia.",
+              "",
+              "No celular: app do Drive → abra o vídeo → ⋮ → Enviar cópia → Instagram → Reels →",
+              "cole a legenda abaixo → na tela de compartilhar, ligue \"Reel de teste\" (Trial reel) → Compartilhar.",
+              "Depois, aqui no painel: \"✔ Postei os da pasta\".", ""]
+    preparados = []
+    for i, v in enumerate(fila, 1):
+        curto = nome_seguro(re.sub(r"^\d{4}-\d{2}-\d{2}( \d{4,6})? ?", "", v.stem))[:60]
+        nome = f"{i:02d} - {curto}{v.suffix.lower()}"
+        preparados.append(v.name)
+        try:
+            os.link(v, p / nome)
+        except OSError:
+            shutil.copyfile(v, p / nome)
+        linhas += [f"--- {nome}", P.legenda_de(v).split("\n---")[0].strip(), ""]
+    (p / "LEGENDAS.txt").write_text("\n".join(linhas), encoding="utf-8")
+    P.grava_json(arq_teste_preparados(c), preparados)
+    return {"ok": True, "n": len(preparados), "pasta": str(p)}
+
+
+def teste_postei(c, nomes=None):
+    """você postou os da pasta pelo app: eles saem da fila e entram em postados como teste feito no celular
+    (via=app, que NÃO conta no limite da API)"""
+    k = P.chave(c)
+    pedidos = set(nome_seguro(n) for n in (nomes or [])) or set(P.le_json(arq_teste_preparados(c), []))
+    destino = BASE / "postados" / k
+    destino.mkdir(parents=True, exist_ok=True)
+    feitos = 0
+    for v in P.fila_de(BASE, k):
+        if v.name not in pedidos:
+            continue
+        for f in (v, v.with_suffix(".txt")):
+            if f.exists():
+                shutil.move(str(f), str(destino / f.name))
+        P.grava_json(destino / f"{v.stem}.json", {
+            "quando": dt.datetime.now().isoformat(timespec="seconds"), "video": v.name,
+            "teste": True, "via": "app", "graduar": c.get("graduar", "manual"), "link": ""})
+        feitos += 1
+    p = pasta_teste(c)
+    if p.exists():
+        for f in p.iterdir():
+            try:
+                f.unlink()
+            except OSError:
+                pass
+    arq_teste_preparados(c).unlink(missing_ok=True)
+    return {"ok": True, "feitos": feitos}
 
 
 def pasta_studio(c):

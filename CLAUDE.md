@@ -142,8 +142,19 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   de testes ATIVOS: a API avalia cada um por 72 h (`TESTE_JANELA_H`). Então `testes_ativos` conta os postados nessa
   janela (promovido/ignorado saem na hora) e o número de vagas é APRENDIDO na recusa (`teste_vagas` = quantos estavam
   ativos ali; `"max_teste"` na conta manda) — nunca trava abaixo do que a conta já conseguiu. Sem vaga, a porta do
-  TESTE fecha até `teste_ate` (quando o mais antigo faz 72 h) e **o vídeo sobe como reels NORMAL** na rodada seguinte
-  (`cai_para_normal`; `"teste_cai_para_normal": false` na conta/config faz esperar a vaga). A conta só pausa 24 h no
+  TESTE fecha até `teste_ate` (quando o mais antigo faz 72 h) e **o vídeo ESPERA** — `cai_para_normal` é **false por
+  padrão desde 26/out**: subir como normal mandava o vídeo para a página principal, para todos os seguidores, que é o
+  contrário do teste que ele quer (`"teste_cai_para_normal": true` na conta liga; painel: "Sem vaga, subir como reels
+  normal").
+  OS 10 POR DIA SÃO DO APP, NÃO DA API (26/out): o limite do 2207078 é só do que sobe pela Content Publishing API e é
+  pequeno; no app do Instagram ele consegue os 10. Então o painel tem **"Preparar pasta do Reels TESTE"**
+  (`prepara_teste`): os próximos 10 da fila vão para `Meu Drive\DETTO\reels_teste\<conta>` (sem Drive, em
+  `postar\reels_teste\`) com LEGENDAS.txt explicando o caminho no celular (Drive → Enviar cópia → Instagram → Reels →
+  ligar "Reel de teste") e o botão **"Postei os da pasta"** (`teste_postei`) tira da fila e grava em postados com
+  `"via": "app"` — e `testes_ativos` IGNORA os com `via: app`, porque eles não gastam o limite da API.
+  LIBERAR VAGA da API é marcar "Já mandei" (promovido) ou o X (ignorado) no reels teste da lista: enquanto ele não
+  gradua no app, o teste fica ocupando vaga até os 72 h. `"graduar": "automatico"` (SS_PERFORMANCE) faz o Instagram
+  graduar sozinho e a vaga girar mais rápido. A conta só pausa 24 h no
   bloqueio de verdade ("muitas ações", código 9 sem o 2207078). Painel: "🧪 Reels teste ativos (janela de 72 h): n de N
   · próxima vaga dd/mm hh:mm" e o motivo da pausa; Instagram sem máx./dia = teto 10/dia (`teto_dia`); sem internet (getaddrinfo) = não conta erro, espera 10 min; vídeo que o FFmpeg não lê (`VideoQuebrado`, depois de 6 jeitos de `normaliza_ig`, os últimos tolerantes a quadro estragado) = falhas na hora, sem gastar ação no IG; contador de erros zera depois de 12 h e ao ir para falhas; painel mostra a pausa + "Tirar pausa"; `normaliza_ig` tenta 3 jeitos (áudio vazio → silêncio; sem source_fps → 30 fps); o envio direto ignorava o teste); views pelo insights (permissão instagram_manage_insights) a cada 30 min; mandar para os seguidores é no
   app (a API não faz) → painel avisa e tem "Já mandei". Roteiro sem linha de BLOCO vira um bloco só.
