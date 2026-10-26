@@ -426,11 +426,18 @@ monta o roteiro de edição SEGUINDO o dele com os tempos da fala; plano ainda f
   da camisa. Descarta: outra marca, outro clube parecido (`"nao"` em times.json: Inter Miami, Atlético Madrid),
   goleiro/treino/polo, concept/vazamento/arte/PES, e foto cuja COR não bate com o roteiro (camisa vinho ≠ foto branca).
   Mesmo time no vídeo = mesma imagem (a da descrição mais completa). Sem foto na rodada rápida = escudo no lugar.
+  TEXTO QUE MUDA NO MEIO (25/out): tem meme em que a parte da PESSOA diz uma coisa ("eu no primeiro dia de aula…")
+  e o LANCE diz outra ("O resto é história") — o texto da barra do lance era colado em cima da sua parte e a
+  conferência barrava o reels. Agora `le_tela` lê o texto nos dois momentos: se forem diferentes (<70% de
+  semelhança), cada cena fica com o texto DELA (`usar_barra` false) e a conferência compara com o texto da cena
+  certa. Iguais = o da barra continua, que sai mais limpo.
   TEXTO DO MEME (25/out): `texto_do_original` não encerra mais o bloco na primeira linha que não passa no teste —
   uma linha CURTA no meio ("1 mês isolados") cortava a legenda pela metade; agora ela é pulada e o bloco só termina
   num buraco de verdade. `legenda_parada` aceita gap de parágrafo (3,6x a altura). Quando a leitura do PNG é o
   COMEÇO do texto da tela, o registro diz "o recorte pegou SÓ O COMEÇO" (é erro de recorte); palavra trocada sem
-  faltar o fim é marcado como possível erro só do OCR. Os avisos do OpenCV (YuNet) foram calados.
+  faltar o fim é marcado como possível erro só do OCR. O recorte tem mais folga (16 px: o topo das letras saía
+  cortado). Os avisos do OpenCV (YuNet) foram calados pelo `OPENCV_LOG_LEVEL=ERROR`, posto ANTES do primeiro
+  `import cv2`.
   Busca: 3 imagens por vez, todas as buscas de cada imagem (mostra [n/total]); Ctrl+C pula e segue com o que achou.
   Pasta `imagens\`: camisa = arquivo com o NOME DO TIME (Vasco.jpg); foto de apoio = palavras da busca
   (Santos 1997.jpg, colar Pataxó.jpg, torcida Santos Vila.jpg). Vale antes da internet.

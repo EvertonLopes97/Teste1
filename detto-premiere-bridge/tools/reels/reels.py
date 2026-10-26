@@ -40,6 +40,11 @@ import time
 import unicodedata
 from pathlib import Path
 
+# os avisos do OpenCV ("Targets are not supported by the new graph engine") enchiam o registro e não dizem nada.
+# Tem que ser ANTES do primeiro `import cv2` — por isso fica aqui em cima.
+os.environ.setdefault("OPENCV_LOG_LEVEL", "ERROR")
+os.environ.setdefault("OPENCV_VIDEOIO_PRIORITY_MSMF", "0")
+
 AQUI = Path(__file__).resolve().parent
 TOOLS = AQUI.parent
 PONTE = TOOLS.parent
@@ -847,8 +852,8 @@ def texto_do_original(clip, t0, t1, saida):
         bloco.append(l)
     if not bloco:
         return None
-    y0, y1 = max(0, bloco[0][0] - 8), min(H, bloco[-1][1] + 8)
-    x0, x1 = max(0, min(b[2] for b in bloco) - 10), min(W, max(b[3] for b in bloco) + 10)
+    y0, y1 = max(0, bloco[0][0] - 16), min(H, bloco[-1][1] + 16)   # folga: o topo das letras saía cortado
+    x0, x1 = max(0, min(b[2] for b in bloco) - 16), min(W, max(b[3] for b in bloco) + 16)
     cores = _quadros_cor(clip, t0, t1, 8)
     if len(cores) >= 3:
         letra = np.zeros((H, W), np.uint8)
@@ -1232,6 +1237,17 @@ def _jpg64(img, w=432):
     h = int(img.shape[0] * w / img.shape[1])
     ok, jpg = cv2.imencode(".jpg", cv2.resize(img, (w, h)), [cv2.IMWRITE_JPEG_QUALITY, 88])
     return {"inline_data": {"mime_type": "image/jpeg", "data": base64.b64encode(jpg.tobytes()).decode()}}
+
+
+def le_tela(clip, t):
+    """o texto do meme escrito na tela nesse instante (Gemini). Vazio quando não dá para ler."""
+    q = _quadro_cor(clip, t)
+    if q is None:
+        return ""
+    g = gemini_json([{"text": "Transcreva EXATAMENTE o texto de legenda/meme escrito nesta imagem (o texto grande, normalmente no "
+                              "topo; ignore placar, marca d'água e @ de perfil). Mantenha abreviações e pontuação. "
+                              "JSON {\"texto\": \"...\"} (vazio se não tiver texto)."}, _jpg64(q, 540)], temperatura=0)
+    return re.sub(r"\s+", " ", (g or {}).get("texto", "")).strip()
 
 
 def le_texto_duplo(png, quadro_original=None):
@@ -1805,9 +1821,21 @@ def main():
                     # pessoa sai pela metade/borrada quando a letra branca fica em cima de parede clara
                     out[k] = (texto_barra if usar_barra else None) or pg or texto_barra
                 return out
-            pngs = monta_pngs(True)
+            # O TEXTO MUDA NO MEIO DO VÍDEO? Tem meme em que a parte da pessoa diz uma coisa ("eu no primeiro dia de
+            # aula...") e o lance diz outra ("O resto é história"). Aí o texto do lance NÃO serve para a sua parte:
+            # cada cena fica com o texto DELA. (Quando os dois são o mesmo, o da barra continua melhor: sai limpo.)
+            t_pessoa = (cenas[pessoas[0]]["a"] + cenas[pessoas[0]]["b"]) / 2
+            lido_pessoa = le_tela(clip, t_pessoa)
+            usar_barra = bool(texto_barra)
+            if texto_barra and lido_pessoa:
+                lido_lance = le_tela(clip, (L["a"] + L["b"]) / 2)
+                if lido_lance and min(_bate(lido_pessoa, lido_lance), _bate(lido_lance, lido_pessoa)) < 0.7:
+                    usar_barra = False
+                    log(f"   o texto muda no meio do vídeo (sua parte: {lido_pessoa[:48]!r} × lance: {lido_lance[:48]!r})"
+                        " — cada cena fica com o texto dela")
+            pngs = monta_pngs(usar_barra)
             # CONFERÊNCIA DE LETRA: o texto recortado × o texto lido no quadro original (onde ele continua na tela)
-            t_ref = (L["a"] + L["b"]) / 2 if texto_barra else (cenas[pessoas[0]]["a"] + cenas[pessoas[0]]["b"]) / 2
+            t_ref = (L["a"] + L["b"]) / 2 if (texto_barra and usar_barra) else t_pessoa
             png0 = next((pngs[k] for k in pessoas if pngs[k]), None)
             lido, letra_ok = le_texto_duplo(png0, _quadro_cor(clip, t_ref))
             if not letra_ok and lido:
