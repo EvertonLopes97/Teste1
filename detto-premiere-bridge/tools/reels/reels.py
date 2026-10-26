@@ -1769,7 +1769,7 @@ def main():
             if not clip:
                 log(f"   não baixou: {info}")
                 if c.get("seu"):
-                    _tira_link(base, c["url"], ok=False)
+                    _tira_link(base, c["url"], ok=False, motivo=f"não baixou: {str(info)[:160]}")
                 continue
         chave = c.get("chave") or chave_de(info, c.get("url"))
         if chave in hist["usados"] and not c.get("arquivo"):
@@ -1802,7 +1802,9 @@ def main():
                 log("   NÃO FIZ: não achei onde está a outra pessoa e onde está o lance neste vídeo"
                     " (para usar só o lance com texto novo: modo novo)")
                 if c.get("url"):
-                    _tira_link(base, c["url"], ok=False)
+                    _tira_link(base, c["url"], ok=False,
+                               motivo="não achei onde está a outra pessoa e onde está o lance (para usar só o lance"
+                                      " com texto novo, cole o link com modo novo)")
                 continue
             # o texto que continua na tela no LANCE (mais longo): é o texto do meme, inteiro e limpo
             lances_ = sorted((x for x in cenas if x.get("tipo") == "lance" and x["b"] - x["a"] >= 0.8),
@@ -1873,7 +1875,8 @@ def main():
                                                       + f"\n\nOriginal: {c.get('url') or clip}\n", encoding="utf-8")
                 log(f"   NÃO POSTEI: ficou em {conferir.name}\\{saida.name} para você olhar (a conferência não aprovou)")
                 if c.get("url"):
-                    _tira_link(base, c["url"], ok=False)
+                    _tira_link(base, c["url"], ok=False, motivo="FEITO, mas a conferência não aprovou: está em prontos\\"
+                               + f"{hoje}\\conferir\\{saida.name} — " + "; ".join(probs)[:200])
                 continue
             if feito:
                 dono = {norm(x).replace("_", "").replace(".", "") for x in (info.get("channel"), info.get("uploader"), info.get("uploader_id")) if x}
@@ -1899,7 +1902,7 @@ def main():
             else:
                 log("   NÃO FIZ: a troca falhou (veja o erro acima)")
                 if c.get("url"):
-                    _tira_link(base, c["url"], ok=False)
+                    _tira_link(base, c["url"], ok=False, motivo="a troca falhou (não achei a parte da pessoa ou o lance)")
             continue
         # Gemini: começo + texto + legenda + tags + trecho
         peq = video_pequeno(clip, tmp / "viral.mp4")
@@ -2033,12 +2036,17 @@ def links_ja_feitos(base, hist):
     return feitos
 
 
-def _tira_link(base, url, ok, hist=None):
+def _tira_link(base, url, ok, hist=None, motivo=""):
     f = base / "links.txt"
     linhas = [l for l in f.read_text(encoding="utf-8").splitlines() if l.strip() != url]
     f.write_text("\n".join(linhas) + "\n", encoding="utf-8")
     with open(base / "links_feitos.txt", "a", encoding="utf-8") as g:
-        g.write(f"{dt.date.today()} {'ok' if ok else 'FALHOU'} {url}\n")
+        g.write(f"{dt.date.today()} {'ok' if ok else 'FALHOU'} {url}" + (f" — {motivo}" if motivo else "") + "\n")
+    if not ok:
+        # o link saía da lista calado e você não via POR QUE não virou reels (26/out). Agora fica aqui, e o
+        # painel mostra na aba Reels automáticos.
+        with open(base / "links_falhos.txt", "a", encoding="utf-8") as g:
+            g.write(f"{dt.datetime.now():%d/%m %H:%M}\t{url}\t{motivo or 'veja o registro'}\n")
     if ok and hist is not None:  # guarda a identidade do vídeo: se você colar esse link de novo, não refaz
         hist.setdefault("links", {})[chave_link(url)] = {"dia": dt.date.today().isoformat(), "url": url}
 

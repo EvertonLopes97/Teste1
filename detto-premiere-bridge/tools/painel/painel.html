@@ -507,7 +507,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-10-25a";
+const VERSAO_TELA = "2026-10-26a";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -616,7 +616,8 @@ function contas(){
           <label class="sw"><input type="checkbox" ${c.facebook ? "checked" : ""} onchange="regra(${ci},{facebook:this.checked})"><span></span></label>
         </div>
         ${pend.length ? `<div class="info erro">⚠ Facebook: ${pend.length} vídeo(s) esperando nova tentativa — ${esc(pend[0][1].erro || "")}</div>` : ""}
-        ${c.pausa_ate ? `<div class="info erro">⏸ Instagram em pausa até ${esc(c.pausa_ate)} (limite de Reels teste ou erro há pouco) <button class="mini" onclick="api('tira_pausa',{k:'${esc(c.k || (c.plataforma + "_" + c.conta))}'}).then(()=>carrega(true))">Tirar pausa</button></div>` : ""}
+        ${c.pausa_ate ? `<div class="info erro">⏸ Instagram em pausa até ${esc(c.pausa_ate)} — ${esc(c.pausa_motivo || "limite de Reels teste ou erro há pouco")} <button class="mini" onclick="api('tira_pausa',{k:'${esc(c.k || (c.plataforma + "_" + c.conta))}'}).then(()=>carrega(true))">Tirar pausa</button></div>` : ""}
+        ${c.teste_limite ? `<div class="info${c.teste_cheio ? " erro" : ""}">🧪 Reels teste hoje: <b>${c.teste_hoje}</b> de ${c.teste_limite}${c.teste_cheio ? " — deu o teto do dia; os próximos vão amanhã sozinhos (é isso que evita o bloqueio do Instagram)" : ""}</div>` : ""}
       </div>`;
       extra += `<div class="teste">
         <div class="linha" style="justify-content:space-between">
@@ -759,6 +760,8 @@ function reels(){
     <div class="info">${r.rodando ? "⏳ Fazendo reels agora…" : "Mande começos novos em “Enviar vídeos” → “Começo de reel”."}</div>
     ${r.inicios.length ? `<details data-d="r-ini"><summary>Seus começos</summary><div class="tags">${r.inicios.map(n => `<span class="tag">${esc(n)}</span>`).join("")}</div></details>` : `<div class="info alerta">Ainda não tem nenhum começo gravado.</div>`}
     ${r.links.length ? `<details data-d="r-links" open><summary>Na lista para fazer (${r.n_links})</summary><div class="lista">${r.links.map((l, li) => `<div class="l"><span>${esc(l)}</span><button class="mini" title="Tirar da lista" onclick="tiraLink(${li})">✕</button></div>`).join("")}</div></details>` : ""}
+    ${r.falhos && r.falhos.length ? `<details data-d="r-falhos" open><summary>⚠ Links que NÃO viraram reels (${r.falhos.length})</summary><div class="lista">${r.falhos.map(f => `<div class="l"><span>${esc(f.quando)} · ${esc(f.url)}<br><small>${esc(f.motivo)}</small></span></div>`).join("")}</div></details>` : ""}
+    ${r.travado ? `<div class="info">⏳ Outro reels.py está rodando (a tarefa do Windows) — os links da lista esperam a vez.</div>` : ""}
     ${r.feitos.length ? `<details data-d="r-feitos"><summary>Links já feitos</summary><div class="lista">${r.feitos.map(f => `<div class="l"><span>${f.ok ? "✔" : "✖"} ${esc(f.dia)} · ${esc(f.url)}</span></div>`).join("")}</div></details>` : ""}`;
   $("#autoLinks").checked = !!r.auto_links; $("#lbAuto").classList.toggle("sel", !!r.auto_links);
   $("#btReels").disabled = r.rodando; $("#btLinkJa").disabled = r.rodando; $("#btReelsParar").style.display = r.rodando ? "" : "none";

@@ -185,7 +185,7 @@ def item(p):
 
 def estado_painel():
     c_ = cfg()
-    est = P.le_json(BASE / "estado.json", {})
+    est = P.le_estado(BASE)
     contas = []
     for c in c_["contas"]:
         k = P.chave(c)
@@ -221,6 +221,10 @@ def estado_painel():
             "facebook": c.get("facebook", True) is not False, "fb_pend": est.get(k, {}).get("fb_pendentes") or {},
             "pausa_ate": (dt.datetime.fromtimestamp(est.get(k, {}).get("pausa_ate", 0)).strftime("%d/%m %H:%M")
                           if est.get(k, {}).get("pausa_ate", 0) > time.time() else ""),
+            "pausa_motivo": est.get(k, {}).get("pausa_motivo", ""),
+            "teste_hoje": P.teste_hoje(est, k) if c["plataforma"] == "instagram" else 0,
+            "teste_limite": P.limite_teste(c, est, k) if P.ig_e_teste(c_, c) else 0,
+            "teste_cheio": bool(P.ig_falta_teste(c_, BASE, c, est, k)),
             "testes": testes_de(c) if c["plataforma"] == "instagram" else [],
             "intervalo_min": c.get("intervalo_min", 80), "horas": c.get("horas", "08-23"), "max_dia": c.get("max_dia", 0),
             "login": (BASE / "tokens" / f"{c['plataforma']}_{c['conta']}.json").exists(),
@@ -256,7 +260,8 @@ def estado_painel():
                    "chaves": bool(c_["tiktok"].get("client_key") and c_["tiktok"].get("client_secret"))},
         "instagram": {"chaves": bool(c_["instagram"].get("app_id") and c_["instagram"].get("app_secret"))},
         "reels": {"prontos_hoje": len(prontos), "inicios": inicios, "links": links[:30], "n_links": len(links),
-                  "auto_links": rcfg.get("auto_links", True), "feitos": feitos_links(),
+                  "auto_links": rcfg.get("auto_links", True), "feitos": feitos_links(), "falhos": links_falhos(),
+                  "travado": reels_rodando(),
                   "rodando": bool(t and t.poll() is None), "postar": rcfg.get("postar", ["todas"]),
                   "log": [l.rstrip() for l in rlog]},
         "log": [l.rstrip() for l in log], "disco": tam_txt(livre), "disco_pouco": livre < 15 * 1024 ** 3,
@@ -276,7 +281,7 @@ SUBIU_EM = time.time()
 # Versão do PYTHON que está rodando. O painel.html é lido do disco a cada acesso, então depois de um `git pull` o
 # navegador recebe a tela NOVA enquanto o Python continua o VELHO (foi o que aconteceu: a aba Histórias apareceu
 # vazia e o Instagram continuou no caminho antigo). A tela compara esta versão com a dela e avisa.
-PAINEL_VERSAO = "2026-10-25a"
+PAINEL_VERSAO = "2026-10-26a"
 
 
 def codigo_novo():
@@ -336,7 +341,8 @@ def posta_agora(k, nome):
                     P.log(f"{k}: já tem uma postagem em andamento; tente de novo em alguns minutos")
                     return
                 est = P.le_json(BASE / "estado.json", {})
-                P.posta_da_fila(c_, BASE, c, video, est)
+                # "postar já" é você mandando: passa por cima da pausa e do teto do dia
+                P.posta_da_fila(c_, BASE, c, video, est, forcar=True)
         except Exception as e:
             P.log(f"{k}: erro ao postar agora: {e}")
         finally:
@@ -521,8 +527,10 @@ def acao(nome, d):
         t = TRABALHO["reels"]
         if t and t.poll() is None:
             raise ValueError("os reels já estão sendo feitos")
+        if reels_rodando():
+            raise ValueError("outro reels.py está rodando agora (a tarefa do Windows) — espere ele terminar")
         n = max(1, min(20, int(d.get("quantos", 5))))
-        logf = open(REELS / "painel_reels.log", "w", encoding="utf-8")
+        logf = log_reels()
         exe, extra = py_filho()
         cmd = [exe, "-u", str(TOOLS / "reels" / "reels.py"), "--pasta", str(REELS), "--quantos", str(n)]
         TRABALHO["reels"] = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT, text=True, cwd=str(TOOLS.parent),
@@ -602,6 +610,8 @@ def acao(nome, d):
         t = TRABALHO["reels"]
         if t and t.poll() is None:
             raise ValueError("os reels já estão sendo feitos; espere terminar")
+        if reels_rodando():
+            raise ValueError("outro reels.py está rodando agora (a tarefa do Windows) — espere ele terminar")
         url = str(d.get("url", "")).strip()
         if not re.match(r"https?://\S+$", url):
             raise ValueError("cole um link (https://...)")
@@ -609,7 +619,7 @@ def acao(nome, d):
         cmd = [exe, "-u", str(TOOLS / "reels" / "reels.py"), "--pasta", str(REELS), "--clip", url, "--modo", d.get("modo") if d.get("modo") in ("troca", "novo") else "troca"]
         if d.get("inicio"):
             cmd += ["--inicio", str(d["inicio"])]
-        logf = open(REELS / "painel_reels.log", "w", encoding="utf-8")
+        logf = log_reels()
         TRABALHO["reels"] = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT, text=True, cwd=str(TOOLS.parent),
                                              env={**os.environ, "PYTHONIOENCODING": "utf-8"}, **extra)
     elif nome.startswith("ed_"):
@@ -959,6 +969,58 @@ def feitos_links():
     return out
 
 
+def links_falhos():
+    """links que saíram da lista SEM virar reels, com o motivo (links_falhos.txt). Antes isso só aparecia no
+    registro, que era apagado a cada disparo — e você ficava sem saber por que o link não virou vídeo."""
+    f = REELS / "links_falhos.txt"
+    if not f.exists():
+        return []
+    out = []
+    for l in f.read_text(encoding="utf-8", errors="replace").splitlines()[-8:][::-1]:
+        p_ = l.split("\t")
+        if len(p_) >= 3:
+            out.append({"quando": p_[0], "url": p_[1], "motivo": p_[2]})
+    return out
+
+
+def reels_rodando():
+    """True = já existe um reels.py trabalhando (a trava .reels_rodando é do sistema: só experimenta pegá-la)"""
+    f = REELS / ".reels_rodando"
+    if not f.exists():
+        return False
+    try:
+        g = open(f, "a+")
+    except OSError:
+        return True
+    try:
+        if os.name == "nt":
+            import msvcrt
+            g.seek(0)
+            msvcrt.locking(g.fileno(), msvcrt.LK_NBLCK, 1)
+            msvcrt.locking(g.fileno(), msvcrt.LK_UNLCK, 1)
+        else:
+            import fcntl
+            fcntl.flock(g.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+            fcntl.flock(g.fileno(), fcntl.LOCK_UN)
+        return False
+    except OSError:
+        return True
+    finally:
+        g.close()
+
+
+def log_reels():
+    """registro dos reels em modo ACRESCENTA (antes abria com "w" e apagava o motivo da falha anterior a cada
+    disparo — por isso não dava para ver por que um link não virou reels). Passa de 2 MB, começa de novo."""
+    f = REELS / "painel_reels.log"
+    try:
+        if f.exists() and f.stat().st_size > 2_000_000:
+            f.replace(f.with_suffix(".log.1"))
+    except OSError:
+        pass
+    return open(f, "a", encoding="utf-8")
+
+
 def laco_links():
     """links colados no painel: o PC vai fazendo um atrás do outro e cada reel pronto já entra na fila.
     A cada 10 min também puxa os começos novos da pasta "Começo" do Drive (renomeia e põe em inicios\\)."""
@@ -970,7 +1032,7 @@ def laco_links():
             if time.time() - ultimo_import > 600 and not (t and t.poll() is None):
                 ultimo_import = time.time()
                 exe, extra = py_filho()
-                logf = open(REELS / "painel_reels.log", "a", encoding="utf-8")
+                logf = log_reels()
                 TRABALHO["reels"] = subprocess.Popen([exe, "-u", str(TOOLS / "reels" / "reels.py"), "--pasta", str(REELS), "--importar"],
                                                      stdout=logf, stderr=subprocess.STDOUT, text=True, cwd=str(TOOLS.parent),
                                                      env={**os.environ, "PYTHONIOENCODING": "utf-8"}, **extra)
@@ -981,9 +1043,18 @@ def laco_links():
             t = TRABALHO["reels"]
             tem = f.exists() and any(l.strip().startswith("http") for l in f.read_text(encoding="utf-8").splitlines())
             if rc.get("auto_links", True) and tem and not (t and t.poll() is None) and not cfg().get("pausado"):
+                # a trava é de OUTRO reels.py (a tarefa do Windows, ou um que ficou aberto): disparar aqui só fazia
+                # o filho morrer na hora ("outro reels.py já está rodando") e o laço repetia isso a cada 45 s sem
+                # fazer link nenhum — era por isso que links enviados nunca ficavam prontos (26/out)
+                if reels_rodando():
+                    if time.time() - CACHE.get("aviso_trava_reels", 0) > 1800:
+                        CACHE["aviso_trava_reels"] = time.time()
+                        P.log("reels: outro reels.py está rodando (tarefa do Windows) — os links da lista esperam a vez")
+                    time.sleep(45)
+                    continue
                 exe, extra = py_filho()
                 cmd = [exe, "-u", str(TOOLS / "reels" / "reels.py"), "--pasta", str(REELS), "--so-links", "--quantos", "0"]
-                logf = open(REELS / "painel_reels.log", "w", encoding="utf-8")
+                logf = log_reels()
                 TRABALHO["reels"] = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT, text=True, cwd=str(TOOLS.parent),
                                                      env={**os.environ, "PYTHONIOENCODING": "utf-8"}, **extra)
                 P.log("reels: fazendo os links da lista")

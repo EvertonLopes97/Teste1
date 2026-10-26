@@ -57,7 +57,7 @@ CONFIG_PADRAO = {
         # seguidores no app quando bater a meta_views (o painel avisa); "automatico" = o Instagram decide pelo desempenho
         # facebook = posta o mesmo vídeo (Reels) na página do Facebook ligada ao Instagram, logo depois do Instagram
         {"plataforma": "instagram", "conta": "detto.galo", "intervalo_min": 80, "horas": "08-23", "max_dia": 0, "ativo": True,
-         "teste": True, "graduar": "manual", "meta_views": 10000, "facebook": True},
+         "teste": True, "graduar": "manual", "meta_views": 10000, "facebook": True, "max_teste_dia": 0},
         {"plataforma": "tiktok", "conta": "detto.galo", "intervalo_min": 80, "horas": "08-23", "max_dia": 0, "ativo": True},
         {"plataforma": "tiktok", "conta": "detto.tv", "intervalo_min": 120, "horas": "08-23", "max_dia": 0, "ativo": True},
     ],
@@ -86,8 +86,61 @@ def le_json(f, padrao):
 
 
 def grava_json(f, d):
-    Path(f).parent.mkdir(parents=True, exist_ok=True)
-    Path(f).write_text(json.dumps(d, ensure_ascii=False, indent=1), encoding="utf-8")
+    """gravação ATÔMICA (26/out): write_text apaga o arquivo e escreve depois — quem lesse no meio pegava um JSON
+    pela metade. No estado.json isso APAGAVA a pausa da conta: o le_json devolvia {} sem reclamar e a rodada
+    seguinte achava que a conta estava livre, tentava de novo e o Instagram bloqueava mais ainda. Agora escreve
+    num .tmp e troca de nome de uma vez (os.replace), então quem lê sempre vê um arquivo inteiro."""
+    f = Path(f)
+    f.parent.mkdir(parents=True, exist_ok=True)
+    txt = json.dumps(d, ensure_ascii=False, indent=1)
+    tmp = f.with_name(f.name + f".tmp{os.getpid()}")
+    tmp.write_text(txt, encoding="utf-8")
+    if f.name == "estado.json" and f.exists():
+        try:
+            shutil.copy2(f, f.with_suffix(".bak"))  # cópia de segurança: se o estado estragar, não perde a pausa
+        except OSError:
+            pass
+    os.replace(tmp, f)
+
+
+def le_estado(base):
+    """estado.json, com a cópia de segurança quando o arquivo estiver estragado (senão um estado ilegível viraria
+    {} e a conta perderia a pausa e a contagem do dia)"""
+    f = Path(base) / "estado.json"
+    d = le_json(f, None)
+    if isinstance(d, dict):
+        return d
+    if f.exists():
+        d = le_json(f.with_suffix(".bak"), None)
+        log("estado.json estava estragado — voltei pela cópia de segurança" if isinstance(d, dict)
+            else "estado.json estava estragado e não tinha cópia — começando do zero")
+        if isinstance(d, dict):
+            return d
+    return {}
+
+
+def muda_estado(base, fn):
+    """relê o estado do disco, aplica a mudança e grava. O painel e a tarefa do Windows rodam juntos: quem gravava
+    um estado lido minutos antes apagava o que o outro tinha escrito no meio (era assim que a pausa de 24 h sumia).
+    Devolve o estado já gravado."""
+    estado = le_estado(base)
+    fn(estado)
+    grava_json(Path(base) / "estado.json", estado)
+    return estado
+
+
+def pausa_conta(base, estado, k, segundos, motivo=""):
+    """pausa a conta: grava relendo do disco (para não apagar o que outro processo escreveu) e deixa o motivo à
+    vista no painel"""
+    ate = time.time() + segundos
+    def aplica(e):
+        c = e.setdefault(k, {})
+        c["pausa_ate"] = max(c.get("pausa_ate", 0), ate)
+        c["pausa_motivo"] = motivo
+    muda_estado(base, aplica)
+    c = estado.setdefault(k, {})
+    c["pausa_ate"] = max(c.get("pausa_ate", 0), ate)
+    c["pausa_motivo"] = motivo
 
 
 def pasta_padrao():
@@ -117,7 +170,7 @@ def prepara(base):
         grava_json(cfg_f, d)
     for c in cfg["contas"]:
         for k_, v_ in CONFIG_PADRAO["contas"][0].items():
-            if k_ in ("teste", "graduar", "meta_views") and c.get("plataforma") != "instagram":
+            if k_ in ("teste", "graduar", "meta_views", "max_teste_dia") and c.get("plataforma") != "instagram":
                 continue
             c.setdefault(k_, v_ if k_ not in ("plataforma", "conta") else c.get(k_))
         for p in ("entrada", "postados", "falhas"):
@@ -929,6 +982,50 @@ def teto_dia(c):
     return m
 
 
+def ig_e_teste(cfg, c):
+    return c.get("plataforma") == "instagram" and bool(c.get("teste"))
+
+
+def conta_tentativa_teste(estado, k):
+    """conta as IDAS ao Instagram de Reels teste no dia (não só as que deram certo). Cada tentativa cria o
+    contêiner lá, então a que volta com 2207078 também gasta o limite — contar só os sucessos fazia o sistema
+    insistir a tarde toda."""
+    e = estado.setdefault(k, {})
+    t = e.setdefault("teste_hoje", {})
+    hoje = dt.date.today().isoformat()
+    if t.get("dia") != hoje:
+        t.clear()
+        t["dia"] = hoje
+    t["n"] = t.get("n", 0) + 1
+    return t["n"]
+
+
+def teste_hoje(estado, k):
+    t = estado.get(k, {}).get("teste_hoje", {})
+    return t.get("n", 0) if t.get("dia") == dt.date.today().isoformat() else 0
+
+
+def limite_teste(c, estado, k):
+    """quantos Reels TESTE por dia esta conta aguenta. O Instagram não conta esse limite em lugar nenhum da API:
+    a gente APRENDE com ele — no dia em que der 2207078, o teto passa a ser o que tinha dado até ali (mínimo 2)."""
+    m = int(c.get("max_teste_dia") or 0)
+    if m:
+        return m
+    ap = estado.get(k, {}).get("teste_limite_visto") or 0
+    return max(2, int(ap)) if ap else 4
+
+
+def ig_falta_teste(cfg, base, c, estado, k):
+    """mensagem quando NÃO dá para mandar mais um Reels teste hoje (senão o Instagram bloqueia a conta); "" = pode"""
+    if not ig_e_teste(cfg, c):
+        return ""
+    n, lim = teste_hoje(estado, k), limite_teste(c, estado, k)
+    if n >= lim:
+        return (f"já foram {n} Reels teste hoje (o Instagram aguenta ~{lim}/dia nesta conta) — espero amanhã para "
+                f"não tomar bloqueio")
+    return ""
+
+
 def proximo(c, estado, k):
     """quando esta conta pode postar de novo (datetime), pelo intervalo, horário e limite do dia"""
     agora = dt.datetime.now().replace(second=0, microsecond=0)
@@ -1128,36 +1225,64 @@ class trava:
             self.f.unlink(missing_ok=True)
 
 
-def posta_da_fila(cfg, base, c, video, estado):
-    """posta um vídeo da fila da conta e move para postados (ou conta a falha). Devolve o resultado ou None."""
+def posta_da_fila(cfg, base, c, video, estado, forcar=False):
+    """posta um vídeo da fila da conta e move para postados (ou conta a falha). Devolve o resultado ou None.
+    forcar=True = o botão "postar já" do painel (passa por cima da pausa)."""
     k = chave(c)
+    # relê o estado AGORA (26/out): a rodada leu o estado antes de começar e, se outro processo pausou a conta no
+    # meio, o vídeo ia de novo para o Instagram e renovava o bloqueio. A pausa é conferida aqui também.
+    estado.clear()
+    estado.update(le_estado(base))
+    pausa = estado.get(k, {}).get("pausa_ate", 0)
+    if pausa > time.time() and not forcar:
+        log(f"{k}: a conta está pausada até {dt.datetime.fromtimestamp(pausa):%d/%m %H:%M}"
+            + (f" ({estado[k].get('pausa_motivo')})" if estado[k].get("pausa_motivo") else "")
+            + f" — {video.name} continua na fila")
+        return None
+    if c["plataforma"] == "instagram" and not forcar:
+        falta = ig_falta_teste(cfg, base, c, estado, k)
+        if falta:
+            log(f"{k}: {falta} — {video.name} continua na fila (não conta como erro)")
+            return None
     log(f"{k}: postando {video.name}")
+    if c["plataforma"] == "instagram" and ig_e_teste(cfg, c):
+        muda_estado(base, lambda e: conta_tentativa_teste(e, k))
     try:
         r = posta_um(cfg, base, c, video)
     except Exception as e:
         txt = str(e)
         bloqueio = "2207078" in txt or "too many actions" in txt.lower() or '"code": 9,' in txt
         if bloqueio:
-            # limite de Reels TESTE da API (2207078, conta em 24 h) ou "muitas ações" (bloqueio temporário da conta):
-            # não é erro do vídeo — a conta pausa 24 h (tentar antes só renova o bloqueio) e o vídeo espera a vez
-            estado.setdefault(k, {})["pausa_ate"] = time.time() + 24 * 3600
-            motivo = "LIMITE de Reels teste pela API" if "2207078" in txt else "bloqueio de \"muitas ações\""
-            log(f"{k}: o Instagram deu {motivo} — pauso a conta por 24 h (não insista pelo app também); "
-                f"{video.name} continua na fila (não conta como erro)")
-            grava_json(base / "estado.json", estado)
+            # limite de Reels TESTE da API (2207078) ou "muitas ações": não é erro do vídeo — a conta para e o
+            # vídeo espera a vez. A pausa era de 24 h, mas (a) o estado.json se perdia e ela não valia nada e
+            # (b) no dia seguinte a conta postava bem de manhã. Agora: APRENDE o teto do dia (o próximo vídeo só
+            # vai amanhã, sem gastar tentativa) e pausa poucas horas, que é o que o bloqueio pede.
+            limite = "2207078" in txt
+            horas = float(cfg.get("instagram", {}).get("pausa_bloqueio_h") or (6 if limite else 24))
+            def aprende(e):
+                n = teste_hoje(e, k)
+                if limite and n:
+                    visto = e.setdefault(k, {}).get("teste_limite_visto") or 99
+                    e[k]["teste_limite_visto"] = max(2, min(int(visto), n - 1))
+            muda_estado(base, aprende)
+            estado.update(le_estado(base))
+            motivo = "LIMITE de Reels teste pela API" if limite else "bloqueio de \"muitas ações\""
+            pausa_conta(base, estado, k, horas * 3600, motivo)
+            extra = (f" Hoje já foram {teste_hoje(estado, k)} tentativas; passo a mandar no máximo "
+                     f"{limite_teste(c, estado, k)}/dia nesta conta.") if limite else ""
+            log(f"{k}: o Instagram deu {motivo} — pauso a conta por {horas:g} h (não insista pelo app também); "
+                f"{video.name} continua na fila (não conta como erro).{extra}")
             return None
         if any(x in txt.lower() for x in SEM_INTERNET):
             # o PC ficou sem internet (DNS): não é culpa do vídeo — não conta erro, espera 10 min
-            estado.setdefault(k, {})["pausa_ate"] = time.time() + 10 * 60
+            pausa_conta(base, estado, k, 10 * 60, "o PC ficou sem internet")
             log(f"{k}: sem internet no PC agora ({txt[:120]}) — tento de novo em 10 min (não conta como erro)")
-            grava_json(base / "estado.json", estado)
             return None
         if "não consegui um link" in txt:
             # nenhuma hospedagem serviu (Catbox fora do ar, provedor bloqueando, túnel sem abrir): o VÍDEO está bom,
             # quem falhou foi a hospedagem — não conta erro, senão o vídeo ia para falhas\ sem culpa nenhuma
-            estado.setdefault(k, {})["pausa_ate"] = time.time() + 10 * 60
+            pausa_conta(base, estado, k, 10 * 60, "nenhuma hospedagem do link serviu")
             log(f"{k}: nenhuma hospedagem serviu agora — tento de novo em 10 min (não conta como erro)")
-            grava_json(base / "estado.json", estado)
             return None
         falhas = estado.setdefault(k, {}).setdefault("falhas", {})
         quando = estado[k].setdefault("falhas_t", {})
@@ -1165,10 +1290,19 @@ def posta_da_fila(cfg, base, c, video, estado):
             falhas.pop(video.name, None)  # erro de outro dia (ex.: no bloqueio de ontem) não conta para hoje
         if isinstance(e, VideoQuebrado):
             falhas[video.name] = 3  # arquivo estragado: não adianta tentar de novo → falhas já
+            if ig_e_teste(cfg, c):
+                # o vídeo nem chegou ao Instagram: devolve a tentativa, senão um arquivo estragado comia o
+                # limite de Reels teste do dia
+                def devolve(e_):
+                    t = e_.setdefault(k, {}).get("teste_hoje") or {}
+                    if t.get("dia") == dt.date.today().isoformat():
+                        t["n"] = max(0, t.get("n", 1) - 1)
+                muda_estado(base, devolve)
         else:
             # depois de um erro, a conta espera 10 min antes de tentar QUALQUER vídeo (antes tentava o próximo na
             # hora, vários seguidos, e o Instagram bloqueou por "muitas ações")
             estado[k]["pausa_ate"] = time.time() + 10 * 60
+            estado[k]["pausa_motivo"] = "erro há pouco (espero antes de tentar outro)"
         falhas[video.name] = falhas.get(video.name, 0) + 1
         quando[video.name] = time.time()
         n = falhas[video.name]
@@ -1212,7 +1346,7 @@ def rodada(cfg, base):
         if not t.ok:
             log(f"rodada: outra postagem ainda em andamento ({t.dono}); confiro de novo na próxima")
             return
-        estado = le_json(base / "estado.json", {})
+        estado = le_estado(base)
         try:
             fb_pendentes(cfg, base, estado)
         except Exception as e:
@@ -1234,7 +1368,9 @@ def rodada(cfg, base):
                     log(f"{k}: 5 rascunhos esperando você publicar no app — o próximo vai quando liberar")
                     continue
             if estado.get(k, {}).get("pausa_ate", 0) > time.time():
-                continue  # conta em pausa (limite do Instagram ou erro há pouco)
+                continue  # conta em pausa (limite do Instagram ou erro há pouco) — o painel mostra até quando
+            if ig_falta_teste(cfg, base, c, estado, k):
+                continue  # já deu o teto de Reels teste do dia (o painel mostra; amanhã vai sozinho)
             espera = estado.get(k, {}).get("espera", {})
             pronto = [v for v in fila if espera.get(v.name, 0) <= time.time()]
             if pronto:
@@ -1242,7 +1378,7 @@ def rodada(cfg, base):
 
 
 def status(cfg, base):
-    estado = le_json(base / "estado.json", {})
+    estado = le_estado(base)
     for c in cfg["contas"]:
         k = chave(c)
         fila = fila_de(base, k)

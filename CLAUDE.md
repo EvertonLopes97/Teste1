@@ -131,7 +131,17 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   `postar\ferramentas\`, nome sorteado, cai no fim) · 2 Catbox · 3 0x0.st · 4 tmpfiles · 5 Litterbox; CADA link é
   CONFERIDO antes (`_confere_link`: baixa os primeiros bytes de fora, recusa HTML/404/tamanho errado) — link ruim é
   descartado na hora em vez de virar 2207082 e queimar as 4 tentativas; nenhuma hospedagem serviu = NÃO conta erro
-  (pausa 10 min, o vídeo fica na fila). Painel: "↻ Tentar todos de novo" devolve as falhas da conta para a fila; falha espera 15 min/45 min/2 h e vai para falhas na 4ª; depois de QUALQUER erro a conta pausa 10 min (`pausa_ate`; antes tentava o próximo da fila na hora → "muitas ações"); erro 2207078 (limite de Reels TESTE da API) ou código 9 "muitas ações" = conta pausa 24 h, o vídeo não conta erro; Instagram sem máx./dia = teto 10/dia (`teto_dia`); sem internet (getaddrinfo) = não conta erro, espera 10 min; vídeo que o FFmpeg não lê (`VideoQuebrado`, depois de 6 jeitos de `normaliza_ig`, os últimos tolerantes a quadro estragado) = falhas na hora, sem gastar ação no IG; contador de erros zera depois de 12 h e ao ir para falhas; painel mostra a pausa + "Tirar pausa"; `normaliza_ig` tenta 3 jeitos (áudio vazio → silêncio; sem source_fps → 30 fps); o envio direto ignorava o teste); views pelo insights (permissão instagram_manage_insights) a cada 30 min; mandar para os seguidores é no
+  (pausa 10 min, o vídeo fica na fila). Painel: "↻ Tentar todos de novo" devolve as falhas da conta para a fila; falha espera 15 min/45 min/2 h e vai para falhas na 4ª; depois de QUALQUER erro a conta pausa 10 min (`pausa_ate`; antes tentava o próximo da fila na hora → "muitas ações"); erro 2207078 (limite de Reels TESTE da API) ou código 9 "muitas ações" = conta pausa 6 h (`"pausa_bloqueio_h"`), o vídeo não conta erro;
+  ESTADO NÃO SE PERDE MAIS (26/out): `grava_json` escreve num .tmp e troca de nome (atômico) + cópia `estado.bak`, `le_estado`
+  volta pela cópia se estragar e `muda_estado(base, fn)` relê do disco antes de gravar. Antes o `write_text` apagava o
+  arquivo e escrevia depois: quem lesse no meio pegava `{}` calado (1.491 de 4.000 leituras no teste) e a PAUSA DE 24 H
+  SUMIA — era por isso que a conta levava 2207078 às 23:15 e tentava de novo às 23:18, a noite toda, renovando o bloqueio.
+  `posta_da_fila` relê o estado e confere a pausa na hora de postar (o botão "postar já" passa por cima, `forcar=True`);
+  TETO DE REELS TESTE (26/out): o Instagram não conta esse limite em lugar nenhum da API, então o sistema APRENDE —
+  conta as TENTATIVAS do dia (`teste_hoje`, não só os sucessos: a tentativa que volta 2207078 também gasta o limite lá)
+  e, no dia em que der 2207078, o teto passa a ser o que tinha dado até ali (`teste_limite_visto`, mínimo 2; padrão 4;
+  `"max_teste_dia"` na conta manda). Cheio = o vídeo espera amanhã sozinho, sem gastar tentativa. Vídeo estragado
+  devolve a tentativa. Painel: "🧪 Reels teste hoje: n de N" e o motivo da pausa; Instagram sem máx./dia = teto 10/dia (`teto_dia`); sem internet (getaddrinfo) = não conta erro, espera 10 min; vídeo que o FFmpeg não lê (`VideoQuebrado`, depois de 6 jeitos de `normaliza_ig`, os últimos tolerantes a quadro estragado) = falhas na hora, sem gastar ação no IG; contador de erros zera depois de 12 h e ao ir para falhas; painel mostra a pausa + "Tirar pausa"; `normaliza_ig` tenta 3 jeitos (áudio vazio → silêncio; sem source_fps → 30 fps); o envio direto ignorava o teste); views pelo insights (permissão instagram_manage_insights) a cada 30 min; mandar para os seguidores é no
   app (a API não faz) → painel avisa e tem "Já mandei". Roteiro sem linha de BLOCO vira um bloco só.
   TIKTOK = modo "studio" (padrão; o TikTok não aprova app para as próprias contas): nada vai pela API; o painel
   planeja horários (`P.planeja`: intervalo/janela/máx. por dia, 20 min a 10 dias), "Preparar pasta" →
@@ -139,6 +149,12 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   Studio e marca "Agendei" (vai para postados com `agendado_para`). "rascunho"/"direto" = API (opcional).
   REELS no painel: vários links de uma vez → `links.txt`; com `"auto_links"` (padrão) o painel roda
   `reels.py --so-links` sozinho (um por vez, cada pronto vai para a fila). yt-dlp atualiza 1x/dia.
+  LINK QUE NÃO VIRA REELS (26/out): o laço do painel olhava só o filho DELE — com a trava `.reels_rodando` na mão da
+  tarefa do Windows ele disparava um reels.py a cada 45 s, cada um morria na hora ("outro reels.py já está rodando") e
+  os links nunca ficavam prontos; e o registro abria em modo "w", apagando o motivo da falha anterior. Agora
+  `reels_rodando()` confere a trava antes (avisa 1x a cada 30 min e espera a vez; os botões de gerar/clipe também),
+  `log_reels()` ACRESCENTA (gira em 2 MB) e todo link que sai da lista sem virar reels vai com o MOTIVO para
+  `links_falhos.txt` → painel: "⚠ Links que NÃO viraram reels".
 - COR EXATA: `python tools\cor_lut.py "<gravação iPhone>" "<mesmo vídeo exportado do CapCut, ou o REEL postado feito
   no CapCut com ela>"` (acha sozinho o trecho, fica só com a 1ª cena, ignora texto por cima) → aprende
   a conversão (tabela 33³, polinômio + correção por célula, confere a diferença) em `tools\cor\referencia.cube`; com
