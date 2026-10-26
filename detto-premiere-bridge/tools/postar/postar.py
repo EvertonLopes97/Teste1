@@ -1005,25 +1005,69 @@ def teste_hoje(estado, k):
     return t.get("n", 0) if t.get("dia") == dt.date.today().isoformat() else 0
 
 
-def limite_teste(c, estado, k):
-    """quantos Reels TESTE por dia esta conta aguenta. O Instagram não conta esse limite em lugar nenhum da API:
-    a gente APRENDE com ele — no dia em que der 2207078, o teto passa a ser o que tinha dado até ali (mínimo 2)."""
-    m = int(c.get("max_teste_dia") or 0)
-    if m:
-        return m
-    ap = estado.get(k, {}).get("teste_limite_visto") or 0
-    return max(2, int(ap)) if ap else 4
+TESTE_JANELA_H = 72  # o Instagram avalia cada Reels teste por 72 h; é nessa janela que ele conta as vagas
 
 
-def ig_falta_teste(cfg, base, c, estado, k):
-    """mensagem quando NÃO dá para mandar mais um Reels teste hoje (senão o Instagram bloqueia a conta); "" = pode"""
+def testes_ativos(base, k):
+    """Reels TESTE que ainda estão NA JANELA de avaliação (72 h), do mais antigo para o mais novo.
+    O 2207078 NÃO é cota por dia: é "máximo de reels teste publicados pela Content Publishing API" — um limite de
+    testes ATIVOS, e separado do app (por isso pelo celular ele sobe). Contar por dia travava a conta sem motivo."""
+    out = []
+    for f in (Path(base) / "postados" / k).glob("*.json"):
+        if f.name.startswith("_"):
+            continue
+        d = le_json(f, {})
+        if not isinstance(d, dict) or not d.get("teste") or d.get("situacao") in ("promovido", "ignorado"):
+            continue
+        try:
+            q = dt.datetime.fromisoformat(d.get("quando", ""))
+        except ValueError:
+            continue
+        if (dt.datetime.now() - q).total_seconds() < TESTE_JANELA_H * 3600:
+            out.append((q, d.get("video") or f.stem))
+    return sorted(out)
+
+
+def vaga_de_teste(cfg, base, c, estado, k):
+    """("", quando_libera) = pode mandar Reels teste agora; (motivo, quando_libera) = sem vaga.
+    A gente não adivinha o número: ele é APRENDIDO quando o Instagram recusa (quantos testes estavam ativos ali),
+    então nunca trava abaixo do que a conta já conseguiu."""
     if not ig_e_teste(cfg, c):
-        return ""
-    n, lim = teste_hoje(estado, k), limite_teste(c, estado, k)
-    if n >= lim:
-        return (f"já foram {n} Reels teste hoje (o Instagram aguenta ~{lim}/dia nesta conta) — espero amanhã para "
-                f"não tomar bloqueio")
-    return ""
+        return "", None
+    e = estado.get(k, {})
+    vagas = int(c.get("max_teste") or e.get("teste_vagas") or 0)
+    ativos = testes_ativos(base, k)
+    libera = (ativos[0][0] + dt.timedelta(hours=TESTE_JANELA_H)) if ativos else None
+    if vagas and len(ativos) >= vagas:
+        return f"o Instagram deixa {vagas} Reels teste ativo(s) pela API e já tem {len(ativos)}", libera
+    if e.get("teste_ate", 0) > time.time():
+        return "o Instagram recusou Reels teste há pouco (sem vaga)", dt.datetime.fromtimestamp(e["teste_ate"])
+    return "", libera
+
+
+def sem_vaga_de_teste(base, k, estado):
+    """guarda o que o Instagram ensinou com o 2207078: quantos testes cabiam e quando a próxima vaga abre"""
+    ativos = testes_ativos(base, k)
+    libera = (ativos[0][0] + dt.timedelta(hours=TESTE_JANELA_H)) if ativos else dt.datetime.now() + dt.timedelta(hours=2)
+    def aplica(e):
+        d = e.setdefault(k, {})
+        if ativos:
+            d["teste_vagas"] = len(ativos)  # era isso que cabia quando ele recusou
+        d["teste_ate"] = libera.timestamp()
+        d["teste_recusa"] = dt.datetime.now().isoformat(timespec="minutes")
+        d.pop("teste_limite_visto", None)  # modelo antigo (teto por dia) — estava errado
+    muda_estado(base, aplica)
+    estado.update(le_estado(base))
+    return libera
+
+
+def cai_para_normal(cfg, c):
+    """sem vaga de teste, o vídeo sobe como reels NORMAL em vez de ficar parado na fila (ele escolheu assim).
+    Desligar: "teste_cai_para_normal": false na conta ou no config do Instagram."""
+    v = c.get("teste_cai_para_normal")
+    if v is None:
+        v = cfg.get("instagram", {}).get("teste_cai_para_normal")
+    return True if v is None else bool(v)
 
 
 def proximo(c, estado, k):
@@ -1159,7 +1203,7 @@ def yt_posta(base, conta, video, legenda):
     return {"link": f"https://youtube.com/shorts/{vid}", "id": vid}
 
 
-def posta_um(cfg, base, c, video):
+def posta_um(cfg, base, c, video, como_teste=None):
     if studio(cfg, c):
         raise RuntimeError("esta conta é postada por você (TikTok Studio / app do Kwai): use a pasta preparada no painel")
     leg = legenda_de(video)
@@ -1167,7 +1211,8 @@ def posta_um(cfg, base, c, video):
         return yt_posta(base, c["conta"], video, leg)
     if c["plataforma"] == "instagram":
         n = (le_json(base / "estado.json", {}).get(chave(c), {}).get("falhas") or {}).get(Path(video).name, 0)
-        return ig_posta(cfg, base, c["conta"], video, leg, teste=bool(c.get("teste")), graduar=c.get("graduar", "manual"), tentativa=n)
+        teste = bool(c.get("teste")) if como_teste is None else bool(como_teste)
+        return ig_posta(cfg, base, c["conta"], video, leg, teste=teste, graduar=c.get("graduar", "manual"), tentativa=n)
     return tt_posta(cfg, base, c["conta"], video, leg)
 
 
@@ -1239,39 +1284,45 @@ def posta_da_fila(cfg, base, c, video, estado, forcar=False):
             + (f" ({estado[k].get('pausa_motivo')})" if estado[k].get("pausa_motivo") else "")
             + f" — {video.name} continua na fila")
         return None
-    if c["plataforma"] == "instagram" and not forcar:
-        falta = ig_falta_teste(cfg, base, c, estado, k)
-        if falta:
-            log(f"{k}: {falta} — {video.name} continua na fila (não conta como erro)")
-            return None
-    log(f"{k}: postando {video.name}")
-    if c["plataforma"] == "instagram" and ig_e_teste(cfg, c):
+    # Reels TESTE: tem vaga? Sem vaga o vídeo sobe como reels NORMAL em vez de ficar parado na fila
+    como_teste = ig_e_teste(cfg, c)
+    if como_teste:
+        motivo, libera = vaga_de_teste(cfg, base, c, estado, k)
+        if motivo:
+            quando = f" (a próxima vaga abre {libera:%d/%m %H:%M})" if libera else ""
+            if cai_para_normal(cfg, c):
+                como_teste = False
+                log(f"{k}: sem vaga de Reels teste — {motivo}{quando}. {video.name} vai como reels NORMAL.")
+            else:
+                log(f"{k}: sem vaga de Reels teste — {motivo}{quando}. {video.name} espera na fila "
+                    f'(para subir como normal: "teste_cai_para_normal": true)')
+                return None
+    log(f"{k}: postando {video.name}" + (" (Reels teste)" if como_teste else ""))
+    if como_teste:
         muda_estado(base, lambda e: conta_tentativa_teste(e, k))
     try:
-        r = posta_um(cfg, base, c, video)
+        r = posta_um(cfg, base, c, video, como_teste=como_teste)
     except Exception as e:
         txt = str(e)
         bloqueio = "2207078" in txt or "too many actions" in txt.lower() or '"code": 9,' in txt
         if bloqueio:
-            # limite de Reels TESTE da API (2207078) ou "muitas ações": não é erro do vídeo — a conta para e o
-            # vídeo espera a vez. A pausa era de 24 h, mas (a) o estado.json se perdia e ela não valia nada e
-            # (b) no dia seguinte a conta postava bem de manhã. Agora: APRENDE o teto do dia (o próximo vídeo só
-            # vai amanhã, sem gastar tentativa) e pausa poucas horas, que é o que o bloqueio pede.
-            limite = "2207078" in txt
-            horas = float(cfg.get("instagram", {}).get("pausa_bloqueio_h") or (6 if limite else 24))
-            def aprende(e):
-                n = teste_hoje(e, k)
-                if limite and n:
-                    visto = e.setdefault(k, {}).get("teste_limite_visto") or 99
-                    e[k]["teste_limite_visto"] = max(2, min(int(visto), n - 1))
-            muda_estado(base, aprende)
-            estado.update(le_estado(base))
-            motivo = "LIMITE de Reels teste pela API" if limite else "bloqueio de \"muitas ações\""
-            pausa_conta(base, estado, k, horas * 3600, motivo)
-            extra = (f" Hoje já foram {teste_hoje(estado, k)} tentativas; passo a mandar no máximo "
-                     f"{limite_teste(c, estado, k)}/dia nesta conta.") if limite else ""
-            log(f"{k}: o Instagram deu {motivo} — pauso a conta por {horas:g} h (não insista pelo app também); "
-                f"{video.name} continua na fila (não conta como erro).{extra}")
+            # 2207078 = "máximo de reels teste publicados pela Content Publishing API": NÃO é cota por dia e não
+            # é bloqueio da conta (pelo celular ele continua postando). Então a conta NÃO para mais 24 h: fecha só
+            # a porta do TESTE até a vaga abrir e, na próxima rodada, o vídeo sobe como reels normal.
+            # "muitas ações" (código 9 sem o 2207078) é bloqueio de verdade: aí sim a conta pausa.
+            if "2207078" in txt:
+                libera = sem_vaga_de_teste(base, k, estado)
+                pausa_conta(base, estado, k, 10 * 60, "sem vaga de Reels teste (tento como normal já)")
+                ativos = testes_ativos(base, k)
+                log(f"{k}: o Instagram não aceitou mais um Reels TESTE (já tem {len(ativos)} ativo(s) na janela de "
+                    f"{TESTE_JANELA_H} h; a vaga abre {libera:%d/%m %H:%M}). NÃO é bloqueio da conta e não conta "
+                    f"erro — {video.name} " + ("sobe como reels NORMAL na próxima rodada (10 min)."
+                                               if cai_para_normal(cfg, c) else "espera a vaga na fila."))
+                return None
+            horas = float(cfg.get("instagram", {}).get("pausa_bloqueio_h") or 24)
+            pausa_conta(base, estado, k, horas * 3600, 'bloqueio de "muitas ações"')
+            log(f"{k}: o Instagram deu bloqueio de \"muitas ações\" — pauso a conta por {horas:g} h (não insista "
+                f"pelo app também); {video.name} continua na fila (não conta como erro)")
             return None
         if any(x in txt.lower() for x in SEM_INTERNET):
             # o PC ficou sem internet (DNS): não é culpa do vídeo — não conta erro, espera 10 min
@@ -1369,8 +1420,6 @@ def rodada(cfg, base):
                     continue
             if estado.get(k, {}).get("pausa_ate", 0) > time.time():
                 continue  # conta em pausa (limite do Instagram ou erro há pouco) — o painel mostra até quando
-            if ig_falta_teste(cfg, base, c, estado, k):
-                continue  # já deu o teto de Reels teste do dia (o painel mostra; amanhã vai sozinho)
             espera = estado.get(k, {}).get("espera", {})
             pronto = [v for v in fila if espera.get(v.name, 0) <= time.time()]
             if pronto:

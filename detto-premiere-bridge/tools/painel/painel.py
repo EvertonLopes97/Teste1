@@ -222,9 +222,11 @@ def estado_painel():
             "pausa_ate": (dt.datetime.fromtimestamp(est.get(k, {}).get("pausa_ate", 0)).strftime("%d/%m %H:%M")
                           if est.get(k, {}).get("pausa_ate", 0) > time.time() else ""),
             "pausa_motivo": est.get(k, {}).get("pausa_motivo", ""),
-            "teste_hoje": P.teste_hoje(est, k) if c["plataforma"] == "instagram" else 0,
-            "teste_limite": P.limite_teste(c, est, k) if P.ig_e_teste(c_, c) else 0,
-            "teste_cheio": bool(P.ig_falta_teste(c_, BASE, c, est, k)),
+            "teste_ativos": len(P.testes_ativos(BASE, k)) if P.ig_e_teste(c_, c) else 0,
+            "teste_vagas": int(c.get("max_teste") or est.get(k, {}).get("teste_vagas") or 0),
+            "teste_sem_vaga": P.vaga_de_teste(c_, BASE, c, est, k)[0],
+            "teste_libera": (lambda q: q.strftime("%d/%m %H:%M") if q else "")(P.vaga_de_teste(c_, BASE, c, est, k)[1]),
+            "teste_normal": P.cai_para_normal(c_, c) if P.ig_e_teste(c_, c) else False,
             "testes": testes_de(c) if c["plataforma"] == "instagram" else [],
             "intervalo_min": c.get("intervalo_min", 80), "horas": c.get("horas", "08-23"), "max_dia": c.get("max_dia", 0),
             "login": (BASE / "tokens" / f"{c['plataforma']}_{c['conta']}.json").exists(),
@@ -281,7 +283,7 @@ SUBIU_EM = time.time()
 # Versão do PYTHON que está rodando. O painel.html é lido do disco a cada acesso, então depois de um `git pull` o
 # navegador recebe a tela NOVA enquanto o Python continua o VELHO (foi o que aconteceu: a aba Histórias apareceu
 # vazia e o Instagram continuou no caminho antigo). A tela compara esta versão com a dela e avisa.
-PAINEL_VERSAO = "2026-10-26a"
+PAINEL_VERSAO = "2026-10-26b"
 
 
 def codigo_novo():
