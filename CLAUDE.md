@@ -274,10 +274,18 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   o impacto do som bate junto) → luz passando, selo e risco. Áudio feito no FFmpeg (whoosh + impacto, -16 LUFS).
   Fica guardada em `<DETTO>\marca\vinheta_<canal>_<LxA>_<fps>.mp4` e só é refeita quando o nome muda (`--refazer`);
   o vídeo de todo dia só EMENDA (`emenda` padroniza tamanho/fps/áudio, e o vídeo sem áudio ganha silêncio).
+  NUNCA NO SEGUNDO 0 (26/out): vinheta na abertura QUEBRA A RETENÇÃO — o espectador decide se fica nos primeiros
+  segundos, e ele precisa ouvir a chamada/resumo com o CTA primeiro. Agora `emenda(..., em=<segundo>)` PARTE o vídeo
+  e põe a abertura no meio (`-t em` + vinheta + `-ss em`, num passe só; corte exato, sem quadro perdido). Cada
+  programa diz onde a chamada acaba: `canal.py` → o `monta` devolve `abertura_s` (a duração da 1ª peça de fala, que
+  é o resumo + CTA); `canal_vlog.py` → a duração do 1º trecho do plano.json (o gancho); `editar.py` →
+  `fim_da_abertura(EDIT_PLAN.json)`, o fim do último trecho do PRIMEIRO bloco (ABERTURA / GANCHO) por
+  `meta.segments[].block`. Roteiro de um bloco só, ou sem plano, devolve 0 e ela volta para a frente.
+  `"vinheta_em"` no config do canal força um segundo fixo (0 = na frente, como era).
   Onde entra sozinha: `canal.py` (notícias), `canal_vlog.py` (vlogs) e `editar.py` no horizontal.mp4 e no
   horizontal_lances.mp4 (`--canal galo|noticias|vlog|sem`, padrão galo). No 9:16 ela NÃO entra (reels não tem
   abertura). `"vinheta": false` no config do canal desliga; `"vinheta_s"` muda a duração.
-  Testar: `python tools\canal\vinheta.py --canal galo --ver "<video.mp4>"`.
+  Testar: `python tools\canal\vinheta.py --canal galo --ver "<video.mp4>" [--em 8]`.
 - REELS COM ROTEIRO (25/out, `editar.py --reels`; painel: tipo **Reels com roteiro (9:16)**): o mesmo fluxo do vídeo
   com roteiro, mas o vídeo INTEIRO vira UM reels 9:16 — sem horizontal, sem cortes, sem thumb e sem vinheta. O
   GANCHO entra escrito na tela nos 3 primeiros segundos (`--gancho` no render-dynamic, que antes só existia com

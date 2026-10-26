@@ -227,10 +227,13 @@ def monta(vlog, cfg, pasta):
         os.replace(ed / "vlog.mp4", video)
     except OSError:
         shutil.copyfile(ed / "vlog.mp4", video)
-    try:   # a mesma abertura do canal EVERTON LOPES
+    try:   # a mesma abertura do canal EVERTON LOPES, DEPOIS do gancho (no segundo 0 quebrava a retenção)
         import vinheta as VIN
 
-        video = VIN.abre(video, "vlog", cfg.get("nome_canal", ""), cfg)
+        pl = comum.le(ed / "plano.json", {}) or {}
+        tr = [t for sec in (pl.get("secoes") or []) for t in (sec.get("trechos") or [])] or (pl.get("trechos") or [])
+        gancho = sum(max(0.0, float(t.get("fim", 0)) - float(t.get("ini", 0))) for t in tr[:1])
+        video = VIN.abre(video, "vlog", cfg.get("nome_canal", ""), cfg, em=gancho)
     except Exception as e:
         print(f"vinheta: não entrou ({str(e)[:120]})", flush=True)
     plano = comum.le(ed / "plano.json", {}) or {}

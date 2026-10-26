@@ -91,27 +91,54 @@ def faz(canal="noticias", nome="", dur=0.0, w=1920, h=1080, fps=30, pasta=None, 
     return arq
 
 
-def emenda(vinheta, video, saida, log=log):
-    """põe a vinheta na frente do vídeo. Os dois são padronizados (tamanho, fps, áudio) para o concat não falhar."""
+def duracao(f):
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(f)],
+                       capture_output=True, text=True)
+    try:
+        return float(r.stdout.strip())
+    except ValueError:
+        return 0.0
+
+
+def emenda(vinheta, video, saida, log=log, em=0.0):
+    """põe a vinheta no vídeo. `em` = em que segundo ela entra (0 = na frente).
+    VINHETA NO SEGUNDO 0 QUEBRA A RETENÇÃO (26/out): quem abre o vídeo tem que ouvir a chamada primeiro; a
+    abertura do canal entra DEPOIS dela. Os pedaços são padronizados (tamanho, fps, áudio) para o concat não falhar."""
     vinheta, video, saida = Path(vinheta).resolve(), Path(video).resolve(), Path(saida).resolve()
     if not (vinheta.exists() and video.exists()):
         return None
     w, h, fps, tem_audio = formato(video)
+    total = duracao(video)
+    em = float(em or 0)
+    if em < 0.3 or (total and em > total - 0.5):
+        em = 0.0   # não dá para partir aqui: volta para a frente do vídeo
     sys.path.insert(0, str(TOOLS))
     from ffcompat import filtro_complexo
 
-    v_in = (f"[0:v]scale={w}:{h}:force_original_aspect_ratio=decrease,"
-            f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={fps},format=yuv420p[v0];"
-            f"[1:v]scale={w}:{h},setsar=1,fps={fps},format=yuv420p[v1];")
-    # o vídeo pode estar sem áudio: entra silêncio para o concat ter sempre as duas trilhas
-    a_in = ("[0:a]aresample=48000,aformat=channel_layouts=stereo[a0];"
-            + ("[1:a]aresample=48000,aformat=channel_layouts=stereo[a1];" if tem_audio
-               else f"anullsrc=r=48000:cl=stereo,atrim=0:{3600}[a1];"))
-    grafo = v_in + a_in + "[v0][a0][v1][a1]concat=n=2:v=1:a=1[v][a]"
+    def norm_v(i, rot):
+        if rot == "vin":
+            return f"[{i}:v]scale={w}:{h},setsar=1,fps={fps},format=yuv420p[v{i}];"
+        return (f"[{i}:v]scale={w}:{h}:force_original_aspect_ratio=decrease,"
+                f"pad={w}:{h}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps={fps},format=yuv420p[v{i}];")
+
+    def norm_a(i, rot):
+        if rot == "vin" or tem_audio:
+            return f"[{i}:a]aresample=48000,aformat=channel_layouts=stereo[a{i}];"
+        return f"anullsrc=r=48000:cl=stereo,atrim=0:3600[a{i}];"   # vídeo sem áudio: silêncio no lugar
+
+    if em:
+        # [vídeo até `em`] + [vinheta] + [resto do vídeo]
+        entradas = ["-t", f"{em:.3f}", "-i", str(video), "-i", str(vinheta), "-ss", f"{em:.3f}", "-i", str(video)]
+        tipos = ["vid", "vin", "vid"]
+    else:
+        entradas = ["-i", str(vinheta), "-i", str(video)]
+        tipos = ["vin", "vid"]
+    grafo = "".join(norm_v(i, t) for i, t in enumerate(tipos)) + "".join(norm_a(i, t) for i, t in enumerate(tipos))
+    grafo += "".join(f"[v{i}][a{i}]" for i in range(len(tipos))) + f"concat=n={len(tipos)}:v=1:a=1[v][a]"
     g = saida.parent / "_vinheta_grafo.txt"
     g.parent.mkdir(parents=True, exist_ok=True)
     g.write_text(grafo, encoding="utf-8")
-    r = _ff(["-i", str(vinheta), "-i", str(video), *filtro_complexo(str(g)), "-map", "[v]", "-map", "[a]",
+    r = _ff([*entradas, *filtro_complexo(str(g)), "-map", "[v]", "-map", "[a]",
              "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
              "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(saida)])
     g.unlink(missing_ok=True)
@@ -121,8 +148,11 @@ def emenda(vinheta, video, saida, log=log):
     return saida
 
 
-def abre(video, canal="noticias", nome="", cfg=None, saida=None, log=log):
-    """O QUE OS PROGRAMAS CHAMAM: devolve o vídeo com a vinheta na frente (ou o original, se algo falhar).
+def abre(video, canal="noticias", nome="", cfg=None, saida=None, log=log, em=0.0):
+    """O QUE OS PROGRAMAS CHAMAM: devolve o vídeo com a vinheta (ou o original, se algo falhar).
+    `em` = o segundo em que ela entra. A abertura NÃO vai mais no segundo 0: isso quebrava a retenção — quem abre
+    o vídeo tem que ouvir a chamada/resumo com o CTA primeiro, e só então vem a vinheta (`"vinheta_em"` no config
+    força um segundo fixo; 0 = na frente, como era).
     `cfg` é o config do canal: `"vinheta": false` desliga, `"vinheta_s"` muda a duração."""
     cfg = cfg or {}
     if cfg.get("vinheta") is False:
@@ -134,14 +164,16 @@ def abre(video, canal="noticias", nome="", cfg=None, saida=None, log=log):
     v = faz(canal, nome or cfg.get("nome_canal", ""), float(cfg.get("vinheta_s", 0) or 0), w, h, fps, log=log)
     if not v:
         return video
+    if cfg.get("vinheta_em") is not None:
+        em = float(cfg["vinheta_em"] or 0)
     alvo = Path(saida) if saida else video.with_name(video.stem + "_vinheta.mp4")
-    if not emenda(v, video, alvo, log):
+    if not emenda(v, video, alvo, log, em=em):
         return video
     if not saida:   # troca o vídeo pelo que tem a vinheta (o nome que o resto do sistema espera)
         video.unlink(missing_ok=True)
         alvo.replace(video)
         alvo = video
-    log(f"vinheta: abertura do canal {canal} na frente de {alvo.name}")
+    log(f"vinheta: abertura do canal {canal} em {alvo.name} " + (f"aos {em:.1f}s (depois da chamada)" if em >= 0.3 else "na frente"))
     return alvo
 
 
@@ -156,6 +188,7 @@ def main():
     ap.add_argument("--pasta", default="")
     ap.add_argument("--refazer", action="store_true")
     ap.add_argument("--ver", default="", help="emenda a vinheta neste vídeo e salva ao lado (teste)")
+    ap.add_argument("--em", type=float, default=0.0, help="segundo em que a vinheta entra (0 = na frente)")
     a = ap.parse_args()
     v = faz(a.canal, a.nome, a.dur, a.largura, a.altura, a.fps, a.pasta or None, a.refazer)
     if not v:
@@ -163,7 +196,7 @@ def main():
     log(f"pronto: {v}")
     if a.ver:
         s = Path(a.ver).with_name(Path(a.ver).stem + "_com_vinheta.mp4")
-        log(f"com a vinheta: {emenda(v, a.ver, s)}")
+        log(f"com a vinheta: {emenda(v, a.ver, s, em=a.em)}")
 
 
 if __name__ == "__main__":

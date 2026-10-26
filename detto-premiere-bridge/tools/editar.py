@@ -44,6 +44,26 @@ def tem_trechos(f):
         return True
 
 
+def fim_da_abertura(plano):
+    """em que segundo do vídeo montado termina o BLOCO DE ABERTURA (o gancho). É onde a vinheta do canal entra —
+    no segundo 0 ela empurrava o gancho para depois da marca em que o espectador decide se fica.
+    Sem o plano (ou com um bloco só), devolve 0 e a vinheta volta para a frente."""
+    try:
+        segs = (json.loads(Path(plano).read_text(encoding="utf-8")).get("meta") or {}).get("segments") or []
+    except Exception:
+        return 0.0
+    if not segs:
+        return 0.0
+    primeiro = segs[0].get("block")
+    abertura = [x for x in segs if x.get("block") == primeiro]
+    if len(abertura) == len(segs):
+        return 0.0   # roteiro de um bloco só: não dá para saber onde a abertura acaba
+    try:
+        return float(abertura[-1].get("end") or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def roda(cmd):
     print("\n>>", " ".join(str(c) for c in cmd), flush=True)
     subprocess.run([str(c) for c in cmd], check=True, cwd=PONTE)
@@ -209,15 +229,17 @@ def main():
         return
     roda(base + trecho + ["--fps", str(a.fps), "--out", job / "horizontal.mp4"])
     com_lances(trecho + ["--fps", str(a.fps)], job / "horizontal.mp4")
-    # VINHETA DE ABERTURA do canal, na frente do horizontal (o vertical não leva: reels não tem abertura)
+    # VINHETA DO CANAL no horizontal (o vertical não leva: reels não tem abertura). Ela entra DEPOIS da
+    # ABERTURA/GANCHO — no segundo 0 ela quebrava a retenção, que é onde o espectador decide se fica.
     if a.canal != "sem":
         try:
             sys.path.insert(0, str(T / "canal"))
             import vinheta as VIN
 
+            em = fim_da_abertura(job / "EDIT_PLAN.json")
             for h_ in (job / "horizontal.mp4", job / "horizontal_lances.mp4"):
                 if h_.exists():
-                    VIN.abre(h_, a.canal)
+                    VIN.abre(h_, a.canal, em=em)
         except Exception as e:
             print(f"Aviso: a vinheta não entrou ({str(e)[:140]})")
     # conferência antes de entregar: cor × gravação (HDR do iPhone), fotos, volume

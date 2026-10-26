@@ -183,6 +183,16 @@ def rss(canal_id):
     return out
 
 
+def dur_mp4(f):
+    """duração de um mp4 em segundos (0 se não der)"""
+    r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(f)],
+                       capture_output=True, text=True)
+    try:
+        return float(r.stdout.strip())
+    except ValueError:
+        return 0.0
+
+
 def duracoes(canal):
     """duração e tipo (vídeo / short / live) dos últimos vídeos do canal (o feed não traz)"""
     out = {}
@@ -1045,6 +1055,8 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
             pecas.append(p)
 
     add_fala(falas[0])
+    # onde termina a CHAMADA de abertura (resumo + CTA): é aí que a vinheta entra, não no segundo 0
+    abertura_s = dur_mp4(pecas[0]) if pecas else 0.0
     for i, x in enumerate(sel):
         if i in fala_antes:
             add_fala(fala_antes[i])
@@ -1068,7 +1080,7 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lista), "-c", "copy", str(bruto)], check=True)
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(bruto), "-c:v", "copy", "-af", "loudnorm=I=-14:TP=-1", "-c:a", "aac", "-b:a", "192k",
                     "-movflags", "+faststart", str(saida)], check=True)
-    return saida
+    return saida, abertura_s
 
 
 # ------------------------------------------------------------------ 5. thumb
@@ -1604,11 +1616,11 @@ def main():
     tmp.mkdir()
     pronto = pasta / "prontos" / f"{dt.datetime.now():%Y-%m-%d_%H%M} - {slug(rot['titulo'], 50)}"
     pronto.mkdir(parents=True, exist_ok=True)
-    video = monta(sel, rot, cfg, pasta, tmp, pronto / "video.mp4")
-    try:   # vinheta de abertura do canal (feita uma vez e guardada; "vinheta": false no config desliga)
+    video, abertura_s = monta(sel, rot, cfg, pasta, tmp, pronto / "video.mp4")
+    try:   # vinheta do canal DEPOIS da chamada de abertura (no segundo 0 ela quebrava a retenção)
         import vinheta as VIN
 
-        video = VIN.abre(video, "noticias", cfg.get("nome_canal", ""), cfg, log=log)
+        video = VIN.abre(video, "noticias", cfg.get("nome_canal", ""), cfg, log=log, em=abertura_s)
     except Exception as e:
         log(f"vinheta: não entrou ({str(e)[:120]})")
     th = thumb(video, rot, {**cfg, "_pasta": str(pasta)}, pronto, sel)
