@@ -293,6 +293,33 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
 - TESTES: `npm run check` (tipos + testes + teste VISUAL `test/visual.test.js`: quadros do palco × `test/visual/ref_*.png`).
   Mudou o visual de propósito → `npm run visual:aprovar`. GitHub Actions roda tudo a cada push (`.github/workflows/testes.yml`).
 
+## TIKTOK SHOP — vídeos de produto automáticos (26/out)
+
+`python tools\shop\shop.py` (painel: aba **TikTok Shop**; guia `tools\shop\LEIA-ME.txt`; pasta `E:\DETTO\shop`).
+Produto → reels 9:16 pronto, e cada pronto já entra na fila de postagem (`"postar"` no config, igual aos reels).
+- TRÊS ORIGENS, as três ligadas: `produtos.txt` (links colados; link de VÍDEO baixa o vídeo do vendedor junto) ·
+  `produtos\<nome>\` (o que chegou em casa: as fotos/vídeos + `produto.json` com nome/preco/preco_de/link/sobre/selo;
+  arquivo com "eu"/"review"/"unbox" no nome = a gravação dele) · `--achar <categoria>` (os vídeos de Shop mais vistos
+  da categoria por yt-dlp → Gemini diz qual é o produto).
+- TRÊS MODOS (`--modo`, ou `"modo"` no produto.json/config): `ia` (fotos + voz clonada + texto + legenda) ·
+  `eu` (a gravação dele manda, fotos por cima) · `vendedor` (reaproveita o vídeo do vendedor em 9:16).
+- ROTEIRO pela IA (Gemini → grátis → Claude, `REGRAS`): gancho de PROBLEMA nos 2 primeiros segundos → o produto
+  resolvendo → 3 vantagens com NÚMERO concreto → objeção respondida → preço/cupom → CTA para a vitrine.
+  **Proibido inventar** medida, garantia ou preço que não esteja no material (vídeo de afiliado errado derruba a conta).
+- VOZ VoiceStudio → Fish (a mesma cadeia do canal), `pronuncia` + `sem_pausas`; legenda em blocos de 3 palavras pelo
+  faster-whisper; cada cena termina onde cai a última palavra da fala dela (`encaixa`, o alinhamento das histórias).
+- CARTELAS (`tools\shop\cartelas.js` + `palco\shop.html/css`): PNG transparente por cena (texto do topo com tarja,
+  etiqueta de preço vermelha, selo, vantagens com ✓, CTA com seta para a vitrine e a cartela final), postos pelo FFmpeg
+  com `overlay ... enable=between(t,...)`. Peças ESTÁTICAS de propósito: a sequência quadro a quadro em 1080x1920 com
+  alfa enchia o disco dele. `*palavra*` sai amarela, `_palavra_` verde; com selo na tela o texto não sobe (ficava por baixo).
+- ZOOM DA FOTO: `scale` com `eval=frame` + `crop`, **nunca `zoompan`** — o zoompan reescalava a foto inteira a cada
+  quadro e levava ~57 s por cena (medido); assim leva ~2 s. Fundo desfocado é borrado em miniatura (136x240) e
+  ampliado de volta, em vez de `boxblur=42` em cada quadro.
+- A cartela final entra DEPOIS da última fala: a base ganha `tpad=stop_mode=clone` e o som leva `apad` (com
+  `-shortest` o vídeo acabava junto com a narração e a chamada de compra sumia).
+- Um `shop.py` por vez (`trava_rodada`, `.shop_rodando`). Link que não vira vídeo sai da lista com o MOTIVO em
+  `produtos_falhos.txt` → painel: "⚠ Produtos que NÃO viraram vídeo".
+
 ## HISTÓRIAS EM SÉRIE — reels em que o público escolhe a continuação (22/out)
 
 Formato medido nos virais de out/2026 (Histórias com Kaio 308k, Manual do Benji 372k, Tio do Fim, Insólito, Contos de

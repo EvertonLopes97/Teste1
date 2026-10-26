@@ -34,6 +34,7 @@ sys.path.insert(0, str(AQUI))
 import edicao as EDI  # noqa: E402
 import canais as CAN  # noqa: E402
 import historias_painel as HIS  # noqa: E402
+import shop_painel as SHP  # noqa: E402
 
 VIDEO_EXT = P.VIDEO_EXT
 REELS = None  # pasta dos reels (E:\DETTO\reels)
@@ -273,6 +274,7 @@ def estado_painel():
         "agora": dt.datetime.now().strftime("%d/%m %H:%M"),
         "canais": CAN.estado(),
         "historias": HIS.estado(),
+        "shop": SHP.estado(),
         "claude": claude_estado(),
         "codigo_novo": codigo_novo(),
         "versao": PAINEL_VERSAO,
@@ -283,7 +285,7 @@ SUBIU_EM = time.time()
 # Versão do PYTHON que está rodando. O painel.html é lido do disco a cada acesso, então depois de um `git pull` o
 # navegador recebe a tela NOVA enquanto o Python continua o VELHO (foi o que aconteceu: a aba Histórias apareceu
 # vazia e o Instagram continuou no caminho antigo). A tela compara esta versão com a dela e avisa.
-PAINEL_VERSAO = "2026-10-26b"
+PAINEL_VERSAO = "2026-10-26c"
 
 
 def codigo_novo():
@@ -371,6 +373,8 @@ def acao(nome, d):
         return CAN.acao(nome, d)
     if nome.startswith("hist_"):
         return HIS.acao(nome, d)
+    if nome.startswith("shop_"):
+        return SHP.acao(nome, d)
     if nome == "reiniciar":
         # fecha o painel; quem abriu pelo atalho/tarefa do Windows sobe de novo sozinho
         P.log("painel: reiniciando para pegar o código novo")
@@ -876,6 +880,8 @@ class Painel(hserver.BaseHTTPRequestHandler):
             if caminho == "/historia":
                 return self._manda(HIS.arquivo(q.get("s", ""), q.get("a") or q.get("nome", "episodio.mp4")),
                                    baixar=q.get("baixar") == "1")
+            if u.path == "/shop_arquivo":
+                return self._manda(SHP.arquivo(q.get("nome", ""), q.get("dia", "")), baixar=q.get("baixar") == "1")
             if u.path == "/ed_arquivo":
                 return self._manda(EDI.arquivo(q.get("id", ""), q.get("rel", "")), baixar=q.get("baixar") == "1")
             self._json({"erro": "não achei"}, 404)

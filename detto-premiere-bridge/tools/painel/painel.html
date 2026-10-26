@@ -182,6 +182,7 @@ section.aba.on{display:block}
     <button data-aba="reels">Reels automáticos</button>
     <button data-aba="canais">Canais<span class="bolha" id="bCan" style="display:none"></span></button>
     <button data-aba="historias">Histórias</button>
+    <button data-aba="shop">TikTok Shop</button>
     <button data-aba="config">Configurações</button>
   </nav>
 </header>
@@ -339,6 +340,12 @@ section.aba.on{display:block}
   <div class="duas" id="hisCards"></div>
   </section>
 
+  <section class="aba" id="aba-shop">
+  <h2>TikTok Shop <small style="opacity:.6;font-weight:400">— vídeo de produto pronto para a vitrine</small></h2>
+  <div id="shopTopo"></div>
+  <div class="duas" id="shopCards"></div>
+  </section>
+
   <section class="aba" id="aba-config">
   <h2>Configurações</h2>
   <div class="card">
@@ -460,7 +467,7 @@ function desenha(){
   // mantém aberto o que você abriu (o painel se redesenha a cada 8 s)
   const abertos = {}; document.querySelectorAll("details[data-d]").forEach(d => abertos[d.dataset.d] = d.open);
   const rolagem = [...document.querySelectorAll(".fila")].map(f => f.scrollTop);
-  avisos(); destinos(); contas(); reels(); configs(); edicao(); canais(); historias();
+  avisos(); destinos(); contas(); reels(); configs(); edicao(); canais(); historias(); shop();
   document.querySelectorAll("details[data-d]").forEach(d => { if(d.dataset.d in abertos) d.open = abertos[d.dataset.d]; });
   document.querySelectorAll(".fila").forEach((f, i) => f.scrollTop = rolagem[i] || 0);
   const lg = $("#log"), fim = lg.scrollTop + lg.clientHeight >= lg.scrollHeight - 10;
@@ -507,7 +514,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-10-26b";
+const VERSAO_TELA = "2026-10-26c";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -794,6 +801,69 @@ $("#btLinkJa").onclick = async () => {
 $("#btReels").onclick = async () => { await api("reels_gerar", {quantos: +$("#quantos").value}); toast("Começou — pode demorar alguns minutos por reel"); carrega(true); };
 $("#btReelsParar").onclick = async () => { await api("reels_parar"); carrega(true); };
 
+
+/* ------------------------------------------------------------ TikTok Shop */
+function shop(){
+  const S = E.shop; if(!S) return;
+  const modos = [["ia","Fotos/vídeos do produto + voz IA"],["eu","A minha gravação + fotos"],["vendedor","Reaproveitar o vídeo do vendedor"]];
+  const selModo = (id, v) => `<select id="${id}">${modos.map(m => `<option value="${m[0]}"${(v||S.modo)===m[0]?" selected":""}>${m[1]}</option>`).join("")}</select>`;
+  $("#shopTopo").innerHTML = `<div class="card" style="margin-bottom:14px">
+    <div class="linha" style="align-items:flex-start">
+      <div style="flex:1;min-width:300px">
+        <b>1. Colar links de produto</b>
+        <small style="display:block;opacity:.7;margin:4px 0 6px">Link do TikTok Shop ou do vídeo do produto, um por linha. Cada um vira um vídeo.</small>
+        <textarea id="shopLinks" rows="3" placeholder="https://..." style="width:100%"></textarea>
+        <div class="linha" style="margin-top:6px">
+          <button class="mini" onclick="shopColar()">Pôr na lista</button>
+          <button class="mini" onclick="api('shop_fazer',{so_links:1,modo:$('#shopModo').value}).then(()=>carrega(true))" ${S.rodando?"disabled":""}>▶ Fazer os links (${S.n_links})</button>
+          ${selModo("shopModo")}
+        </div>
+      </div>
+      <div style="flex:1;min-width:280px">
+        <b>3. Achar o que está vendendo</b>
+        <small style="display:block;opacity:.7;margin:4px 0 6px">Ele procura os vídeos de Shop que mais bombaram na categoria e a IA diz qual é o produto.</small>
+        <div class="linha">
+          <input type="text" id="shopCat" list="shopCats" placeholder="ex.: cozinha" style="flex:1">
+          <datalist id="shopCats">${(S.categorias||[]).map(c => `<option value="${esc(c)}">`).join("")}</datalist>
+          <input type="number" id="shopQtd" value="1" min="1" max="5" style="width:70px">
+          <button class="mini" onclick="api('shop_fazer',{categoria:$('#shopCat').value,quantos:+$('#shopQtd').value,modo:'vendedor'}).then(()=>carrega(true))" ${S.rodando?"disabled":""}>🔎 Procurar e fazer</button>
+        </div>
+      </div>
+    </div>
+    ${S.rodando ? `<div class="info">⏳ fazendo: <b>${esc(S.o_que)}</b> <button class="mini" onclick="api('shop_parar').then(()=>carrega(true))">Parar</button></div>` : ""}
+    ${S.log && S.log.length ? `<details data-d="shop-log"${S.rodando?" open":""}><summary>Registro</summary><pre class="log">${S.log.map(esc).join("\n")}</pre></details>` : ""}
+    ${S.falhos && S.falhos.length ? `<details data-d="shop-falhos" open><summary>⚠ Produtos que NÃO viraram vídeo (${S.falhos.length})</summary><div class="lista">${S.falhos.map(f => `<div class="l"><span>${esc(f.quando)} · ${esc(f.url)}<br><small>${esc(f.motivo)}</small></span></div>`).join("")}</div></details>` : ""}
+  </div>`;
+
+  const prod = `<div class="card">
+    <b>2. Produtos que chegaram em casa</b>
+    <small style="display:block;opacity:.7;margin:4px 0 8px">Pasta <code>${esc(S.pasta)}\\produtos\\&lt;nome&gt;\\</code> com as fotos/vídeos e um <code>produto.json</code> ({"nome","preco","link","sobre"}). A gravação com "eu" ou "review" no nome vira o modo <b>eu</b>.</small>
+    ${(S.produtos||[]).length ? (S.produtos||[]).map(p => `<div class="l">
+      <span><b>${esc(p.nome)}</b> ${p.preco?`· R$ ${esc(p.preco)}`:""} <small style="opacity:.7">${p.fotos} foto(s), ${p.videos} vídeo(s)${p.feito?` · feito em ${esc(p.feito)}`:""}</small></span>
+      <span>${p.feito?`<button class="mini" onclick="api('shop_refazer',{produto:'${esc(p.pasta)}'}).then(()=>carrega(true))">Marcar para refazer</button>`:""}
+      <button class="mini" onclick="api('shop_fazer',{produto:'${esc(p.pasta)}',modo:$('#shopModo').value}).then(()=>carrega(true))" ${S.rodando?"disabled":""}>▶ Fazer</button></span>
+    </div>`).join("") : `<div class="info">Nenhuma pasta de produto ainda.</div>`}
+  </div>`;
+
+  const prontos = `<div class="card">
+    <b>Prontos de hoje</b>
+    ${(S.prontos||[]).length ? (S.prontos||[]).map(v => `<div class="l">
+      <span>${esc(v.nome)}</span>
+      <span><a class="mini" href="/shop_arquivo?nome=${encodeURIComponent(v.nome)}&dia=${esc(v.dia)}" target="_blank">Assistir</a>
+      <a class="mini" href="/shop_arquivo?nome=${encodeURIComponent(v.nome)}&dia=${esc(v.dia)}&baixar=1">Baixar</a></span>
+    </div>`).join("") : `<div class="info">Nada hoje ainda. Cada vídeo pronto já entra na fila de postagem.</div>`}
+    <div class="linha" style="margin-top:10px">
+      <label>Duração alvo</label><input type="number" id="shopDur" value="${S.duracao}" min="15" max="90" style="width:80px">
+      <label>CTA</label><input type="text" id="shopCta" value="${esc(S.cta)}" style="flex:1;min-width:160px">
+      <button class="mini" onclick="api('shop_cfg',{duracao:+$('#shopDur').value,cta:$('#shopCta').value,modo:$('#shopModo').value}).then(()=>toast('salvo'))">Salvar</button>
+    </div>
+  </div>`;
+  $("#shopCards").innerHTML = prod + prontos;
+}
+async function shopColar(){
+  const r = await api("shop_links", {links: $("#shopLinks").value});
+  if(r && r.ok){ $("#shopLinks").value = ""; toast(r.n + " link(s) na lista"); carrega(true); }
+}
 
 /* ------------------------------------------------------------ histórias em série */
 function historias(){
