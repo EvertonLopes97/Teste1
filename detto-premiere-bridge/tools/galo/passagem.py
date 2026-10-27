@@ -548,14 +548,36 @@ def main():
         sem = [f"{n[1]} {n[0]}" for n in notas if n not in disp]
         if sem:
             print("Sem foto no banco (pulados):", ", ".join(sem))
+        if not disp:
+            # SofaScore sem notas (403 no PC dele, jogo não achado, partida sem escalação): em vez de deixar
+            # todo mundo sem nome e estourar um KeyError lá na frente, escala o ELENCO do banco, sem nota.
+            fotos = [p for p in sorted((galo.BANCO / "elenco").glob("*.*"))
+                     if p.suffix.lower() in (".png", ".webp", ".jpg", ".jpeg") and not p.name.startswith(".")]
+            disp = [(None, p.stem.replace("-", " ").title(), "") for p in fotos]
+            if disp:
+                print(f"Sem notas do SofaScore — escalando {len(disp)} jogador(es) do banco local, sem nota.")
+        if not disp:
+            raise SystemExit(
+                "Não tenho jogador nenhum para a passagem.\n"
+                "   O SofaScore não devolveu as notas (ele dá 403 neste PC) e o banco de fotos está vazio.\n"
+                "   RESOLVE DE UM DOS DOIS JEITOS:\n"
+                "   1) python tools\\galo\\elenco_site.py   (baixa as fotos do elenco do site oficial)\n"
+                '   2) ponha os nomes no jogo.json: "jogadores": ["Hulk", "Everson", "Arana"]')
         apanham = [j for j in faltam if any(a[0] == "bate" for a in j["acoes"])]
         poupados = [j for j in faltam if j not in apanham]
         # o último a apanhar (e quem apanha mais) leva as piores notas
         ordem = sorted(apanham, key=lambda j: (dor(j), j["entra"]), reverse=True)
-        for j, n in zip(ordem, disp):
+        for k, j in enumerate(ordem):          # roda a lista: mais passagens que jogadores não deixa ninguém sem nome
+            n = disp[k % len(disp)]
             j["jogador"], j["nota"] = n[1], n[0]
-        for j, n in zip(poupados, disp[::-1]):
+        for k, j in enumerate(poupados):
+            n = disp[::-1][k % len(disp)]
             j["jogador"], j["nota"] = n[1], n[0]
+    # cinto de segurança: ninguém sai daqui sem nome (era o KeyError 'jogador' lá embaixo)
+    orfas = [j for j in roteiro if not j.get("jogador")]
+    if orfas:
+        raise SystemExit(f"{len(orfas)} passagem(ns) ficaram sem jogador — ponha os nomes no jogo.json "
+                         '("jogadores": ["Hulk", "Everson"]) e rode de novo.')
     arq_rot.write_text(json.dumps(roteiro, ensure_ascii=False, indent=1), encoding="utf-8")
 
     imgs = []

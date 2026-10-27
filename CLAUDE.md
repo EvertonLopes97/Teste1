@@ -635,6 +635,12 @@ entrando e saindo ao lado dele. Sem trilha (ele coloca a música no app).
   (quem já saiu vem de FORA da imagem para dentro, no ritmo da mão; nunca aparece direto na mão)
   e ele FICA onde você soltou, batida fraca = meio corpo, forte = só a cabecinha, agarrar e jogar = sai voando.
 - Notas do SofaScore: quem apanha mais e por último = pior nota; quem passa ou ganha carinho = melhores.
+  SEM NOTAS (27/out): o SofaScore dá 403 no PC dele, então `notas` vinha vazio, NINGUÉM era escalado e o erro
+  saía como `KeyError: 'jogador'` lá no render. Agora cai no ELENCO DO BANCO (`banco\elenco`, só .png/.webp/.jpg —
+  o `.gitkeep` virava "jogador"), sem nota; a escalação RODA a lista (`k % len`) em vez de `zip`, que deixava
+  passagem sem nome quando havia mais gestos que jogadores; e um cinto de segurança no fim manda pôr
+  `"jogadores": [...]` no jogo.json se ainda sobrar alguém sem nome. Banco vazio = mensagem dizendo para rodar
+  `elenco_site.py` ou pôr os nomes no jogo.json.
 - Fotos: `tools\galo\banco\elenco` (site oficial, sem fundo). Atualizar: `python tools\galo\elenco_site.py`.
 - Sem placar (padrão; `"com_placar": true` liga). Corta do 1º jogador entrando até o último sair.
 - Gestos lidos ficam em `<video>.roteiro.json`; corrija ali e rode de novo. Áudio da gravação sem tratamento.
