@@ -228,8 +228,11 @@ def estado_painel():
             "teste_sem_vaga": P.vaga_de_teste(c_, BASE, c, est, k)[0],
             "teste_libera": (lambda q: q.strftime("%d/%m %H:%M") if q else "")(P.vaga_de_teste(c_, BASE, c, est, k)[1]),
             "teste_normal": P.cai_para_normal(c_, c) if P.ig_e_teste(c_, c) else False,
-            "teste_pasta": str(pasta_teste(c)) if P.ig_e_teste(c_, c) else "",
+            "teste_pasta": str(P.pasta_celular(BASE, c)) if P.ig_e_teste(c_, c) else "",
             "teste_preparados": len(P.le_json(arq_teste_preparados(c), [])) if P.ig_e_teste(c_, c) else 0,
+            # vídeos que a API não conseguiu postar e já estão na pasta do Drive esperando você postar
+            "celular": [{"nome": n, **(v if isinstance(v, dict) else {})}
+                        for n, v in sorted((est.get(k, {}).get("celular") or {}).items())],
             "testes": testes_de(c) if c["plataforma"] == "instagram" else [],
             "intervalo_min": c.get("intervalo_min", 80), "horas": c.get("horas", "08-23"), "max_dia": c.get("max_dia", 0),
             "login": (BASE / "tokens" / f"{c['plataforma']}_{c['conta']}.json").exists(),
@@ -287,7 +290,7 @@ SUBIU_EM = time.time()
 # Versão do PYTHON que está rodando. O painel.html é lido do disco a cada acesso, então depois de um `git pull` o
 # navegador recebe a tela NOVA enquanto o Python continua o VELHO (foi o que aconteceu: a aba Histórias apareceu
 # vazia e o Instagram continuou no caminho antigo). A tela compara esta versão com a dela e avisa.
-PAINEL_VERSAO = "2026-10-26d"
+PAINEL_VERSAO = "2026-10-26e"
 
 
 def codigo_novo():
@@ -610,6 +613,12 @@ def acao(nome, d):
         return prepara_teste(conta_de(d["k"]), int(d.get("quantos") or 0))
     elif nome == "teste_postei":
         return teste_postei(conta_de(d["k"]), d.get("nomes"))
+    elif nome == "celular_postei":
+        # você baixou do Drive e postou como Reel de teste pelo app
+        return celular_postei(conta_de(d["k"]), d.get("nomes"))
+    elif nome == "celular_devolver":
+        # mudou de ideia: o vídeo volta para a fila da API
+        return celular_devolver(conta_de(d["k"]), d.get("nomes"))
     elif nome == "studio_preparar":
         return prepara_studio(conta_de(d["k"]), int(d.get("quantos") or 0))
     elif nome == "teste_marca":
@@ -738,6 +747,58 @@ def teste_postei(c, nomes=None):
                 pass
     arq_teste_preparados(c).unlink(missing_ok=True)
     return {"ok": True, "feitos": feitos}
+
+
+def celular_postei(c, nomes=None):
+    """você postou pelo celular: o vídeo sai da espera e entra em postados como teste feito no app
+    (via=app, que NÃO gasta o limite da API). Também limpa a cópia da pasta do Drive."""
+    k = P.chave(c)
+    est = P.le_estado(BASE)
+    espera = est.get(k, {}).get("celular") or {}
+    pedidos = [nome_seguro(n) for n in (nomes or [])] or list(espera)
+    destino = BASE / "postados" / k
+    destino.mkdir(parents=True, exist_ok=True)
+    feitos = 0
+    for n in pedidos:
+        if n not in espera:
+            continue
+        v = BASE / "celular" / k / n
+        for f in (v, v.with_suffix(".txt")):
+            if f.exists():
+                shutil.move(str(f), str(destino / f.name))
+        P.grava_json(destino / f"{Path(n).stem}.json", {
+            "quando": dt.datetime.now().isoformat(timespec="seconds"), "video": n,
+            "teste": True, "via": "app", "graduar": c.get("graduar", "manual"), "link": ""})
+        d_ = Path(espera[n].get("pasta") or P.pasta_celular(BASE, c))
+        for f in (d_ / n, (d_ / n).with_suffix(".txt")):
+            f.unlink(missing_ok=True)
+        feitos += 1
+    P.muda_estado(BASE, lambda e: [e.setdefault(k, {}).setdefault("celular", {}).pop(n, None) for n in pedidos])
+    return {"ok": True, "feitos": feitos}
+
+
+def celular_devolver(c, nomes=None):
+    """devolve para a fila da API os vídeos que estavam esperando você postar pelo celular"""
+    k = P.chave(c)
+    est = P.le_estado(BASE)
+    espera = est.get(k, {}).get("celular") or {}
+    pedidos = [nome_seguro(n) for n in (nomes or [])] or list(espera)
+    fila = BASE / "entrada" / k
+    fila.mkdir(parents=True, exist_ok=True)
+    n_ = 0
+    for n in pedidos:
+        v = BASE / "celular" / k / n
+        if not v.exists():
+            continue
+        for f in (v, v.with_suffix(".txt")):
+            if f.exists():
+                shutil.move(str(f), str(fila / f.name))
+        d_ = Path((espera.get(n) or {}).get("pasta") or P.pasta_celular(BASE, c))
+        for f in (d_ / n, (d_ / n).with_suffix(".txt")):
+            f.unlink(missing_ok=True)
+        n_ += 1
+    P.muda_estado(BASE, lambda e: [e.setdefault(k, {}).setdefault("celular", {}).pop(n, None) for n in pedidos])
+    return {"ok": True, "n": n_}
 
 
 def pasta_studio(c):

@@ -146,8 +146,16 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   padrão desde 26/out**: subir como normal mandava o vídeo para a página principal, para todos os seguidores, que é o
   contrário do teste que ele quer (`"teste_cai_para_normal": true` na conta liga; painel: "Sem vaga, subir como reels
   normal").
+  NÃO DEU PELA API → VAI SOZINHO PARA O DRIVE (26/out, `manda_para_celular`, padrão LIGADO): sem vaga de teste, ou
+  depois de 4 tentativas de envio falhas, o vídeo é COPIADO para `Meu Drive\DETTO\reels_teste\<conta>` junto com um
+  `.txt` com a LEGENDA E AS TAGS (sem a parte depois do "---") e o passo a passo; sai da fila (vai para
+  `postar\celular\<conta>\`, não se perde) e fica em `estado[k]["celular"]`. O painel AVISA no topo ("📱 N vídeo(s)
+  na pasta do Drive esperando você postar") e o card da conta lista cada um com **"✔ Postei"** (`celular_postei`:
+  entra em postados com `via: app`, que não gasta vaga da API, e apaga a cópia do Drive) e **"↩ fila"**
+  (`celular_devolver`, volta para a API). `"teste_para_celular": false` desliga. Vídeo que o FFmpeg não lê continua
+  indo para falhas\ — esse está estragado mesmo.
   OS 10 POR DIA SÃO DO APP, NÃO DA API (26/out): o limite do 2207078 é só do que sobe pela Content Publishing API e é
-  pequeno; no app do Instagram ele consegue os 10. Então o painel tem **"Preparar pasta do Reels TESTE"**
+  pequeno; no app do Instagram ele consegue os 10. O painel também tem **"Preparar pasta do Reels TESTE"**
   (`prepara_teste`): os próximos 10 da fila vão para `Meu Drive\DETTO\reels_teste\<conta>` (sem Drive, em
   `postar\reels_teste\`) com LEGENDAS.txt explicando o caminho no celular (Drive → Enviar cópia → Instagram → Reels →
   ligar "Reel de teste") e o botão **"Postei os da pasta"** (`teste_postei`) tira da fila e grava em postados com

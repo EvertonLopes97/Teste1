@@ -497,6 +497,8 @@ function avisos(){
   const sem = E.contas.filter(c => !c.login && !c.studio).map(nomeConta);
   if(sem.length) a.push("Sem login: " + sem.join(", ") + ".");
   if(E.disco_pouco) a.push("Pouco espaço no disco (" + E.disco + ").");
+  const noCel = E.contas.flatMap(c => (c.celular || []).map(x => ({...x, k: c.k})));
+  if(noCel.length) a.push("📱 " + noCel.length + " vídeo(s) na pasta do Drive esperando você postar como Reel de teste pelo celular.");
   // Esta TELA vem do disco (sempre nova); o PYTHON fica em memória. Versões diferentes = precisa reiniciar.
   if(E.versao !== VERSAO_TELA){
     $("#avisos").innerHTML = `<div class="aviso" style="background:#3a1410;border-color:#8c2f22">
@@ -514,7 +516,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-10-26d";
+const VERSAO_TELA = "2026-10-26e";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -631,6 +633,13 @@ function contas(){
           ${c.teste_preparados ? `<button class="mini" onclick="if(confirm('Você postou os ${c.teste_preparados} da pasta como Reel de teste pelo app?')) api('teste_postei',{k:'${esc(c.k)}'}).then(r=>{toast((r.feitos||0)+' marcados como postados');carrega(true)})">✔ Postei os ${c.teste_preparados} da pasta</button>` : ""}
           <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" ${c.teste_normal?"checked":""} onchange="regra(${ci},{teste_cai_para_normal:this.checked})"> Sem vaga, subir como reels normal</label>
         </div>
+        ${(c.celular || []).length ? `<details class="teste" data-d="${c.k}-cel" open><summary>📱 Esperando você postar pelo celular (${c.celular.length})</summary>
+          <div class="info">A API não conseguiu postar como Reels teste, então o vídeo já está no Drive <b>com a legenda</b>: <code>${esc(c.teste_pasta)}</code>.<br>
+          No celular: app do Drive → ⋮ → Enviar cópia → Instagram → Reels → ligue <b>"Reel de teste"</b> → Compartilhar.</div>
+          <div class="lista">${c.celular.map(x => `<div class="l"><span>${esc(x.nome)}<br><small style="opacity:.7">${esc(x.quando || "")} · ${esc(x.motivo || "")}</small></span>
+            <span><button class="mini pri" onclick="api('celular_postei',{k:'${esc(c.k)}',nomes:['${esc(x.nome)}']}).then(()=>carrega(true))">✔ Postei</button>
+            <button class="mini" title="Devolver para a fila da API" onclick="api('celular_devolver',{k:'${esc(c.k)}',nomes:['${esc(x.nome)}']}).then(()=>carrega(true))">↩ fila</button></span></div>`).join("")}</div>
+          <div class="linha"><button class="mini" onclick="if(confirm('Postou TODOS os ${c.celular.length} pelo celular?')) api('celular_postei',{k:'${esc(c.k)}'}).then(()=>carrega(true))">✔ Postei todos</button></div></details>` : ""}
         ${c.teste_preparados ? `<div class="info">Pasta: <code>${esc(c.teste_pasta)}</code> — no celular, app do Drive → ⋮ → Enviar cópia → Instagram → Reels → ligue <b>“Reel de teste”</b>.</div>` : ""}` : ""}
       </div>`;
       extra += `<div class="teste">

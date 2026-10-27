@@ -1063,6 +1063,72 @@ def sem_vaga_de_teste(base, k, estado):
     return libera
 
 
+def drive_raiz():
+    """onde está o Google Drive para computador (o mesmo caminho que o painel usa)"""
+    cands = []
+    for letra in "GHIJKFE":
+        for nome in ("Meu Drive", "My Drive"):
+            cands.append(f"{letra}:/{nome}")
+    cands += [str(Path.home() / "Google Drive"), str(Path.home() / "Meu Drive")]
+    for c in cands:
+        if Path(c).is_dir():
+            return Path(c)
+    return None
+
+
+def pasta_celular(base, c):
+    """a pasta de onde VOCÊ baixa no celular e posta como Reels teste. No Drive (aparece no app do celular);
+    sem Drive, fica no PC."""
+    raiz = drive_raiz()
+    return (raiz / "DETTO" / "reels_teste" / c["conta"]) if raiz else (Path(base) / "reels_teste" / c["conta"])
+
+
+def manda_para_celular(cfg, base, c, video, estado, motivo=""):
+    """a API não deu conta do Reels TESTE: o vídeo vai para a pasta do Drive COM A LEGENDA e você posta pelo
+    celular (onde o limite é bem maior). Sai da fila para não ficar tentando à toa; o painel avisa."""
+    k = chave(c)
+    base = Path(base)
+    pasta = pasta_celular(base, c)
+    pasta.mkdir(parents=True, exist_ok=True)
+    alvo = pasta / video.name
+    try:
+        shutil.copyfile(video, alvo)   # cópia: o Drive sobe o arquivo; o original sai da fila logo abaixo
+    except OSError as e:
+        log(f"{k}: não consegui copiar para a pasta do celular ({e}) — {video.name} fica na fila")
+        return None
+    leg = legenda_de(video).split("\n---")[0].strip()
+    (pasta / f"{video.stem}.txt").write_text(
+        f"{leg}\n\n--- como postar ---\n"
+        f"No celular: app do Drive → abra este vídeo → ⋮ → Enviar cópia → Instagram → Reels →\n"
+        f"cole a legenda acima → na tela de compartilhar, ligue \"Reel de teste\" → Compartilhar.\n"
+        f"Depois, no painel: \"✔ Postei\".\n", encoding="utf-8")
+    # sai da fila e fica registrado como "esperando você postar pelo celular"
+    espera = base / "celular" / k
+    espera.mkdir(parents=True, exist_ok=True)
+    for f in (video, video.with_suffix(".txt")):
+        if f.exists():
+            shutil.move(str(f), str(espera / f.name))
+
+    def aplica(e):
+        d = e.setdefault(k, {}).setdefault("celular", {})
+        d[video.name] = {"quando": dt.datetime.now().isoformat(timespec="minutes"), "motivo": motivo,
+                         "pasta": str(pasta)}
+    muda_estado(base, aplica)
+    estado.update(le_estado(base))
+    log(f"{k}: {video.name} foi para a PASTA DO CELULAR ({pasta}) com a legenda — {motivo or 'a API não aceitou o Reels teste'}. "
+        f"Baixe pelo app do Drive e poste como Reel de teste; depois marque \"Postei\" no painel.")
+    return alvo
+
+
+def vai_para_celular(cfg, c):
+    """sem vaga de teste, o vídeo vai sozinho para a pasta do Drive (padrão LIGADO — ele pediu assim).
+    Desligar: "teste_para_celular": false na conta ou no config do Instagram."""
+    v = c.get("teste_para_celular")
+    if v is None:
+        v = cfg.get("instagram", {}).get("teste_para_celular")
+    return True if v is None else bool(v)
+
+
 def cai_para_normal(cfg, c):
     """sem vaga de teste, o vídeo sobe como reels NORMAL? PADRÃO: NÃO (26/out). Ele quer tudo em Reels TESTE —
     subir como normal mandava o vídeo para a página principal, para todos os seguidores, que é o contrário do
@@ -1297,9 +1363,13 @@ def posta_da_fila(cfg, base, c, video, estado, forcar=False):
             if cai_para_normal(cfg, c):
                 como_teste = False
                 log(f"{k}: sem vaga de Reels teste — {motivo}{quando}. {video.name} vai como reels NORMAL.")
+            elif vai_para_celular(cfg, c):
+                log(f"{k}: sem vaga de Reels teste — {motivo}{quando}.")
+                manda_para_celular(cfg, base, c, video, estado, f"sem vaga na API{quando}")
+                return None
             else:
                 log(f"{k}: sem vaga de Reels teste — {motivo}{quando}. {video.name} espera na fila "
-                    f'(para subir como normal: "teste_cai_para_normal": true)')
+                    f'(para ir à pasta do celular: "teste_para_celular": true)')
                 return None
     log(f"{k}: postando {video.name}" + (" (Reels teste)" if como_teste else ""))
     if como_teste:
@@ -1319,9 +1389,13 @@ def posta_da_fila(cfg, base, c, video, estado, forcar=False):
                 pausa_conta(base, estado, k, 10 * 60, "sem vaga de Reels teste (tento como normal já)")
                 ativos = testes_ativos(base, k)
                 log(f"{k}: o Instagram não aceitou mais um Reels TESTE (já tem {len(ativos)} ativo(s) na janela de "
-                    f"{TESTE_JANELA_H} h; a vaga abre {libera:%d/%m %H:%M}). NÃO é bloqueio da conta e não conta "
-                    f"erro — {video.name} " + ("sobe como reels NORMAL na próxima rodada (10 min)."
-                                               if cai_para_normal(cfg, c) else "espera a vaga na fila."))
+                    f"{TESTE_JANELA_H} h; a vaga abre {libera:%d/%m %H:%M}). NÃO é bloqueio da conta e não conta erro.")
+                if not cai_para_normal(cfg, c) and vai_para_celular(cfg, c):
+                    manda_para_celular(cfg, base, c, video, estado,
+                                       f"a API recusou (2207078); a vaga abre {libera:%d/%m %H:%M}")
+                else:
+                    log(f"{k}: {video.name} " + ("sobe como reels NORMAL na próxima rodada (10 min)."
+                                                 if cai_para_normal(cfg, c) else "espera a vaga na fila."))
                 return None
             horas = float(cfg.get("instagram", {}).get("pausa_bloqueio_h") or 24)
             pausa_conta(base, estado, k, horas * 3600, 'bloqueio de "muitas ações"')
@@ -1365,6 +1439,13 @@ def posta_da_fila(cfg, base, c, video, estado, forcar=False):
         espera = [15, 45, 120][min(n, 3) - 1]
         estado[k].setdefault("espera", {})[video.name] = time.time() + espera * 60
         log(f"{k}: ERRO ({n}/4): {e}" + (f" — tento de novo em {espera} min" if n < 4 else ""))
+        if n >= 4 and not isinstance(e, VideoQuebrado) and como_teste and vai_para_celular(cfg, c):
+            # o VÍDEO está bom — quem falhou foi o envio. Em vez de falhas\, vai para a pasta do celular.
+            falhas.pop(video.name, None)
+            quando.pop(video.name, None)
+            grava_json(base / "estado.json", estado)
+            manda_para_celular(cfg, base, c, video, estado, f"4 tentativas de envio falharam ({str(e)[:90]})")
+            return None
         if n >= 4:
             for f in [video, video.with_suffix(".txt")]:
                 if f.exists():
