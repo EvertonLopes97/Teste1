@@ -39,7 +39,16 @@ FPS_SAIDA = 30
 def carregar_movimento(video):
     arq = Path(str(video) + ".movimento.json")
     if not arq.exists():
-        subprocess.run([sys.executable, str(AQUI / "rastrear.py"), str(video), str(arq)], check=True)
+        # o rastrear.py morrendo deixava só "CalledProcessError" na tela e o MOTIVO (que ele imprime) sumia:
+        # agora a saída dele aparece e a última linha útil vai junto no erro, que é o que o painel mostra.
+        r = subprocess.run([sys.executable, str(AQUI / "rastrear.py"), str(video), str(arq)],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+        saida = (r.stdout or "") + (r.stderr or "")
+        print(saida.rstrip(), flush=True)
+        if r.returncode != 0 or not arq.exists():
+            linhas = [l.strip() for l in saida.splitlines() if l.strip()]
+            motivo = next((l for l in reversed(linhas) if l.startswith("ERRO:")), linhas[-1] if linhas else "")
+            raise RuntimeError(f"não consegui ler os seus gestos na gravação. {motivo[:400]}")
     return json.loads(arq.read_text(encoding="utf-8"))
 
 

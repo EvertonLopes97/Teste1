@@ -638,6 +638,14 @@ entrando e saindo ao lado dele. Sem trilha (ele coloca a música no app).
 - Fotos: `tools\galo\banco\elenco` (site oficial, sem fundo). Atualizar: `python tools\galo\elenco_site.py`.
 - Sem placar (padrão; `"com_placar": true` liga). Corta do 1º jogador entrando até o último sair.
 - Gestos lidos ficam em `<video>.roteiro.json`; corrija ali e rode de novo. Áudio da gravação sem tratamento.
+- QUANDO O RASTREIO FALHA (27/out): o `rastrear.py` morria e só sobrava `CalledProcessError` com o grafo do
+  MediaPipe despejado na tela — o motivo sumia. Agora `erro()` escreve "ERRO: <motivo>" e o `carregar_movimento`
+  mostra a saída do filho e leva a última linha "ERRO:" para a mensagem (que o painel exibe). Defesas:
+  `garante_modelo` confere o tamanho do `pose_landmarker_full.task` (~9,4 MB; <5 MB = baixa de novo para um
+  `.baixando` e só então renomeia — download interrompido deixava um arquivo quebrado); `abre_detector` tenta
+  VIDEO e, falhando, o modo IMAGE (mais compatível com mediapipe antigo), dizendo o erro de cada um; vídeo que o
+  OpenCV não abre, fps de metadado estragado (fora de 1–240 vira 30), relógio do MediaPipe sempre crescente, e
+  **nenhuma pessoa achada NÃO grava o movimento.json** (o cache fazia a rodada seguinte "funcionar" com nada dentro).
 
 ## DETTO REAGE — vídeos de react
 
