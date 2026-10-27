@@ -574,6 +574,25 @@ def thumbs_depois(p, log=print):
     log(f"edição {p.name}: fazendo as thumbs")
 
 
+# linhas do registro que NÃO explicam nada (barra de progresso do ffmpeg, avisos soltos)
+_RUIDO = re.compile(r"^(frame=|size=|\[|Press \[q\]|\s*$|Aviso:)", re.I)
+_ERRO = re.compile(r"erro|error|exception|traceback|not found|no such|falh|não achei|não consegui|sys\.exit|"
+                   r"espaço|space left|permission|recusad|invalid|inválid", re.I)
+
+
+def motivo_do_erro(p, codigo):
+    """o POR QUÊ, tirado do registro do job — o painel só dizia "veja o registro" e você ficava sem saber"""
+    f = Path(p) / "painel_log.txt"
+    try:
+        linhas = [l.strip() for l in f.read_text(encoding="utf-8", errors="replace").splitlines() if l.strip()]
+    except OSError:
+        linhas = []
+    uteis = [l for l in linhas[-120:] if not _RUIDO.match(l)]
+    achou = [l for l in uteis if _ERRO.search(l)]
+    motivo = (achou[-1] if achou else (uteis[-1] if uteis else ""))[:300]
+    return (f"a edição parou (código {codigo})" + (f": {motivo}" if motivo else " — veja o registro"))
+
+
 OCUPADO = lambda: False  # noqa: E731  (o painel troca: um canal montando = a próxima edição espera)
 
 
@@ -592,7 +611,7 @@ def laco(log=print, ao_terminar=None):
                 if p.exists() and info(p).get("status") == "editando":
                     ok = pr.returncode == 0
                     muda_info(p, status="pronto" if ok else "erro", fim=time.time(),
-                              erro="" if ok else f"a edição parou com erro (código {pr.returncode}) — veja o registro")
+                              erro="" if ok else motivo_do_erro(p, pr.returncode))
                     shutil.rmtree(p / "galo_tmp", ignore_errors=True)
                     log(f"edição {p.name}: {'PRONTA' if ok else 'ERRO'}")
                     if ok:

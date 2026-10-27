@@ -129,6 +129,20 @@ def muda_estado(base, fn):
     return estado
 
 
+_JA_DISSE = {}
+
+
+def log_1x(chave_, msg, minutos=60):
+    """a MESMA mensagem só uma vez por hora. A fila confere a cada 5 min: "sem vaga de Reels teste" encheu
+    40 linhas iguais em 3 h no registro e escondeu o resto."""
+    agora = time.time()
+    if agora - _JA_DISSE.get(chave_, 0) < minutos * 60:
+        return False
+    _JA_DISSE[chave_] = agora
+    log(msg)
+    return True
+
+
 def pausa_conta(base, estado, k, segundos, motivo=""):
     """pausa a conta: grava relendo do disco (para não apagar o que outro processo escreveu) e deixa o motivo à
     vista no painel"""
@@ -1368,8 +1382,8 @@ def posta_da_fila(cfg, base, c, video, estado, forcar=False):
                 manda_para_celular(cfg, base, c, video, estado, f"sem vaga na API{quando}")
                 return None
             else:
-                log(f"{k}: sem vaga de Reels teste — {motivo}{quando}. {video.name} espera na fila "
-                    f'(para ir à pasta do celular: "teste_para_celular": true)')
+                log_1x(f"{k}-semvaga", f"{k}: sem vaga de Reels teste — {motivo}{quando}. {video.name} espera na "
+                       f'fila (para ir à pasta do celular: "teste_para_celular": true). Só aviso de novo daqui a 1 h.')
                 return None
     log(f"{k}: postando {video.name}" + (" (Reels teste)" if como_teste else ""))
     if como_teste:

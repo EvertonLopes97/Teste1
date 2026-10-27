@@ -118,7 +118,9 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   Aberto = posta sozinho (rodada a cada 5 min, trava `.postando` contra post duplo com a tarefa do Windows).
   Abas: Postagem | Edição | Reels automáticos | Configurações. EDIÇÃO (`tools\painel\edicao.py`): gravação (upload ou
   caminho no PC, hardlink; pelo caminho pega também o roteiro .txt/.docx e a pasta imagens\ ao LADO do vídeo — `junto_do_video`) + roteiro (.txt/.docx/colado) + imagens → `E:\DETTO\edicao\<data título>\` → roda o
-  `editar.py` (um por vez; `painel.json` = situação, `painel_log.txt` = registro); saídas para assistir/baixar/postar,
+  `editar.py` (um por vez; `painel.json` = situação, `painel_log.txt` = registro); edição que para mostra O MOTIVO no
+  painel (27/out, `motivo_do_erro`: a última linha do painel_log.txt que parece erro — "No space left on device",
+  FileNotFoundError, Traceback —, ignorando a barra do ffmpeg; antes era só "veja o registro"); saídas para assistir/baixar/postar,
   "Ajustar roteiro e refazer" (grava o roteiro.txt do job), vertical completo pode ir sozinho para a fila.
   Tipos de edição: roteiro (editar.py) | REELS com roteiro (editar.py --reels, 9:16) | galo (passagem.py, jogo.json
   com "jogo") | react (react.py, 3 vídeos) | vertical (vertical916.py); os não-roteiro saem em `<pasta>\saidas\`.
@@ -160,6 +162,7 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   `postar\reels_teste\`) com LEGENDAS.txt explicando o caminho no celular (Drive → Enviar cópia → Instagram → Reels →
   ligar "Reel de teste") e o botão **"Postei os da pasta"** (`teste_postei`) tira da fila e grava em postados com
   `"via": "app"` — e `testes_ativos` IGNORA os com `via: app`, porque eles não gastam o limite da API.
+  A MESMA mensagem da fila só sai 1x por hora (`log_1x`): "sem vaga de Reels teste" encheu 40 linhas iguais em 3 h.
   LIBERAR VAGA da API é marcar "Já mandei" (promovido) ou o X (ignorado) no reels teste da lista: enquanto ele não
   gradua no app, o teste fica ocupando vaga até os 72 h. `"graduar": "automatico"` (SS_PERFORMANCE) faz o Instagram
   graduar sozinho e a vaga girar mais rápido. A conta só pausa 24 h no
