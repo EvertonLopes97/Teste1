@@ -152,6 +152,12 @@ def voicestudio_ligado(url=None, tempo=4):
         return False
 
 
+def voicestudio_pronto(url=None, tempo=4):
+    """aberto E com ALGUMA voz cadastrada. Sem voz nenhuma ele SORTEIA uma (saía voz de mulher no lugar da
+    dele), então nesse caso é melhor cair no Fish Audio."""
+    return bool(voicestudio_ligado(url, tempo=tempo)) and bool(voicestudio_vozes(url))
+
+
 def voicestudio_vozes(url=None):
     """as vozes/perfis instalados (para escolher no painel)"""
     import urllib.request
@@ -447,7 +453,7 @@ def main():
     url_vs = a.voicestudio or voicestudio_url()
     usa_vs = False
     if not a.sem_voicestudio and not os.environ.get("DETTO_VOZ_FALSA"):
-        usa_vs = voicestudio_ligado(url_vs)
+        usa_vs = voicestudio_pronto(url_vs)
         if usa_vs:
             voz_id, voz_nome = voicestudio_escolhe(url_vs, a.voz_vs)
             a.voz_vs = voz_id

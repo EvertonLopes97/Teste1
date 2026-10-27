@@ -347,8 +347,22 @@ Produto → reels 9:16 pronto, e cada pronto já entra na fila de postagem (`"po
   ampliado de volta, em vez de `boxblur=42` em cada quadro.
 - A cartela final entra DEPOIS da última fala: a base ganha `tpad=stop_mode=clone` e o som leva `apad` (com
   `-shortest` o vídeo acabava junto com a narração e a chamada de compra sumia).
-- Um `shop.py` por vez (`trava_rodada`, `.shop_rodando`). Link que não vira vídeo sai da lista com o MOTIVO em
+- Um `shop.py` por vez (`trava_rodada`, `.shop_rodando`). Link/pasta que não vira vídeo sai com o MOTIVO em
   `produtos_falhos.txt` → painel: "⚠ Produtos que NÃO viraram vídeo".
+- VÍDEO SAIU SEM IMAGEM NENHUMA (27/out): três furos juntos, todos consertados.
+  1) **LEGENDA** — o `transcrever.py` grava uma LISTA de `{"w","s","e"}` e o shop tratava como dicionário
+  (`'list' object has no attribute 'get'`): o vídeo saía com 0 legendas. `palavras` aceita lista e
+  `blocos_legenda` lê `w/s/e`.
+  2) **TEMPO DAS CENAS** — `encaixa` chamava o alinhamento das histórias, mas lá a fala é `narracao` e o fim é
+  `ate`: não marcava NADA e o `setdefault` punha TODA cena de 0 até o fim (imagem parada e todas as cartelas na
+  tela ao mesmo tempo). Agora um ESPELHO traduz as chaves nos dois sentidos.
+  3) **SEM FOTO** — produto sem foto/vídeo rendia fundo escuro liso em todas as cenas. Agora `fotos_da_internet`
+  busca fotos do produto (o mesmo `busca_imagem.py` das camisas, cache em `shop\fotos_web\`,
+  `"fotos_internet": false` desliga) e, não achando nada, **NÃO entrega**: vai para `produtos_falhos.txt`
+  dizendo para pôr as fotos em `produtos\<nome>\`. E `midia_da_cena` RODA as fotos (`i % len`) — a mesma foto em
+  todas as cenas parecia vídeo travado.
+- VOZ: `voicestudio_pronto` (aberto **E** com alguma voz cadastrada) no lugar do `voicestudio_ligado` no shop, nas
+  histórias e no `voz.py`. Sem voz nenhuma o VoiceStudio SORTEIA uma (saía voz de mulher) — agora cai no Fish.
 
 ## HISTÓRIAS EM SÉRIE — reels em que o público escolhe a continuação (22/out)
 
@@ -650,6 +664,12 @@ entrando e saindo ao lado dele. Sem trilha (ele coloca a música no app).
   `elenco_site.py` ou pôr os nomes no jogo.json.
 - Fotos: `tools\galo\banco\elenco` (site oficial, sem fundo). Atualizar: `python tools\galo\elenco_site.py`.
 - Sem placar (padrão; `"com_placar": true` liga). Corta do 1º jogador entrando até o último sair.
+- SEM EFEITOS SONOROS POR PADRÃO (27/out): os sons de soco/chicote entravam por cima da fala dele. Agora o áudio da
+  gravação sai INTOCADO (`-map 1:a`, sem baixar o volume) e os efeitos ficam só no `galo_tmp\sfx.wav`, para arrastar
+  no app. `"sfx": true` no jogo.json põe no vídeo (`"sfx_vol"`, padrão 0,3 — bem abaixo da voz).
+- CONFERIR O RASTREIO (27/out, `conferir`): sai `<saida>_conferir.jpg` — um quadro de CADA gesto lido (até 24), com
+  o TEMPO e o que foi lido escritos em cima. Gesto errado se corrige no `<video>.roteiro.json` (o tempo está no
+  quadro) e roda de novo, em vez de assistir o vídeo todo procurando.
 - Gestos lidos ficam em `<video>.roteiro.json`; corrija ali e rode de novo. Áudio da gravação sem tratamento.
 - MEDIAPIPE VELHO x PROTOBUF NOVO (27/out, `tools\mp_ajuda.py`): o erro real era
   `AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'` + `TypeError: create(): incompatible

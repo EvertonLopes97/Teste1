@@ -630,7 +630,7 @@ def narra(texto, saida, cfg, log=log):
 
     falado = V.pronuncia(texto)
     url = cfg.get("voicestudio") or V.voicestudio_url()
-    if V.voicestudio_ligado(url):
+    if V.voicestudio_pronto(url):
         voz_id, voz_nome = V.voicestudio_escolhe(url, cfg.get("voz_voicestudio"), log)
         log(f"voz: VoiceStudio ({url}) — voz \"{voz_nome}\"")
         V.voicestudio_fala(falado, saida, voz_id, url, velocidade=float(cfg.get("velocidade_voz", 1.0)),
@@ -638,8 +638,9 @@ def narra(texto, saida, cfg, log=log):
     else:
         chave = os.environ.get("FISH_API_KEY")
         if not chave:
-            raise RuntimeError("sem voz: abra o VoiceStudio no PC (ou ponha a FISH_API_KEY)")
-        log("voz: Fish Audio (o VoiceStudio está fechado)")
+            raise RuntimeError("sem voz: cadastre a sua voz clonada no VoiceStudio (sem nenhuma voz ele sorteia "
+                               "uma qualquer) ou ponha a FISH_API_KEY")
+        log("voz: Fish Audio (o VoiceStudio está fechado ou sem voz cadastrada)")
         V.fish_fala(falado, saida, os.environ.get("FISH_VOZ", ""), chave)
     try:
         c = V.sem_pausas(saida)  # tira os silêncios do meio: é o que entrega que é IA

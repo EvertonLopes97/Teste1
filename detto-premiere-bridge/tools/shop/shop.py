@@ -338,7 +338,7 @@ def narra(texto, saida, cfg, log=log):
 
     falado = V.pronuncia(texto)
     url = cfg.get("voicestudio") or V.voicestudio_url()
-    if V.voicestudio_ligado(url):
+    if V.voicestudio_pronto(url):
         voz_id, voz_nome = V.voicestudio_escolhe(url, cfg.get("voz_voicestudio"), log)
         log(f"voz: VoiceStudio — \"{voz_nome}\"")
         V.voicestudio_fala(falado, saida, voz_id, url, velocidade=float(cfg.get("velocidade_voz", 1.0)),
@@ -346,8 +346,9 @@ def narra(texto, saida, cfg, log=log):
     else:
         chave = os.environ.get("FISH_API_KEY")
         if not chave:
-            raise RuntimeError("sem voz: abra o VoiceStudio no PC (ou ponha a FISH_API_KEY)")
-        log("voz: Fish Audio (o VoiceStudio está fechado)")
+            raise RuntimeError("sem voz: cadastre a sua voz clonada no VoiceStudio (sem nenhuma voz ele sorteia "
+                               "uma qualquer) ou ponha a FISH_API_KEY")
+        log("voz: Fish Audio (o VoiceStudio está fechado ou sem voz cadastrada)")
         V.fish_fala(falado, saida, os.environ.get("FISH_VOZ", ""), chave)
     try:
         V.sem_pausas(saida)
@@ -361,8 +362,12 @@ def palavras(audio, log=log):
     out = Path(audio).with_suffix(".words.json")
     try:
         roda([sys.executable, str(TOOLS / "transcrever.py"), str(audio), str(out)], "transcrição")
-        d = le_json(out, {}) or {}
-        return d.get("words") or d.get("palavras") or []
+        d = le_json(out, [])
+        # o transcrever.py grava uma LISTA de {"w","s","e"} — tratar como dicionário estourava
+        # ('list' object has no attribute 'get') e o vídeo saía SEM legenda nenhuma
+        if isinstance(d, list):
+            return d
+        return (d or {}).get("words") or (d or {}).get("palavras") or []
     except Exception as e:
         log(f"legenda: não transcrevi ({str(e)[:120]}) — sigo sem legenda")
         return []
@@ -379,22 +384,30 @@ def encaixa(rot, words, total):
             c["ini"], t = t, t + total * p / sum(pesos)
             c["fim"] = t
         return cenas
-    import historias.historias as HI  # o alinhamento já existe lá
-
+    # o alinhamento já existe nas histórias, mas lá a fala se chama "narracao" e o fim de cada cena é "ate":
+    # chamar direto com as cenas do shop não marcava NADA e, com o setdefault, TODA cena ficava 0 → total
+    # (as cartelas todas na tela ao mesmo tempo e a imagem parada). Aqui traduzimos as chaves nos dois sentidos.
     try:
-        HI.encaixa_cenas(rot, words)
-        for c in cenas:
-            c.setdefault("ini", 0.0)
-            c.setdefault("fim", total)
-        return cenas
-    except Exception:
-        pass
+        import historias.historias as HI
+
+        espelho = {"cenas": [{"narracao": c.get("fala") or ""} for c in cenas]}
+        HI.encaixa_cenas(espelho, words)
+        ates = [float(e.get("ate") or 0) for e in espelho["cenas"]]
+        if any(ates):
+            t0 = 0.0
+            for c, ate in zip(cenas, ates):
+                c["ini"] = t0
+                c["fim"] = t0 = max(t0 + 0.6, ate)
+            cenas[-1]["fim"] = max(cenas[-1]["fim"], total)
+            return cenas
+    except Exception as e:  # noqa: BLE001 — cai no plano B em vez de derrubar o vídeo
+        log(f"   encaixe pelo alinhamento falhou ({str(e)[:90]}) — divido pelas palavras")
     # plano B: pelas palavras, na ordem
     nomes = [(c.get("fala") or "").split() for c in cenas]
     i, t0 = 0, 0.0
     for c, ws in zip(cenas, nomes):
         i = min(len(words) - 1, i + len(ws))
-        fim = float(words[i].get("end") or words[i].get("fim") or t0)
+        fim = float(words[i].get("e") or words[i].get("end") or words[i].get("fim") or t0)
         c["ini"], c["fim"] = t0, max(t0 + 0.8, fim)
         t0 = c["fim"]
     cenas[-1]["fim"] = total
@@ -406,9 +419,9 @@ def blocos_legenda(words, ate, por=3):
     out = []
     bloco, ini = [], None
     for w in words:
-        t0 = float(w.get("start") or w.get("ini") or 0)
-        t1 = float(w.get("end") or w.get("fim") or t0)
-        txt = (w.get("word") or w.get("texto") or "").strip()
+        t0 = float(w.get("s") or w.get("start") or w.get("ini") or 0)
+        t1 = float(w.get("e") or w.get("end") or w.get("fim") or t0)
+        txt = (w.get("w") or w.get("word") or w.get("texto") or "").strip()
         if not txt:
             continue
         if ini is None:
@@ -480,7 +493,7 @@ def _trecho(video, saida, segundos, de=0.0):
     return saida
 
 
-def midia_da_cena(c, produto, modo):
+def midia_da_cena(c, produto, modo, i=0):
     """qual arquivo entra nesta cena (a IA pede; se faltar, a gente arruma o que tem)"""
     pedido = str(c.get("midia") or "").strip().lower()
     fotos = produto.get("fotos") or []
@@ -496,8 +509,41 @@ def midia_da_cena(c, produto, modo):
     if produto.get("video"):
         return produto["video"], "video"
     if fotos:
-        return fotos[0], "foto"
+        return fotos[i % len(fotos)], "foto"   # roda as fotos: a mesma em todas as cenas parecia vídeo travado
     return None, ""
+
+
+def fotos_da_internet(produto, base, quantas=4, log=log):
+    """produto SEM nenhuma foto/vídeo → busca imagens dele na internet (o mesmo buscador das camisas).
+
+    Sem isso o vídeo saía com fundo escuro liso em todas as cenas: narração e cartelas por cima de NADA.
+    """
+    nome = (produto.get("nome") or "").strip()
+    if not nome:
+        return []
+    sys.path.insert(0, str(TOOLS))
+    import busca_imagem as BI
+
+    pasta = base / "fotos_web" / slug(nome, 40)
+    pasta.mkdir(parents=True, exist_ok=True)
+    achadas = sorted(p for p in pasta.glob("*") if p.suffix.lower() in FOTO_EXT)
+    if achadas:
+        log(f"   fotos da internet (do cache): {len(achadas)}")
+        return achadas[:quantas]
+    palavras_nome = [w for w in re.split(r"\W+", nome) if len(w) > 2][:4]
+    buscas = [nome, f"{nome} produto foto", f"{nome} review"]
+    for k, q in enumerate(buscas):
+        if len(achadas) >= quantas:
+            break
+        try:
+            r = BI.buscar(q, exige=palavras_nome[:2], destino=pasta / f"web{k}.jpg", minimo=500, log=lambda *_: None)
+        except Exception as e:  # noqa: BLE001 — buscador fora do ar não derruba a rodada
+            log(f"   busca de foto falhou ({str(e)[:90]})")
+            r = None
+        if r and Path(r["file"]).exists():
+            achadas.append(Path(r["file"]))
+    log(f"   fotos da internet: {len(achadas)}" if achadas else "   não achei foto deste produto na internet")
+    return achadas
 
 
 def base_visual(rot, produto, modo, tmp, log=log, cauda=2.2):
@@ -507,7 +553,7 @@ def base_visual(rot, produto, modo, tmp, log=log, cauda=2.2):
     dur_fonte = dur(fonte_video) if fonte_video else 0.0
     for i, c in enumerate(rot["cenas"]):
         seg = max(0.9, float(c["fim"]) - float(c["ini"]))
-        arq, tipo = midia_da_cena(c, produto, modo)
+        arq, tipo = midia_da_cena(c, produto, modo, i)
         saida = tmp / f"cena{i:02d}.mp4"
         if arq is None:
             roda(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", f"color=c=0x10121a:s={W}x{H}:r={FPS}",
@@ -674,6 +720,17 @@ def faz_video(produto, base, cfg, modo="", log=log):
 
     rot = roteiro(produto, modo, cfg, log)
     log(f"   roteiro: {len(rot['cenas'])} cenas — \"{rot.get('gancho', '')[:60]}\"")
+
+    # SEM IMAGEM NENHUMA o vídeo saía só com fundo liso: busca fotos do produto na internet e, se nem
+    # assim aparecer nada, NÃO entrega (vai para produtos_falhos.txt com o motivo).
+    if not produto.get("fotos") and not produto.get("video") and not produto.get("eu"):
+        if cfg.get("fotos_internet", True):
+            produto["fotos"] = fotos_da_internet(produto, base, log=log)
+        if not produto.get("fotos"):
+            raise RuntimeError(
+                f'o produto "{produto.get("nome") or nome}" não tem NENHUMA imagem nem vídeo e eu não achei foto '
+                "dele na internet — o vídeo sairia com fundo preto. Ponha as fotos em "
+                f"produtos\\{nome}\\ (ou cole o link do VÍDEO do produto).")
 
     voz_f, words = None, []
     if modo == "eu" and (produto.get("eu") or produto.get("video")):
@@ -852,6 +909,10 @@ def main():
             log(f"   NÃO FIZ: {str(e)[:300]}")
             if tipo == "link":
                 _tira_link(base, item, ok=False, motivo=str(e)[:200])
+            else:  # pasta/achado: o motivo também aparece no painel ("Produtos que NÃO viraram vídeo")
+                nome_item = Path(item).name if tipo == "pasta" else str(item.get("nome") or "produto")
+                with open(base / "produtos_falhos.txt", "a", encoding="utf-8") as g:
+                    g.write(f"{dt.datetime.now():%d/%m %H:%M}\t{nome_item}\t{str(e)[:200]}\n")
             continue
         if not a.nao_postar:
             para_fila(cfg, video, txt, log)

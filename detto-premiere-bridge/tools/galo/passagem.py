@@ -77,6 +77,56 @@ def baixar(url, destino):
     return destino
 
 
+def conferir(video, trab, roteiro, saida):
+    """folha com um quadro de CADA gesto lido, escrito em cima: é como você vê se o rastreio acertou.
+
+    Antes, gesto lido errado só aparecia assistindo o vídeo todo. Agora: <saida>_conferir.jpg; o que estiver
+    errado se corrige no <video>.roteiro.json (o tempo está escrito no quadro) e roda de novo.
+    """
+    try:
+        marcas = []
+        for j in roteiro:
+            marcas.append((float(j.get("entra_ini", j["entra"])), f"{j.get('jogador', '?')} ENTRA"))
+            for a in j["acoes"]:
+                t = float(a[1])
+                rot = a[0].upper() + (f" {a[2]}" if a[0] == "bate" and len(a) > 2 else "")
+                marcas.append((t, f"{j.get('jogador', '?')} {rot}"))
+        marcas = sorted(marcas)[:24]
+        if not marcas:
+            return None
+        cap = cv2.VideoCapture(str(video))
+        fps = cap.get(cv2.CAP_PROP_FPS) or 30
+        celulas = []
+        for t, txt in marcas:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, max(0, int(t * fps)))
+            ok, f = cap.read()
+            if not ok:
+                continue
+            f = cv2.resize(f, (320, int(320 * f.shape[0] / f.shape[1])))
+            cv2.rectangle(f, (0, 0), (f.shape[1], 42), (0, 0, 0), -1)
+            cv2.putText(f, f"{t:5.1f}s {txt}"[:30], (6, 28), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1,
+                        cv2.LINE_AA)
+            celulas.append(f)
+        cap.release()
+        if not celulas:
+            return None
+        cols = 4
+        h, w = celulas[0].shape[:2]
+        linhas = []
+        for k in range(0, len(celulas), cols):
+            fila = celulas[k:k + cols]
+            while len(fila) < cols:
+                fila.append(np.zeros_like(celulas[0]))
+            linhas.append(np.hstack([cv2.resize(c, (w, h)) for c in fila]))
+        folha = Path(saida).with_name(Path(saida).stem + "_conferir.jpg")
+        cv2.imwrite(str(folha), np.vstack(linhas))
+        print(f"Confira os gestos lidos: {folha}")
+        return folha
+    except Exception as e:  # noqa: BLE001 — a folha é só conferência, não derruba a rodada
+        print(f"(sem folha de conferência: {str(e)[:100]})")
+        return None
+
+
 def escudos(placar):
     """baixa o escudo que faltar (thesportsdb) e põe o caminho no placar"""
     for k in ("casa", "fora"):
@@ -625,7 +675,10 @@ def main():
         imgs.append(cv2.cvtColor(np.array(rec), cv2.COLOR_RGBA2BGRA))
     trajs = [trajetoria(j, c, W, H, im.shape[0], dur) for j, im in zip(roteiro, imgs)]
 
-    # sons
+    # sons: por padrão NÃO entram no vídeo (ele põe o som no app; os efeitos ficavam por cima da fala dele).
+    # "sfx": true no jogo.json liga; "sfx_vol" muda o volume. O arquivo sfx.wav é gravado de qualquer jeito,
+    # então dá para arrastar para o editor se ele quiser.
+    com_sfx = bool(cfg.get("sfx", False))
     trab = Path(cfg.get("trabalho") or video.with_name("galo_tmp"))
     trab.mkdir(parents=True, exist_ok=True)
     pista = np.zeros(int(SR * (dur + 2)), np.float32)
@@ -674,13 +727,21 @@ def main():
     cap = cv2.VideoCapture(str(sdr_se_preciso(video, trab)))
     fps_in = cap.get(cv2.CAP_PROP_FPS) or 30
     passo = max(1, round(fps_in / 30))
-    ff = subprocess.Popen(
-        ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{W}x{H}",
-         "-r", f"{fps_in / passo:.5f}", "-i", "-", "-ss", f"{t0:.3f}", "-t", f"{t1 - t0:.3f}", "-i", str(video),
-         "-ss", f"{t0:.3f}", "-t", f"{t1 - t0:.3f}", "-i", str(trab / "sfx.wav"),
-         "-filter_complex", "[1:a]volume=0.8[o];[o][2:a]amix=inputs=2:duration=first:normalize=0[a]",
-         "-map", "0:v", "-map", "[a]", "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
-         "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", saida], stdin=subprocess.PIPE)
+    cmd = ["ffmpeg", "-y", "-v", "error", "-f", "rawvideo", "-pix_fmt", "bgr24", "-s", f"{W}x{H}",
+           "-r", f"{fps_in / passo:.5f}", "-i", "-", "-ss", f"{t0:.3f}", "-t", f"{t1 - t0:.3f}", "-i", str(video)]
+    if com_sfx:
+        vol = float(cfg.get("sfx_vol", 0.3))   # os efeitos ficam BEM abaixo da fala dele
+        cmd += ["-ss", f"{t0:.3f}", "-t", f"{t1 - t0:.3f}", "-i", str(trab / "sfx.wav"),
+                "-filter_complex",
+                f"[2:a]volume={vol:.2f}[s];[1:a][s]amix=inputs=2:duration=first:normalize=0[a]",
+                "-map", "0:v", "-map", "[a]"]
+    else:
+        cmd += ["-map", "0:v", "-map", "1:a"]   # o áudio da gravação, intocado
+        print(f'Sem efeitos sonoros (o seu áudio sai limpo). Os efeitos estão em {trab / "sfx.wav"}; '
+              'para pôr no vídeo use "sfx": true no jogo.json.')
+    cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", saida]
+    ff = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     i = 0
     while True:
         ok, f = cap.read()
@@ -708,6 +769,7 @@ def main():
     ff.stdin.close()
     ff.wait()
 
+    conferir(video, trab, roteiro, saida)
     print(f"Roteiro de gestos: {arq_rot}")
     for j in roteiro:
         acoes = ", ".join(f"{a[0]} {a[1]}" + (f" ({a[2]})" if a[0] == "bate" else "") for a in j["acoes"])
