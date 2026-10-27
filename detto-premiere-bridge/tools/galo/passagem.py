@@ -47,6 +47,7 @@ sys.path.insert(0, str(AQUI.parent))
 import galo  # noqa: E402
 from cor import sdr_se_preciso  # noqa: E402
 import gestos as G  # noqa: E402
+import notas as N  # noqa: E402  (banco de notas + FotMob, porque o SofaScore dá 403 no PC dele)
 
 UA = "Mozilla/5.0"
 SR = 48000
@@ -76,6 +77,47 @@ def baixar(url, destino):
     return destino
 
 
+def escudos(placar):
+    """baixa o escudo que faltar (thesportsdb) e põe o caminho no placar"""
+    for k in ("casa", "fora"):
+        t = placar.get(k) or ""
+        if not t:
+            continue
+        dest = galo.BANCO / "escudos" / f"{galo.slug(t)}.png"
+        if not dest.exists():
+            try:
+                tm = get_json("https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t="
+                              + urllib.parse.quote(t)).get("teams") or []
+                if tm and tm[0].get("strBadge"):
+                    baixar(tm[0]["strBadge"], dest)
+            except Exception as e:  # noqa: BLE001 — sem escudo o placar ainda sai
+                print(f"sem escudo de {t}: {str(e)[:80]}")
+        if dest.exists():
+            placar[f"escudo_{k}"] = str(dest)
+    return placar
+
+
+def dados_do_jogo(busca, time):
+    """notas: BANCO do repositório → FotMob → SofaScore.
+    O SofaScore dá 403 no PC do Everton, então ele é o último; o banco (tools/galo/banco/notas, vem no
+    git pull) funciona sem internet nenhuma."""
+    for fonte in (N.do_banco, N.do_fotmob):
+        try:
+            r = fonte(busca, time)
+        except Exception as e:  # noqa: BLE001 — uma fonte fora do ar não derruba a rodada
+            print(f"{fonte.__name__} falhou: {str(e)[:120]}")
+            r = None
+        if r and r[1]:
+            placar, notas = r
+            return escudos(dict(placar or {})), notas
+    print("Banco e FotMob não trouxeram notas — tentando o SofaScore (403 no seu PC).")
+    try:
+        return dados_sofascore(busca, time)
+    except SystemExit as e:
+        print(str(e))
+        return None, []
+
+
 def dados_sofascore(busca, time):
     r = get_json("https://api.sofascore.com/api/v1/search/all?q=" + urllib.parse.quote(busca))
     evs = [x["entity"] for x in r.get("results", []) if "startTimestamp" in x.get("entity", {})
@@ -92,15 +134,7 @@ def dados_sofascore(busca, time):
               "casa": ev["homeTeam"].get("shortName") or ev["homeTeam"]["name"],
               "fora": ev["awayTeam"].get("shortName") or ev["awayTeam"]["name"],
               "gols_casa": ev["homeScore"].get("current", ""), "gols_fora": ev["awayScore"].get("current", "")}
-    for k, t in (("casa", ev["homeTeam"]["name"]), ("fora", ev["awayTeam"]["name"])):
-        dest = galo.BANCO / "escudos" / f"{galo.slug(t)}.png"
-        if not dest.exists():
-            tm = get_json("https://www.thesportsdb.com/api/v1/json/3/searchteams.php?t=" + urllib.parse.quote(t)).get("teams") or []
-            if tm and tm[0].get("strBadge"):
-                baixar(tm[0]["strBadge"], dest)
-        if dest.exists():
-            placar[f"escudo_{k}"] = str(dest)
-    return placar, notas
+    return escudos(placar), notas
 
 
 def foto_jogador(nome, apelido=""):
@@ -529,7 +563,7 @@ def main():
 
     placar, notas = cfg.get("placar"), []
     if cfg.get("jogo"):
-        p, notas = dados_sofascore(cfg["jogo"], cfg.get("time", "Atlético Mineiro"))
+        p, notas = dados_do_jogo(cfg["jogo"], cfg.get("time", "Atlético Mineiro"))
         placar = placar or p
     if not cfg.get("com_placar"):  # padrão: sem placar (você coloca depois)
         placar = None
@@ -549,17 +583,19 @@ def main():
         if sem:
             print("Sem foto no banco (pulados):", ", ".join(sem))
         if not disp:
-            # SofaScore sem notas (403 no PC dele, jogo não achado, partida sem escalação): em vez de deixar
+            # sem notas (banco sem o jogo, FotMob fora, SofaScore com 403): em vez de deixar
             # todo mundo sem nome e estourar um KeyError lá na frente, escala o ELENCO do banco, sem nota.
             fotos = [p for p in sorted((galo.BANCO / "elenco").glob("*.*"))
                      if p.suffix.lower() in (".png", ".webp", ".jpg", ".jpeg") and not p.name.startswith(".")]
             disp = [(None, p.stem.replace("-", " ").title(), "") for p in fotos]
             if disp:
-                print(f"Sem notas do SofaScore — escalando {len(disp)} jogador(es) do banco local, sem nota.")
+                print(f"Sem notas do jogo — escalando {len(disp)} jogador(es) do banco local, sem nota.\n"
+                      '   Para ter as notas: python tools\\galo\\notas.py "<Time1 Time2>" --time "Atlético Mineiro"')
         if not disp:
             raise SystemExit(
                 "Não tenho jogador nenhum para a passagem.\n"
-                "   O SofaScore não devolveu as notas (ele dá 403 neste PC) e o banco de fotos está vazio.\n"
+                "   Ninguém devolveu as notas (banco sem o jogo, FotMob fora, SofaScore com 403) e o banco de\n"
+                "   fotos está vazio.\n"
                 "   RESOLVE DE UM DOS DOIS JEITOS:\n"
                 "   1) python tools\\galo\\elenco_site.py   (baixa as fotos do elenco do site oficial)\n"
                 '   2) ponha os nomes no jogo.json: "jogadores": ["Hulk", "Everson", "Arana"]')

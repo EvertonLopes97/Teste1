@@ -1,0 +1,86 @@
+{
+ "jogo": "Flamengo Atletico Mineiro",
+ "time": "Atlético Mineiro",
+ "quando": "2026-10-27",
+ "placar": {
+  "competicao": "Brasileirão",
+  "quando": "26/10",
+  "status": "Encerrado",
+  "casa": "Flamengo",
+  "fora": "Atlético-MG",
+  "gols_casa": "3",
+  "gols_fora": "2"
+ },
+ "notas": [
+  [
+   6.0,
+   "Reinier",
+   "Reinier"
+  ],
+  [
+   6.3,
+   "Alan Minda",
+   "Minda"
+  ],
+  [
+   6.3,
+   "Lyanco",
+   "Lyanco"
+  ],
+  [
+   6.3,
+   "Vitão",
+   "Vitão"
+  ],
+  [
+   6.4,
+   "Maycon",
+   "Maycon"
+  ],
+  [
+   6.5,
+   "Kevin Castaño",
+   "K. Castaño"
+  ],
+  [
+   6.6,
+   "Igor Gomes",
+   "I. Gomes"
+  ],
+  [
+   6.7,
+   "Alan Franco",
+   "A. Franco"
+  ],
+  [
+   6.8,
+   "Gabriel Delfim",
+   "G. Delfim"
+  ],
+  [
+   6.8,
+   "Natanael",
+   "Natanael"
+  ],
+  [
+   7.0,
+   "Renan Lodi",
+   "R. Lodi"
+  ],
+  [
+   7.5,
+   "Ángelo Preciado",
+   "Á. Preciado"
+  ],
+  [
+   7.8,
+   "Bernard",
+   "Bernard"
+  ],
+  [
+   8.1,
+   "Victor Hugo",
+   "Victor Hugo"
+  ]
+ ]
+}

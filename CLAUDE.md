@@ -634,7 +634,14 @@ entrando e saindo ao lado dele. Sem trilha (ele coloca a música no app).
 - Lê seus gestos e o seu olhar: entra pela direita, passa deslizando no ritmo do rosto, puxão traz de volta
   (quem já saiu vem de FORA da imagem para dentro, no ritmo da mão; nunca aparece direto na mão)
   e ele FICA onde você soltou, batida fraca = meio corpo, forte = só a cabecinha, agarrar e jogar = sai voando.
-- Notas do SofaScore: quem apanha mais e por último = pior nota; quem passa ou ganha carinho = melhores.
+- Notas: quem apanha mais e por último = pior nota; quem passa ou ganha carinho = melhores.
+  DE ONDE VÊM AS NOTAS (27/out, `tools\galo\notas.py`): **1 banco do repositório** (`tools\galo\banco\notas\*.json`,
+  vem no git pull — funciona sem internet) · **2 FotMob** (responde no PC dele; o SofaScore dá 403) · **3 SofaScore**.
+  Gravar um jogo no banco: `python tools\galo\notas.py "Flamengo Atletico Mineiro" --time "Atlético Mineiro"`
+  (`--listar` mostra o que já tem). Se o FotMob não responder no PC, rode isso AQUI no Claude e faça push.
+  O FotMob não tem busca por texto: `acha_no_fotmob` varre o calendário dos últimos 12 dias e casa os DOIS times
+  (`_e_o_jogo`: "Atletico Mineiro" bate com "Atlético-MG" por "atletico" — exigir todos os pedaços derrubava o jogo).
+  JÁ NO BANCO: Flamengo 3 x 2 Atlético-MG (26/10/2026, Brasileirão 32ª rodada) — 14 jogadores, todos com foto.
   SEM NOTAS (27/out): o SofaScore dá 403 no PC dele, então `notas` vinha vazio, NINGUÉM era escalado e o erro
   saía como `KeyError: 'jogador'` lá no render. Agora cai no ELENCO DO BANCO (`banco\elenco`, só .png/.webp/.jpg —
   o `.gitkeep` virava "jogador"), sem nota; a escalação RODA a lista (`k % len`) em vez de `zip`, que deixava
