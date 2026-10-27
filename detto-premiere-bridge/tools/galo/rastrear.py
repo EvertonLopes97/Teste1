@@ -11,10 +11,15 @@ import json
 import urllib.request
 from pathlib import Path
 
+import sys
+
 import cv2
 import mediapipe as mp
 
 AQUI = Path(__file__).resolve().parent
+sys.path.insert(0, str(AQUI.parent))
+import mp_ajuda  # noqa: E402  (traduz o erro de mediapipe velho x protobuf novo)
+
 MODELO_URL = ("https://storage.googleapis.com/mediapipe-models/pose_landmarker/"
               "pose_landmarker_full/float16/latest/pose_landmarker_full.task")
 PONTOS = {"nariz": 0, "olho_e": 2, "olho_d": 5, "orelha_e": 7, "orelha_d": 8, "ombro_e": 11, "ombro_d": 12,
@@ -58,6 +63,7 @@ def abre_detector(modelo):
     """cria o PoseLandmarker. Falhou = o MediaPipe despeja o grafo inteiro e some com o motivo: aqui ele aparece,
     e ainda tentamos o modo IMAGE, que é mais compatível com versão antiga do mediapipe."""
     base = mp.tasks.BaseOptions(model_asset_path=str(modelo))
+    ultimo = None
     for modo in (mp.tasks.vision.RunningMode.VIDEO, mp.tasks.vision.RunningMode.IMAGE):
         try:
             opts = mp.tasks.vision.PoseLandmarkerOptions(
@@ -69,11 +75,15 @@ def abre_detector(modelo):
             d._detto_modo = modo
             return d
         except Exception as e:
-            msg = str(e).replace("\n", " ")[:300]
+            ultimo = e
+            msg = str(e).replace("\n", " ")[:220]
             print(f"MediaPipe não abriu no modo {modo}: {msg}", flush=True)
+    dica = mp_ajuda.dica(ultimo)
+    if dica:
+        erro(dica)
     erro(f"o MediaPipe não conseguiu carregar o modelo de pose (mediapipe {getattr(mp, '__version__', '?')}).\n"
          f"   Modelo: {modelo} ({modelo.stat().st_size if modelo.exists() else 0} bytes)\n"
-         "   Tente: pip install --upgrade mediapipe   — e apague o .task para ele baixar de novo.")
+         f"   Tente: {mp_ajuda.comando()}   — e apague o .task para ele baixar de novo.")
 
 
 def main():

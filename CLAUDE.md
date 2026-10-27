@@ -638,6 +638,13 @@ entrando e saindo ao lado dele. Sem trilha (ele coloca a música no app).
 - Fotos: `tools\galo\banco\elenco` (site oficial, sem fundo). Atualizar: `python tools\galo\elenco_site.py`.
 - Sem placar (padrão; `"com_placar": true` liga). Corta do 1º jogador entrando até o último sair.
 - Gestos lidos ficam em `<video>.roteiro.json`; corrija ali e rode de novo. Áudio da gravação sem tratamento.
+- MEDIAPIPE VELHO x PROTOBUF NOVO (27/out, `tools\mp_ajuda.py`): o erro real era
+  `AttributeError: 'MessageFactory' object has no attribute 'GetPrototype'` + `TypeError: create(): incompatible
+  function arguments`, enterrado em 40 linhas do grafo. `GetPrototype` saiu do protobuf novo e o mediapipe antigo
+  ainda chamava — quebra TUDO que usa mediapipe (gestos do galo, recorte do VFX, rosto da thumb). **Resolve com
+  `pip install --upgrade mediapipe`** (o 0.10.30+ usa `GetMessageClass` e nem depende mais do protobuf); NÃO
+  rebaixar o protobuf, que o Gemini usa. `mp_ajuda.dica(e)` reconhece o erro e escreve o comando com o python certo;
+  `rastrear.py` e `recorte.py` o chamam. `requirements.txt` pede `mediapipe>=0.10.30`.
 - QUANDO O RASTREIO FALHA (27/out): o `rastrear.py` morria e só sobrava `CalledProcessError` com o grafo do
   MediaPipe despejado na tela — o motivo sumia. Agora `erro()` escreve "ERRO: <motivo>" e o `carregar_movimento`
   mostra a saída do filho e leva a última linha "ERRO:" para a mensagem (que o painel exibe). Defesas:

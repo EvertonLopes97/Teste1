@@ -3,7 +3,8 @@ numpy
 opencv-python
 pillow
 scipy
-mediapipe
+mediapipe>=0.10.30   # abaixo disso ele usa MessageFactory.GetPrototype, que saiu do protobuf novo:
+                     # o PoseLandmarker/ImageSegmenter morre despejando o grafo inteiro na tela
 faster-whisper
 yt-dlp
 curl_cffi

@@ -79,9 +79,17 @@ def main():
     from mediapipe.tasks.python import BaseOptions, vision
 
     arq, multi = modelo()
-    seg = vision.ImageSegmenter.create_from_options(
-        vision.ImageSegmenterOptions(base_options=BaseOptions(model_asset_path=str(arq)), output_confidence_masks=True, output_category_mask=False)
-    )
+    try:
+        seg = vision.ImageSegmenter.create_from_options(
+            vision.ImageSegmenterOptions(base_options=BaseOptions(model_asset_path=str(arq)), output_confidence_masks=True, output_category_mask=False)
+        )
+    except Exception as e:   # mediapipe velho x protobuf novo: diz o que resolve antes de cair no plano B
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+        import mp_ajuda
+
+        d = mp_ajuda.dica(e)
+        print(f"recorte: {d}" if d else f"recorte: o MediaPipe não abriu ({str(e)[:160]})", flush=True)
+        raise
     guia = getattr(getattr(cv2, "ximgproc", None), "guidedFilter", None)
     anterior, q_ant = None, None
     print(f"recorte: {len(falta)} quadros ({'completo' if multi else 'simples'})...", flush=True)
