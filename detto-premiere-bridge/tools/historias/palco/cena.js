@@ -362,6 +362,31 @@ const OBJ = {
       <circle cx="${x - 70 * s}" cy="${y - 99 * s}" r="${8 * s}" fill="${luz}"/>
       <rect x="${x - 95 * s}" y="${y - 12 * s}" width="${190 * s}" height="${12 * s}" fill="#3a3f47"/>`;
   },
+  /* RÁDIO DE PILHA — o objeto que conta "não foi só aqui": a notícia chega por ele quando não há sinal.
+     `ligado` acende a luzinha e manda as ondas saindo da antena (é o que faz a cena ler como "rádio tocando"). */
+  radio: (x, y, s, o, t) => {
+    const on = o.ligado !== false;
+    const pisca = on && Math.sin(t * 6) > -0.2;
+    const ondas = on
+      ? Array.from({ length: 3 }, (_, i) => {
+          const k = ((t * 0.9 + i * 0.33) % 1);
+          return `<path d="M ${x + 60 * s} ${y - 104 * s} q ${(14 + k * 26) * s} ${-(10 + k * 18) * s} ${(26 + k * 46) * s} ${-(4 + k * 6) * s}"
+            fill="none" stroke="#2e2a26" stroke-width="${4 * s}" stroke-linecap="round" opacity="${r2(0.75 - k * 0.7)}"/>`;
+        }).join("")
+      : "";
+    return `${ondas}
+      <line x1="${x + 52 * s}" y1="${y - 46 * s}" x2="${x + 62 * s}" y2="${y - 108 * s}" stroke="#4a4038" stroke-width="${5 * s}" stroke-linecap="round"/>
+      <circle cx="${x + 62 * s}" cy="${y - 110 * s}" r="${5 * s}" fill="#4a4038"/>
+      <rect x="${x - 70 * s}" y="${y - 54 * s}" width="${140 * s}" height="${80 * s}" rx="${10 * s}" fill="#8c6b43"/>
+      <rect x="${x - 70 * s}" y="${y - 54 * s}" width="${140 * s}" height="${80 * s}" rx="${10 * s}" fill="none" stroke="#5e4529" stroke-width="${3 * s}"/>
+      <circle cx="${x - 34 * s}" cy="${y - 14 * s}" r="${24 * s}" fill="#d9cdb8"/>
+      ${Array.from({ length: 4 }, (_, i) => `<circle cx="${x - 34 * s}" cy="${y - 14 * s}" r="${(7 + i * 5) * s}" fill="none" stroke="#9c8e78" stroke-width="${2 * s}"/>`).join("")}
+      <rect x="${x + 2 * s}" y="${y - 44 * s}" width="${54 * s}" height="${16 * s}" rx="${3 * s}" fill="#e6dcc6"/>
+      <line x1="${x + 16 * s}" y1="${y - 44 * s}" x2="${x + 16 * s}" y2="${y - 28 * s}" stroke="#c0392b" stroke-width="${3 * s}"/>
+      <circle cx="${x + 16 * s}" cy="${y - 6 * s}" r="${9 * s}" fill="#d9cdb8"/>
+      <circle cx="${x + 44 * s}" cy="${y - 6 * s}" r="${9 * s}" fill="#d9cdb8"/>
+      <circle cx="${x + 56 * s}" cy="${y - 42 * s}" r="${4 * s}" fill="${pisca ? "#ff5a3c" : "#6b3b2e"}"/>`;
+  },
   /* lâmpada de teto (a luz que tem de apagar) */
   lampada: (x, y, s, o, t) => {
     const on = o.apagado ? 0 : 1;
@@ -516,10 +541,43 @@ const CENARIO = {
   escadaria: (p) => `<rect width="${W}" height="${H}" fill="${p.parede}"/>
     ${Array.from({ length: 9 }, (_, i) => `<rect x="${W * 0.1 + i * 36}" y="${H * 0.42 + i * 68}" width="${W * 0.8 - i * 36}" height="68" fill="${i % 2 ? p.rodape : p.chao}"/>`).join("")}
     <rect x="${W * 0.06}" y="0" width="18" height="${H}" fill="rgba(0,0,0,.12)"/>`,
-  mercado: (p) => `<rect width="${W}" height="${H}" fill="#e8e3d6"/>
-    ${Array.from({ length: 3 }, (_, i) => `<rect x="60" y="${H * 0.26 + i * 150}" width="${W - 120}" height="20" fill="#b9a98c"/>
-      ${Array.from({ length: 9 }, (_, b) => `<rect x="${80 + b * 100}" y="${H * 0.26 + i * 150 - 54}" width="56" height="54" rx="5" fill="${["#c0392b", "#3b6ea5", "#d8a43a", "#4b8b5a"][(i + b) % 4]}"/>`).join("")}`).join("")}
-    <rect y="${H * 0.72}" width="${W}" height="${H * 0.28}" fill="#cfc7b4"/>`,
+  // SAQUEADO (`saqueado: true`): prateleira quase vazia, caixa no chão, carrinho tombado e vidro quebrado —
+  // é a imagem que prova a frase "não foi só aqui". Sem isso o mercado cheio contava o contrário da narração.
+  mercado: (p, c) => {
+    const sq = !!c.saqueado;
+    const prat = Array.from({ length: 3 }, (_, i) => {
+      const y = H * 0.26 + i * 150;
+      const caixas = Array.from({ length: 9 }, (_, b) => {
+        const vazio = sq && (b + i * 2) % 3 !== 0;   // sobra 1 de cada 3
+        if (vazio) return "";
+        const cai = sq && (b + i) % 4 === 0;
+        const yy = cai ? H * 0.72 - 50 : y - 54;
+        const rot = cai ? ` transform="rotate(${(b % 2 ? 1 : -1) * 18} ${80 + b * 100 + 28} ${yy + 27})"` : "";
+        return `<rect x="${80 + b * 100}" y="${yy}" width="56" height="54" rx="5"${rot}
+          fill="${["#c0392b", "#3b6ea5", "#d8a43a", "#4b8b5a"][(i + b) % 4]}"/>`;
+      }).join("");
+      return `<rect x="60" y="${y}" width="${W - 120}" height="20" fill="#b9a98c"${
+        sq && i === 1 ? ` transform="rotate(-3 ${W / 2} ${y + 10})"` : ""}/>${caixas}`;
+    }).join("");
+    const bagunca = sq
+      ? `<g stroke="#2e2a26" stroke-width="5" fill="none" stroke-linecap="round">
+           <path d="M 150 ${H * 0.82} l 120 0 l 18 -70 l -156 0 z" fill="#b9b2a2"/>
+           <circle cx="172" cy="${H * 0.845}" r="13" fill="#2e2a26"/><circle cx="252" cy="${H * 0.845}" r="13" fill="#2e2a26"/>
+           <path d="M 300 ${H * 0.78} l 44 -26 M 320 ${H * 0.8} l 50 -10"/>
+         </g>
+         ${Array.from({ length: 22 }, (_, i) => {
+           const x = 420 + ((i * 97) % (W - 480));
+           const y = H * 0.75 + ((i * 53) % Math.round(H * 0.2));
+           return `<path d="M ${x} ${y} l ${9 + (i % 4) * 6} ${5 + (i % 3) * 4}" stroke="#9aa0a6" stroke-width="4" stroke-linecap="round"/>`;
+         }).join("")}
+         <path d="M 60 ${H * 0.26} l 0 ${H * 0.46}" stroke="#2e2a26" stroke-width="3" opacity=".25"/>`
+      : "";
+    // o mercado desenha o próprio fundo claro: sem isso ele saía iluminado no meio de um episódio de apagão
+    const breu = c.luz === "escuro" ? 0.55 : c.luz === "noite" ? 0.38 : 0;
+    return `<rect width="${W}" height="${H}" fill="${sq ? "#ded7c6" : "#e8e3d6"}"/>${prat}
+      <rect y="${H * 0.72}" width="${W}" height="${H * 0.28}" fill="#cfc7b4"/>${bagunca}
+      ${breu ? `<rect width="${W}" height="${H}" fill="#121722" opacity="${breu}"/>` : ""}`;
+  },
   escuro: () => `<rect width="${W}" height="${H}" fill="#14161a"/>`,
 };
 
@@ -546,7 +604,27 @@ function fumaca(t, semente, n = 9) {
 }
 
 /* ---------------------------------------------------------------- montagem */
-const PLANO = { geral: 1.04, medio: 1.3, close: 1.85 };
+// O ASSUNTO TEM DE ENCHER A TELA (29/out): no 9:16 do celular, o que estava desenhado pequeno e lá embaixo
+// virava "fundo vazio com um bonequinho". Planos mais fechados + foco automático no assunto.
+const PLANO = { geral: 1.18, medio: 1.7, close: 2.45 };
+
+
+/** onde a câmera olha quando o roteiro não diz: na média do que está desenhado (objetos e pessoas) */
+function focoAuto(c) {
+  const alvos = [];
+  // TEM GENTE NA CENA? Então ela é o assunto. Misturar com um objeto lá em cima (a lâmpada do teto) puxava a
+  // câmera para o alto e cortava o personagem pela metade.
+  for (const pe of c.pessoas || []) alvos.push([pe.x, pe.y - 0.17]);   // o corpo fica ACIMA do pé
+  if (!alvos.length) {
+    for (const o of c.objetos || []) alvos.push([o.x, o.y - 0.06]);
+    for (const s of c.silhuetas || []) alvos.push([s.x, s.y - 0.12]);
+  }
+  if (!alvos.length) return { x: 0.5, y: 0.5 };
+  const x = alvos.reduce((a, b) => a + b[0], 0) / alvos.length;
+  const y = alvos.reduce((a, b) => a + b[1], 0) / alvos.length;
+  // nunca deixa o enquadramento sair da tela nem subir demais
+  return { x: Math.max(0.3, Math.min(0.7, x)), y: Math.max(0.32, Math.min(0.68, y)) };
+}
 
 const CENA = {
   monta(cena) {
@@ -554,10 +632,35 @@ const CENA = {
     this._c = c;
     const p = LUZ[c.luz] || LUZ.noite;
     this._p = p;
+    // O ASSUNTO ENCHE A TELA: cena de APOIO (um ou dois objetos, sem gente) é um CLOSE — a IA escrevia
+    // objetos pequenos lá embaixo e sobrava fundo vazio. Aqui o objeto cresce e sobe para o meio.
+    if ((c.objetos || []).length && !(c.pessoas || []).length && c.objetos.length <= 2) {
+      for (const o of c.objetos) {
+        // só cresce o que ficou PEQUENO: objeto que o roteiro já pediu grande estourava a tela (o celular
+        // saía com o texto cortado e o gerador não cabia no quadro)
+        if (!o._crescido && (o.s == null || o.s < 1.3)) {
+          o.s = (o.s == null ? 1 : o.s) * 1.55;
+          o.y = Math.min(o.y == null ? 0.7 : o.y, 0.66);
+        }
+        o._crescido = true;
+      }
+    }
     const fundo = (CENARIO[c.cenario] || CENARIO.quarto)(p, c);
+    this._foco = c.foco && c.foco.x != null ? c.foco : focoAuto(c);
+    // LUZ NO ASSUNTO: cena escura virava retângulo chapado (nada para olhar). Um facho suave no foco dá
+    // profundidade e leva o olho para onde a narração está, como nos virais.
+    const f = this._foco;
+    const facho = (c.luz === "escuro" || c.luz === "noite" || c.escurece)
+      ? `<defs><radialGradient id="facho" cx="${r2(f.x * 100)}%" cy="${r2(f.y * 100)}%" r="62%">
+           <stop offset="0" stop-color="#ffe6b0" stop-opacity=".30"/>
+           <stop offset="0.45" stop-color="#ffd898" stop-opacity=".10"/>
+           <stop offset="1" stop-color="#000" stop-opacity=".58"/>
+         </radialGradient></defs>
+         <rect width="${W}" height="${H}" fill="url(#facho)"/>`
+      : "";
     document.getElementById("fundo").innerHTML =
       `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${fundo}
-       ${p.veu ? `<rect width="${W}" height="${H}" fill="${p.veu}"/>` : ""}</svg>`;
+       ${p.veu ? `<rect width="${W}" height="${H}" fill="${p.veu}"/>` : ""}${facho}</svg>`;
     const topo = document.getElementById("topo");
     if (c.relogio || c.contador) {
       topo.style.display = "flex";
@@ -565,10 +668,19 @@ const CENA = {
         + (c.relogio ? `<div class="hora">${esc(c.relogio)}</div>` : "")
         + (c.contador ? `<div class="cont"><b>${esc(c.contador)}</b>${c.contador_sub ? `<span>${esc(c.contador_sub)}</span>` : ""}</div>` : "");
     } else topo.style.display = "none";
+    // REGRA NUMERADA: é o que faz o público salvar e compartilhar, então ela entra GRANDE, não como um
+    // numerozinho de onomatopeia. `regra: 2` → selo "REGRA 2" no canto de cima.
+    const rg = document.getElementById("regra");
+    if (rg) {
+      const n = c.regra || (/^\d+$/.test(String(c.onomatopeia || "")) ? c.onomatopeia : "");
+      rg.style.display = n ? "flex" : "none";
+      rg.innerHTML = n ? `<i>REGRA</i><b>${esc(String(n))}</b>` : "";
+    }
     const ono = document.getElementById("ono");
-    ono.textContent = c.onomatopeia || "";
-    ono.style.display = c.onomatopeia ? "block" : "none";
-    if (c.onomatopeia) {
+    const so_regra = /^\d+$/.test(String(c.onomatopeia || ""));
+    ono.textContent = so_regra ? "" : c.onomatopeia || "";
+    ono.style.display = c.onomatopeia && !so_regra ? "block" : "none";
+    if (c.onomatopeia && !so_regra) {
       ono.style.left = `${(c.ono_x == null ? 0.62 : c.ono_x) * 100}%`;
       ono.style.top = `${(c.ono_y == null ? 0.3 : c.ono_y) * 100}%`;
     }
@@ -600,8 +712,9 @@ const CENA = {
     const m = c.movimento || "zoom";
     // o PLANO decide o tamanho: geral (a cena), médio (a pessoa) e close (o detalhe — é o "corte de apoio" do formato)
     const z = PLANO[c.plano] || PLANO.geral;
-    const fx = c.foco && c.foco.x != null ? c.foco.x : 0.5;
-    const fy = c.foco && c.foco.y != null ? c.foco.y : 0.5;
+    const fo = this._foco || (c.foco && c.foco.x != null ? c.foco : { x: 0.5, y: 0.5 });
+    const fx = fo.x;
+    const fy = fo.y;
     let tr = `scale(${z})`;
     if (m === "zoom") tr = `scale(${z + q * 0.1})`;
     else if (m === "afasta") tr = `scale(${z + 0.12 - q * 0.1})`;

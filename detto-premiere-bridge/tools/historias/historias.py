@@ -24,6 +24,7 @@ import datetime as dt
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -97,7 +98,7 @@ LUZES = ["dia", "tarde", "noite", "escuro", "chuva", "alerta"]
 POSES = ["parado", "olhando", "carregando", "segurando", "andando", "correndo", "agachado", "batendo", "apontando",
          "assustado", "pensando"]
 OBJETOS = ["balde", "banheira", "vela", "celular", "porta", "caixa", "moto", "carro", "mochila", "escada", "torneira",
-           "relogio", "garrafa", "interruptor", "elevador", "gerador", "lampada"]
+           "relogio", "garrafa", "interruptor", "elevador", "gerador", "lampada", "radio"]
 MOVIMENTOS = ["zoom", "afasta", "direita", "esquerda", "sobe", "desce"]
 CARAS = ["", "serio", "bravo", "assustado", "feliz"]
 PLANOS = ["geral", "medio", "close"]
@@ -196,19 +197,26 @@ Peças de cada cena:
   luz: {', '.join(LUZES)}
   movimento: {', '.join(MOVIMENTOS)} · plano: {', '.join(PLANOS)} · foco: {{"x":0..1,"y":0..1}} (para onde a câmera fecha)
   andar / andares: só no cenario "predio"
-  pessoas: [{{"quem":"<NOME do personagem>","x":0..1,"y":0.70,"alt":640,"pose":"{'|'.join(POSES)}",
+  pessoas: [{{"quem":"<NOME do personagem>","x":0..1,"y":0.78,"alt":640,"pose":"{'|'.join(POSES)}",
              "cara":"serio|bravo|assustado|feliz","falando":true,"olhando":1 ou -1,"x2":0..1 (para onde ele anda)}}]
      **"quem" é obrigatório sempre que alguém aparece** — é por ele que o desenho sabe a cara, o cabelo e a roupa
      daquele personagem, iguais em todos os episódios. Use exatamente os nomes dos PERSONAGENS listados acima; se
      entrar alguém novo (o porteiro, a vizinha), dê um nome e use o mesmo nome em todas as cenas dele.
      NÃO escolha roupa nem cor: isso é do elenco da série.
-  objetos: [{{"tipo":"{'|'.join(OBJETOS)}","x":0..1,"y":0.66,"s":1.5}}]
+  objetos: [{{"tipo":"{'|'.join(OBJETOS)}","x":0..1,"y":0.60,"s":1.5}}]
+     TAMANHO: o objeto é o ASSUNTO da cena de apoio — "s" de 1.4 a 2.0 e "y" entre 0.55 e 0.68 (objeto pequeno
+     lá embaixo deixa a tela vazia, que é o erro mais comum). Com pessoa na cena, o objeto fica menor (s 1.0–1.3).
      celular aceita "extra":"TEXTO DO ALERTA" e "alerta":true (pisca) · balde/banheira aceitam "enchendo":true ·
-     torneira aceita "seca":true/"jorrando":true · porta aceita "batendo":true/"aberta":true
+     torneira aceita "seca":true/"jorrando":true · porta aceita "batendo":true/"aberta":true ·
+     radio aceita "ligado":true (ondas saindo da antena — é o objeto de "a notícia chegou sem sinal") ·
+     lampada/celular/elevador aceitam "apagado":true · interruptor aceita "travado":true
+  mercado aceita "saqueado": true na CENA (prateleira vazia, carrinho tombado, vidro no chão)
   gatos: [{{"x":0..1,"y":0.68,"alt":150}}] · silhuetas: [{{"x":0..1,"y":0.76,"alt":420,"x2":0..1}}] (a multidão)
   chuva/fumaca/tremor/escurece/clarao: true/false
   relogio: "03:47" · selo: "ALERTA" · contador: "58:50" + contador_sub: "ATÉ A ENERGIA CAIR"
-  onomatopeia: "TRRRUM!" + ono_x/ono_y (0..1)
+  regra: 1..5 — o NÚMERO da regra desta cena. Entra como um selo grande "REGRA 2" no alto. Ponha em TODA cena
+     que apresenta uma regra nova: é o que faz o público salvar o vídeo. (Não use onomatopeia para isso.)
+  onomatopeia: "TRRRUM!" + ono_x/ono_y (0..1) — só som escrito, nunca número solto
   sfx: {' | '.join(sorted(SFX))} + sfx_palavra: "<palavra da narração desta cena>"
 
 Responda SÓ JSON:
@@ -582,6 +590,15 @@ def limpa_cena(c):
     for k in ("relogio", "selo", "contador", "contador_sub", "onomatopeia"):
         if c.get(k):
             out[k] = str(c[k])[:28]
+    if c.get("saqueado"):
+        out["saqueado"] = True        # mercado saqueado (prateleira vazia, carrinho tombado)
+    try:                              # REGRA NUMERADA: o selo grande que faz o público salvar
+        if c.get("regra") is not None:
+            out["regra"] = max(1, min(9, int(c["regra"])))
+    except (TypeError, ValueError):
+        pass
+    if str(out.get("onomatopeia", "")).isdigit():   # número solto vira REGRA, não onomatopeia
+        out.setdefault("regra", int(out.pop("onomatopeia")))
     for k in ("ono_x", "ono_y"):
         if isinstance(c.get(k), (int, float)):
             out[k] = max(0.02, min(0.95, float(c[k])))
@@ -608,7 +625,8 @@ def limpa_cena(c):
                        "y": float(o.get("y", 0.66)), "s": max(0.5, min(3.0, float(o.get("s", 1.4)))),
                        **({"extra": str(o.get("extra"))[:44]} if o.get("extra") else {}),
                        **{k: True for k in ("enchendo", "jorrando", "seca", "batendo", "aberta", "alerta",
-                                            "travado", "apagado", "subindo") if o.get(k)}}
+                                            "travado", "apagado", "subindo") if o.get(k)},
+                       **({"ligado": True} if o.get("ligado") else {})}
                       for o in (c.get("objetos") or [])[:4] if isinstance(o, dict) and o.get("tipo") in OBJETOS]
     out["gatos"] = [{"x": max(0.05, min(0.95, float(g.get("x", 0.7)))), "y": float(g.get("y", 0.70)),
                      "alt": max(90, min(260, float(g.get("alt", 170))))}
@@ -1134,6 +1152,7 @@ def main():
     ap.add_argument("--refazer", type=int, default=0, help="refaz o episódio N com o roteiro.json que está na pasta dele")
     ap.add_argument("--melhorar", type=int, default=0, help="pede MAIS EDIÇÃO à IA no episódio N (a narração e a voz continuam as mesmas)")
     ap.add_argument("--apagar", action="store_true", help="APAGA a série (com --serie); pede o nome exato da pasta")
+    ap.add_argument("--roteiro", default="", help="faz o PRÓXIMO episódio com este roteiro.json pronto (sem IA)")
     a = ap.parse_args()
     pasta = Path(a.pasta)
     cfg = prepara(pasta)
@@ -1156,6 +1175,23 @@ def main():
         s["contexto"] = a.contexto
         grava_json(f, s)
         log(f"contexto gravado em {f}")
+        return
+    if a.roteiro:
+        # ROTEIRO PRONTO: põe o arquivo na pasta do próximo episódio e segue o caminho normal (voz, legendas,
+        # desenho, conferência). É assim que um episódio escrito à mão (ou aqui no Claude) vira vídeo com a SUA voz.
+        f = pasta / "series" / slug(a.serie) / "serie.json" if a.serie else None
+        if not (f and f.exists()):
+            f = next((x for x in series(pasta) if not a.serie or slug(a.serie) in x.parent.name), None)
+        if not f:
+            log("não achei a série; diga qual com --serie <pasta>")
+            return
+        s = le_json(f, {}) or {}
+        n = len(s.get("episodios", [])) + 1
+        job = f.parent / f"ep_{n:02d}"
+        job.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(a.roteiro, job / "roteiro.json")
+        log(f"roteiro pronto copiado para {job / 'roteiro.json'} (episódio {n})")
+        faz_episodio(f, cfg)
         return
     base_rot = ""
     if a.base_roteiro and Path(a.base_roteiro).exists():

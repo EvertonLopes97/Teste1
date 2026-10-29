@@ -209,3 +209,34 @@ body {
   color: rgba(255, 255, 255, 0.55);
   z-index: 4;
 }
+
+/* REGRA NUMERADA — o que faz o público salvar o vídeo. Entra grande, no alto à esquerda, com o número gigante. */
+#regra {
+  position: absolute;
+  top: 210px;
+  left: 44px;
+  display: none;
+  align-items: baseline;
+  gap: 14px;
+  z-index: 4;
+  background: rgba(10, 12, 16, 0.86);
+  border-left: 10px solid #ffd400;
+  border-radius: 0 16px 16px 0;
+  padding: 10px 26px 12px 18px;
+  box-shadow: 0 8px 0 rgba(0, 0, 0, 0.4);
+}
+#regra i {
+  font-family: Inter, sans-serif;
+  font-weight: 900;
+  font-style: normal;
+  font-size: 40px;
+  letter-spacing: 3px;
+  color: #cdd4dc;
+}
+#regra b {
+  font-weight: 400;
+  font-size: 128px;
+  line-height: 0.78;
+  color: #ffd400;
+  text-shadow: 0 7px 0 rgba(0, 0, 0, 0.5);
+}

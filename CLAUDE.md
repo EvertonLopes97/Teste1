@@ -493,6 +493,24 @@ mandaram o Lucas pro mercadinho"). É isso que faz a série crescer. Vale para q
   balançando, chuva caindo, fumaça subindo, vela tremendo, balde/banheira ENCHENDO (`enchendo`), porta `batendo`,
   celular com `alerta` piscando, `tremor`/`escurece`/`clarao` na cena. Quem anda vai de `x` até `x2` pelo PROGRESSO da
   cena (pelo relógio saía da tela). SFX (`sons`): `sfx` por cena → som da pasta dele nos tempos das cenas, -30 LUFS.
+- A ARTE ENCHE A TELA (29/out) — era isso que deixava o episódio com cara de vazio:
+  **1 ENQUADRAMENTO** `PLANO` subiu (geral 1,18 · medio 1,70 · close 2,45) e `focoAuto` aponta a câmera no assunto
+  quando o roteiro não diz; **tendo gente na cena, ela é o assunto** (misturar com a lâmpada do teto puxava a
+  câmera para cima e cortava o personagem). **2 TAMANHO**: cena de apoio (até 2 objetos, sem gente) vira close —
+  objeto pequeno cresce 1,55x e sobe para o meio; o que o roteiro já pediu grande (s ≥ 1,3) não é mexido (antes o
+  celular estourava com o texto cortado). **3 LUZ**: cena `escuro`/`noite` ganha um FACHO no foco (antes era um
+  retângulo chapado, sem nada para olhar); o `mercado` escurece junto (ele desenhava o próprio fundo claro e saía
+  iluminado no meio do apagão). **4 REGRA NUMERADA**: `"regra": 2` na cena = selo grande **REGRA 2** no alto
+  (`#regra` no palco) — é o que faz salvar o vídeo; número solto em `onomatopeia` vira regra sozinho.
+- OBJETO NOVO `radio` (rádio de pilha, `"ligado": true` manda ondas saindo da antena) — é o objeto de "a notícia
+  chegou sem sinal". E `"saqueado": true` na cena do `mercado` (prateleira vazia, carrinho tombado, vidro no chão).
+- CONFERIR A ARTE SEM GASTAR VOZ (29/out): `node tools\historias\folha.js <job>\roteiro.json --out folha.jpg`
+  → um quadro de CADA cena numa folha (`--cena 7` para uma só). Olhe isso antes de mandar renderizar.
+- ROTEIRO PRONTO VIRA EPISÓDIO (29/out): `python tools\historias\historias.py --serie <pasta> --roteiro <arquivo.json>`
+  copia o roteiro para o próximo `ep_NN` e segue o caminho normal (voz dele, legendas, desenho, conferência) — é
+  assim que um episódio escrito à mão (ou aqui no Claude) vira vídeo. Exemplo pronto:
+  `tools\historias\exemplos\apagao_12andar.json` (prédio, 12º andar, gerador no subsolo, rádio da vizinha,
+  mercado saqueado — 5 regras numeradas e escolha A/B).
 - PALCO `tools\historias\palco\` (cena.html/css/js, Chromium): cenários `cidade predio quarto janela banheiro corredor
   rua laje garagem mercado escuro`, luz `dia tarde noite escuro chuva alerta`, bonequinho em 8 poses, gato, objetos
   (balde, banheira, vela, celular, porta, caixa, moto, carro, mochila, escada, torneira), chuva, relógio/contador/selo,
