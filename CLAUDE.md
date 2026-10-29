@@ -1,5 +1,20 @@
 # DETTO — editor de vídeos do @detto.galo
 
+**MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
+Ele diz "mexe só nos REELS" e eu mexo só ali.
+
+## QUANDO O SISTEMA PARA (29/out) — rede de proteção
+
+- `python tools\doutor.py` → **por que** parou: versão do código · travas presas · **IA de texto** (testa Gemini,
+  as grátis e o Claude, uma por uma) · voz (VoiceStudio aberto? com voz cadastrada?) · Instagram (vagas de Reels
+  teste, pausa, fila, Drive) · disco · e a última linha de ERRO de cada registro → `tools\diagnostico.txt`.
+- `python tools\teste_rapido.py` → importa TODO .py (nome que não existe, import errado) + CONTRATO: confere que
+  cada função chamada de outro arquivo ainda existe (foi o que pegou `caminho` no painel.py, que dava erro 500 em
+  /historia, /shop_arquivo e /ed_arquivo). O GitHub Actions roda isso + `pyflakes` a cada push.
+- `ATUALIZAR.ps1` guarda a versão de antes em `.ultima_boa`, roda o teste rápido depois do pull e **volta sozinho**
+  se o código novo estiver quebrado. `VOLTAR.ps1` volta na mão (`VOLTAR.ps1 -Versao <commit>` para um ponto certo).
+  Mídia e configurações (E:\DETTO) nunca são tocadas por isso.
+
 Você é o editor/programador deste projeto. O dono é o Everton (fala português; responda em português,
 curto e direto). Máquina: Dell G15 (Windows 11, Ryzen 5 6600H, 16 GB, RTX 3050 4 GB), Premiere Pro 2022,
 After Effects 2020. Disco com pouco espaço livre: apague pastas `tmp`/`galo_tmp` depois de cada render.
@@ -148,6 +163,12 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   padrão desde 26/out**: subir como normal mandava o vídeo para a página principal, para todos os seguidores, que é o
   contrário do teste que ele quer (`"teste_cai_para_normal": true` na conta liga; painel: "Sem vaga, subir como reels
   normal").
+  O TETO APRENDIDO NÃO PRENDE MAIS A CONTA (29/out): uma recusa num dia ruim gravava `teste_vagas` baixo (1 ou 2)
+  e, como ele nunca subia, TODO vídeo passava a ir só para o Drive. Agora: `teste_pico` guarda quantos testes a
+  conta já teve ativos num envio ACEITO e o teto nunca fica abaixo dele; cada envio aceito sobe o teto
+  (`teste_vagas = max(teto, ativos)`); e existe a SONDA — passada a espera, a cada `SONDA_CADA_H` (3 h) ele tenta
+  UM teste mesmo "sem vaga" (o 2207078 não conta erro nem pausa de verdade), então o teto volta a subir sozinho.
+  Painel: botão **"↻ Testar a API de novo"** (`teste_reset`) esquece o teto aprendido na hora.
   NÃO DEU PELA API → VAI SOZINHO PARA O DRIVE (26/out, `manda_para_celular`, padrão LIGADO): sem vaga de teste, ou
   depois de 4 tentativas de envio falhas, o vídeo é COPIADO para `Meu Drive\DETTO\reels_teste\<conta>` junto com um
   `.txt` com a LEGENDA E AS TAGS (sem a parte depois do "---") e o passo a passo; sai da fila (vai para
@@ -349,6 +370,14 @@ Produto → reels 9:16 pronto, e cada pronto já entra na fila de postagem (`"po
   `-shortest` o vídeo acabava junto com a narração e a chamada de compra sumia).
 - Um `shop.py` por vez (`trava_rodada`, `.shop_rodando`). Link/pasta que não vira vídeo sai com o MOTIVO em
   `produtos_falhos.txt` → painel: "⚠ Produtos que NÃO viraram vídeo".
+- LINK DE VITRINE (29/out): os links que ele cola são os CURTOS do app (`vt.tiktok.com/ZS9y...`) — não têm
+  `/video/` nem `/@`, então `e_video` dava falso, o vídeo do vendedor NUNCA era baixado e o produto ficava sem
+  nada. Agora `link_de_video` reconhece os curtos, `endereco_inteiro` segue o redirecionamento (e quem decide é o
+  endereço de VERDADE) e a linha do produtos.txt aceita o NOME depois do link:
+  `<link> | suporte de celular para mesa | 49,90` — com o nome eu busco as fotos na internet (a página do Shop
+  barra robô, de lá não vem nem nome nem foto). Sem nome e sem foto: não faz vídeo e diz isso.
+  A IMAGEM VEM ANTES DO ROTEIRO: a IA escrevia um roteiro inventado ("minha cozinha vivia uma bagunça") sobre um
+  produto que ela não conhecia; agora o material é conferido primeiro.
 - VÍDEO SAIU SEM IMAGEM NENHUMA (27/out): três furos juntos, todos consertados.
   1) **LEGENDA** — o `transcrever.py` grava uma LISTA de `{"w","s","e"}` e o shop tratava como dicionário
   (`'list' object has no attribute 'get'`): o vídeo saía com 0 legendas. `palavras` aceita lista e

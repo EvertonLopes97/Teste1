@@ -1,10 +1,17 @@
-﻿# ATUALIZAR.ps1 — baixa o codigo novo e reinicia o painel.
+﻿# ATUALIZAR.ps1 — baixa o codigo novo, CONFERE se ele esta sao e reinicia o painel.
 # Rode no PowerShell:   cd C:\Users\guebe\Teste1 ; .\detto-premiere-bridge\ATUALIZAR.ps1
+#
+# REDE DE PROTECAO (29/10): antes de baixar, guarda a versao que esta rodando em .ultima_boa.
+# Depois do pull, roda tools\teste_rapido.py; se o codigo novo estiver quebrado, VOLTA SOZINHO para a
+# versao de antes e avisa. Assim um envio errado meu nao derruba o seu dia.
+# Para voltar na mao a qualquer momento:  .\detto-premiere-bridge\VOLTAR.ps1
 $ErrorActionPreference = "Continue"
 $raiz = Split-Path -Parent $PSScriptRoot          # a pasta Teste1
 $ponte = Join-Path $raiz "detto-premiere-bridge"
+$marca = Join-Path $ponte ".ultima_boa"
+
 Write-Host ""
-Write-Host "=== 1/4  fechando o painel ===" -ForegroundColor Cyan
+Write-Host "=== 1/5  fechando o painel ===" -ForegroundColor Cyan
 Get-CimInstance Win32_Process -Filter "Name like '%python%'" -ErrorAction SilentlyContinue |
   Where-Object { $_.CommandLine -like "*painel*" } |
   ForEach-Object {
@@ -14,8 +21,17 @@ Get-CimInstance Win32_Process -Filter "Name like '%python%'" -ErrorAction Silent
 Start-Sleep -Seconds 2
 
 Write-Host ""
-Write-Host "=== 2/4  baixando o codigo novo ===" -ForegroundColor Cyan
+Write-Host "=== 2/5  guardando a versao de agora ===" -ForegroundColor Cyan
 Set-Location $raiz
+$antes = (git rev-parse HEAD) 2>$null
+if ($antes) {
+  Write-Host ("   versao de agora: " + $antes.Substring(0,8))
+} else {
+  Write-Host "   nao consegui ler a versao atual (git)" -ForegroundColor Yellow
+}
+
+Write-Host ""
+Write-Host "=== 3/5  baixando o codigo novo ===" -ForegroundColor Cyan
 git pull
 if ($LASTEXITCODE -ne 0) {
   # a pasta detto-historias-panel solta no PC trava o pull; tira da frente e tenta de novo
@@ -35,28 +51,41 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 Write-Host ""
-Write-Host "=== 3/4  conferindo ===" -ForegroundColor Cyan
+Write-Host "=== 4/5  conferindo se o codigo novo esta sao ===" -ForegroundColor Cyan
 Set-Location $ponte
-$versao = (Select-String -Path "tools\painel\painel.py" -Pattern 'PAINEL_VERSAO = "(.+)"' |
-           Select-Object -First 1).Matches.Groups[1].Value
-Write-Host ("   versao do painel no disco: " + $versao)
-if (Select-String -Path "tools\postar\postar.py" -Pattern "link conferido" -Quiet) {
-  Write-Host "   correcao do Instagram: OK" -ForegroundColor Green
+python tools\teste_rapido.py
+$sao = ($LASTEXITCODE -eq 0)
+if (-not $sao) {
+  Write-Host ""
+  Write-Host "O CODIGO NOVO ESTA QUEBRADO. Voltando para a versao de antes..." -ForegroundColor Red
+  Set-Location $raiz
+  if ($antes) {
+    git -c advice.detachedHead=false checkout $antes 2>$null
+    Write-Host ("   voltei para " + $antes.Substring(0,8)) -ForegroundColor Yellow
+  } elseif (Test-Path $marca) {
+    $boa = (Get-Content $marca -Raw).Trim()
+    git -c advice.detachedHead=false checkout $boa 2>$null
+    Write-Host ("   voltei para a ultima versao boa " + $boa.Substring(0,8)) -ForegroundColor Yellow
+  }
+  Write-Host "   Mande a lista de problemas acima para o Claude." -ForegroundColor Yellow
+  Set-Location $ponte
 } else {
-  Write-Host "   correcao do Instagram: NAO ESTA NO DISCO" -ForegroundColor Red
-}
-if (Test-Path "tools\historias\historias.py") {
-  Write-Host "   historias: OK" -ForegroundColor Green
-} else {
-  Write-Host "   historias: FALTANDO" -ForegroundColor Red
+  if ($antes) { Set-Content -Path $marca -Value (git -C $raiz rev-parse HEAD) -Encoding ascii }
+  $versao = (Select-String -Path "tools\painel\painel.py" -Pattern 'PAINEL_VERSAO = "(.+)"' |
+             Select-Object -First 1).Matches.Groups[1].Value
+  Write-Host ("   versao do painel no disco: " + $versao) -ForegroundColor Green
 }
 
 Write-Host ""
-Write-Host "=== 4/4  abrindo o painel ===" -ForegroundColor Cyan
+Write-Host "=== 5/5  abrindo o painel ===" -ForegroundColor Cyan
 Start-Process -FilePath "python" -ArgumentList "tools\painel\painel.py" -WorkingDirectory $ponte
 Start-Sleep -Seconds 6
 Start-Process "http://localhost:8730"
 Write-Host ""
-Write-Host "Pronto. No painel, a versao tem que bater com a de cima." -ForegroundColor Green
-Write-Host "Se aparecer o aviso VERMELHO de codigo antigo, feche a janela do painel e rode este script de novo."
+if ($sao) {
+  Write-Host "Pronto. No painel, a versao tem que bater com a de cima." -ForegroundColor Green
+} else {
+  Write-Host "Abri o painel na versao ANTIGA (a nova estava quebrada)." -ForegroundColor Yellow
+}
+Write-Host "Se algo nao estiver rodando, rode:  python tools\doutor.py   e me mande o tools\diagnostico.txt"
 Write-Host ""

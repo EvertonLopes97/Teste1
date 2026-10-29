@@ -21,6 +21,22 @@ sys.path.insert(0, str(TOOLS / "historias"))
 PROC = {"p": None, "serie": "", "log": []}
 
 
+def anota(linha):
+    """o registro das histórias ficava SÓ na memória do painel: fechou/rodou de novo, o motivo da falha sumia e
+    não dava para saber por que o episódio não saiu. Agora vai para <historias>\\painel_historias.log também."""
+    PROC["log"].append(linha[:300])
+    del PROC["log"][:-200]
+    try:
+        f = pasta() / "painel_historias.log"
+        f.parent.mkdir(parents=True, exist_ok=True)
+        if f.exists() and f.stat().st_size > 2_000_000:   # gira em 2 MB
+            f.replace(f.with_suffix(".log.velho"))
+        with open(f, "a", encoding="utf-8") as g:
+            g.write(f"{dt.datetime.now():%d/%m %H:%M} {linha[:300]}\n")
+    except OSError:
+        pass
+
+
 def _h():
     import historias as H
 
@@ -97,8 +113,7 @@ def _roda(args, serie=""):
 
     def lendo():
         for linha in pr.stdout:
-            PROC["log"].append(linha.rstrip()[:300])
-            del PROC["log"][:-200]
+            anota(linha.rstrip())
         PROC["serie"] = ""
 
     threading.Thread(target=lendo, daemon=True).start()
@@ -132,8 +147,7 @@ def _outro(prog, args, titulo):
 
     def lendo():
         for linha in pr.stdout:
-            PROC["log"].append(linha.rstrip()[:300])
-            del PROC["log"][:-200]
+            anota(linha.rstrip())
         PROC["serie"] = ""
 
     threading.Thread(target=lendo, daemon=True).start()
@@ -161,8 +175,7 @@ def _roda_capa(serie):
 
     def lendo():
         for linha in pr.stdout:
-            PROC["log"].append(linha.rstrip()[:300])
-            del PROC["log"][:-200]
+            anota(linha.rstrip())
         PROC["serie"] = ""
 
     threading.Thread(target=lendo, daemon=True).start()

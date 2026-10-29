@@ -22,6 +22,12 @@ jobs:
           python-version: "3.11"
       - name: Python 3.11 lê todos os .py
         run: python -m compileall -q tools
+      # nome que não existe (o `caminho` do painel), import errado, função renomeada que outro arquivo chama:
+      # é o que derrubava TUDO em silêncio no PC dele
+      - name: pyflakes (nome que não existe)
+        run: pip install pyflakes && python -m pyflakes tools | (grep -i "undefined" && exit 1 || exit 0)
+      - name: teste rápido (importa tudo + contrato entre os arquivos)
+        run: python tools/teste_rapido.py
       - run: npm ci
       - run: npx playwright install --with-deps chromium
       - run: sudo apt-get update && sudo apt-get install -y ffmpeg

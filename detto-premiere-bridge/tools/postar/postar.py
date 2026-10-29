@@ -1020,6 +1020,8 @@ def teste_hoje(estado, k):
 
 
 TESTE_JANELA_H = 72  # o Instagram avalia cada Reels teste por 72 h; é nessa janela que ele conta as vagas
+SONDA_CADA_H = 3     # de quantas em quantas horas experimento mandar um teste mesmo "sem vaga" (o teto que a
+#                      conta aprende numa recusa pode estar errado; a sonda é o que o faz subir de novo)
 
 
 def testes_ativos(base, k):
@@ -1051,13 +1053,21 @@ def vaga_de_teste(cfg, base, c, estado, k):
     if not ig_e_teste(cfg, c):
         return "", None
     e = estado.get(k, {})
-    vagas = int(c.get("max_teste") or e.get("teste_vagas") or 0)
+    # o teto aprendido nunca fica abaixo do PICO que a conta já conseguiu de verdade
+    vagas = int(c.get("max_teste") or max(int(e.get("teste_vagas") or 0), int(e.get("teste_pico") or 0)) or 0)
     ativos = testes_ativos(base, k)
     libera = (ativos[0][0] + dt.timedelta(hours=TESTE_JANELA_H)) if ativos else None
-    if vagas and len(ativos) >= vagas:
-        return f"o Instagram deixa {vagas} Reels teste ativo(s) pela API e já tem {len(ativos)}", libera
     if e.get("teste_ate", 0) > time.time():
         return "o Instagram recusou Reels teste há pouco (sem vaga)", dt.datetime.fromtimestamp(e["teste_ate"])
+    if vagas and len(ativos) >= vagas:
+        # SONDA: passada a espera, tenta UM mesmo "sem vaga". Se o Instagram aceitar, o teto sobe sozinho; se
+        # recusar, só fecha a porta de novo (o 2207078 não conta erro nem pausa a conta de verdade).
+        # Sem a sonda, um teto aprendido errado (ex. 1) prendia a conta para sempre.
+        if time.time() - float(e.get("teste_sonda") or 0) >= float(SONDA_CADA_H) * 3600:
+            return "", libera
+        prox = dt.datetime.fromtimestamp(float(e.get("teste_sonda") or 0) + SONDA_CADA_H * 3600)
+        return (f"o Instagram deixa {vagas} Reels teste ativo(s) pela API e já tem {len(ativos)}"
+                f" (experimento de novo {prox:%d/%m %H:%M})"), libera
     return "", libera
 
 
@@ -1068,7 +1078,9 @@ def sem_vaga_de_teste(base, k, estado):
     def aplica(e):
         d = e.setdefault(k, {})
         if ativos:
-            d["teste_vagas"] = len(ativos)  # era isso que cabia quando ele recusou
+            # era isso que cabia quando ele recusou — mas NUNCA abaixo do pico que a conta já conseguiu
+            d["teste_vagas"] = max(len(ativos), int(d.get("teste_pico") or 0))
+        d["teste_sonda"] = time.time()   # a sonda só volta a experimentar depois de SONDA_CADA_H
         d["teste_ate"] = libera.timestamp()
         d["teste_recusa"] = dt.datetime.now().isoformat(timespec="minutes")
         d.pop("teste_limite_visto", None)  # modelo antigo (teto por dia) — estava errado
@@ -1481,6 +1493,16 @@ def posta_da_fila(cfg, base, c, video, estado, forcar=False):
     e = estado.setdefault(k, {})
     e["ultimo"] = dt.datetime.now().isoformat(timespec="seconds")
     e.setdefault("falhas", {}).pop(video.name, None)
+    if como_teste:
+        # APRENDE PARA CIMA: este teste entrou com N já ativos, então a conta aguenta pelo menos N+1.
+        # Sem isso, uma recusa de um dia ruim virava teto para sempre (ele ficou preso em 1 ou 2 e todo
+        # vídeo ia só para o Drive).
+        cabe = len(testes_ativos(base, k))   # já inclui este, que acabou de ser gravado
+        e["teste_pico"] = max(int(e.get("teste_pico") or 0), cabe)
+        if int(e.get("teste_vagas") or 0) < cabe:
+            e["teste_vagas"] = cabe
+        e.pop("teste_ate", None)
+        e.pop("teste_sonda", None)
     hoje = dt.date.today().isoformat()
     e["hoje"] = {"dia": hoje, "n": postados_hoje(estado, k) + 1}
     grava_json(base / "estado.json", estado)

@@ -516,7 +516,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-10-27a";
+const VERSAO_TELA = "2026-10-29a";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -626,7 +626,7 @@ function contas(){
         </div>
         ${pend.length ? `<div class="info erro">⚠ Facebook: ${pend.length} vídeo(s) esperando nova tentativa — ${esc(pend[0][1].erro || "")}</div>` : ""}
         ${c.pausa_ate ? `<div class="info erro">⏸ Instagram em pausa até ${esc(c.pausa_ate)} — ${esc(c.pausa_motivo || "limite de Reels teste ou erro há pouco")} <button class="mini" onclick="api('tira_pausa',{k:'${esc(c.k || (c.plataforma + "_" + c.conta))}'}).then(()=>carrega(true))">Tirar pausa</button></div>` : ""}
-        ${c.teste && c.plataforma === "instagram" ? `<div class="info${c.teste_sem_vaga ? " erro" : ""}">🧪 Reels teste ativos pela API (janela de 72 h): <b>${c.teste_ativos}</b>${c.teste_vagas ? " de " + c.teste_vagas : ""}${c.teste_libera ? ` · próxima vaga ${esc(c.teste_libera)}` : ""}${c.teste_sem_vaga ? ` — ${esc(c.teste_sem_vaga)}; ${c.teste_normal ? "o próximo sobe como reels NORMAL" : "o próximo espera a vaga"}` : ""}</div>
+        ${c.teste && c.plataforma === "instagram" ? `<div class="info${c.teste_sem_vaga ? " erro" : ""}">🧪 Reels teste ativos pela API (janela de 72 h): <b>${c.teste_ativos}</b>${c.teste_vagas ? " de " + c.teste_vagas : ""}${c.teste_libera ? ` · próxima vaga ${esc(c.teste_libera)}` : ""}${c.teste_sem_vaga ? ` — ${esc(c.teste_sem_vaga)}; ${c.teste_normal ? "o próximo sobe como reels NORMAL" : "o próximo espera a vaga"}` : ""} <button class="mini" onclick="api('teste_reset',{k:'${esc(c.k || (c.plataforma + "_" + c.conta))}'}).then(()=>carrega(true))" title="Esquece o limite que a conta aprendeu numa recusa e experimenta de novo">↻ Testar a API de novo</button></div>
         <div class="info">A API do Instagram tem um limite PRÓPRIO e pequeno de reels teste — nada a ver com os 10/dia do app. Para chegar nos 10, prepare a pasta e poste os que faltam como teste pelo celular. Liberar vaga da API: marque <b>“Já mandei”</b> ou <b>✕</b> nos reels teste da lista abaixo.</div>
         <div class="linha">
           <button class="mini pri" onclick="api('teste_preparar',{k:'${esc(c.k)}',quantos:10}).then(r=>{toast((r.n||0)+' vídeo(s) na pasta do celular');carrega(true)})">📱 Preparar pasta do Reels TESTE</button>
@@ -827,8 +827,8 @@ function shop(){
     <div class="linha" style="align-items:flex-start">
       <div style="flex:1;min-width:300px">
         <b>1. Colar links de produto</b>
-        <small style="display:block;opacity:.7;margin:4px 0 6px">Link do TikTok Shop ou do vídeo do produto, um por linha. Cada um vira um vídeo.</small>
-        <textarea id="shopLinks" rows="3" placeholder="https://..." style="width:100%"></textarea>
+        <small style="display:block;opacity:.7;margin:4px 0 6px">Um por linha. <b>Link de vitrine</b> (o TikTok Shop barra robô na página): escreva o <b>nome do produto</b> depois do link, separado por <b>|</b> — com o nome eu busco as fotos na internet. Link do <b>vídeo</b> do produto já traz o vídeo do vendedor.</small>
+        <textarea id="shopLinks" rows="3" placeholder="https://vt.tiktok.com/XXXX | suporte de celular para mesa | 49,90" style="width:100%"></textarea>
         <div class="linha" style="margin-top:6px">
           <button class="mini" onclick="shopColar()">Pôr na lista</button>
           <button class="mini" onclick="api('shop_fazer',{so_links:1,modo:$('#shopModo').value}).then(()=>carrega(true))" ${S.rodando?"disabled":""}>▶ Fazer os links (${S.n_links})</button>

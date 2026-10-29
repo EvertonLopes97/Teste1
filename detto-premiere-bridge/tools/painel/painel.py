@@ -290,7 +290,7 @@ SUBIU_EM = time.time()
 # Versão do PYTHON que está rodando. O painel.html é lido do disco a cada acesso, então depois de um `git pull` o
 # navegador recebe a tela NOVA enquanto o Python continua o VELHO (foi o que aconteceu: a aba Histórias apareceu
 # vazia e o Instagram continuou no caminho antigo). A tela compara esta versão com a dela e avisa.
-PAINEL_VERSAO = "2026-10-27a"
+PAINEL_VERSAO = "2026-10-29a"
 
 
 def codigo_novo():
@@ -491,6 +491,14 @@ def acao(nome, d):
         est = P.le_json(BASE / "estado.json", {})
         est.get(d["k"], {}).pop("pausa_ate", None)
         P.grava_json(BASE / "estado.json", est)
+    elif nome == "teste_reset":
+        # esquece o teto de Reels teste que a conta aprendeu numa recusa (ele pode ter ficado baixo demais e
+        # prender a conta); a próxima rodada experimenta de novo
+        def _limpa(e):
+            x = e.setdefault(d["k"], {})
+            for campo in ("teste_vagas", "teste_ate", "teste_sonda", "teste_recusa", "pausa_ate"):
+                x.pop(campo, None)
+        P.muda_estado(BASE, _limpa)
     elif nome == "copiar":
         # manda um vídeo da fila de uma conta também para outras
         k, n = d["k"], nome_seguro(d["nome"])
@@ -1029,7 +1037,9 @@ class Painel(hserver.BaseHTTPRequestHandler):
                 return self._arquivo(q)
             if u.path == "/canal_arquivo":
                 return self._manda(CAN.arquivo(q.get("c", ""), q.get("id", ""), q.get("nome", "")), baixar=q.get("baixar") == "1")
-            if caminho == "/historia":
+            # era "caminho" (variável que não existe): NameError -> erro 500 em /historia, /shop_arquivo e
+            # /ed_arquivo, ou seja, assistir/baixar história, vídeo de Shop e saída de edição não abria
+            if u.path == "/historia":
                 return self._manda(HIS.arquivo(q.get("s", ""), q.get("a") or q.get("nome", "episodio.mp4")),
                                    baixar=q.get("baixar") == "1")
             if u.path == "/shop_arquivo":

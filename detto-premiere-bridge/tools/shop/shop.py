@@ -127,7 +127,10 @@ def prepara(base):
         (base / p).mkdir(parents=True, exist_ok=True)
     if not (base / "produtos.txt").exists():
         (base / "produtos.txt").write_text(
-            "# Cole aqui os links do TikTok Shop (ou do vídeo do produto), um por linha.\n", encoding="utf-8")
+            "# Cole aqui os links do TikTok Shop (ou do vídeo do produto), um por linha.\n"
+            "# LINK DE VITRINE: o TikTok Shop barra robô na página, então escreva o NOME do produto depois do\n"
+            "# link, separado por | (o preço é opcional). Com o nome eu busco as fotos na internet:\n"
+            "#   https://vt.tiktok.com/XXXX | suporte de celular para mesa | 49,90\n", encoding="utf-8")
     cfg = le_json(base / "config.json", {}) or {}
     mudou = False
     for k, v in CFG_PADRAO.items():
@@ -141,6 +144,35 @@ def prepara(base):
 
 
 # ------------------------------------------------------------------ 1) DE ONDE VEM O PRODUTO
+PLATAFORMAS = ("tiktok.com", "instagram.com", "youtube.com", "youtu.be", "kwai.com", "kwai-video.com",
+               "facebook.com", "shopee.com", "shein.com")
+
+
+def link_de_video(url):
+    """este link é de um VÍDEO?
+
+    Os links que ele cola são os CURTOS do app (vt.tiktok.com/ZS9y..., vm.tiktok.com, youtu.be/...): não têm
+    /video/ nem /@ no endereço, então caíam fora e o vídeo do vendedor NUNCA era baixado — o produto ficava
+    sem imagem nenhuma e a IA inventava um roteiro sobre nada.
+    """
+    u = url.lower()
+    if re.search(r"/(video|reel|reels|shorts|watch|clip)/|tiktok\.com/@|/t/", u):
+        return True
+    return any(h in u for h in ("vt.tiktok.com", "vm.tiktok.com", "youtu.be", "instagram.com/share"))
+
+
+def endereco_inteiro(url):
+    """segue o redirecionamento do link curto (vt.tiktok.com → o endereço de verdade), para a página do
+    produto/vídeo ser lida certo. Não deu, devolve o que veio."""
+    try:
+        r = subprocess.run(["curl", "-sSIL", "-m", "20", "-o", os.devnull, "-w", "%{url_effective}", url],
+                           capture_output=True, text=True, timeout=30)
+        novo = (r.stdout or "").strip()
+        return novo if novo.startswith("http") else url
+    except Exception:  # noqa: BLE001
+        return url
+
+
 def _info_da_pagina(url):
     """título, preço e fotos da PÁGINA do produto (og:/JSON-LD). O TikTok Shop barra robô com frequência:
     não deu, a gente segue com o que tiver (o link e o nome do arquivo já bastam para a IA)."""
@@ -186,31 +218,54 @@ def _baixa_fotos(urls, pasta):
     return out
 
 
-def produto_de_link(url, base, cookies=None):
-    """link colado → produto. Link de VÍDEO (TikTok/Reels/Shorts) traz o vídeo do vendedor junto."""
+def produto_de_link(linha, base, cookies=None):
+    """link colado → produto. Link de VÍDEO (TikTok/Reels/Shorts) traz o vídeo do vendedor junto.
+
+    A linha do produtos.txt pode trazer o NOME (e o preço) depois do link, separados por | — é o que salva o
+    LINK DE VITRINE, porque o TikTok Shop barra robô na página e de lá não vem nem nome nem foto:
+
+        https://vt.tiktok.com/ZS9y... | suporte de celular para mesa | 49,90
+    """
     from reels import baixa
 
+    partes = [x.strip() for x in re.split(r"\s*[|;]\s*", linha) if x.strip()]
+    url = partes[0]
+    nome_dado = partes[1] if len(partes) > 1 else ""
+    preco_dado = partes[2] if len(partes) > 2 else ""
     pasta = base / "tmp" / slug(re.sub(r"\W+", "_", url)[-40:], 40)
     pasta.mkdir(parents=True, exist_ok=True)
-    p = {"link": url, "fotos": [], "video": None, "nome": "", "preco": "", "sobre": "", "origem": "link"}
-    e_video = bool(re.search(r"/(video|reel|reels|shorts|watch)/|tiktok\.com/@", url))
+    p = {"link": url, "fotos": [], "video": None, "nome": nome_dado, "preco": preco_dado, "sobre": "",
+         "origem": "link"}
+    inteiro = endereco_inteiro(url) if link_de_video(url) or any(h in url.lower() for h in PLATAFORMAS) else url
+    if inteiro != url:
+        log(f"   o link curto é {inteiro[:110]}")
+    # resolvido o link curto, quem decide é o endereço de VERDADE: link de vitrine (shop.tiktok.com/view/
+    # product/...) não é vídeo e não vale gastar o yt-dlp nele
+    e_video = link_de_video(inteiro) if inteiro != url else link_de_video(url)
     if e_video:
-        clip, info = baixa(url, pasta, cookies, base / "cookies.txt")
+        clip, info = baixa(inteiro, pasta, cookies, base / "cookies.txt")
         if clip:
             p["video"] = Path(clip)
             p["nome"] = (info.get("title") or "").strip()
             p["sobre"] = (info.get("description") or "")[:600]
+            log(f"   vídeo do vendedor baixado: {Path(clip).name}")
         else:
             log(f"   não baixei o vídeo do link ({info}) — sigo pela página")
-    d, erro = _info_da_pagina(url)
+    d, erro = _info_da_pagina(inteiro)
     p["nome"] = p["nome"] or d.get("nome", "")
     p["sobre"] = p["sobre"] or d.get("sobre", "")
     p["preco"] = p["preco"] or d.get("preco", "")
     if d.get("fotos_url"):
         p["fotos"] = _baixa_fotos(d["fotos_url"], pasta / "fotos")
-    if erro and not p["video"] and not p["fotos"]:
-        raise RuntimeError(f"não consegui nada deste link ({erro}). Cole o link do VÍDEO do produto, ou "
-                           f"ponha as fotos numa pasta em produtos\\")
+    if nome_dado:
+        p["nome"] = nome_dado   # o que VOCÊ escreveu manda (a página do Shop costuma vir vazia ou com lixo)
+    if not p["video"] and not p["fotos"] and not p["nome"]:
+        raise RuntimeError(
+            f"deste link não veio nada{f' ({erro})' if erro else ''} — o TikTok Shop barra robô na página da "
+            "vitrine, então não tenho nome nem foto do produto. RESOLVE ASSIM: escreva o nome do produto "
+            "depois do link, separado por | , na mesma linha do produtos.txt — "
+            "ex.: \"<link> | suporte de celular para mesa | 49,90\". Com o nome eu busco as fotos na internet. "
+            "Se tiver o produto em casa, a pasta produtos\\<nome>\\ com as fotos é melhor ainda.")
     return p
 
 
@@ -718,11 +773,8 @@ def faz_video(produto, base, cfg, modo="", log=log):
     tmp.mkdir(parents=True, exist_ok=True)
     log(f"\n== {nome} ({modo})")
 
-    rot = roteiro(produto, modo, cfg, log)
-    log(f"   roteiro: {len(rot['cenas'])} cenas — \"{rot.get('gancho', '')[:60]}\"")
-
-    # SEM IMAGEM NENHUMA o vídeo saía só com fundo liso: busca fotos do produto na internet e, se nem
-    # assim aparecer nada, NÃO entrega (vai para produtos_falhos.txt com o motivo).
+    # A IMAGEM VEM ANTES DO ROTEIRO: sem material a IA escrevia um roteiro inventado ("minha cozinha vivia
+    # uma bagunça") sobre um produto que ela não conhece — e o vídeo sairia com fundo preto.
     if not produto.get("fotos") and not produto.get("video") and not produto.get("eu"):
         if cfg.get("fotos_internet", True):
             produto["fotos"] = fotos_da_internet(produto, base, log=log)
@@ -731,6 +783,9 @@ def faz_video(produto, base, cfg, modo="", log=log):
                 f'o produto "{produto.get("nome") or nome}" não tem NENHUMA imagem nem vídeo e eu não achei foto '
                 "dele na internet — o vídeo sairia com fundo preto. Ponha as fotos em "
                 f"produtos\\{nome}\\ (ou cole o link do VÍDEO do produto).")
+
+    rot = roteiro(produto, modo, cfg, log)
+    log(f"   roteiro: {len(rot['cenas'])} cenas — \"{rot.get('gancho', '')[:60]}\"")
 
     voz_f, words = None, []
     if modo == "eu" and (produto.get("eu") or produto.get("video")):
