@@ -95,9 +95,9 @@ if (-not $sao) {
 
 Write-Host ""
 Write-Host "=== 5/5  abrindo o painel ===" -ForegroundColor Cyan
+# o painel.py abre a aba do navegador sozinho (1 s depois de subir); abrir aqui também dava DUAS abas
 Start-Process -FilePath "python" -ArgumentList "tools\painel\painel.py" -WorkingDirectory $ponte
-Start-Sleep -Seconds 6
-Start-Process "http://localhost:8730"
+Start-Sleep -Seconds 3
 Write-Host ""
 if ($sao) {
   Write-Host "Pronto. No painel, a versao tem que bater com a de cima." -ForegroundColor Green

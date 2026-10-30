@@ -64,8 +64,7 @@ if ($ComCodigo) {
 Set-Location $ponte
 python tools\teste_rapido.py
 Start-Process -FilePath "python" -ArgumentList "tools\painel\painel.py" -WorkingDirectory $ponte
-Start-Sleep -Seconds 6
-Start-Process "http://localhost:8730"
+Start-Sleep -Seconds 3
 Write-Host ""
 Write-Host "Pronto." -ForegroundColor Green
 Write-Host ""
