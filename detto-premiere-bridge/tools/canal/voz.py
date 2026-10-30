@@ -501,7 +501,22 @@ def main():
                 falta.remove(f)
                 print(f"voz (Fish Audio): {k + 1}", flush=True)
         except Exception as e:
-            print(f"voz: Fish Audio falhou ({str(e)[:200]}) — o resto vai pelo Chatterbox", flush=True)
+            msg = str(e)[:200]
+            if "403" in msg or "401" in msg:
+                msg += ("  <- a CHAVE do Fish foi recusada (403/401): ela expirou, acabou o crédito ou está errada. "
+                        "Gere outra em fish.audio e ponha com:  setx FISH_API_KEY \"<chave>\"")
+            print(f"voz: Fish Audio falhou ({msg}) — o resto iria pelo Chatterbox", flush=True)
+    # CHATTERBOX É O ÚLTIMO RECURSO E É LENTO: num vídeo de 16 min ele leva HORAS no PC dele (RTX 3050) e a rodada
+    # parece "travada" — foi o que aconteceu em 29/10 (uma rodada moendo desde as 20h37). Se o VoiceStudio estiver
+    # fechado e o Fish recusar, PARO com o motivo, em vez de deixar o PC moendo a noite toda.
+    letras = sum(len(f.get("falado") or "") for f in falta)
+    if falta and letras > int(os.environ.get("DETTO_CHATTERBOX_MAX", "1200")) and not os.environ.get("DETTO_VOZ_FALSA"):
+        raise SystemExit(
+            f"SEM VOZ BOA: faltam {len(falta)} fala(s) ({letras} letras) e só sobrou o Chatterbox, que levaria HORAS "
+            "nesse tamanho (e puxa o sotaque para Portugal).\n"
+            "   RESOLVE ASSIM: abra o VoiceStudio no PC com a sua voz clonada (é a melhor e de graça), ou conserte a "
+            "chave do Fish (FISH_API_KEY).\n"
+            "   Quer mesmo esperar o Chatterbox? Rode com DETTO_CHATTERBOX_MAX=999999.")
     if falta:
         instala()
         import torch

@@ -516,7 +516,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-10-29c";
+const VERSAO_TELA = "2026-10-29d";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -1030,7 +1030,7 @@ function canais(){
 }
 function sw(c, campo, on){ return `<label class="sw"><input type="checkbox" ${on ? "checked" : ""} onchange="canCfg('${c}',{${campo}:this.checked})"><span></span></label>`; }
 function cardCanal(c, x){
-  const travado = x.travado ? `<div class="info erro">🔒 Uma rodada ANTIGA está com a trava deste canal (${esc(x.travado)}) — por isso nada é criado. <button class="mini" onclick="api('canal_destravar',{c:'${c}'}).then(r=>{toast(r.msg||r.erro||'ok');carrega(true)})">Destravar</button></div>` : "";
+  const travado = x.travado ? `<div class="info">⏳ Uma rodada deste canal está TRABALHANDO agora${x.travado_quem ? " (" + esc(x.travado_quem) + ")" : ""} — as outras esperam a vez. Se já passou de uma hora, quase sempre é a VOZ moendo no Chatterbox (abra o VoiceStudio): veja o registro abaixo. <button class="mini" onclick="if(confirm('Encerrar a rodada que está trabalhando agora?'))api('canal_destravar',{c:'${c}'}).then(r=>{toast(r.msg||r.erro||'ok');carrega(true)})">Encerrar a rodada</button></div>` : "";
   const login = x.login ? `<span class="login">✔ ${esc(x.canal_yt || "YouTube conectado")}</span> <button class="mini" onclick="canLogin('${c}')">Trocar</button>`
                         : `<span class="login off">✖ YouTube não conectado</span> <button class="mini pri" onclick="canLogin('${c}')" ${E.canais.segredo ? "" : "disabled"}>Conectar</button>`;
   let esp = travado;

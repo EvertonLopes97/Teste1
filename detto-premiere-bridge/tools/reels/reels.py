@@ -963,7 +963,7 @@ def _parecida(a, c0, c1):
     return float(cv2.compareHist(hist(c0), hist(c1), cv2.HISTCMP_CORREL))
 
 
-def partes_da_pessoa(clip, tmp):
+def partes_da_pessoa(clip, tmp, inicio=0.0):
     """Meme do link dele (outra pessoa + lance, podendo voltar a pessoa no meio): marca cada cena como "pessoa"
     (a parte que vira o seu começo) ou "lance". Gemini olhando uma foto de cada cena; sem Gemini: a 1ª cena é a
     pessoa e as cenas parecidas com ela (mesmo lugar) também."""
@@ -971,6 +971,12 @@ def partes_da_pessoa(clip, tmp):
 
     cenas, a = cenas_do_video(clip)
     if len(cenas) < 2:
+        # SEM CORTE DE CENA ACHADO (corte suave, zoom, crossfade): era aqui que o link dele morria com "não achei
+        # onde está a pessoa e onde está o lance". Mas o analisa_viral JÁ mediu onde o lance começa — parto ali.
+        d = dur(clip)
+        if inicio and 0.6 < inicio < d - 0.8:
+            log(f"   sem corte de cena no vídeo: parto no começo do lance ({inicio:.1f}s)")
+            return [{"a": 0.0, "b": inicio, "tipo": "pessoa"}, {"a": inicio, "b": d, "tipo": "lance"}]
         return cenas
     tipos = None
     if os.environ.get("GEMINI_API_KEY"):
@@ -1691,9 +1697,11 @@ def dono_da_trava(base, nome=".reels_rodando"):
         txt = f.read_text(encoding="utf-8", errors="replace")[:200].strip()
     except OSError:
         txt = ""
+    txt = txt.replace("\x00", "").strip()
     m = re.search(r"pid=(\d+)", txt)
-    quando = dt.datetime.fromtimestamp(f.stat().st_mtime).strftime("%d/%m %H:%M")
-    return (txt or f"desde {quando}"), int(m.group(1)) if m else 0
+    # SEM pid anotado não dá para saber desde quando: a data do ARQUIVO é de quando ele foi criado (podem ser
+    # semanas), e dizer "rodada antiga desde 20/10" mandou a gente caçar um zumbi que não existia.
+    return (txt if m else ""), (int(m.group(1)) if m else 0)
 
 
 def main():
@@ -1821,8 +1829,15 @@ def main():
         if c.get("seu") and a.modo != "novo":
             # cada cena: pessoa (vira o seu começo, com a legenda dela) ou lance (fica igual). Link SEU nunca vira
             # o modo normal: se não der, avisa e não posta nada errado.
-            cenas = confere_cenas(clip, partes_da_pessoa(clip, tmp))
+            cenas = confere_cenas(clip, partes_da_pessoa(clip, tmp, av.get("inicio") or 0.0))
             pessoas = [k for k, x in enumerate(cenas) if x.get("tipo") == "pessoa"]
+            if (not pessoas or len(pessoas) == len(cenas)) and (av.get("inicio") or 0) > 0.6:
+                # as cenas não separaram (tudo "pessoa" ou tudo "lance"), mas sabemos onde o lance começa
+                ini_l = float(av["inicio"])
+                if ini_l < dclip - 0.8:
+                    log(f"   as cenas não separaram: uso o começo do lance ({ini_l:.1f}s) para partir")
+                    cenas = [{"a": 0.0, "b": ini_l, "tipo": "pessoa"}, {"a": ini_l, "b": dclip, "tipo": "lance"}]
+                    pessoas = [0]
             if not pessoas or len(pessoas) == len(cenas):
                 log("   NÃO FIZ: não achei onde está a outra pessoa e onde está o lance neste vídeo"
                     " (para usar só o lance com texto novo: modo novo)")

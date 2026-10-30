@@ -138,12 +138,13 @@ def estado():
         cf = comum.le(p / "config.json", {}) or {}
         el = estado_local(c)
         prs = [_pronto_info(c, pr, d) for pr, d in comum.prontos(p)[:15]] if p.exists() else []
+        tv_ = travado(c)   # uma rodada está com a trava agora? (quem, se o pid estiver anotado)
         x = {"nome": CANAIS[c]["nome"], "pasta": str(p), "ligado": bool(el.get("ligado")), "auto_postar": bool(cf.get("auto_postar")),
              "login": (p / "token.json").exists(), "canal_yt": el.get("canal_yt", ""), "ultimo": el.get("ultimo", ""),
              "rodando": PESADO["id"] == c and ocupado(), "postando": POSTANDO["o_que"] if POSTANDO["o_que"].startswith(c) else "",
              "prontos": prs, "esperando": sum(1 for x in prs if x["status"] == "aguardando"),
              "log": _tail(p / "canal.log"), "shorts": cf.get("shorts", 2), "privacidade": cf.get("privacidade", "public"),
-             "mesclar_assunto": bool(cf.get("mesclar_assunto", False)), "travado": travado(c),
+             "mesclar_assunto": bool(cf.get("mesclar_assunto", False)), "travado": bool(tv_), "travado_quem": tv_,
              "campeonatos_ligado": bool(cf.get("campeonatos_ligado", True))}
         if CANAIS[c]["script"].name == "canal.py":   # notícias e GTA 6 (mesmo motor: pautas, voz, máscara)
             pf = p / "pautas.txt"

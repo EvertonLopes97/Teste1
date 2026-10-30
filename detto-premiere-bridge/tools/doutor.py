@@ -96,9 +96,19 @@ def travas():
             continue
         preso = _trava_presa(f)
         quando = dt.datetime.fromtimestamp(f.stat().st_mtime).strftime("%d/%m %H:%M")
-        diz(f"{'PRESA ' if preso else 'livre '}  {quem}"
-            + (f" — um processo vivo está com ela desde {quando}" if preso
-               else f" (arquivo antigo de {quando}, não atrapalha)"))
+        # a DATA DO ARQUIVO não é a hora de quem pegou a trava (o arquivo é criado uma vez e fica) — quem diz isso
+        # é o "pid=... desde=..." que o trava_rodada escreve dentro dele. Confundir os dois me fez culpar um
+        # "processo zumbi de 20/10" quando era a rodada daquele momento, moendo voz no Chatterbox.
+        dentro = ""
+        try:
+            dentro = f.read_text(encoding="utf-8", errors="replace").replace("\x00", "").strip()[:80]
+        except OSError:
+            pass
+        diz(f"{'EM USO' if preso else 'livre '}  {quem}"
+            + (f" — {dentro or 'uma rodada está trabalhando agora (sem pid anotado; o arquivo é de ' + quando + ')'}"
+               if preso else f" (arquivo de {quando}, ninguém usando)"))
+        if preso and not dentro:
+            diz("        (se isso durar horas, veja o registro do canal: pode ser a VOZ moendo no Chatterbox)")
 
 
 def _trava_presa(f):
