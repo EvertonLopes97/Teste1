@@ -178,8 +178,15 @@ def voz(rapido=False):
         diz(f"vozes cadastradas: {len(vz)}" + (f" ({', '.join(v['nome'] for v in vz[:6])})" if vz else
             "  ← SEM VOZ NENHUMA: ele sortearia uma voz qualquer, então o sistema cai no Fish"))
     diz(f"Fish Audio: {'chave presente' if os.environ.get('FISH_API_KEY') else 'SEM CHAVE'}")
-    if not ligado and not os.environ.get("FISH_API_KEY"):
-        diz("=> SEM VOZ: notícias, histórias e shop param aqui. Abra o VoiceStudio (com a sua voz clonada).")
+    # a rede de segurança: voz neural pt-BR de graça (não é a voz dele, mas o vídeo sai e sai natural)
+    try:
+        import edge_tts  # noqa: F401
+
+        diz("voz neural pt-BR (edge-tts): instalada — é ela que narra quando o VoiceStudio está fechado")
+    except ImportError:
+        diz("voz neural pt-BR (edge-tts): NÃO instalada  ← rode:  python -m pip install edge-tts")
+    if not ligado:
+        diz("=> a narração NÃO vai sair na SUA voz: abra o VoiceStudio com a sua voz clonada.")
 
 
 # ----------------------------------------------------------------- Instagram

@@ -272,7 +272,9 @@ def elenco(serie, rot):
     """guarda a APARÊNCIA de cada personagem na série, para ele ser o mesmo em todos os episódios.
     O primeiro personagem (o protagonista) fica com o look do modelo; os outros recebem looks diferentes, sem repetir."""
     el = serie.setdefault("elenco", {})
-    pers = [str(p.get("nome", "")).strip() for p in serie.get("personagens", []) if p.get("nome")]
+    # "personagens" pode vir como lista de nomes ("Lucas") ou de fichas ({"nome": "Lucas", ...}) — as duas valem
+    pers = [n for n in ((p if isinstance(p, str) else str(p.get("nome", ""))).strip()
+                        for p in serie.get("personagens", []) or []) if n]
     principal = (serie.get("principal") or (pers[0] if pers else "")).strip()
     # quem aparece nas cenas, na ordem em que entra
     nomes = []
@@ -655,11 +657,19 @@ def narra(texto, saida, cfg, log=log):
                            instrucao=cfg.get("instrucao_voz") or V.INSTRUCAO_PADRAO)
     else:
         chave = os.environ.get("FISH_API_KEY")
-        if not chave:
-            raise RuntimeError("sem voz: cadastre a sua voz clonada no VoiceStudio (sem nenhuma voz ele sorteia "
-                               "uma qualquer) ou ponha a FISH_API_KEY")
-        log("voz: Fish Audio (o VoiceStudio está fechado ou sem voz cadastrada)")
-        V.fish_fala(falado, saida, os.environ.get("FISH_VOZ", ""), chave)
+        feito = False
+        if chave:
+            try:
+                log("voz: Fish Audio (o VoiceStudio está fechado ou sem voz cadastrada)")
+                V.fish_fala(falado, saida, os.environ.get("FISH_VOZ", ""), chave)
+                feito = True
+            except Exception as e:
+                log(f"voz: o Fish falhou ({str(e)[:140]})")
+        if not feito:
+            # voz NEURAL pt-BR de graça: não é a voz dele, mas o episódio sai natural em vez de não sair
+            log("voz: neural pt-BR (abra o VoiceStudio com a sua voz para narrar com a SUA)")
+            V.edge_fala(falado, saida, cfg.get("voz_neural") or V.EDGE_VOZ,
+                        float(cfg.get("velocidade_voz", 1.0)))
     try:
         c = V.sem_pausas(saida)  # tira os silêncios do meio: é o que entrega que é IA
         if c > 0.2:
@@ -984,6 +994,8 @@ def faz_episodio(serie_f, cfg, log=log, venceu="", rumo="", base="", refazer=0, 
         garante_sfx(rot)        # roteiro editado à mão também não sai mudo
         fecha_com_escolha(rot)  # e sem a cartela A/B ganha a dela
         grava_json(rot_f, rot)
+    if not rot.get("narracao"):     # roteiro escrito à mão: a narração é a soma das frases das cenas
+        rot["narracao"] = " ".join(str(c.get("narracao", "")).strip() for c in rot.get("cenas", [])).strip()
     aplica_elenco(serie, rot)      # cada personagem com a MESMA cara de sempre (o principal é o do modelo)
     grava_json(serie_f, serie)
     grava_json(rot_f, rot)

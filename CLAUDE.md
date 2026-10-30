@@ -5,6 +5,23 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
 
 ## QUANDO O SISTEMA PARA (29/out) — rede de proteção
 
+- FEED DO YOUTUBE MORREU (29/out) — era por isso que o canal não criava NADA: o `feeds/videos.xml` passou a
+  devolver 404/500 até para ID CERTO de canal, e sem a HORA do vídeo a rodada descartava tudo e terminava
+  "0 vídeo(s) de hoje". Agora `ultimos(id, @canal)` tenta o feed e, falhando, pega pelo **yt-dlp**
+  (`videos_ytdlp`: hora, duração, tipo e descrição em ~2 s por canal) — e nem precisa mais do ID do canal,
+  só do @. O registro diz quando a volta foi usada.
+- VOZ ROBÓTICA (29/out): sem VoiceStudio e com a chave do Fish recusada só sobrava o Chatterbox (sotaque de
+  Portugal, HORAS de render). Entrou um degrau: **voz NEURAL pt-BR da Microsoft** (`edge_fala`, edge-tts, de
+  graça e sem chave, pronta em segundos). A ordem agora é **VoiceStudio → Fish → neural pt-BR → Chatterbox**,
+  no canal de notícias, no GTA 6, nas histórias e no shop. `--voz-edge`/`"voz_neural"` troca a voz
+  (`pt-BR-AntonioNeural` padrão, `pt-BR-FranciscaNeural` feminina); `--sem-edge`/`"sem_voz_neural"` desliga.
+  A SUA voz clonada continua sendo a primeira opção — ela só sai com o VoiceStudio aberto.
+- PRESET INCOMPLETO DERRUBAVA O CANAL (29/out): o `gta6` trocava algumas chaves e não tinha as outras
+  (`KeyError: 'voz_ref'` na primeira linha da rodada). Agora cada preset é o `CONFIG_PADRAO` COM as trocas
+  dele (`{**CONFIG_PADRAO, **GTA6}`): nenhuma chave some.
+- A VOZ QUE NÃO SAI PARA A RODADA COM O MOTIVO (29/out): `SemVoz` no canal.py → "NÃO RODEI: ..." no registro
+  (o painel mostra essa linha), em vez de um `CalledProcessError` com traceback.
+
 - TRAVA PRESA DERRUBA TUDO EM SILÊNCIO (29/out): um `canal.py` que travou e ficou VIVO (preso desde 20/10 no PC
   dele) fazia toda rodada seguinte morrer na hora, e o painel só dizia "rodada terminou (ok)" — nenhuma notícia era
   criada por 9 dias. Agora `trava_rodada` ESCREVE pid e hora dentro do arquivo da trava, `dono_da_trava` lê, o
@@ -235,6 +252,9 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
 - Reels TROCA: o texto do original é copiado PIXEL A PIXEL (mediana dos quadros onde fica parado: mesma fonte, cor e
   contorno). Meme com faixa preta: o texto da BARRA vale para todas as cenas da pessoa (inteiro e limpo; a legenda achada
   em cima da parede saía pela metade/borrada), tirado do preto com borda suave + sombra suave (como o TikTok/CapCut).
+- CENA FEITA NA MÃO SEM AS CHAVES DE SEMPRE (29/out): quando o `acha_virada` partia o vídeo, as cenas que eu
+  criava não tinham `fade_in`/`fade_out` e o `troca_partes` quebrava (`KeyError: 'fade_in'`) logo DEPOIS de
+  acertar a virada. Agora elas saem com as mesmas chaves das cenas achadas no vídeo.
 - LINK QUE NÃO SEPARA PESSOA/LANCE (29/out, `acha_virada`): vídeo sem corte de cena detectável (crossfade, zoom,
   gravação de tela) e sem barra preta deixava `partes_da_pessoa` devolver "tudo pessoa"/"tudo lance" e o link
   morria em "não achei onde está a pessoa e onde está o lance" (um link dele falhou assim de 27 a 29/out). Agora,

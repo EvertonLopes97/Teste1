@@ -183,6 +183,47 @@ def rss(canal_id):
     return out
 
 
+def videos_ytdlp(canal, quantos=12):
+    """A HORA de cada vídeo pelo yt-dlp, quando o feed do YouTube não responde.
+    Em 29/10 o `feeds/videos.xml` passou a devolver 404/500 até para ID CERTO de canal — e, sem a hora, a rodada
+    descartava TODOS os vídeos e terminava "0 vídeo(s) de hoje". Isto custa ~2 s por canal e traz hora, duração,
+    tipo (live/short) e descrição."""
+    if not canal:
+        return []
+    r = ytdlp(["-J", "--playlist-end", str(quantos), f"https://www.youtube.com/{canal}/videos"])
+    try:
+        d = json.loads(r.stdout or "{}")
+    except ValueError:
+        return []
+    if not isinstance(d, dict):   # canal que não abriu (404, só shorts, bloqueado) vem como null
+        return []
+    out = []
+    for e in d.get("entries") or []:
+        if not isinstance(e, dict):   # vídeo que o yt-dlp não conseguiu abrir vem como null na lista
+            continue
+        ts = e.get("timestamp") or e.get("release_timestamp")
+        if not e.get("id") or not ts:
+            continue
+        out.append({"id": e["id"], "titulo": e.get("title") or "",
+                    "quando": dt.datetime.fromtimestamp(int(ts)),
+                    "descricao": e.get("description") or "",
+                    "canal_nome": e.get("channel") or d.get("channel") or "",
+                    "_dur": e.get("duration") or 0,
+                    "_tipo": "live" if (e.get("live_status") or "") in ("is_live", "was_live", "post_live") else "video"})
+    return out
+
+
+def ultimos(cid, canal="", quantos=12):
+    """os últimos vídeos com a hora: o feed primeiro (leve) e, se ele falhar, o yt-dlp"""
+    v = rss(cid) if cid else []
+    if v:
+        return v
+    v = videos_ytdlp(canal, quantos)
+    if v:
+        log(f"   {canal or cid}: o feed não respondeu; peguei a hora pelo yt-dlp ({len(v)} vídeos)")
+    return v
+
+
 def dur_mp4(f):
     """duração de um mp4 em segundos (0 se não der)"""
     r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(f)],
@@ -238,19 +279,14 @@ def coleta(cfg, hist):
                       "prioridade": f.get("prioridade", 1), "juntador": bool(f.get("juntador"))})
 
     for f in cfg["fontes"]:
+        # sem o ID do canal não é problema: o `ultimos` pega pelo @ direto (o feed precisava do ID, o yt-dlp não)
         cid = f.get("id") or ids.get(f["canal"])
-        if not cid:
-            r = ytdlp(["--flat-playlist", "-J", "--playlist-end", "1", f"https://www.youtube.com/{f['canal']}/videos"])
-            try:
-                cid = json.loads(r.stdout).get("channel_id")
-                ids[f["canal"]] = cid
-            except ValueError:
-                log(f"   {f['canal']}: não achei o canal")
-                continue
-        lista = [v for v in rss(cid) if v["quando"] >= limite]
+        lista = [v for v in ultimos(cid, f.get("canal", "")) if v["quando"] >= limite]
         if not lista:
+            log(f"   {f.get('nome') or f.get('canal')}: nada novo (ou o canal não respondeu)")
             continue
-        durs = duracoes(f["canal"]) if f.get("canal") else {}
+        # quando a lista vem do yt-dlp ela JÁ traz duração e tipo; aí não preciso de uma varredura extra
+        durs = {v["id"]: (v["_dur"], v["_tipo"]) for v in lista if v.get("_dur")} or (duracoes(f["canal"]) if f.get("canal") else {})
         for v in lista:
             d_, t_ = durs.get(v["id"], (0, "video"))
             considera(v, f, d_, t_)
@@ -272,7 +308,7 @@ def coleta(cfg, hist):
             if not cid or cid in ja or not (imprensa or cfg.get("busca_qualquer_canal")):
                 continue
             if cid not in feeds:
-                feeds[cid] = {x["id"]: x for x in rss(cid)}
+                feeds[cid] = {x["id"]: x for x in ultimos(cid, v.get("uploader_id") or "")}
             if v.get("id") in feeds[cid]:
                 considera(feeds[cid][v["id"]], {"nome": nome, "canal": v.get("uploader_id") or "", "filtro": "titulo",
                                                 "prioridade": 1 if imprensa else 4, "juntador": not imprensa}, v.get("duration"))
@@ -324,7 +360,7 @@ def coleta_campeonatos(cfg, hist, ja_vistos):
                 if dur_s and not (0.5 <= dur_s / 60 <= cfg.get("max_min_fonte", 120)):
                     continue
                 if cid not in feeds:
-                    feeds[cid] = {x["id"]: x for x in rss(cid)}
+                    feeds[cid] = {x["id"]: x for x in ultimos(cid, v.get("uploader_id") or v.get("channel") or "")}
                 f = feeds[cid].get(v["id"])
                 if not f or f["quando"] < limite:
                     continue  # sem a hora do feed não dá para saber se é de hoje

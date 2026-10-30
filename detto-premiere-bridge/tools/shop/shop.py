@@ -400,11 +400,17 @@ def narra(texto, saida, cfg, log=log):
                            instrucao=cfg.get("instrucao_voz") or V.INSTRUCAO_PADRAO)
     else:
         chave = os.environ.get("FISH_API_KEY")
-        if not chave:
-            raise RuntimeError("sem voz: cadastre a sua voz clonada no VoiceStudio (sem nenhuma voz ele sorteia "
-                               "uma qualquer) ou ponha a FISH_API_KEY")
-        log("voz: Fish Audio (o VoiceStudio está fechado ou sem voz cadastrada)")
-        V.fish_fala(falado, saida, os.environ.get("FISH_VOZ", ""), chave)
+        feito = False
+        if chave:
+            try:
+                log("voz: Fish Audio (o VoiceStudio está fechado ou sem voz cadastrada)")
+                V.fish_fala(falado, saida, os.environ.get("FISH_VOZ", ""), chave)
+                feito = True
+            except Exception as e:
+                log(f"voz: o Fish falhou ({str(e)[:140]})")
+        if not feito:   # voz NEURAL pt-BR de graça: o vídeo sai natural em vez de não sair
+            log("voz: neural pt-BR (abra o VoiceStudio com a sua voz para narrar com a SUA)")
+            V.edge_fala(falado, saida, cfg.get("voz_neural") or V.EDGE_VOZ, float(cfg.get("velocidade_voz", 1.0)))
     try:
         V.sem_pausas(saida)
     except Exception:
