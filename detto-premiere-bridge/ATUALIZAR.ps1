@@ -44,6 +44,23 @@ if ($LASTEXITCODE -ne 0) {
   }
 }
 if ($LASTEXITCODE -ne 0) {
+  # arquivo SOLTO no PC com o mesmo nome de um que veio no codigo novo ("untracked working tree files would be
+  # overwritten"): o git se recusa a pisar nele. Tiro do caminho (guardo com .ANTIGO) e tento de novo.
+  $saida = (git pull 2>&1 | Out-String)
+  $presos = [regex]::Matches($saida, '(?m)^\s{8}(\S.*)$') | ForEach-Object { $_.Groups[1].Value.Trim() }
+  $moveu = $false
+  foreach ($f in $presos) {
+    if (Test-Path $f) {
+      $alvo = $f + ".ANTIGO"
+      if (Test-Path $alvo) { Remove-Item $alvo -Force -ErrorAction SilentlyContinue }
+      Write-Host ("   tirando da frente: " + $f) -ForegroundColor Yellow
+      Move-Item $f $alvo -Force -ErrorAction SilentlyContinue
+      $moveu = $true
+    }
+  }
+  if ($moveu) { git pull }
+}
+if ($LASTEXITCODE -ne 0) {
   Write-Host ""
   Write-Host "O git pull NAO funcionou. Copie o erro acima e me mande." -ForegroundColor Red
   Read-Host "Enter para fechar"
