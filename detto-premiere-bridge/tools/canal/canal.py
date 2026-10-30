@@ -119,7 +119,7 @@ CONFIG_PADRAO = {
     ],
     "por_fonte": 15,
     "max_min_fonte": 120,
-    "duracao_alvo_min": 16,  # o vídeo tem PELO MENOS isso (imprensa + suas falas)
+    "duracao_alvo_min": 16,  # MEDIDO nos concorrentes: 16-25 min rende 1,17x; 25+ cai para 0,72x (imprensa + falas)
     "min_trechos": 4,
     "max_videos_dia": 2,
     "horas_entre_posts": 4,
@@ -418,6 +418,16 @@ def linhas_tempo(words, passo=8.0):
     return "\n".join(out)
 
 
+# MEDIDO em 150 vídeos dos 6 canais concorrentes do Galo (30/10/2026): o ÂNGULO do trecho muda o resultado do
+# vídeo inteiro, porque é dele que sai o título e a thumb. Por isso a nota não é só "é novidade?".
+REGRA_NOTA = """A NOTA decide o que vira título e thumb do vídeo, então pese o ÂNGULO (isto foi medido nos canais
+concorrentes, não é opinião): SOME 2 pontos se a fala é de um JORNALISTA CONHECIDO elogiando, se rendendo ou mudando
+de opinião sobre o Galo (Renata Fan, Denílson, Neto, Mauro Cezar, Benjamin Back, Casagrande, PVC, Vampeta) — é o
+trecho que mais rende. SOME 1,5 se é REFORÇO/CONTRATAÇÃO/MERCADO com nome de jogador. SOME 1 se dá para citar o
+PROGRAMA de onde saiu (Globo Esporte MG, Jogo Aberto, ESPN, Itatiaia, Alterosa). TIRE 1 se o assunto é só
+ARBITRAGEM/ROUBO/VAR (rende 0,89x nesses canais). Nota máxima 10."""
+
+
 def acha_trechos(words, info, cfg, assunto=None):
     """trechos que falam do time (ou do ASSUNTO de uma pauta sua): Gemini (começo/fim certos, manchete, clima);
     sem chave: janelas pela palavra (pauta sem chave: o começo do vídeo)"""
@@ -428,6 +438,7 @@ def acha_trechos(words, info, cfg, assunto=None):
                    "de TV, rádio, entrevista, coletiva). IGNORE a narração do dono do canal ('fala galera', 'se inscreve', leitura de "
                    "manchete, opinião do youtuber) e anúncios." if info.get("juntador") else
                    "Ignore vinheta, intervalo, propaganda e conversa sem notícia.")
+    regra_nota = cfg.get("regra_nota") or REGRA_NOTA
     g = gemini_json([{"text": f"""Transcrição (segundos entre colchetes) de "{info['titulo']}" ({info['fonte']}).
 Marque os trechos {alvo}.
 Cada trecho é UMA notícia INTEIRA: do começo ao fim do assunto (a informação + a análise/opinião sobre ela), começo e fim
@@ -762,7 +773,20 @@ def roteiro(sel, cfg):
         'O TÍTULO e a THUMB saem SEMPRE da notícia do GALO mais forte (nunca de um trecho marcado como "a volta pelo '
         'mundo" nem de um que já saiu hoje). Se houver trechos de campeonato, a fala antes do primeiro deles avisa que '
         'agora é a volta pelo mundo ("e pra fechar, como é que ficou a Libertadores ontem") e o fechamento volta a ser '
-        "sobre o Galo.")
+        "sobre o Galo.\n"
+        # o que segue foi MEDIDO em 150 vídeos dos 6 canais concorrentes (30/10/2026); o número é quantas vezes o
+        # vídeo rende a mais que a mediana DAQUELE canal, então não é opinião minha nem deles
+        "COMO ESCOLHER O TÍTULO (medido nos canais concorrentes, do que mais rende para o que menos):\n"
+        "1. NOME DE JORNALISTA FAMOSO que falou do Galo no trecho (Renata Fan, Denílson, Neto, Mauro Cezar, "
+        "Benjamin Back, Casagrande, PVC, Vampeta): 1,36x. Use o nome dele no título quando a fala principal for dele "
+        "— \"RENATA FAN SE RENDE AO GALO E ELOGIA FRED\".\n"
+        "2. REFORÇO / CONTRATAÇÃO / MERCADO: 1,22x. Se tiver nome de jogador chegando, é esse o título.\n"
+        "3. NOME DO PROGRAMA no começo (GLOBO ESPORTE MG, JOGO ABERTO, ESPN, ITATIAIA, ALTEROSA): 1,18x — quem "
+        "procura o programa acha o vídeo.\n"
+        "4. PERGUNTA no título: 1,14x.  5. Duas partes separadas por \" / \": 1,11x.\n"
+        "NÃO construa o título em cima de ARBITRAGEM/ROUBO/VAR: rende 0,89x (MENOS que a média) nesses canais.\n"
+        "O 🚨 não muda nada (1,02x): pode usar, mas não conta como gancho.\n"
+        "Título em CAIXA ALTA, até 100 caracteres, terminando com \" / NOTÍCIAS DO GALO\".")
     g = gemini_json([{"text": f"""Você narra o canal "{cfg['nome_canal']}", de {assunto}, {persona}. Os trechos, em ordem:
 {lista}
 
@@ -1457,7 +1481,18 @@ GTA6 = {
                 "estranho, e compara com o GTA 5 quando ajuda a entender"),
     "regra_titulo": ("O TÍTULO e a THUMB saem da novidade mais forte do GTA 6 que aparece nos trechos. NUNCA prometa no "
                      "título algo que não está no vídeo (nada de \"GTA 6 ADIADO\" se ninguém disse isso) — título mentiroso "
-                     "derruba o canal."),
+                     "derruba o canal.\n"
+                     # medido em 96 vídeos de SanInPlay, GameplayRJ, NobertoGamer e Will Mac (30/10/2026)
+                     "MEDIDO nos canais concorrentes: no GTA 6 o título quase não muda o resultado — 🚨 (1,00x), número "
+                     "no título (1,00x), parênteses (1,00x). DUAS coisas pioram: \"VAZOU/VAZAMENTO\" no título (0,90x) e "
+                     "terminar com \"...\" (0,90x). Então: diga o FATO NOVO em palavras concretas e diretas, sem "
+                     "reticências e sem a palavra vazamento no título (no corpo do vídeo, vazamento continua sendo "
+                     "chamado de vazamento). O que decide neste nicho é a THUMB e sair TODO DIA, não o título."),
+    # no GTA a alavanca não é o ângulo (como no Galo) e sim ser NOVO e CONCRETO — medido: título quase não muda nada
+    "regra_nota": ("A NOTA é o quanto aquilo é NOVIDADE DE VERDADE e CONCRETA sobre o GTA 6: imagem ou gameplay "
+                   "oficial nova, data, preço, tamanho do jogo, mecânica mostrada, declaração da Rockstar = nota alta. "
+                   "Opinião, especulação, 'teoria de fã', recap do que já se sabia e reação a vazamento velho = nota "
+                   "baixa. Trecho que repete o que o canal já falou nos últimos dias também cai."),
     "regras_roteiro": (
         "REGRAS DESTE CANAL (o que mais importa):\n"
         "- PROIBIDO INVENTAR qualquer coisa sobre o jogo: data, preço, mapa, personagem, mecânica ou tamanho. Só vale o "
@@ -1494,7 +1529,7 @@ GTA6 = {
     "trecho_min_s": 15,
     "trecho_max_s": 120,      # pedaço de gameplay/notícia; o comentário dele entra entre os trechos
     "max_trechos_video": 3,
-    "duracao_alvo_min": 10,   # canal novo: vídeo de 10 min já serve (o do Galo pede 16)
+    "duracao_alvo_min": 13,   # MEDIDO: 12-18 min rende 1,30x no nicho de GTA 6; 8-12 min rende 0,90x
     "comentario_min_s": 40,
     "buscar_original": False,  # aqui não existe "canal que junta": o vídeo achado já é a fonte
     "campeonatos_ligado": False,

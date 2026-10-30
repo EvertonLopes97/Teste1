@@ -389,6 +389,31 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
 - TESTES: `npm run check` (tipos + testes + teste VISUAL `test/visual.test.js`: quadros do palco × `test/visual/ref_*.png`).
   Mudou o visual de propósito → `npm run visual:aprovar`. GitHub Actions roda tudo a cada push (`.github/workflows/testes.yml`).
 
+## O QUE VIRALIZA NOS NICHOS DELE — medido, não chutado (30/out)
+
+Puxei views, título e duração dos ÚLTIMOS 25 VÍDEOS de cada concorrente e comparei cada vídeo com a MEDIANA
+do próprio canal (então não é "canal grande rende mais"; é o que aquele vídeo rendeu a mais que o normal dele).
+
+**GALO — 150 vídeos de 6 canais** (@JornaldoGalo 29,2k inscritos/25k views medianos · @diariodogalo940 39,7k/14k ·
+@galoticiasoficial 9,4k/14k · @EUSOUGALO · @TrincaGalo · @ETERNOGALONEWS):
+- jornalista FAMOSO no título (Renata Fan, Denílson, Neto, Mauro Cezar…): **1,36x** ← a maior alavanca
+- reforço/contratação/mercado: **1,22x** · nome do PROGRAMA no título (Globo Esporte MG, Jogo Aberto): **1,18x**
+- pergunta no título: 1,14x · título em duas partes com " / ": 1,11x · 🚨: 1,02x (não muda nada)
+- **arbitragem/roubo/VAR: 0,89x** — rende MENOS; não é para construir o título em cima disso
+- duração: 16-25 min **1,17x** · 10-16 min 1,01x · 6-10 min 0,97x · 25+ min **0,72x**
+- o melhor do nicho: "HG REPRESENTOU O ATLÉTICO..." (140 mil, 5,6x a mediana do canal) — 22 min
+→ aplicado: `REGRA_NOTA` (a nota de cada trecho soma +2 para jornalista famoso elogiando o Galo, +1,5 para
+  reforço, +1 se dá para citar o programa, −1 se é só arbitragem) e a `regra_titulo` com essa ordem.
+
+**GTA 6 — 96 vídeos de 4 canais** (@SaninPlay 1,36 mi/80k · @GameplayRJ 8,59 mi/156k · @WillMacGTA 26k/40k ·
+@NobertoGamer 84,9k/20k):
+- o TÍTULO quase não muda nada: 🚨 1,00x · número 1,00x · parênteses 1,00x · #gta6 1,04x
+- duas coisas PIORAM: "vazou/vazamento" no título **0,90x** e terminar com "..." **0,90x**
+- duração: 12-18 min **1,30x** · 8-12 min 0,90x · 18+ min 1,00x
+- quem rende mais por tamanho é o @WillMacGTA (26 mil inscritos, 40 mil views medianos = 1,5x o próprio tamanho)
+→ aplicado: `duracao_alvo_min` 13 (era 10), `regra_titulo` sem "vazamento" e sem "...", e `regra_nota` própria
+  (novidade concreta vale nota; especulação e recap caem). Neste nicho quem decide é a THUMB e sair TODO DIA.
+
 ## CANAL DE GTA 6 (29/out) — o mesmo canal.py, outro assunto
 
 `python tools\canal\canal.py --pasta E:\DETTO\canal_gta6 --preset gta6` (painel aba CANAIS: card **GTA 6**).
