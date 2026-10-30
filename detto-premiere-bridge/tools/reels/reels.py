@@ -963,6 +963,50 @@ def _parecida(a, c0, c1):
     return float(cv2.compareHist(hist(c0), hist(c1), cv2.HISTCMP_CORREL))
 
 
+def acha_virada(clip, passo=0.8, max_q=14):
+    """EM QUE SEGUNDO o vídeo deixa de ser a pessoa e vira o lance.
+
+    É a última linha de defesa do modo TROCA: quando o vídeo não tem corte de cena detectável (crossfade, zoom,
+    gravação de tela) nem barra preta, as duas tentativas anteriores devolvem "tudo pessoa" ou "tudo lance" e o
+    link morria em "não achei onde está a pessoa e onde está o lance". Aqui a pergunta é direta, com uma fila de
+    quadros do vídeo inteiro.
+    """
+    import base64 as _b64
+
+    import cv2
+
+    if not os.environ.get("GEMINI_API_KEY"):
+        return 0.0
+    d = dur(clip)
+    if d < 2:
+        return 0.0
+    tempos = [round(x * d / (max_q + 1), 2) for x in range(1, max_q + 1)]
+    tempos = [x for x in tempos if x >= passo / 2][:max_q]
+    partes = [{"text": "Este vídeo é um MEME de futebol: COMEÇA com uma pessoa se gravando (selfie, celular, dia a "
+                       "dia, com legenda tipo 'eu quando...') e DEPOIS entra o lance (jogo, transmissão, jogador, "
+                       "torcida, outro viral). Abaixo vai um quadro de cada momento, em ordem, com o segundo. "
+                       "Responda SÓ JSON {\"segundo\": <o segundo em que o LANCE começa>, \"tem_pessoa\": true/false}. "
+                       "Se o vídeo inteiro já for o lance (sem pessoa nenhuma no começo), responda tem_pessoa false."}]
+    for s in tempos:
+        ok, jpg = cv2.imencode(".jpg", cv2.resize(_quadro_cor(clip, s), (216, 384)))
+        if not ok:
+            continue
+        partes.append({"text": f"segundo {s:.1f}:"})
+        partes.append({"inline_data": {"mime_type": "image/jpeg", "data": _b64.b64encode(jpg.tobytes()).decode()}})
+    g = gemini_json(partes, temperatura=0) or {}
+    if g.get("tem_pessoa") is False:
+        log("   o Gemini diz que NÃO tem pessoa no começo (é só o lance): esse link pede o modo novo")
+        return 0.0
+    try:
+        s = float(g.get("segundo") or 0)
+    except (TypeError, ValueError):
+        return 0.0
+    if 0.6 < s < d - 0.8:
+        log(f"   virada pessoa→lance pelo Gemini: {s:.1f}s")
+        return round(s, 2)
+    return 0.0
+
+
 def partes_da_pessoa(clip, tmp, inicio=0.0):
     """Meme do link dele (outra pessoa + lance, podendo voltar a pessoa no meio): marca cada cena como "pessoa"
     (a parte que vira o seu começo) ou "lance". Gemini olhando uma foto de cada cena; sem Gemini: a 1ª cena é a
@@ -974,9 +1018,10 @@ def partes_da_pessoa(clip, tmp, inicio=0.0):
         # SEM CORTE DE CENA ACHADO (corte suave, zoom, crossfade): era aqui que o link dele morria com "não achei
         # onde está a pessoa e onde está o lance". Mas o analisa_viral JÁ mediu onde o lance começa — parto ali.
         d = dur(clip)
-        if inicio and 0.6 < inicio < d - 0.8:
-            log(f"   sem corte de cena no vídeo: parto no começo do lance ({inicio:.1f}s)")
-            return [{"a": 0.0, "b": inicio, "tipo": "pessoa"}, {"a": inicio, "b": d, "tipo": "lance"}]
+        corte = inicio if (inicio and 0.6 < inicio < d - 0.8) else acha_virada(clip)
+        if corte:
+            log(f"   sem corte de cena no vídeo: parto na virada ({corte:.1f}s)")
+            return [{"a": 0.0, "b": corte, "tipo": "pessoa"}, {"a": corte, "b": d, "tipo": "lance"}]
         return cenas
     tipos = None
     if os.environ.get("GEMINI_API_KEY"):
@@ -1831,10 +1876,10 @@ def main():
             # o modo normal: se não der, avisa e não posta nada errado.
             cenas = confere_cenas(clip, partes_da_pessoa(clip, tmp, av.get("inicio") or 0.0))
             pessoas = [k for k, x in enumerate(cenas) if x.get("tipo") == "pessoa"]
-            if (not pessoas or len(pessoas) == len(cenas)) and (av.get("inicio") or 0) > 0.6:
-                # as cenas não separaram (tudo "pessoa" ou tudo "lance"), mas sabemos onde o lance começa
-                ini_l = float(av["inicio"])
-                if ini_l < dclip - 0.8:
+            if not pessoas or len(pessoas) == len(cenas):
+                # as cenas não separaram (tudo "pessoa" ou tudo "lance"): pergunto a virada quadro a quadro
+                ini_l = float(av.get("inicio") or 0) or acha_virada(clip)
+                if 0.6 < ini_l < dclip - 0.8:
                     log(f"   as cenas não separaram: uso o começo do lance ({ini_l:.1f}s) para partir")
                     cenas = [{"a": 0.0, "b": ini_l, "tipo": "pessoa"}, {"a": ini_l, "b": dclip, "tipo": "lance"}]
                     pessoas = [0]

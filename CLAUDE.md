@@ -14,6 +14,9 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
   `_vs_responde` tenta vários caminhos (`/v1/audio/voices`, `/v1/models`, `/health`, `/docs`, `/`) e, se nada
   responder no endereço do config, PROCURA nas portas conhecidas (3900, 8000, 7860, 5000, 8080, 3000, 8188) —
   achando, passa a usar aquela porta na rodada (`VOICESTUDIO_ACHADO`) e diz no registro qual era.
+- DRIVE MUDO (29/out): `traz_do_drive` saía calado quando não achava `<Meu Drive>\DETTO\canal_noticias` — a
+  máscara e a voz nunca chegavam e o painel só dizia "nenhuma gravação". Agora o registro diz onde procurou e o
+  que criar.
 - CANAL SEM MÁSCARA/VOZ NÃO RODA MAIS À TOA (29/out): sem gravação em `mascara\` ou sem `voz\minha_voz.wav` a
   rodada ia até o fim e terminava "(ok)" sem entregar nada. Agora ela PARA no começo dizendo o que falta e onde
   subir no Drive. (`DETTO_VOZ_FALSA=1` pula a conferência, para testes.)
@@ -228,6 +231,12 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
 - Reels TROCA: o texto do original é copiado PIXEL A PIXEL (mediana dos quadros onde fica parado: mesma fonte, cor e
   contorno). Meme com faixa preta: o texto da BARRA vale para todas as cenas da pessoa (inteiro e limpo; a legenda achada
   em cima da parede saía pela metade/borrada), tirado do preto com borda suave + sombra suave (como o TikTok/CapCut).
+- LINK QUE NÃO SEPARA PESSOA/LANCE (29/out, `acha_virada`): vídeo sem corte de cena detectável (crossfade, zoom,
+  gravação de tela) e sem barra preta deixava `partes_da_pessoa` devolver "tudo pessoa"/"tudo lance" e o link
+  morria em "não achei onde está a pessoa e onde está o lance" (um link dele falhou assim de 27 a 29/out). Agora,
+  nessa situação, o Gemini recebe 14 quadros do vídeo inteiro e responde EM QUE SEGUNDO o lance começa
+  (`{"segundo":..., "tem_pessoa":...}`); com isso o vídeo é partido em pessoa|lance. Se ele responder
+  `tem_pessoa: false`, o registro diz que esse link pede o **modo novo** (não tem pessoa para trocar).
 - CONFERÊNCIAS do TROCA (reels.py): ANTES de montar — `confere_cenas` (cena "lance" parecida com a pessoa + rosto →
   Gemini compara com a 1ª cena da pessoa → vira "pessoa": a pessoa que volta no meio é coberta) e `le_texto_duplo`
   (PNG do texto × Gemini lendo o quadro original; não bate → testa o outro recorte). DEPOIS — `confere_troca`

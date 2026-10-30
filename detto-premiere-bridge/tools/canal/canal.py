@@ -1340,8 +1340,16 @@ def traz_do_drive(pasta, cfg):
         d = raiz_drive()
         raiz = d / "DETTO" / "canal_noticias" if d else None
     if not raiz or not raiz.is_dir():
+        # ANTES ISSO ERA MUDO: a máscara/voz nunca chegava e ninguém sabia por quê (o painel só dizia
+        # "nenhuma gravação"). Agora o registro diz onde eu procurei.
+        d_ = raiz_drive()
+        log(f"Drive: não achei a pasta do canal ({raiz if raiz else 'nenhum Google Drive no PC'}). "
+            + (f"O Drive está em {d_}: crie lá DETTO\\canal_noticias com as pastas mascara e voz."
+               if d_ else "Abra o Google Drive para computador, ou ponha o caminho em \"drive\" no config/painel."))
         return
     m = raiz / "mascara"
+    if not m.is_dir():
+        log(f"Drive: a pasta {m} não existe (é de lá que vêm as gravações de máscara)")
     if m.is_dir():
         for f in sorted(m.iterdir()):
             if not f.is_file() or f.suffix.lower() not in VIDEO_EXT:
@@ -1355,6 +1363,8 @@ def traz_do_drive(pasta, cfg):
             except OSError as e:  # ainda baixando do Drive: pega na próxima rodada
                 log(f"Drive: {f.name} ainda não dá para copiar ({e}); tento na próxima")
     v = raiz / "voz"
+    if not v.is_dir():
+        log(f"Drive: a pasta {v} não existe (é de lá que vem a sua voz de referência)")
     if v.is_dir():
         auds = [f for f in v.iterdir() if f.is_file() and f.suffix.lower() in AUDIO_EXT]
         if auds:
