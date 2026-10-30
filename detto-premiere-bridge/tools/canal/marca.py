@@ -263,6 +263,174 @@ def everton_lopes(nome, saida, foto=None):
     return saida
 
 
+# ------------------------------------------------------------------ DETTO PLAY (GTA 6 + gameplays)
+def detto_play(nome, saida, sub="TUDO SOBRE O GTA 6", lancamento="19.11.2026"):
+    """A cara dos canais grandes de GTA 6 (olhei SanInPlay, GameplayRJ e NobertoGamer): pôr do sol de Vice City,
+    coqueiros, skyline e o nome em letra condensada com franja ciano/magenta. Tudo desenhado aqui — NADA da
+    Rockstar (a logo e a arte oficial do GTA são deles; o canal usa trechos com crédito, que é outra coisa)."""
+    import vice as V
+
+    saida.mkdir(parents=True, exist_ok=True)
+    partes = nome.upper().split()
+    um, dois = (partes[0], " ".join(partes[1:])) if len(partes) > 1 else (nome.upper(), "")
+
+    # ---------- banner 2560x1440
+    img = V.cena(W, H, horizonte=0.70)
+    d = ImageDraw.Draw(img)
+    # a área segura ganha um véu escuro: o nome tem que ler por cima do céu claro
+    veu = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    ImageDraw.Draw(veu).rounded_rectangle((SX - 120, SY - 90, SX + SW + 120, SY + SH + 90), radius=60,
+                                          fill=(14, 4, 30, 150))
+    img = Image.alpha_composite(img.convert("RGBA"), veu.filter(ImageFilter.GaussianBlur(26))).convert("RGB")
+    d = ImageDraw.Draw(img)
+    # TUDO dentro da área segura (1546x423): a pílula em cima, o nome no meio, a faixa embaixo, sem encostar
+    f1 = encaixa(d, um, "Anton-Regular.ttf", 132, SW - 120)
+    f2 = encaixa(d, dois, "Anton-Regular.ttf", 208, SW - 120) if dois else None
+    V.texto_neon(d, (W // 2, SY + 116), um, f1, BRANCO, franja=5, contorno=5)
+    if dois:
+        V.texto_neon(d, (W // 2, SY + 252), dois, f2, BRANCO, franja=9, contorno=6)
+    # a faixa de baixo: o que o canal é HOJE + a data (troca quando o GTA 6 sair)
+    if lancamento:
+        sub = sub + "  •  LANÇA " + lancamento
+    by = SY + 376
+    fs = encaixa(d, sub, "Inter-ExtraBold.otf", 44, SW - 260)
+    larg = d.textlength(sub, font=fs)
+    d.rounded_rectangle((W // 2 - larg // 2 - 34, by - 36, W // 2 + larg // 2 + 34, by + 36), radius=40,
+                        fill=(12, 4, 26), outline=V.CIANO, width=4)
+    texto_centro(d, (W // 2, by), sub, fs, BRANCO)
+    img = V.brilho(img, 0.35)
+    img.save(saida / "banner_2560x1440.png")
+    confere_area(img, saida)
+
+    # ---------- foto de perfil 800x800
+    P = 800
+    av = V.cena(P, P, horizonte=0.74, com_skyline=True, coqueiros=False)
+    da = ImageDraw.Draw(av)
+    V.coqueiro(av, int(P * 0.12), int(P * 0.80), int(P * 0.62), inclina=0.12, semente=9)
+    V.coqueiro(av, int(P * 0.90), int(P * 0.80), int(P * 0.58), inclina=-0.14, semente=4)
+    sigla = (um[0] + (dois[0] if dois else um[1:2])).upper()
+    V.texto_neon(da, (P // 2, int(P * 0.44)), sigla, fonte(340), BRANCO, franja=10, contorno=10)
+    fsub = encaixa(da, dois or um, "Anton-Regular.ttf", 92, P - 120)
+    da.rounded_rectangle((60, int(P * 0.70), P - 60, int(P * 0.70) + 110), radius=26, fill=(12, 4, 26))
+    texto_centro(da, (P // 2, int(P * 0.70) + 56), dois or um, fsub, V.CIANO)
+    V.brilho(av, 0.3).save(saida / "perfil_800x800.png")
+
+    # ---------- marca d'água 150x150 (transparente, canto do vídeo)
+    M = 150
+    wm = Image.new("RGBA", (M, M), (0, 0, 0, 0))
+    dw = ImageDraw.Draw(wm)
+    dw.ellipse((4, 4, M - 4, M - 4), fill=(12, 4, 26, 225), outline=V.MAGENTA + (255,), width=6)
+    V.texto_neon(dw, (M // 2, M // 2 - 2), sigla, fonte(74), BRANCO, franja=3)
+    wm.save(saida / "marca_dagua_150x150.png")
+
+    # ---------- EMBLEMA do react: entra ABAIXO da câmera, fundo transparente
+    for larg_e, alt_e, arq in ((1000, 280, "emblema_react_1000x280.png"), (512, 512, "emblema_quadrado_512.png")):
+        em = Image.new("RGBA", (larg_e, alt_e), (0, 0, 0, 0))
+        de = ImageDraw.Draw(em)
+        de.rounded_rectangle((6, 6, larg_e - 6, alt_e - 6), radius=min(larg_e, alt_e) // 6,
+                             fill=(12, 4, 26, 235), outline=V.CIANO + (255,), width=5)
+        de.rectangle((int(larg_e * 0.08), alt_e - 24, int(larg_e * 0.92), alt_e - 17), fill=V.MAGENTA + (255,))
+        if larg_e > alt_e:   # deitado (o do react): selo à esquerda, nome e @ à direita
+            cy = alt_e // 2
+            rr = int(alt_e * 0.33)
+            cxs = 40 + rr + 10
+            disco = V.cena(rr * 2, rr * 2, horizonte=0.78, com_skyline=False, coqueiros=False)
+            V.coqueiro(disco, int(rr * 0.55), int(rr * 1.62), int(rr * 1.15), inclina=0.10, semente=9)
+            mask = Image.new("L", (rr * 2, rr * 2), 0)
+            ImageDraw.Draw(mask).ellipse((0, 0, rr * 2 - 1, rr * 2 - 1), fill=255)
+            em.paste(disco, (cxs - rr, cy - rr), mask)
+            de.ellipse((cxs - rr, cy - rr, cxs + rr, cy + rr), outline=V.CIANO + (255,), width=5)
+            esq = cxs + rr + 30
+            cxt = (esq + larg_e - 50) // 2
+            disp = larg_e - 50 - esq
+            fa = encaixa(de, um, "Anton-Regular.ttf", 76, disp)
+            V.texto_neon(de, (cxt, cy - 74), um, fa, BRANCO, franja=4)
+            if dois:
+                fb = encaixa(de, dois, "Anton-Regular.ttf", 112, disp)
+                V.texto_neon(de, (cxt, cy + 10), dois, fb, BRANCO, franja=7)
+            de.text((cxt, alt_e - 56), "@detto.galo", font=fonte(34, "Inter-Bold.otf"), fill=V.CIANO + (255,), anchor="mm")
+        else:
+            V.texto_neon(de, (alt_e // 2, int(alt_e * 0.42)), sigla, fonte(230), BRANCO, franja=8)
+            fb = encaixa(de, dois or um, "Anton-Regular.ttf", 74, larg_e - 90)
+            texto_centro(de, (larg_e // 2, int(alt_e * 0.74)), dois or um, fb, V.CIANO)
+        em.save(saida / arq)
+
+    # ---------- molde de thumb (o padrão deles: selo URGENTE + manchete de 2 linhas + assinatura)
+    th = V.cena(1280, 720, horizonte=0.66)
+    dt_ = ImageDraw.Draw(th)
+    escuro = Image.new("RGBA", (1280, 720), (0, 0, 0, 0))
+    ImageDraw.Draw(escuro).rectangle((0, 470, 1280, 720), fill=(10, 3, 24, 205))
+    th = Image.alpha_composite(th.convert("RGBA"), escuro.filter(ImageFilter.GaussianBlur(18))).convert("RGB")
+    dt_ = ImageDraw.Draw(th)
+    dt_.polygon([(60, 30), (170, 30), (115, 130)], fill=VERMELHO)       # selo URGENTE (triângulo)
+    texto_centro(dt_, (115, 62), "!", fonte(60), BRANCO)
+    texto_centro(dt_, (115, 158), "URGENTE", fonte(40), VERMELHO)
+    texto_centro(dt_, (620, 560), "MANCHETE EM", fonte(118), BRANCO, 7)
+    texto_centro(dt_, (620, 665), "DUAS LINHAS!", fonte(118), AMARELO, 7)
+    dt_.rounded_rectangle((900, 120, 1230, 460), radius=24, outline=CINZA, width=4)
+    texto_centro(dt_, (1065, 290), "SEU ROSTO", fonte(54), CINZA)
+    texto_centro(dt_, (1150, 60), nome.upper(), fonte(44), BRANCO, 4)
+    th.save(saida / "thumb_molde_1280x720.png")
+
+    (saida / "CANAL.txt").write_text(TEXTO_PLAY.replace("{NOME}", nome.upper()).replace("{SUB}", sub).strip() + "\n",
+                                     encoding="utf-8")
+    return saida
+
+
+TEXTO_PLAY = """
+{NOME}
+Identificador sugerido: @dettoplay   (alternativas: @detto.play, @dettoplayoficial)
+
+POR QUE ESSE NOME: o canal começa 100% em GTA 6, mas um canal CHAMADO "GTA 6" morre no dia que o jogo sai e não
+segura outra gameplay. Os grandes do nicho fazem assim — SanInPlay, GameplayRJ, NobertoGamer: nome próprio no
+canal, GTA 6 no conteúdo, nas tags e na faixa do banner. Quando virar outra fase, muda a faixa, não o canal.
+
+DESCRIÇÃO (Studio → Personalização → Informações básicas)
+Tudo sobre o GTA 6, todo dia, sem enrolação. 🌴🎮
+Notícia, gameplay nova, imagem oficial, vazamento (chamado de vazamento) e a minha opinião sem fanatismo —
+com a contagem regressiva para 19 de novembro de 2026.
+Depois do lançamento o canal segue: gameplay, review e o que estiver bombando.
+
+🔔 Vídeo novo todo dia. Ative o sininho.
+📲 Instagram e TikTok: @detto.galo
+🐓 Futebol: DETTO GALO NOTÍCIAS  ·  🎬 Vlogs: EVERTON LOPES
+
+Canal de fã, sem ligação com a Rockstar Games ou a Take-Two. GTA e Grand Theft Auto são marcas da Take-Two
+Interactive. Trechos de terceiros entram com comentário e crédito (descrição e comentário fixado de cada vídeo).
+Narração com voz gerada por IA a partir da voz do Detto.
+
+PALAVRAS-CHAVE DO CANAL (Configurações → Canal → Palavras-chave)
+gta 6, gta vi, grand theft auto 6, gta 6 notícias, gta 6 gameplay, gta 6 brasil, gta 6 português, vice city,
+lucia caminos, jason duval, leonida, gta 6 lançamento, gta 6 trailer, rockstar games, detto play, gameplay br
+
+PLAYLISTS (crie nesta ordem — a 1ª é a que segura o canal)
+1. GTA 6 HOJE — a notícia do dia (todo vídeo diário)
+2. Contagem regressiva para o GTA 6
+3. Gameplay e trailers analisados quadro a quadro
+4. Vazamento x oficial: o que é verdade
+5. Mapa, personagens e história de Leonida
+6. Shorts
+7. Outras gameplays (depois do lançamento)
+
+PADRÃO DE ENVIO (Configurações → Padrões de envio)
+Título: GTA 6: <manchete> | FALTAM <N> DIAS
+Categoria: Jogos · Idioma: Português (Brasil) · Comentários: permitir
+Conteúdo alterado ou sintético: SIM (a narração é voz gerada por IA)
+Marca d'água: marca_dagua_150x150.png, "Vídeo inteiro"
+Descrição padrão: os 3 primeiros parágrafos da descrição acima + "Créditos das imagens nos comentários."
+
+SEÇÕES DA PÁGINA INICIAL (Personalização → Layout)
+1. Vídeo em destaque para quem não é inscrito: o melhor "o que é o GTA 6" do mês
+2. Vídeos recentes · 3. GTA 6 HOJE · 4. Shorts · 5. Contagem regressiva · 6. Playlists criadas
+
+{NOME}  <link do canal>
+
+ARQUIVOS DESTA PASTA
+banner_2560x1440.png (confira banner_conferir_area_segura.jpg) · perfil_800x800.png · marca_dagua_150x150.png ·
+emblema_react_1000x280.png (ABAIXO DA CÂMERA no react) · emblema_quadrado_512.png · thumb_molde_1280x720.png
+"""
+
+
 TEXTO_NOTICIAS = """
 DETTO GALO NOTÍCIAS
 Identificador sugerido: @dettogalonoticias   (alternativas: @dettogalo.noticias, @detto.noticias)
@@ -355,11 +523,19 @@ def main():
     ap.add_argument("--noticias", default="DETTO GALO NOTÍCIAS")
     ap.add_argument("--everton", "--vlogs", dest="everton", default="EVERTON LOPES")
     ap.add_argument("--foto", help="sua foto (rosto) para o canal Everton Lopes")
+    ap.add_argument("--play", default="DETTO PLAY", help="nome do canal de GTA 6 / gameplays")
+    ap.add_argument("--sub", default="TUDO SOBRE O GTA 6", help="a faixa do banner (troca quando mudar a fase do canal)")
+    ap.add_argument("--lancamento", default="19.11.2026", help="data na pílula do banner (vazio = sem pílula)")
+    ap.add_argument("--so", choices=["noticias", "everton", "play"], help="gerar só um dos canais")
     ap.add_argument("--saida", default=r"E:\DETTO\marca")
     a = ap.parse_args()
     s = Path(a.saida)
-    print(galo_noticias(a.noticias, s / "noticias"))
-    print(everton_lopes(a.everton, s / "everton_lopes", a.foto))
+    if a.so in (None, "noticias"):
+        print(galo_noticias(a.noticias, s / "noticias"))
+    if a.so in (None, "everton"):
+        print(everton_lopes(a.everton, s / "everton_lopes", a.foto))
+    if a.so in (None, "play"):
+        print(detto_play(a.play, s / "detto_play", a.sub, a.lancamento))
 
 
 if __name__ == "__main__":

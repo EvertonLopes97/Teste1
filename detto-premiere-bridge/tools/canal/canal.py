@@ -1444,8 +1444,10 @@ def traz_do_drive(pasta, cfg):
 # `python tools\canal\canal.py --pasta <pasta> --preset gta6` escreve o config do canal de GTA 6.
 GTA6 = {
     "preset": "gta6",
-    "nome_canal": "DETTO GTA 6",
-    "assinatura": ("🎮 DETTO GTA 6 — tudo sobre o Grand Theft Auto VI até o lançamento: notícias, trailers e gameplay "
+    # O NOME NÃO PODE SER "GTA 6": o canal morre no dia que o jogo sai e não segura outra gameplay. Os grandes do
+    # nicho fazem assim (SanInPlay, GameplayRJ, NobertoGamer): nome próprio no canal, GTA 6 no conteúdo e na capa.
+    "nome_canal": "DETTO PLAY",
+    "assinatura": ("🎮 DETTO PLAY — tudo sobre o Grand Theft Auto VI até o lançamento: notícias, trailers e gameplay "
                    "comentada.\n🔔 Inscreva-se e ative o sininho: vídeo novo todo dia.\n📲 Instagram e TikTok: @detto.galo\n"
                    "Canal de fã, sem ligação oficial com a Rockstar Games ou a Take-Two. Os vídeos são usados em trechos "
                    "curtos, com comentário e crédito a quem produziu."),
@@ -1507,7 +1509,7 @@ GTA6 = {
                "lucia caminos", "jason duval", "leonida"],
     "termos_nao": ["gta 5", "gta v", "gta san andreas", "gta rp", "gta online", "gta 4", "gta iv"],
     "vinheta_canal": "gta6",
-    "estilo_thumb": "gameplay",
+    "estilo_thumb": "gta6",
 }
 
 # cada preset é o CONFIG_PADRAO COM AS TROCAS dele: assim nenhuma chave some (foi o KeyError 'voz_ref' do

@@ -103,7 +103,7 @@ function versoes(s) {
   const selo = (estilo) => (s.selo ? `<div class="selo" style="${estilo}">${esc(s.selo)}</div>` : "");
   const extra = (i, estilo) => (s.extras[i] ? `<div class="extra" style="${estilo};background-image:url('${url(s.extras[i])}')"></div>` : "");
   const marca = s.marca ? `<div class="marca" style="left:24px;bottom:22px">${esc(s.marca)}</div>` : "";
-  const setaCor = s.estilo === "noticia" ? "#FF2D2D" : s.cor;
+  const setaCor = ["noticia", "gta6"].includes(s.estilo) ? "#FF2D2D" : s.cor;
   // o texto da manchete em 2 linhas: a 2ª (ou a marcada com destaque) sai colorida
   const linhasManchete = () => {
     const ws = String(s.texto).split(/\s+/).filter(Boolean);
@@ -159,7 +159,8 @@ function versoes(s) {
 /** a lista final: no canal de notícias a MANCHETE vai na frente (é a que sobe no YouTube) */
 function listaVersoes(s) {
   const vs = versoes(s);
-  const out = s.estilo === "noticia" ? [s._manchete, ...vs] : vs;
+  // manchete em 1º: é o layout que mais rende no canal de notícias E nas thumbs de GTA 6 que eu medi
+  const out = ["noticia", "gta6"].includes(s.estilo) ? [s._manchete, ...vs] : vs;
   return out.filter(Boolean).slice(0, Math.max(1, s.n || 3));
 
 }

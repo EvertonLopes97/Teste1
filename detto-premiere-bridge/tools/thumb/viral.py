@@ -35,6 +35,9 @@ ESTILOS = {
     "futebol": {"cor": "#FFE600", "luz": "rgba(182,255,59,.7)", "selo": "", "selo_cor": "#E6282D"},
     "vlog": {"cor": "#C8FF3D", "luz": "rgba(255,200,120,.55)", "selo": "", "selo_cor": "#111111"},
     "gameplay": {"cor": "#C8FF3D", "luz": "rgba(150,90,255,.85)", "selo": "GAMEPLAY", "selo_cor": "#965AFF"},
+    # GTA 6: a receita MEDIDA nas thumbs do SanInPlay e do NobertoGamer — quadro do jogo em tela cheia,
+    # manchete gigante em 2 linhas (a 2ª amarela), selo URGENTE vermelho e a cara do canal no canto.
+    "gta6": {"cor": "#FFD400", "luz": "rgba(255,60,200,.85)", "selo": "URGENTE", "selo_cor": "#E6282D"},
 }
 
 
@@ -217,7 +220,8 @@ def texto_viral(assunto, estilo="futebol", log=log):
         sys.path.insert(0, str(TOOLS / "reels"))
         from reels import gemini_json
 
-        tipo = {"noticia": "notícias do Atlético-MG (o Galo)", "vlog": "vlog de viagem/dia a dia", "gameplay": "gameplay de videogame"}.get(estilo, "futebol")
+        tipo = {"noticia": "notícias do Atlético-MG (o Galo)", "vlog": "vlog de viagem/dia a dia",
+                "gameplay": "gameplay de videogame", "gta6": "notícias e gameplay do GTA 6"}.get(estilo, "futebol")
         g = gemini_json([{"text": f"""Vídeo do YouTube de {tipo}. Assunto: {assunto[:1500]}
 Escreva o TEXTO DA THUMB: 2 a 4 palavras em MAIÚSCULAS que dão vontade de clicar (curiosidade, choque, polêmica), SEM mentir
 e sem repetir o título inteiro. Use nome de jogador/time/lugar se for o centro do assunto. Diga a palavra a destacar e um selo
@@ -231,7 +235,8 @@ Responda SÓ JSON: {{"texto": "...", "destaque": "...", "selo": "..."}}"""}], te
     palavras = re.sub(r"[^A-Za-zÀ-ÿ0-9 ]", " ", re.sub(r"\b(IMG|VID|DSC|MVI|PXL)[_ -]?\d+\w*", " ", assunto, flags=re.I)).upper().split()
     palavras = [p for p in palavras if len(p) > 2 and not p.isdigit()][:4]
     if not palavras:
-        palavras = {"vlog": ["OLHA", "ESSE", "LUGAR"], "gameplay": ["OLHA", "ESSA", "JOGADA"], "noticia": ["NOTÍCIA", "DO", "GALO"]}.get(estilo, ["OLHA", "ISSO"])
+        palavras = {"vlog": ["OLHA", "ESSE", "LUGAR"], "gameplay": ["OLHA", "ESSA", "JOGADA"],
+                    "noticia": ["NOTÍCIA", "DO", "GALO"], "gta6": ["SAIU", "AGORA", "GTA 6"]}.get(estilo, ["OLHA", "ISSO"])
     return " ".join(palavras), max(palavras, key=len), ""
 
 

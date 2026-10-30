@@ -30,7 +30,9 @@ CANAIS = {
     # vlogs e gameplays
     "vlog": {"nome": "EVERTON LOPES", "dur": 2.6, "estilo": "vlog", "selo": "@", "sub": "@"},
     # canal de GTA 6 (cara de gameplay: lima e roxo)
-    "gta6": {"nome": "DETTO GTA 6", "dur": 2.6, "estilo": "vlog", "selo": "", "sub": "TUDO SOBRE O GTA 6"},
+    # GTA 6 + gameplays: o pôr do sol de Vice City, a mesma cara do banner e do emblema
+    "gta6": {"nome": "DETTO PLAY", "dur": 2.6, "estilo": "vice", "selo": "", "sub": "TUDO SOBRE O GTA 6"},
+    "play": {"nome": "DETTO PLAY", "dur": 2.6, "estilo": "vice", "selo": "", "sub": "TUDO SOBRE O GTA 6"},
 }
 
 

@@ -13,6 +13,52 @@
 const AMARELO = "#ffd400";
 const LIMA = "#c6ff3d";
 const ROXO = "#a855f7";
+const CIANO = "#3cf0ff";
+const MAGENTA = "#ff3cc8";
+
+/** o pôr do sol de Vice City em CAMADAS: céu, sol fatiado (recortado no disco) e a grade neon só no chão.
+ *  Numa camada só, as faixas do sol riscavam o céu inteiro e a grade cobria a tela toda. */
+function viceCamadas(W, H) {
+  const palco = document.getElementById("palco");
+  const fundo = document.getElementById("fundo");
+  fundo.style.background = "linear-gradient(180deg, #1a0a2c 0%, #6a1c70 30%, #ff2d78 56%, #ff9632 76%, #ffd45a 100%)";
+  for (const id of ["viceSol", "viceGrade"]) {
+    const velho = document.getElementById(id);
+    if (velho) velho.remove();
+  }
+  // o SOL: disco com degradê, cortado por faixas que engrossam para baixo
+  const sol = document.createElement("div");
+  sol.id = "viceSol";
+  const r = Math.round(H * 0.30);
+  Object.assign(sol.style, {
+    position: "absolute", left: (W / 2 - r) + "px", top: (H * 0.66 - r) + "px",   // abaixo do nome, senão as faixas atrapalham a leitura
+    width: r * 2 + "px", height: r * 2 + "px", borderRadius: "50%", zIndex: "0",
+    background: "repeating-linear-gradient(180deg, transparent 0 " + Math.round(r * 0.16) + "px, rgba(12,4,26,.92) "
+      + Math.round(r * 0.16) + "px " + Math.round(r * 0.22) + "px), linear-gradient(180deg, #ffe06a 0%, #ff4f8b 100%)",
+    filter: "blur(.4px)", boxShadow: "0 0 " + Math.round(r * 0.5) + "px rgba(255,120,160,.55)",
+  });
+  // o GRID: só o terço de baixo, em perspectiva
+  const grade = document.createElement("div");
+  grade.id = "viceGrade";
+  Object.assign(grade.style, {
+    position: "absolute", left: "-30%", right: "-30%", bottom: "0", height: "34%", zIndex: "0",
+    width: "160%", transform: "perspective(" + Math.round(H * 0.6) + "px) rotateX(62deg)", transformOrigin: "50% 100%",
+    background: "repeating-linear-gradient(90deg, rgba(60,240,255,.5) 0 3px, transparent 3px 5%),"
+      + "repeating-linear-gradient(0deg, rgba(255,60,200,.5) 0 3px, transparent 3px 9%)",
+    maskImage: "linear-gradient(180deg, transparent 0%, #000 45%, #000 100%)",
+    WebkitMaskImage: "linear-gradient(180deg, transparent 0%, #000 45%, #000 100%)",
+  });
+  palco.insertBefore(sol, fundo.nextSibling);
+  palco.insertBefore(grade, sol.nextSibling);
+  // o nome TEM que ficar por cima do sol e da grade (sem isso o disco cobria tudo)
+  for (const id of ["luz", "centro", "selo", "faixaCima", "faixaBaixo", "sweep", "flash"]) {
+    const el = document.getElementById(id);
+    if (el) {
+      el.style.position = el.style.position || "absolute";
+      el.style.zIndex = id === "luz" ? "1" : "6";
+    }
+  }
+}
 
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 const clamp = (v, a = 0, b = 1) => Math.max(a, Math.min(b, v));
@@ -27,7 +73,7 @@ function listras(W, H) {
 
 const VIN = {
   monta(canal, nome, W, H, selo_, sub_) {
-    this.canal = canal === "vlog" ? "vlog" : "noticias";
+    this.canal = ["vlog", "vice"].includes(canal) ? canal : "noticias";
     const palavras = String(nome || "").toUpperCase().trim().split(/\s+/);
     const fundo = document.getElementById("fundo");
     const luz = document.getElementById("luz");
@@ -51,6 +97,21 @@ const VIN = {
       sub.style.color = "rgba(255,255,255,.92)";
       risco.style.background = AMARELO;
       for (const f of document.querySelectorAll(".faixa")) f.style.background = AMARELO;
+    } else if (this.canal === "vice") {
+      // GTA 6 / gameplay: o pôr do sol de Vice City, com a franja ciano/magenta nas letras
+      viceCamadas(W, H);
+      luz.style.background = "radial-gradient(50% 55% at 50% 52%, rgba(255,80,160,.35), transparent 70%)";
+      sigla.textContent = palavras.map((x) => x[0]).join("").slice(0, 3);
+      sigla.style.color = "rgba(255,255,255,.07)";
+      const ultv = palavras.length > 1 ? palavras.pop() : "";
+      nomeEl.innerHTML = esc(palavras.join(" ")) + (ultv ? "<br>" + esc(ultv) : "");
+      nomeEl.style.textShadow = "-7px 0 " + CIANO + ", 7px 0 " + MAGENTA + ", 0 10px 40px rgba(0,0,0,.6)";
+      selo.textContent = selo_ === "@" ? "" : String(selo_ || "");
+      sub.textContent = sub_ === "@" ? "TUDO SOBRE O GTA 6" : String(sub_ || "");
+      sub.style.color = CIANO;
+      risco.style.background = "linear-gradient(90deg, " + CIANO + ", " + MAGENTA + ")";
+      document.getElementById("faixaCima").style.background = "linear-gradient(90deg, " + CIANO + ", transparent)";
+      document.getElementById("faixaBaixo").style.background = "linear-gradient(90deg, transparent, " + MAGENTA + ")";
     } else {
       // vlog + gameplay: lima de um lado, roxo do outro
       fundo.style.background = "linear-gradient(135deg, #0a0e0c 0%, #140a22 100%)";
