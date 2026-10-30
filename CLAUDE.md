@@ -1,6 +1,6 @@
 # DETTO — editor de vídeos do @detto.galo
 
-**MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
+**SOCORRO (o que fazer quando para): `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
 ## QUANDO O SISTEMA PARA (29/out) — rede de proteção
@@ -26,6 +26,10 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
 - `python tools\teste_rapido.py` → importa TODO .py (nome que não existe, import errado) + CONTRATO: confere que
   cada função chamada de outro arquivo ainda existe (foi o que pegou `caminho` no painel.py, que dava erro 500 em
   /historia, /shop_arquivo e /ed_arquivo). O GitHub Actions roda isso + `pyflakes` a cada push.
+- BACKUP MANUAL (29/out): `BACKUP.ps1` guarda em `E:\DETTO\backups\<data-hora>` todo config/estado/histórico
+  das pastas do DETTO + os tokens de login + a versão do código (vídeo não entra), mantendo os 10 últimos;
+  `RESTAURAR.ps1` lista os backups e devolve o escolhido (fazendo antes um backup do estado de agora;
+  `-ComCodigo` volta também o commit daquele dia).
 - `ATUALIZAR.ps1` guarda a versão de antes em `.ultima_boa`, roda o teste rápido depois do pull e **volta sozinho**
   se o código novo estiver quebrado. `VOLTAR.ps1` volta na mão (`VOLTAR.ps1 -Versao <commit>` para um ponto certo).
   Mídia e configurações (E:\DETTO) nunca são tocadas por isso.

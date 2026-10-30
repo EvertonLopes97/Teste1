@@ -1818,9 +1818,13 @@ def main():
             links = [u for u in links if chave_link(u) not in ja]
             grava_json(base / "historico.json", hist)
     fila = [{"url": u, "chave": None, "seu": True} for u in links]
+    # REGISTRO DE TUDO: ele colava link e "não acontecia nada" porque o link que falha SAI do links.txt (o contador
+    # volta a 0) e a rodada não dizia com quantos começou. Agora cada rodada diz o que achou e o que vai fazer.
+    log(f"links.txt: {len(links)} link(s) para fazer" + (f" — {links[0][:70]}" if links else ""))
     if a.so_links:
         if not links:
-            log("nenhum link novo no links.txt")
+            log("nenhum link novo no links.txt (se você acabou de colar e ele sumiu, veja '⚠ Links que NÃO viraram "
+                "reels' — o link que falha sai da lista com o motivo)")
             return
         a.quantos = max(a.quantos, len(links))
     if a.clip:
