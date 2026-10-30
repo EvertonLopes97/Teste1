@@ -10,6 +10,13 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
   criada por 9 dias. Agora `trava_rodada` ESCREVE pid e hora dentro do arquivo da trava, `dono_da_trava` lê, o
   canal.py registra "NÃO RODEI: outro canal.py está com a trava (pid=..., desde ...)" e o painel mostra o aviso
   vermelho com o botão **Destravar** (`canal_destravar` → taskkill no processo preso). O `doutor.py` também mostra.
+- VOICESTUDIO "FECHADO" COM O APP ABERTO (29/out): o teste batia só em `127.0.0.1:3900/v1/models`. Agora
+  `_vs_responde` tenta vários caminhos (`/v1/audio/voices`, `/v1/models`, `/health`, `/docs`, `/`) e, se nada
+  responder no endereço do config, PROCURA nas portas conhecidas (3900, 8000, 7860, 5000, 8080, 3000, 8188) —
+  achando, passa a usar aquela porta na rodada (`VOICESTUDIO_ACHADO`) e diz no registro qual era.
+- CANAL SEM MÁSCARA/VOZ NÃO RODA MAIS À TOA (29/out): sem gravação em `mascara\` ou sem `voz\minha_voz.wav` a
+  rodada ia até o fim e terminava "(ok)" sem entregar nada. Agora ela PARA no começo dizendo o que falta e onde
+  subir no Drive. (`DETTO_VOZ_FALSA=1` pula a conferência, para testes.)
 - `python tools\doutor.py` → **por que** parou: versão do código · travas presas · **IA de texto** (testa Gemini,
   as grátis e o Claude, uma por uma) · voz (VoiceStudio aberto? com voz cadastrada?) · Instagram (vagas de Reels
   teste, pausa, fila, Drive) · disco · e a última linha de ERRO de cada registro → `tools\diagnostico.txt`.
@@ -366,6 +373,8 @@ config da pasta (`"preset"`), e canal que não é `galo` NÃO recebe as migraç�
 - Canais-fonte: ele põe os que acompanha no config (`fontes`); sem nenhum, a BUSCA POR DATA já traz o que saiu hoje.
   Pauta de um vídeo específico: cole o link no campo **Pautas** do card (funciona igual ao canal de notícias).
 - `vinheta.py` ganhou o preset `gta6` (cara de gameplay: lima e roxo, sub "TUDO SOBRE O GTA 6").
+- CANAIS-FONTE (29/out, pedido dele): @SaninPlay, @GameplayRJ, @RockstarGames (oficial), @BRKsEDU, @Voxel,
+  @TecMundo, @IGNBrasil. Canal que não existir/404 é pulado e a busca por data cobre o resto.
 
 ## TIKTOK SHOP — vídeos de produto automáticos (26/out)
 
@@ -725,7 +734,10 @@ entrando e saindo ao lado dele. Sem trilha (ele coloca a música no app).
   (`--listar` mostra o que já tem). Se o FotMob não responder no PC, rode isso AQUI no Claude e faça push.
   O FotMob não tem busca por texto: `acha_no_fotmob` varre o calendário dos últimos 12 dias e casa os DOIS times
   (`_e_o_jogo`: "Atletico Mineiro" bate com "Atlético-MG" por "atletico" — exigir todos os pedaços derrubava o jogo).
-  JÁ NO BANCO: Flamengo 3 x 2 Atlético-MG (26/10/2026, Brasileirão 32ª rodada) — 14 jogadores, todos com foto.
+  JÁ NO BANCO (29/out): Atlético-MG 0 x 1 Cruzeiro (29/10, clássico) · Flamengo 3 x 2 Atlético-MG (26/10) ·
+  Montevideo City Torque 2 x 0 Atlético-MG (21/10, Sul-Americana) · Atlético-MG 1 x 0 Coritiba (17/10).
+  O `do_banco` pega o jogo MAIS NOVO que casa com a busca, então `"jogo": "Atletico Mineiro Cruzeiro"` já traz as
+  notas de hoje. Jogo novo: rode o `notas.py` aqui no Claude e faça push.
   SEM NOTAS (27/out): o SofaScore dá 403 no PC dele, então `notas` vinha vazio, NINGUÉM era escalado e o erro
   saía como `KeyError: 'jogador'` lá no render. Agora cai no ELENCO DO BANCO (`banco\elenco`, só .png/.webp/.jpg —
   o `.gitkeep` virava "jogador"), sem nota; a escalação RODA a lista (`k % len`) em vez de `zip`, que deixava

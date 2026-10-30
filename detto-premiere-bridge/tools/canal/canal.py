@@ -1409,9 +1409,18 @@ GTA6 = {
         "\"gê tê á seis\" como \"GTA seis\" e o narrador fala certo.\n"
         "- Na abertura, diga quantos dias faltam para o lançamento quando essa informação for dada abaixo."),
     "time": "GTA",
-    # ele põe os canais que acompanha no painel; sem canal nenhum, a BUSCA POR DATA já traz o que saiu hoje
-    "fontes": [],
-    "fontes_versao": 1,
+    # os canais que ELE acompanha (29/out, pedido dele). Canal que não existir/404 é pulado sozinho, e a BUSCA
+    # POR DATA continua trazendo o resto — então acrescentar canal aqui nunca derruba a rodada.
+    "fontes": [
+        {"canal": "@SaninPlay", "nome": "Sanin Play", "filtro": "titulo"},
+        {"canal": "@GameplayRJ", "nome": "GameplayRJ", "filtro": "titulo"},
+        {"canal": "@RockstarGames", "nome": "Rockstar Games", "filtro": "tudo", "prioridade": 1},
+        {"canal": "@BRKsEDU", "nome": "BRKsEDU", "filtro": "titulo", "prioridade": 3},
+        {"canal": "@Voxel", "nome": "Voxel", "filtro": "titulo", "prioridade": 3},
+        {"canal": "@TecMundo", "nome": "TecMundo", "filtro": "titulo", "prioridade": 3},
+        {"canal": "@IGNBrasil", "nome": "IGN Brasil", "filtro": "titulo", "prioridade": 3},
+    ],
+    "fontes_versao": 2,
     "busca": ["gta 6 notícias", "gta 6 gameplay", "gta 6 trailer análise", "gta 6 novidades hoje",
               "grand theft auto 6 notícia", "gta 6 vazamento"],
     "busca_qualquer_canal": True,
@@ -1511,6 +1520,30 @@ def main():
     pasta = Path(a.pasta)
     cfg = prepara(pasta, a.preset)
     traz_do_drive(pasta, cfg)
+    # SEM MATERIAL DE BASE A RODADA NÃO TEM COMO TERMINAR: a máscara (você na tela) e a voz de referência (a voz
+    # clonada) são obrigatórias. Antes a rodada ia até o fim, gastava download/IA e acabava sem entregar nada —
+    # e o painel só dizia "rodada terminou (ok)".
+    if not os.environ.get("DETTO_VOZ_FALSA"):
+        faltando = []
+        masc = [f for f in (pasta / "mascara").glob("*") if f.is_file() and f.suffix.lower() in VIDEO_EXT]
+        if not masc:
+            faltando.append(f"MÁSCARA: nenhuma gravação em {pasta / 'mascara'} (5–10 s de você, o nome diz o clima: "
+                            "rindo.mov, bravo.mov, comemorando.mov...)")
+        ref = pasta / cfg.get("voz_ref", "voz/minha_voz.wav")
+        if not ref.exists():
+            faltando.append(f"VOZ DE REFERÊNCIA: falta {ref} (20–30 s da sua voz falando normal, sem música)")
+        if faltando:
+            d_ = raiz_drive()
+            onde = (Path(cfg["drive"]) if cfg.get("drive") else (d_ / "DETTO" / "canal_noticias" if d_ else None))
+            log("NÃO RODEI — falta o material de base deste canal:")
+            for x in faltando:
+                log(f"   - {x}")
+            if onde:
+                log(f"   Suba pelo celular em {onde}, nas pastas mascara e voz (qualquer áudio serve) — a próxima "
+                    "rodada copia sozinha.")
+            else:
+                log("   Ponha os arquivos nas pastas acima (ou configure a pasta do Drive no painel).")
+            return
     try:
         prepara_mascaras(pasta)
     except Exception as e:

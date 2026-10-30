@@ -137,19 +137,52 @@ INSTRUCAO_PADRAO = ("Narração em português do Brasil, sotaque brasileiro neut
                     "ritmo de locutor de notícias, sem pressa, pronunciando bem todas as palavras, sem sotaque europeu.")
 
 
+VOICESTUDIO_ACHADO = ""   # onde ele respondeu de verdade nesta rodada (pode ser outra porta)
+
+
 def voicestudio_url():
     """onde o VoiceStudio está ouvindo (DETTO_VOICESTUDIO troca a porta/endereço)"""
-    return (os.environ.get("DETTO_VOICESTUDIO") or VOICESTUDIO_PADRAO).rstrip("/")
+    return (VOICESTUDIO_ACHADO or os.environ.get("DETTO_VOICESTUDIO") or VOICESTUDIO_PADRAO).rstrip("/")
+
+
+# por onde o VoiceStudio pode estar ouvindo (ele muda de porta conforme a versão/instalação) e que endereços
+# respondem "estou vivo". Procurar só /v1/models em 3900 fazia o painel dizer FECHADO com o app ABERTO.
+VS_PORTAS = [3900, 8000, 7860, 5000, 8080, 3000, 8188]
+VS_TESTES = ["/v1/audio/voices", "/v1/models", "/health", "/docs", "/"]
+
+
+def _vs_responde(url, tempo=3):
+    import urllib.request
+    for caminho in VS_TESTES:
+        try:
+            with urllib.request.urlopen(f"{url}{caminho}", timeout=tempo) as r:
+                if r.status < 500:
+                    return True
+        except Exception as e:  # noqa: BLE001 — 404 em um caminho ainda é "tem servidor vivo aí"
+            if "HTTP Error 4" in str(e):
+                return True
+    return False
 
 
 def voicestudio_ligado(url=None, tempo=4):
-    """o VoiceStudio está aberto no PC? (API local, sem senha em 127.0.0.1)"""
-    import urllib.request
-    try:
-        urllib.request.urlopen(f"{url or voicestudio_url()}/v1/models", timeout=tempo).read(1)
+    """o VoiceStudio está aberto no PC? Procura no endereço do config e, se não achar, nas portas conhecidas —
+    quando acha noutra porta, PASSA A USAR ela (o `voicestudio_url` guarda em memória para a rodada)."""
+    global VOICESTUDIO_ACHADO
+    alvo = (url or voicestudio_url()).rstrip("/")
+    if _vs_responde(alvo, tempo):
+        VOICESTUDIO_ACHADO = alvo
         return True
-    except Exception:
-        return False
+    if url and url.rstrip("/") != voicestudio_url():
+        return False      # pediram um endereço específico: não saio procurando
+    for porta in VS_PORTAS:
+        outro = f"http://127.0.0.1:{porta}"
+        if outro == alvo:
+            continue
+        if _vs_responde(outro, 2):
+            VOICESTUDIO_ACHADO = outro
+            print(f"voz: achei o VoiceStudio em {outro} (o config apontava {alvo})", flush=True)
+            return True
+    return False
 
 
 def voicestudio_pronto(url=None, tempo=4):
