@@ -361,6 +361,33 @@ def _apara(w, sr, torch):
     return w[:, i0:i1]
 
 
+EDGE_VOZ = os.environ.get("DETTO_VOZ_EDGE", "pt-BR-AntonioNeural")   # masculina BR; FranciscaNeural = feminina
+
+
+def edge_fala(texto, saida, voz=EDGE_VOZ, velocidade=1.0):
+    """Voz NEURAL em português do Brasil (edge-tts, da Microsoft): de graça, sem chave, pronta em segundos.
+    NÃO é a voz clonada dele — é o degrau entre o Fish e o Chatterbox, para o canal nunca ficar sem voz nem
+    sair com o sotaque de Portugal do Chatterbox."""
+    try:
+        import edge_tts
+    except ImportError:
+        subprocess.run([sys.executable, "-m", "pip", "install", "-q", "edge-tts"], check=True)
+        import edge_tts
+    import asyncio
+
+    taxa = f"{round((velocidade - 1) * 100):+d}%"
+    mp3 = str(Path(saida).with_suffix(".edge.mp3"))
+
+    async def _fala():
+        await edge_tts.Communicate(texto, voz, rate=taxa).save(mp3)
+
+    asyncio.run(_fala())
+    if not Path(mp3).exists() or Path(mp3).stat().st_size < 400:
+        raise RuntimeError("o edge-tts não devolveu áudio")
+    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", mp3, "-ar", "24000", "-ac", "1", saida], check=True)
+    Path(mp3).unlink(missing_ok=True)
+
+
 def sem_pausas(arquivo, max_pausa=0.13, sr=44100):
     """tira os SILÊNCIOS do meio da fala (a voz de IA às vezes "espaça" entre frases/palavras e entrega que é IA):
     toda pausa interna maior que `max_pausa` fica com `max_pausa`; as pontas ficam com 0,04 s. Junta com fade curto."""
@@ -468,6 +495,8 @@ def main():
     ap.add_argument("--sem-voicestudio", action="store_true", help="não usar o VoiceStudio nesta rodada")
     ap.add_argument("--instrucao-vs", default=os.environ.get("DETTO_INSTRUCAO_VS", INSTRUCAO_PADRAO),
                     help="como a voz deve falar (estilo), quando o motor aceita")
+    ap.add_argument("--sem-edge", action="store_true", help="não usar a voz neural pt-BR (vai direto ao Chatterbox)")
+    ap.add_argument("--voz-edge", default=EDGE_VOZ, help=f"voz neural pt-BR (padrão {EDGE_VOZ}; DETTO_VOZ_EDGE)")
     ap.add_argument("--max-pausa", type=float, default=float(os.environ.get("DETTO_MAX_PAUSA", "0.13")),
                     help="maior silêncio no MEIO da fala (s); o resto é cortado")
     ap.add_argument("--com-pausas", action="store_true", help="não tira os silêncios do meio")
@@ -539,6 +568,17 @@ def main():
                 msg += ("  <- a CHAVE do Fish foi recusada (403/401): ela expirou, acabou o crédito ou está errada. "
                         "Gere outra em fish.audio e ponha com:  setx FISH_API_KEY \"<chave>\"")
             print(f"voz: Fish Audio falhou ({msg}) — o resto iria pelo Chatterbox", flush=True)
+    if falta and not a.sem_edge and not os.environ.get("DETTO_VOZ_FALSA"):
+        # VOZ NEURAL pt-BR (Microsoft, de graça): não é a sua voz clonada, mas é NATURAL e sai em segundos —
+        # muito melhor que o Chatterbox, que puxa o sotaque para Portugal e leva horas (a "voz robótica" de 29/10)
+        try:
+            for k, f in enumerate(list(falta)):
+                edge_fala(f["falado"], f["arquivo"], a.voz_edge, a.velocidade_vs)
+                falta.remove(f)
+                print(f"voz (neural pt-BR {a.voz_edge}): {k + 1}", flush=True)
+            print("voz: saiu na voz NEURAL pt-BR (não é a sua voz clonada — abra o VoiceStudio para usar a sua)", flush=True)
+        except Exception as e:
+            print(f"voz: a voz neural falhou ({str(e)[:160]}) — o resto iria pelo Chatterbox", flush=True)
     # CHATTERBOX É O ÚLTIMO RECURSO E É LENTO: num vídeo de 16 min ele leva HORAS no PC dele (RTX 3050) e a rodada
     # parece "travada" — foi o que aconteceu em 29/10 (uma rodada moendo desde as 20h37). Se o VoiceStudio estiver
     # fechado e o Fish recusar, PARO com o motivo, em vez de deixar o PC moendo a noite toda.
@@ -549,6 +589,7 @@ def main():
             "nesse tamanho (e puxa o sotaque para Portugal).\n"
             "   RESOLVE ASSIM: abra o VoiceStudio no PC com a sua voz clonada (é a melhor e de graça), ou conserte a "
             "chave do Fish (FISH_API_KEY).\n"
+            "   (a voz neural pt-BR também falhou — veja o erro acima; ela precisa de internet)\n"
             "   Quer mesmo esperar o Chatterbox? Rode com DETTO_CHATTERBOX_MAX=999999.")
     if falta:
         instala()

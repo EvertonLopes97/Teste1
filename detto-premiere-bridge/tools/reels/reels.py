@@ -1021,7 +1021,9 @@ def partes_da_pessoa(clip, tmp, inicio=0.0):
         corte = inicio if (inicio and 0.6 < inicio < d - 0.8) else acha_virada(clip)
         if corte:
             log(f"   sem corte de cena no vídeo: parto na virada ({corte:.1f}s)")
-            return [{"a": 0.0, "b": corte, "tipo": "pessoa"}, {"a": corte, "b": d, "tipo": "lance"}]
+            # as MESMAS chaves das cenas de verdade (sem fade_in/fade_out o troca_partes dava KeyError)
+            return [{"a": 0.0, "b": corte, "tipo": "pessoa", "fade_in": False, "fade_out": False},
+                    {"a": corte, "b": d, "tipo": "lance", "fade_in": False, "fade_out": False}]
         return cenas
     tipos = None
     if os.environ.get("GEMINI_API_KEY"):
@@ -1082,7 +1084,8 @@ def troca_partes(inicio, i_ini, i_fim, clip, cenas, pngs, saida):
             blocos[-1]["b"] = b
             continue
         blocos.append({"tipo": c["tipo"], "a": a_, "b": b, "k": k,
-                       "fade_in": c["fade_in"] and k > 0, "fade_out": c["fade_out"] and k < len(cenas) - 1})
+                       "fade_in": c.get("fade_in") and k > 0,
+                       "fade_out": c.get("fade_out") and k < len(cenas) - 1})
     blocos = [x for x in blocos if x["b"] - x["a"] > 0.02]
     png0 = next((pngs.get(bl["k"]) for bl in blocos if bl["tipo"] == "pessoa" and pngs.get(bl["k"])), None)
     cobre = enquadra(inicio, W, H, i_ini, i_fim, fim_do_texto(png0, H) if png0 else None)
@@ -1097,7 +1100,7 @@ def troca_partes(inicio, i_ini, i_fim, clip, cenas, pngs, saida):
             fim_seu = min(i_fim, cursor + d)
             falta = max(0.0, d - (fim_seu - cursor))
             fades = ""
-            if bl["fade_in"]:
+            if bl.get("fade_in"):
                 fades += f",fade=t=in:st=0:d={min(0.35, d / 3):.3f}"
             if bl["fade_out"]:
                 fades += f",fade=t=out:st={max(0.0, d - min(0.35, d / 3)):.3f}:d={min(0.35, d / 3):.3f}"
@@ -1885,7 +1888,8 @@ def main():
                 ini_l = float(av.get("inicio") or 0) or acha_virada(clip)
                 if 0.6 < ini_l < dclip - 0.8:
                     log(f"   as cenas não separaram: uso o começo do lance ({ini_l:.1f}s) para partir")
-                    cenas = [{"a": 0.0, "b": ini_l, "tipo": "pessoa"}, {"a": ini_l, "b": dclip, "tipo": "lance"}]
+                    cenas = [{"a": 0.0, "b": ini_l, "tipo": "pessoa", "fade_in": False, "fade_out": False},
+                             {"a": ini_l, "b": dclip, "tipo": "lance", "fade_in": False, "fade_out": False}]
                     pessoas = [0]
             if not pessoas or len(pessoas) == len(cenas):
                 log("   NÃO FIZ: não achei onde está a outra pessoa e onde está o lance neste vídeo"

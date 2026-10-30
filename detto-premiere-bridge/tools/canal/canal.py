@@ -1043,7 +1043,7 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
     falas.append({"id": "f99", "texto": rot["fechamento"]["texto"], "clima": rot["fechamento"].get("clima", "comemorando")})
     fj = tmp / "falas.json"
     grava_json(fj, falas)
-    ref = pasta / cfg["voz_ref"]
+    ref = pasta / cfg.get("voz_ref", "voz/minha_voz.wav")
     cmd_voz = [sys.executable, str(AQUI / "voz.py"), str(fj), str(pasta / "voz" / "cache"), "--ref", str(ref),
                "--exagero", str(cfg["exagero_voz"])]
     if cfg.get("voicestudio"):
@@ -1056,7 +1056,15 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
         cmd_voz += ["--instrucao-vs", cfg["instrucao_voz"]]
     if cfg.get("sem_voicestudio"):
         cmd_voz.append("--sem-voicestudio")
-    subprocess.run(cmd_voz, check=True)
+    if cfg.get("voz_neural"):          # qual voz neural pt-BR usar quando o VoiceStudio estiver fechado
+        cmd_voz += ["--voz-edge", cfg["voz_neural"]]
+    if cfg.get("sem_voz_neural"):
+        cmd_voz.append("--sem-edge")
+    # a voz PARA de propósito quando só sobrou o Chatterbox (ver voz.py): mostre o MOTIVO, não um traceback
+    r = subprocess.run(cmd_voz)
+    if r.returncode:
+        raise SemVoz("a voz não ficou pronta — o motivo está nas linhas acima do registro (quase sempre: abra o "
+                     "VoiceStudio no PC com a sua voz clonada, ou conserte a chave do Fish)")
     falas = json.loads(fj.read_text(encoding="utf-8"))
     fala_antes = {f["antes"]: f for f in falas if "antes" in f}
     comenta = {}
@@ -1372,7 +1380,7 @@ def traz_do_drive(pasta, cfg):
             marca = f"{f.name}|{f.stat().st_size}|{int(f.stat().st_mtime)}"
             reg = pasta / "voz" / "origem_drive.txt"
             if not reg.exists() or reg.read_text(encoding="utf-8").strip() != marca:
-                ref = pasta / cfg["voz_ref"]
+                ref = pasta / cfg.get("voz_ref", "voz/minha_voz.wav")
                 ref.parent.mkdir(parents=True, exist_ok=True)
                 tmp = ref.with_name("_nova_voz.wav")
                 # mono, 44,1 kHz, até 40 s, sem graves de vento e com volume certo (a clonagem gosta de voz limpa)
@@ -1456,7 +1464,13 @@ GTA6 = {
     "estilo_thumb": "gameplay",
 }
 
-PRESETS = {"galo": None, "gta6": GTA6}   # galo = o CONFIG_PADRAO acima
+# cada preset é o CONFIG_PADRAO COM AS TROCAS dele: assim nenhuma chave some (foi o KeyError 'voz_ref' do
+# canal de GTA 6, que morreu no traz_do_drive na primeira rodada)
+PRESETS = {"galo": CONFIG_PADRAO, "gta6": {**CONFIG_PADRAO, **GTA6}}
+
+class SemVoz(Exception):
+    """A voz boa não está disponível: a rodada para com o motivo, sem traceback e sem moer o Chatterbox a noite toda."""
+
 
 def prepara(pasta, preset=""):
     for p in ("mascara", "voz", "fontes", "prontos"):
@@ -1812,5 +1826,12 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except SemVoz as e:   # motivo em UMA linha, sem traceback (o painel mostra essa linha)
+        try:
+            log(f"NÃO RODEI: {e}")
+        except Exception:
+            print(f"NÃO RODEI: {e}", flush=True)
+        os._exit(3)
     os._exit(0)
