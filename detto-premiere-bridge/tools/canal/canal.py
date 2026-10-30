@@ -389,20 +389,28 @@ def coleta_campeonatos(cfg, hist, ja_vistos):
 
 
 # ------------------------------------------------------------------ 2. trechos sobre o time
-def transcreve(video):
+def transcreve(video, idioma="pt"):
+    """as palavras com tempo. idioma=None = o whisper DESCOBRE a língua (canal gringo no canal de GTA).
+    Devolve (palavras, idioma_achado)."""
     cache = Path(video).with_suffix(".words.json")
     if cache.exists():
-        return json.loads(cache.read_text(encoding="utf-8"))
+        d = json.loads(cache.read_text(encoding="utf-8"))
+        if isinstance(d, dict):
+            return d.get("palavras") or [], d.get("idioma") or "pt"
+        if idioma is not None:
+            return d, "pt"   # cache antigo (lista pura): o canal só tem fonte em português, serve
+        # canal que aceita fonte gringa: o cache antigo foi feito com "pt" na marra e pode ser texto sem
+        # sentido de uma fala em inglês — refaz com o idioma descoberto
     from transcrever import dlls_nvidia, transcrever
 
     dlls_nvidia()
     try:
-        w = transcrever(str(video), "small", "cuda")
+        w, lin = transcrever(str(video), "small", "cuda", idioma, com_idioma=True)
     except Exception:
-        w = transcrever(str(video), "small", "cpu")
+        w, lin = transcrever(str(video), "small", "cpu", idioma, com_idioma=True)
     print()
-    cache.write_text(json.dumps(w, ensure_ascii=False), encoding="utf-8")
-    return w
+    cache.write_text(json.dumps({"palavras": w, "idioma": lin}, ensure_ascii=False), encoding="utf-8")
+    return w, lin
 
 
 def linhas_tempo(words, passo=8.0):
@@ -444,7 +452,10 @@ Marque os trechos {alvo}.
 Cada trecho é UMA notícia INTEIRA: do começo ao fim do assunto (a informação + a análise/opinião sobre ela), começo e fim
 NATURAIS (frase completa, nunca cortar no meio), entre {cfg.get("trecho_min_s", 15)} e {cfg.get("trecho_max_s", 180)} segundos — o tamanho que a notícia precisar.
 {regra_canal}
-{"Ignore o resto." if assunto else "Ignore trechos sobre outros times."} Responda SÓ JSON:
+{"Ignore o resto." if assunto else "Ignore trechos sobre outros times."}
+A transcrição pode estar em OUTRA LÍNGUA (canal gringo). Nesse caso entenda normalmente, mas escreva a "manchete" e
+o "resumo" SEMPRE EM PORTUGUÊS DO BRASIL.
+Responda SÓ JSON:
 {{"trechos": [{{"ini": <s>, "fim": <s>, "manchete": "<MANCHETE CURTA EM MAIÚSCULAS, até 60 letras>", "resumo": "<1 frase>",
  "programa": "<de onde é a fala, se der para saber: ex. Globo Esporte MG, Jogo Aberto, Rádio Itatiaia, coletiva; senão vazio>",
  "clima": "<um de: {', '.join(CLIMAS)}>", "nota": <1 a 10: o quanto é NOVIDADE importante e prende o torcedor (notícia velha/repetida = nota baixa)>}}]}}
@@ -669,7 +680,7 @@ def busca_original(x, v, cfg, pasta, descricao=""):
         # tempo exato dentro do pedaço baixado (transcreve o pedaço — curto)
         ini, fim = a - m0, b - m0
         try:
-            wp = transcreve(saida)
+            wp, _ = transcreve(saida)
             jj = _janela(alvo, wp)
             if jj:
                 ini, fim = max(0.0, jj[0] - 0.1), jj[1] + 0.15
@@ -750,6 +761,8 @@ def roteiro(sel, cfg):
                       + (f" [NÃO É DO GALO — {x['campeonato']}, a volta pelo mundo no fim do vídeo]" if x.get("campeonato") else "")
                       + (" [ESTE ASSUNTO JÁ SAIU NUM VÍDEO SEU HOJE: trate como notícia secundária, com um ângulo "
                          "novo, e NUNCA como a manchete]" if x.get("repetida") else "")
+                      + (f" [TRECHO EM {x['idioma'].upper()} — vai LEGENDADO em português; avise na sua fala que é "
+                         "de um canal de fora]" if (x.get("idioma") or "pt") != "pt" else "")
                       + f" {x['manchete']} — {x.get('resumo', '')} (clima: {x['clima']}; {x['fim'] - x['ini']:.0f} s)"
                       for i, x in enumerate(sel))
     longos = "\n\n".join(f"TRECHO {i + 1} ({x['fim'] - x['ini']:.0f} s) — o que é dito:\n{falas_do_trecho(x)}"
@@ -995,7 +1008,71 @@ def enc():
     return ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-r", str(FPS), "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2"]
 
 
-def peca_trecho(base, clip, ini, fim, masc, faixa, saida):
+def traduz_frases(frases, de_idioma, log=log):
+    """as falas do trecho em PORTUGUÊS (Gemini → IAs grátis → Claude). Falhou, devolve o original."""
+    if not frases:
+        return []
+    g = gemini_json([{"text": "Traduza para PORTUGUÊS DO BRASIL, falado e natural (é legenda de vídeo sobre games), "
+                              f"estas {len(frases)} falas em {de_idioma}. Mantenha nomes próprios, números e siglas. "
+                              "NÃO explique, NÃO junte nem divida: devolva exatamente a mesma quantidade, na ordem.\n"
+                              "Responda SÓ JSON: {\"frases\": [\"<tradução 1>\", ...]}\n\n"
+                              + json.dumps(frases, ensure_ascii=False)}])
+    out = (g or {}).get("frases") or []
+    if len(out) != len(frases):
+        log(f"   tradução: a IA devolveu {len(out)} de {len(frases)} falas; fica o original onde faltou")
+        out = (out + frases[len(out):])[:len(frases)]
+    return [str(x) for x in out]
+
+
+def frases_do_trecho(words, ini, fim, por_frase=9):
+    """as palavras do trecho em pedaços de legenda, cada um com começo e fim"""
+    ws = [w for w in words if w.get("s") is not None and ini - 0.2 <= w["s"] <= fim]
+    out = []
+    for i in range(0, len(ws), por_frase):
+        g = ws[i:i + por_frase]
+        if not g:
+            continue
+        out.append({"texto": " ".join(x["w"] for x in g).strip(),
+                    "ini": max(0.0, g[0]["s"] - ini), "fim": min(fim - ini, g[-1].get("e", g[-1]["s"]) - ini)})
+    return [f for f in out if f["texto"] and f["fim"] > f["ini"]]
+
+
+def legenda_pngs(frases, pasta, idx):
+    """PNG por frase, na parte de baixo da JANELA do vídeo (legenda de tradução, não a faixa dele)"""
+    from PIL import Image, ImageDraw
+
+    x, y, w, h = JANELA
+    out = []
+    for k, f in enumerate(frases):
+        img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+        dr = ImageDraw.Draw(img)
+        txt = f["texto"].strip()
+        linhas, atual = [], ""
+        for pal in txt.split():
+            if len(atual) + len(pal) + 1 > 46:
+                linhas.append(atual)
+                atual = pal
+            else:
+                atual = (atual + " " + pal).strip()
+        if atual:
+            linhas.append(atual)
+        linhas = linhas[-2:]
+        fon = fonte_pil(46)
+        alt = 56 * len(linhas) + 24
+        topo = y + h - alt - 28
+        larg = max(dr.textlength(l, font=fon) for l in linhas) + 48
+        dr.rounded_rectangle((x + w // 2 - larg // 2, topo, x + w // 2 + larg // 2, topo + alt), radius=14,
+                             fill=(0, 0, 0, 190))
+        for n, l in enumerate(linhas):
+            dr.text((x + w // 2, topo + 14 + 28 + n * 56), l, font=fon, fill="#FFFFFF", anchor="mm",
+                    stroke_width=2, stroke_fill="#000000")
+        arq = pasta / f"trad_{idx}_{k}.png"
+        img.save(arq)
+        out.append((arq, f["ini"], f["fim"]))
+    return out
+
+
+def peca_trecho(base, clip, ini, fim, masc, faixa, saida, legenda=None):
     """o trecho da imprensa na janela grande; você de máscara (sem som) no canto"""
     d = fim - ini
     ins = ["-loop", "1", "-i", str(base), "-ss", f"{ini:.2f}", "-t", f"{d:.2f}", "-i", str(clip), "-loop", "1", "-i", str(faixa)]
@@ -1015,7 +1092,18 @@ def peca_trecho(base, clip, ini, fim, masc, faixa, saida):
         f += f"[3:v]{cor_sdr(masc)}{cobre(cw, ch)},setsar=1[m];[a0][m]overlay={cx}:{cy}[a1];"
     else:
         f += "[a0]null[a1];"
-    f += f"[a1][2:v]overlay=0:0,fps={FPS},format=yuv420p[vo]"
+    f += "[a1][2:v]overlay=0:0[a2];"
+    # LEGENDA DA TRADUÇÃO: o canal gringo entra LEGENDADO em português (cada PNG no tempo da fala dele)
+    atual = "a2"
+    for k, (arq, la, lb) in enumerate(legenda or []):
+        if lb <= 0 or la >= d:
+            continue
+        ins += ["-loop", "1", "-i", str(arq)]
+        n = ins.count("-i") - 1          # o índice desta entrada no ffmpeg
+        prox = f"L{k}"
+        f += (f"[{atual}][{n}:v]overlay=0:0:enable='between(t,{max(0.0, la):.2f},{min(d, lb + 0.25):.2f})'[{prox}];")
+        atual = prox
+    f += f"[{atual}]fps={FPS},format=yuv420p[vo]"
     ac = audio_bom(clip)
     af = ["-map", f"1:a:{ac}", "-af", "loudnorm=I=-16:TP=-1.5,aresample=48000"] if ac is not None else []
     r = subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", f, "-map", "[vo]", *af, "-t", f"{d:.2f}", *enc(), str(saida)])
@@ -1158,9 +1246,24 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
         cortes = sorted({round(c["em"], 2) for c in comenta.get(i, [])})
         partes = list(zip([x["ini"]] + cortes, cortes + [x["fim"]]))
         coms = sorted(comenta.get(i, []), key=lambda c: c["em"])
+        # TRECHO EM OUTRA LÍNGUA (canal gringo no canal de GTA): traduz uma vez e legenda em português
+        trad = []
+        if (x.get("idioma") or "pt") != "pt":
+            try:
+                wds, _ = transcreve(x["arquivo"], None)
+                fr = frases_do_trecho(wds, x["ini"], x["fim"])
+                pt = traduz_frases([f["texto"] for f in fr], x["idioma"], log)
+                trad = [{**f, "texto": p_} for f, p_ in zip(fr, pt)]
+                log(f"      em {x['idioma'].upper()}: {len(trad)} legenda(s) em português")
+            except Exception as e:   # noqa: BLE001
+                log(f"      não consegui traduzir ({str(e)[:90]}): o trecho entra sem legenda")
         for n, (a0, b0) in enumerate(partes):
             p = tmp / f"p{len(pecas):03d}.mp4"
-            if peca_trecho(base, x["arquivo"], a0, b0, mascara_de(x["clima"], pasta, durante_reportagem=True), fx, p):
+            # as legendas desta PARTE, com o tempo contado do começo dela
+            leg = legenda_pngs([{**f, "ini": f["ini"] - (a0 - x["ini"]), "fim": f["fim"] - (a0 - x["ini"])}
+                                for f in trad if f["fim"] > (a0 - x["ini"]) and f["ini"] < (b0 - x["ini"])],
+                               tmp, f"{i}_{n}") if trad else None
+            if peca_trecho(base, x["arquivo"], a0, b0, mascara_de(x["clima"], pasta, durante_reportagem=True), fx, p, leg):
                 pecas.append(p)
             if n < len(coms):
                 log(f"      comentário seu no meio: {coms[n]['texto'][:60]}")
@@ -1262,7 +1365,8 @@ def pautas(pasta, cfg, hist, log=log):
             if link:
                 v.update(titulo=info.get("title") or linha, fonte=info.get("channel") or info.get("uploader") or "vídeo",
                          canal=(info.get("channel_url") or "").split("/")[-1])
-            words = transcreve(arq)
+            words, lin = transcreve(arq, cfg.get("idioma_fontes", "pt"))
+            v["idioma"] = lin
             tr = acha_trechos(words, v, cfg, assunto="*" if link else linha)
             log(f"   {len(tr)} trecho(s) da pauta")
             for x in tr:
@@ -1540,6 +1644,8 @@ GTA6 = {
     "mesclar_novidade_min": 0.2,
     "max_repetidas": 3,
     "lancamento": "2026-11-19",
+    # canal gringo entra: deixa o whisper DESCOBRIR a língua e o trecho sai LEGENDADO em português
+    "idioma_fontes": None,
     "termos": ["gta 6", "gta6", "gta vi", "grand theft auto 6", "grand theft auto vi", "vice city", "rockstar games",
                "lucia caminos", "jason duval", "leonida"],
     "termos_nao": ["gta 5", "gta v", "gta san andreas", "gta rp", "gta online", "gta 4", "gta iv"],
@@ -1717,13 +1823,17 @@ def main():
             v["arquivo"] = str(arq)
             v["descricao"] = (info or {}).get("description") or ""
         log(f"transcrevendo: {Path(v['arquivo']).name}")
-        words = transcreve(v["arquivo"])
+        words, lin = transcreve(v["arquivo"], cfg.get("idioma_fontes", "pt"))
+        v["idioma"] = lin
+        if lin != "pt":
+            log(f"   esse vídeo está em {lin.upper()}: vou traduzir e LEGENDAR o trecho em português")
         tr = acha_trechos(words, v, cfg, assunto=v.get("assunto"))
         log(f"   {len(tr)} trecho(s) sobre " + (v["campeonato"] if v.get("campeonato") else "o Galo"))
         dv = dur(v["arquivo"]) or 1e9
         tr = [{**x, "fim": min(x["fim"], dv - 0.2)} for x in tr if min(x["fim"], dv - 0.2) - x["ini"] >= 8]  # nunca além do fim do vídeo
         for x in tr:
             t = {**x, "video": v["id"], "arquivo": v["arquivo"], "fonte": v["fonte"], "canal": v.get("canal", ""), "data": hoje,
+                 "idioma": v.get("idioma", "pt"),
                  "publicado": v.get("publicado") or dt.datetime.now().isoformat(timespec="minutes"), "usado": False,
                  "prioridade": v.get("prioridade", 1),
                  **({"campeonato": v["campeonato"]} if v.get("campeonato") else {})}

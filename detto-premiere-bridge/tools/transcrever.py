@@ -44,18 +44,22 @@ def audio_16k(video):
     return None
 
 
-def transcrever(video, modelo, device):
+def transcrever(video, modelo, device, idioma="pt", com_idioma=False):
+    """idioma=None deixa o whisper DESCOBRIR a língua (o canal de GTA pega canal gringo: com language="pt" fixo
+    a fala em inglês virava texto sem sentido em português, antes mesmo de ter o que traduzir).
+    com_idioma=True devolve (palavras, idioma)."""
     from faster_whisper import WhisperModel
     m = WhisperModel(modelo, device=device, compute_type="int8_float16" if device == "cuda" else "int8")
     aud = audio_16k(video)
-    segs, _ = m.transcribe(aud if aud is not None else video, language="pt", word_timestamps=True, vad_filter=True)
+    segs, info = m.transcribe(aud if aud is not None else video, language=idioma, word_timestamps=True, vad_filter=True)
+    achado = getattr(info, "language", idioma) or idioma or "pt"
     palavras = []
     for seg in segs:  # a transcrição acontece aqui (é preguiçosa)
         for w in seg.words or []:
             palavras.append({"w": w.word.strip(), "s": round(w.start, 3), "e": round(w.end, 3)})
         print(f"\r{seg.end:7.1f} s transcritos ({'placa de vídeo' if device == 'cuda' else 'processador'})",
               end="", flush=True)
-    return palavras
+    return (palavras, achado) if com_idioma else palavras
 
 
 def main():

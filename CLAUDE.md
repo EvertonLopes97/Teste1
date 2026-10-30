@@ -423,6 +423,16 @@ config da pasta (`"preset"`), e canal que não é `galo` NÃO recebe as migraç�
   `fontes: []` + `busca` por data (gta 6 notícias/gameplay/trailer/vazamento), `fora` SEM "gameplay" (é o que
   queremos), trecho até 120 s, vídeo de 10 min, `comentario_min_s` 40 (a reação dele no meio do trecho = o react),
   `vinheta_canal: gta6`, `estilo_thumb: gameplay`.
+- CANAL GRINGO ENTRA LEGENDADO (30/out): o `transcrever.py` fixava `language="pt"` — a fala em INGLÊS virava
+  texto sem sentido em português antes mesmo de existir tradução. Agora `transcrever(..., idioma=None,
+  com_idioma=True)` deixa o whisper DESCOBRIR a língua e devolve qual é; `transcreve()` guarda isso no cache
+  (`{"palavras": [...], "idioma": "en"}`) e cache antigo (lista pura) é REFEITO nos canais que aceitam fonte de
+  fora. O preset gta6 tem `"idioma_fontes": None` (o Galo segue em "pt", que é mais rápido e certeiro).
+  Trecho em outra língua: `frases_do_trecho` corta em pedaços de ~9 palavras com tempo, `traduz_frases`
+  traduz tudo numa chamada só (Gemini → grátis → Claude) e `legenda_pngs` faz um PNG por frase, que o
+  `peca_trecho` QUEIMA na parte de baixo da janela do vídeo (`enable=between`, placa preta, letra branca com
+  contorno). A manchete e o resumo saem em português mesmo com a transcrição em inglês, e o roteiro recebe
+  `[TRECHO EM EN — vai LEGENDADO]` para a fala dele avisar que é de um canal de fora.
 - AS PALAVRAS DO ASSUNTO (29/out, `"termos"`/`"termos_nao"`): o `apelidos()` procurava o `time` no
   `times.json` (lista de times de FUTEBOL) — num canal de GTA não achava nada, o `fala_do_time` reprovava
   TODO vídeo e a rodada terminava "0 vídeo(s) de hoje" mesmo com os canais respondendo. Agora o preset traz
