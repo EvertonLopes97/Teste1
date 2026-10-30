@@ -398,6 +398,11 @@ config da pasta (`"preset"`), e canal que não é `galo` NÃO recebe as migraç�
   `fontes: []` + `busca` por data (gta 6 notícias/gameplay/trailer/vazamento), `fora` SEM "gameplay" (é o que
   queremos), trecho até 120 s, vídeo de 10 min, `comentario_min_s` 40 (a reação dele no meio do trecho = o react),
   `vinheta_canal: gta6`, `estilo_thumb: gameplay`.
+- AS PALAVRAS DO ASSUNTO (29/out, `"termos"`/`"termos_nao"`): o `apelidos()` procurava o `time` no
+  `times.json` (lista de times de FUTEBOL) — num canal de GTA não achava nada, o `fala_do_time` reprovava
+  TODO vídeo e a rodada terminava "0 vídeo(s) de hoje" mesmo com os canais respondendo. Agora o preset traz
+  as suas (`gta 6`, `grand theft auto vi`, `vice city`, `rockstar games`, `lucia caminos`...) e o
+  `termos_nao` tira GTA 5/RP/Online. O Galo continua pelo times.json.
 - ASSUNTO ÚNICO: `parecido_max` 0,8 (no Galo é 0,35 — num canal que só fala de GTA 6 TUDO pareceria repetido e a
   rodada ficaria sem material), `mesclar_assunto` ligado, `max_repetidas` 3.
 - CONTAGEM REGRESSIVA de verdade: `"lancamento": "2026-11-19"` no config → o prompt recebe "HOJE FALTAM N DIAS"

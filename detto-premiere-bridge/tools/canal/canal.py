@@ -146,6 +146,13 @@ def log(m):
 
 
 def apelidos(cfg):
+    """as palavras que dizem que o vídeo é do ASSUNTO do canal (e as que dizem que NÃO é).
+
+    No canal do Galo elas vêm do times.json. Num canal que não é de futebol (GTA 6) não há time nenhum ali:
+    a busca voltava vazia, `fala_do_time` reprovava TODO vídeo e a rodada terminava "0 vídeo(s) de hoje"
+    mesmo com os canais respondendo. Por isso o preset pode trazer as suas próprias em `"termos"`/`"termos_nao"`."""
+    if cfg.get("termos"):
+        return [norm(a) for a in cfg["termos"] if a], [norm(a) for a in cfg.get("termos_nao", []) if a], {}
     t = next((x for x in json.loads((TOOLS / "roteiro" / "times.json").read_text(encoding="utf-8"))["times"] if x["sigla"] == cfg["time"]), {})
     return [norm(a) for a in [t.get("nome", "")] + t.get("apelidos", []) if a], [norm(a) for a in t.get("nao", [])], t
 
@@ -1496,6 +1503,9 @@ GTA6 = {
     "mesclar_novidade_min": 0.2,
     "max_repetidas": 3,
     "lancamento": "2026-11-19",
+    "termos": ["gta 6", "gta6", "gta vi", "grand theft auto 6", "grand theft auto vi", "vice city", "rockstar games",
+               "lucia caminos", "jason duval", "leonida"],
+    "termos_nao": ["gta 5", "gta v", "gta san andreas", "gta rp", "gta online", "gta 4", "gta iv"],
     "vinheta_canal": "gta6",
     "estilo_thumb": "gameplay",
 }
