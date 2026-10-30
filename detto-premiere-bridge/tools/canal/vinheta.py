@@ -29,6 +29,8 @@ CANAIS = {
     "galo": {"nome": "DETTO GALO", "dur": 2.4, "estilo": "noticias", "selo": "", "sub": "RESENHA DO GALO"},
     # vlogs e gameplays
     "vlog": {"nome": "EVERTON LOPES", "dur": 2.6, "estilo": "vlog", "selo": "@", "sub": "@"},
+    # canal de GTA 6 (cara de gameplay: lima e roxo)
+    "gta6": {"nome": "DETTO GTA 6", "dur": 2.6, "estilo": "vlog", "selo": "", "sub": "TUDO SOBRE O GTA 6"},
 }
 
 

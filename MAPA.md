@@ -30,6 +30,7 @@ O painel em memória é o programa **velho** até reiniciar: depois de atualizar
 | **EDIÇÃO COM ROTEIRO** | você grava lendo o roteiro → horizontal + verticais | `tools\editar.py`, `tools\roteiro\*`, `tools\motion\*` | `<job>\painel_log.txt`, `<job>\conferencia.txt` |
 | **HISTÓRIAS** | reels em série, o público escolhe A/B | `tools\historias\historias.py` + `palco\` | `E:\DETTO\historias\painel_historias.log` |
 | **CANAL NOTÍCIAS** | vídeo do Galo pela imprensa, voz clonada, máscara | `tools\canal\canal.py` | `E:\DETTO\canal_galo\canal.log` |
+| **CANAL GTA 6** | notícias e gameplay comentada de GTA 6 (o mesmo canal.py, preset `gta6`) | `tools\canal\canal.py` (`PRESETS`) | `E:\DETTO\canal_gta6\canal.log` |
 | **CANAL VLOGS/GAMEPLAY** | vlog montado da pasta do Drive | `tools\canal\canal_vlog.py`, `tools\vlog\vlog.py` | `E:\DETTO\canal_vlogs\canal.log` |
 | **TIKTOK SHOP** | produto → reels de venda | `tools\shop\shop.py` + `cartelas.js` | `E:\DETTO\shop\shop.log`, `produtos_falhos.txt` |
 | **GALO (estádio)** | elenco passando pela sua mão, notas do jogo | `tools\galo\passagem.py`, `notas.py` | sai na tela + `<saida>_conferir.jpg` |

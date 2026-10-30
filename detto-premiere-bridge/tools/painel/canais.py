@@ -36,6 +36,9 @@ CANAIS = {
                  "intervalo_min": 120, "janela": (8, 23)},
     "vlogs": {"nome": "Vlogs", "script": TOOLS / "canal" / "canal_vlog.py", "pasta": None, "dir": "canal_vlogs",
               "intervalo_min": 10, "janela": (0, 23)},
+    # canal de GTA 6: o MESMO canal.py, com o preset gta6 (fontes, persona e regras no config da pasta)
+    "gta6": {"nome": "GTA 6", "script": TOOLS / "canal" / "canal.py", "pasta": None, "dir": "canal_gta6",
+             "intervalo_min": 180, "janela": (8, 23), "preset": "gta6"},
 }
 PESADO = {"id": None, "p": None, "o_que": ""}  # montagem (uma por vez)
 POSTANDO = {"p": None, "fila": [], "o_que": ""}  # envios para o YouTube (um por vez, leves)
@@ -86,7 +89,8 @@ def _roda(c, args, so_preparar=False, log_nome="canal.log", env_extra=None):
     exe, extra = py()
     p = pasta(c)
     p.mkdir(parents=True, exist_ok=True)
-    cmd = [exe, "-u", str(CANAIS[c]["script"]), "--pasta", str(p), *args]
+    pre = ["--preset", CANAIS[c]["preset"]] if CANAIS[c].get("preset") else []
+    cmd = [exe, "-u", str(CANAIS[c]["script"]), "--pasta", str(p), *pre, *args]
     if so_preparar:  # só cria as pastas e o config.json
         subprocess.run(cmd, cwd=str(PONTE), capture_output=True, timeout=300, env={**os.environ, "PYTHONIOENCODING": "utf-8"}, **extra)
         return None
@@ -139,9 +143,9 @@ def estado():
              "rodando": PESADO["id"] == c and ocupado(), "postando": POSTANDO["o_que"] if POSTANDO["o_que"].startswith(c) else "",
              "prontos": prs, "esperando": sum(1 for x in prs if x["status"] == "aguardando"),
              "log": _tail(p / "canal.log"), "shorts": cf.get("shorts", 2), "privacidade": cf.get("privacidade", "public"),
-             "mesclar_assunto": bool(cf.get("mesclar_assunto", False)),
+             "mesclar_assunto": bool(cf.get("mesclar_assunto", False)), "travado": travado(c),
              "campeonatos_ligado": bool(cf.get("campeonatos_ligado", True))}
-        if c == "noticias":
+        if CANAIS[c]["script"].name == "canal.py":   # notícias e GTA 6 (mesmo motor: pautas, voz, máscara)
             pf = p / "pautas.txt"
             x["pautas"] = [l.strip() for l in pf.read_text(encoding="utf-8").splitlines() if l.strip() and not l.startswith("#")] if pf.exists() else []
             x["feitas"] = _tail(p / "pautas_feitas.txt", 8)
@@ -204,10 +208,52 @@ def arquivo(c, pid, nome):
     return f
 
 
+def destrava(c):
+    """encerra o processo que está com a trava deste canal (um canal.py travado prende TODAS as rodadas seguintes)"""
+    sys.path.insert(0, str(TOOLS / "reels"))
+    from reels import dono_da_trava
+
+    quem, pid = dono_da_trava(pasta(c), ".canal_rodando")
+    if not quem:
+        return {"ok": True, "msg": "não tinha trava presa"}
+    if pid and pid != os.getpid():
+        try:
+            if os.name == "nt":
+                subprocess.run(["taskkill", "/PID", str(pid), "/F", "/T"], capture_output=True, timeout=20)
+            else:
+                os.kill(pid, 9)
+            LOG(f"canal {CANAIS[c]['nome']}: encerrei o processo {pid} que estava com a trava ({quem})")
+            return {"ok": True, "msg": f"encerrei o processo {pid}"}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "erro": f"não consegui encerrar o {pid}: {str(e)[:120]}"}
+    return {"ok": False, "erro": f"a trava é de um processo sem PID anotado ({quem}); feche o python na mão"}
+
+
+def travado(c):
+    """quem está com a trava do canal, se houver (para o painel avisar)"""
+    f = pasta(c) / ".canal_rodando"
+    if not f.exists():
+        return ""
+    try:
+        sys.path.insert(0, str(TOOLS / "reels"))
+        from reels import dono_da_trava, trava_rodada
+
+        t = trava_rodada(pasta(c), ".canal_rodando")   # consegui pegar? então está livre
+        if t:
+            t.close()
+            return ""
+        quem, _ = dono_da_trava(pasta(c), ".canal_rodando")
+        return quem
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def acao(nome, d):
     c = d.get("c")
     if c not in CANAIS and nome not in ("canal_segredo",):
         raise ValueError("canal?")
+    if nome == "canal_destravar":
+        return destrava(c)
     if nome == "canal_cfg":
         if "ligado" in d:
             grava_estado(c, ligado=bool(d["ligado"]))
@@ -328,9 +374,10 @@ def roda_agora(c, forcar=True, teste=False):
     with TRAVA:
         if ocupado():
             raise ValueError(f"já tem um canal montando agora ({CANAIS[PESADO['id']]['nome']})")
-        args = ["--forcar"] if (forcar and c == "noticias") else []
+        de_noticias = CANAIS[c]["script"].name == "canal.py"   # noticias e GTA 6 usam o mesmo script
+        args = ["--forcar"] if (forcar and de_noticias) else []
         if teste:
-            args = ["--forcar", "--nao-postar"] if c == "noticias" else args
+            args = ["--forcar", "--nao-postar"] if de_noticias else args
         PESADO.update(id=c, p=_roda(c, args, env_extra={"DETTO_VOZ_FALSA": "1"} if teste else None), o_que="montando (teste)" if teste else "montando")
         grava_estado(c, ultimo=dt.datetime.now().isoformat(timespec="minutes"))
     LOG(f"canal {CANAIS[c]['nome']}: rodada começou")

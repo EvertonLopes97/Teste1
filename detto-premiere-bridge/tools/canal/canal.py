@@ -700,9 +700,27 @@ def roteiro(sel, cfg):
                       for i, x in enumerate(sel))
     longos = "\n\n".join(f"TRECHO {i + 1} ({x['fim'] - x['ini']:.0f} s) — o que é dito:\n{falas_do_trecho(x)}"
                           for i, x in enumerate(sel) if x["fim"] - x["ini"] >= cfg.get("comentario_min_s", 45))
-    g = gemini_json([{"text": f"""Você narra o canal "{cfg['nome_canal']}", de notícias do Atlético-MG (o Galo), como um torcedor apaixonado
-e engraçado de BH (gírias leves, "Massa", "Galo doido"), opinando sobre o que a imprensa falou (alguns trechos podem ser de OUTROS assuntos do futebol que você escolheu
-comentar: fale deles com o mesmo jeito, sempre como torcedor do Galo). Os trechos, em ordem:
+    # QUEM FALA E SOBRE O QUÊ vem do config: é o que deixa o mesmo canal.py servir ao Galo e ao GTA 6
+    # (o preset gta6 troca persona, assunto e as regras). Sem config, continua o canal do Galo de sempre.
+    persona = cfg.get("persona") or ('como um torcedor apaixonado e engraçado de BH (gírias leves, "Massa", "Galo doido"), '
+                                     "opinando sobre o que a imprensa falou (alguns trechos podem ser de OUTROS assuntos do "
+                                     "futebol que você escolheu comentar: fale deles com o mesmo jeito, sempre como torcedor "
+                                     "do Galo)")
+    assunto = cfg.get("assunto") or "notícias do Atlético-MG (o Galo)"
+    regras_extra = cfg.get("regras_roteiro") or ""
+    if cfg.get("lancamento"):   # contagem regressiva de verdade, calculada na hora (nada de data inventada)
+        try:
+            falta = (dt.date.fromisoformat(cfg["lancamento"]) - dt.date.today()).days
+            regras_extra += (f"\n- HOJE FALTAM {falta} DIA(S) para o lançamento ({cfg['lancamento']})."
+                             if falta > 0 else "\n- O JOGO JÁ LANÇOU: fale no passado e foque em gameplay e análise.")
+        except ValueError:
+            pass
+    regra_titulo = cfg.get("regra_titulo") or (
+        'O TÍTULO e a THUMB saem SEMPRE da notícia do GALO mais forte (nunca de um trecho marcado como "a volta pelo '
+        'mundo" nem de um que já saiu hoje). Se houver trechos de campeonato, a fala antes do primeiro deles avisa que '
+        'agora é a volta pelo mundo ("e pra fechar, como é que ficou a Libertadores ontem") e o fechamento volta a ser '
+        "sobre o Galo.")
+    g = gemini_json([{"text": f"""Você narra o canal "{cfg['nome_canal']}", de {assunto}, {persona}. Os trechos, em ordem:
 {lista}
 
 Escreva a narração que liga os trechos. Responda SÓ JSON:
@@ -718,9 +736,8 @@ quem pausa e comenta o que acabou de ouvir ("Olha isso, Massa!", "Concordo demai
 combina, nunca nos primeiros 10 s nem nos últimos 10 s do trecho.
 {longos}
 
-O TÍTULO e a THUMB saem SEMPRE da notícia do GALO mais forte (nunca de um trecho marcado como "a volta pelo mundo"
-nem de um que já saiu hoje). Se houver trechos de campeonato, a fala antes do primeiro deles avisa que agora é a volta
-pelo mundo ("e pra fechar, como é que ficou a Libertadores ontem") e o fechamento volta a ser sobre o Galo.
+{regra_titulo}
+{regras_extra}
 
 Uma fala antes de CADA trecho (antes_do = 1, 2, 3...). CADA fala DIZ DE ONDE VEM o trecho seguinte, pelo nome do programa/emissora
 da ORIGEM (ex.: "olha o que falaram no Globo Esporte Minas", "o pessoal do Jogo Aberto, da Band, comentou"; se for "via" um canal,
@@ -1101,7 +1118,8 @@ def thumb(video, rot, cfg, pasta_saida, sel=None):
         assunto = rot.get("titulo", "") + " — " + "; ".join(x.get("manchete", "") for x in (sel or [])[:4])
         esc = TOOLS / "banco" / "escudos" / f"{cfg['time']}.png"
         feitas = thumb_viral(pasta / "thumbs", assunto, rot.get("thumb_texto", ""), rot.get("thumb_destaque", ""), None,
-                             masc[:6], quadro, faixas, [esc] if esc.exists() else [], "noticia", cfg.get("nome_canal", ""), log=log)
+                             masc[:6], quadro, faixas, [esc] if esc.exists() else [],
+                             cfg.get("estilo_thumb", "noticia"), cfg.get("nome_canal", ""), log=log)
         if not feitas:
             return None
         shutil.copyfile(feitas[0], pasta / "thumb_1.jpg")
@@ -1359,14 +1377,87 @@ def traz_do_drive(pasta, cfg):
                     log(f"Drive: não consegui ler a voz {f.name} (ainda baixando?) — tento na próxima")
 
 
-def prepara(pasta):
+
+# ====================================================================== PRESETS DE CANAL
+# O MESMO canal.py serve a mais de um canal: o que muda é o config (fontes, persona, regras do roteiro).
+# `python tools\canal\canal.py --pasta <pasta> --preset gta6` escreve o config do canal de GTA 6.
+GTA6 = {
+    "preset": "gta6",
+    "nome_canal": "DETTO GTA 6",
+    "assinatura": ("🎮 DETTO GTA 6 — tudo sobre o Grand Theft Auto VI até o lançamento: notícias, trailers e gameplay "
+                   "comentada.\n🔔 Inscreva-se e ative o sininho: vídeo novo todo dia.\n📲 Instagram e TikTok: @detto.galo\n"
+                   "Canal de fã, sem ligação oficial com a Rockstar Games ou a Take-Two. Os vídeos são usados em trechos "
+                   "curtos, com comentário e crédito a quem produziu."),
+    "assunto": "tudo sobre o GTA 6 (Grand Theft Auto VI) — notícias, trailers e gameplay comentada, até o lançamento",
+    "persona": ("como um jogador brasileiro que acompanha o GTA 6 de perto: animado, direto, sem forçar gíria. Você "
+                "REAGE e COMENTA o que acabou de aparecer na tela (react/review): diz o que achou bom, o que achou "
+                "estranho, e compara com o GTA 5 quando ajuda a entender"),
+    "regra_titulo": ("O TÍTULO e a THUMB saem da novidade mais forte do GTA 6 que aparece nos trechos. NUNCA prometa no "
+                     "título algo que não está no vídeo (nada de \"GTA 6 ADIADO\" se ninguém disse isso) — título mentiroso "
+                     "derruba o canal."),
+    "regras_roteiro": (
+        "REGRAS DESTE CANAL (o que mais importa):\n"
+        "- PROIBIDO INVENTAR qualquer coisa sobre o jogo: data, preço, mapa, personagem, mecânica ou tamanho. Só vale o "
+        "que foi DITO ou MOSTRADO no trecho.\n"
+        "- Vazamento e rumor você CHAMA de vazamento/rumor, sempre: \"saiu um vazamento, e vale lembrar que a Rockstar não "
+        "confirmou\". Nunca trate rumor como oficial.\n"
+        "- O que é OFICIAL hoje: lançamento em 19 de novembro de 2026, pré-download em 12 de novembro, PlayStation 5 e "
+        "Xbox Series X e S (a versão de PC não tem data), preço no Brasil de quatrocentos e quarenta e nove reais e "
+        "noventa (padrão) e quinhentos e quarenta e nove e noventa (Ultimate), protagonistas Lucia Caminos e Jason "
+        "Duval, em Leonida/Vice City.\n"
+        "- Números por extenso na narração (a voz LÊ o que você escrever) e nada de siglas soletradas erradas: escreva "
+        "\"gê tê á seis\" como \"GTA seis\" e o narrador fala certo.\n"
+        "- Na abertura, diga quantos dias faltam para o lançamento quando essa informação for dada abaixo."),
+    "time": "GTA",
+    # ele põe os canais que acompanha no painel; sem canal nenhum, a BUSCA POR DATA já traz o que saiu hoje
+    "fontes": [],
+    "fontes_versao": 1,
+    "busca": ["gta 6 notícias", "gta 6 gameplay", "gta 6 trailer análise", "gta 6 novidades hoje",
+              "grand theft auto 6 notícia", "gta 6 vazamento"],
+    "busca_qualquer_canal": True,
+    "outras_fontes": [],
+    "fora": ["ao vivo", "live", "podcast completo", "sorteio", "gta 5 rp", "gta rp", "roleplay"],
+    "max_horas": 48,
+    "max_videos_rodada": 8,
+    "trecho_min_s": 15,
+    "trecho_max_s": 120,      # pedaço de gameplay/notícia; o comentário dele entra entre os trechos
+    "max_trechos_video": 3,
+    "duracao_alvo_min": 10,   # canal novo: vídeo de 10 min já serve (o do Galo pede 16)
+    "comentario_min_s": 40,
+    "buscar_original": False,  # aqui não existe "canal que junta": o vídeo achado já é a fonte
+    "campeonatos_ligado": False,
+    "mesclar_assunto": True,   # GTA 6 é UM assunto só: sem isso a rodada ficaria sem material
+    # num canal de assunto único TUDO parece repetido: o limite do Galo (0,35) barraria todas as notícias
+    "parecido_max": 0.8,
+    "mesclar_nota_min": 5,
+    "mesclar_novidade_min": 0.2,
+    "max_repetidas": 3,
+    "lancamento": "2026-11-19",
+    "vinheta_canal": "gta6",
+    "estilo_thumb": "gameplay",
+}
+
+PRESETS = {"galo": None, "gta6": GTA6}   # galo = o CONFIG_PADRAO acima
+
+def prepara(pasta, preset=""):
     for p in ("mascara", "voz", "fontes", "prontos"):
         (pasta / p).mkdir(parents=True, exist_ok=True)
     cfg_f = pasta / "config.json"
-    if not cfg_f.exists():
-        grava_json(cfg_f, CONFIG_PADRAO)
-    cfg = dict(CONFIG_PADRAO)
     seu = le_json(cfg_f, {})
+    # qual canal é este: o preset gravado no config manda (o --preset só vale na primeira vez ou para trocar)
+    nome_preset = (seu.get("preset") or preset or "galo").lower()
+    base = PRESETS.get(nome_preset) or CONFIG_PADRAO
+    if not cfg_f.exists() or (preset and preset != seu.get("preset")):
+        seu = {**base, **{k: v for k, v in seu.items() if k not in base}} if seu else dict(base)
+        grava_json(cfg_f, seu)
+        log(f"config do canal \"{seu.get('nome_canal')}\" gravado em {cfg_f}")
+    cfg = dict(base)
+    if nome_preset != "galo":      # canal que não é o do Galo não recebe as migrações das fontes do Galo
+        cfg.update(seu)
+        leia_ = pasta / "LEIA-ME.txt"
+        if not leia_.exists():
+            shutil.copyfile(AQUI / "LEIA-ME.txt", leia_)
+        return cfg
     if seu.get("fontes_versao", 1) < CONFIG_PADRAO["fontes_versao"]:
         # 20/out: imprensa (Jogo Aberto, Alterosa, ESPN, TNT), TV Galo às vezes, canais de notícias do Galo e busca;
         # notícia INTEIRA; hoje e ontem; sem repetir notícia
@@ -1404,8 +1495,10 @@ TRAVA = None
 
 
 def main():
-    ap = argparse.ArgumentParser(description="canal automático do Galo")
+    ap = argparse.ArgumentParser(description="canal automático (Galo, GTA 6...)")
     ap.add_argument("--pasta", default=str(pasta_padrao()))
+    ap.add_argument("--preset", default="", choices=["", "galo", "gta6"],
+                    help="que canal é este (gta6 = canal de GTA 6; grava o config na pasta)")
     ap.add_argument("--login", action="store_true")
     ap.add_argument("--preparar", action="store_true", help="só cria as pastas e o config.json")
     ap.add_argument("--agendar", action="store_true")
@@ -1416,7 +1509,7 @@ def main():
     ap.add_argument("--sem-coleta", action="store_true", help="não busca vídeos novos da imprensa (só pautas / o que já tem)")
     a = ap.parse_args()
     pasta = Path(a.pasta)
-    cfg = prepara(pasta)
+    cfg = prepara(pasta, a.preset)
     traz_do_drive(pasta, cfg)
     try:
         prepara_mascaras(pasta)
@@ -1443,10 +1536,14 @@ def main():
     # UMA rodada por vez: duas juntas (painel + tarefa do Windows / "Rodar agora") apagavam o tmp\ uma da outra
     # no meio da voz → "falas.json não encontrado"
     global TRAVA
-    from reels import trava_rodada
+    from reels import trava_rodada, dono_da_trava
     TRAVA = trava_rodada(pasta, ".canal_rodando")
     if not TRAVA:
-        log("outra rodada do canal já está montando agora — saio (essa termina sozinha)")
+        quem, pid = dono_da_trava(pasta, ".canal_rodando")
+        # ANTES esta mensagem não dizia nada e o painel mostrava "rodada terminou (ok)": um canal.py que travou e
+        # ficou vivo (aconteceu: preso desde 20/10) matava TODAS as rodadas seguintes em silêncio.
+        log(f"NÃO RODEI: outro canal.py está com a trava ({quem}). Se ele estiver travado há horas, "
+            f"encerre no painel (botão Destravar) ou feche o processo {pid or 'python'} e rode de novo.")
         return
     hist = le_json(pasta / "historico.json", {"vistos": {}, "trechos": [], "postados": []})
     hoje = dt.date.today().isoformat()
@@ -1620,7 +1717,7 @@ def main():
     try:   # vinheta do canal DEPOIS da chamada de abertura (no segundo 0 ela quebrava a retenção)
         import vinheta as VIN
 
-        video = VIN.abre(video, "noticias", cfg.get("nome_canal", ""), cfg, log=log, em=abertura_s)
+        video = VIN.abre(video, cfg.get("vinheta_canal", "noticias"), cfg.get("nome_canal", ""), cfg, log=log, em=abertura_s)
     except Exception as e:
         log(f"vinheta: não entrou ({str(e)[:120]})")
     th = thumb(video, rot, {**cfg, "_pasta": str(pasta)}, pronto, sel)

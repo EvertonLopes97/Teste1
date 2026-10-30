@@ -290,7 +290,7 @@ SUBIU_EM = time.time()
 # Versão do PYTHON que está rodando. O painel.html é lido do disco a cada acesso, então depois de um `git pull` o
 # navegador recebe a tela NOVA enquanto o Python continua o VELHO (foi o que aconteceu: a aba Histórias apareceu
 # vazia e o Instagram continuou no caminho antigo). A tela compara esta versão com a dela e avisa.
-PAINEL_VERSAO = "2026-10-29a"
+PAINEL_VERSAO = "2026-10-29c"
 
 
 def codigo_novo():
@@ -998,12 +998,15 @@ class Painel(hserver.BaseHTTPRequestHandler):
 
     def _json(self, obj, code=200):
         b = json.dumps(obj, ensure_ascii=False).encode()
-        self.send_response(code)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_header("Content-Length", str(len(b)))
-        self.send_header("Cache-Control", "no-store")
-        self.end_headers()
-        self.wfile.write(b)
+        try:
+            self.send_response(code)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Length", str(len(b)))
+            self.send_header("Cache-Control", "no-store")
+            self.end_headers()
+            self.wfile.write(b)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            pass   # o navegador fechou a aba/atualizou no meio do envio: não é erro, e enchia o registro de traceback
 
     def _html(self, txt, code=200):
         b = txt.encode()
@@ -1047,6 +1050,8 @@ class Painel(hserver.BaseHTTPRequestHandler):
             if u.path == "/ed_arquivo":
                 return self._manda(EDI.arquivo(q.get("id", ""), q.get("rel", "")), baixar=q.get("baixar") == "1")
             self._json({"erro": "não achei"}, 404)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            pass   # aba fechada no meio do pedido
         except Exception as e:
             traceback.print_exc()
             self._json({"erro": str(e)}, 500)
@@ -1121,6 +1126,8 @@ class Painel(hserver.BaseHTTPRequestHandler):
             self._json({"erro": "não achei"}, 404)
         except ValueError as e:
             self._json({"erro": str(e)}, 400)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            pass   # aba fechada no meio do pedido
         except Exception as e:
             traceback.print_exc()
             self._json({"erro": str(e)}, 500)

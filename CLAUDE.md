@@ -5,6 +5,11 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
 
 ## QUANDO O SISTEMA PARA (29/out) — rede de proteção
 
+- TRAVA PRESA DERRUBA TUDO EM SILÊNCIO (29/out): um `canal.py` que travou e ficou VIVO (preso desde 20/10 no PC
+  dele) fazia toda rodada seguinte morrer na hora, e o painel só dizia "rodada terminou (ok)" — nenhuma notícia era
+  criada por 9 dias. Agora `trava_rodada` ESCREVE pid e hora dentro do arquivo da trava, `dono_da_trava` lê, o
+  canal.py registra "NÃO RODEI: outro canal.py está com a trava (pid=..., desde ...)" e o painel mostra o aviso
+  vermelho com o botão **Destravar** (`canal_destravar` → taskkill no processo preso). O `doutor.py` também mostra.
 - `python tools\doutor.py` → **por que** parou: versão do código · travas presas · **IA de texto** (testa Gemini,
   as grátis e o Claude, uma por uma) · voz (VoiceStudio aberto? com voz cadastrada?) · Instagram (vagas de Reels
   teste, pausa, fila, Drive) · disco · e a última linha de ERRO de cada registro → `tools\diagnostico.txt`.
@@ -343,6 +348,24 @@ Use o Claude só para AJUSTAR o `roteiro.txt` do job e rodar de novo.
   "link conferido" do postar e o historias.py, e abre o painel + o navegador. Mande ele rodar isso em vez de comandos soltos.
 - TESTES: `npm run check` (tipos + testes + teste VISUAL `test/visual.test.js`: quadros do palco × `test/visual/ref_*.png`).
   Mudou o visual de propósito → `npm run visual:aprovar`. GitHub Actions roda tudo a cada push (`.github/workflows/testes.yml`).
+
+## CANAL DE GTA 6 (29/out) — o mesmo canal.py, outro assunto
+
+`python tools\canal\canal.py --pasta E:\DETTO\canal_gta6 --preset gta6` (painel aba CANAIS: card **GTA 6**).
+O canal.py virou genérico: `PRESETS` = `galo` (o CONFIG_PADRAO de sempre) e `gta6`. O preset fica gravado no
+config da pasta (`"preset"`), e canal que não é `galo` NÃO recebe as migrações de fontes do Galo.
+- O que o preset muda: `assunto`/`persona`/`regra_titulo`/`regras_roteiro` (entram no prompt do roteiro),
+  `fontes: []` + `busca` por data (gta 6 notícias/gameplay/trailer/vazamento), `fora` SEM "gameplay" (é o que
+  queremos), trecho até 120 s, vídeo de 10 min, `comentario_min_s` 40 (a reação dele no meio do trecho = o react),
+  `vinheta_canal: gta6`, `estilo_thumb: gameplay`.
+- ASSUNTO ÚNICO: `parecido_max` 0,8 (no Galo é 0,35 — num canal que só fala de GTA 6 TUDO pareceria repetido e a
+  rodada ficaria sem material), `mesclar_assunto` ligado, `max_repetidas` 3.
+- CONTAGEM REGRESSIVA de verdade: `"lancamento": "2026-11-19"` no config → o prompt recebe "HOJE FALTAM N DIAS"
+  calculado na hora (19/11/2026, pré-download 12/11, PS5 e Xbox Series; PC sem data; R$ 449,90 / R$ 549,90;
+  Lucia Caminos e Jason Duval em Leonida/Vice City). **Proibido inventar**: vazamento é chamado de vazamento.
+- Canais-fonte: ele põe os que acompanha no config (`fontes`); sem nenhum, a BUSCA POR DATA já traz o que saiu hoje.
+  Pauta de um vídeo específico: cole o link no campo **Pautas** do card (funciona igual ao canal de notícias).
+- `vinheta.py` ganhou o preset `gta6` (cara de gameplay: lima e roxo, sub "TUDO SOBRE O GTA 6").
 
 ## TIKTOK SHOP — vídeos de produto automáticos (26/out)
 

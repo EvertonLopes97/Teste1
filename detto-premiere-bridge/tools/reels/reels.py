@@ -1654,8 +1654,12 @@ TRAVA = None
 
 
 def trava_rodada(base, nome=".reels_rodando"):
-    """só UM reels.py por vez: o painel (links) e a tarefa do Windows rodando juntos faziam o mesmo link 2 vezes
-    (18 e 19, 20 e 21...). A trava é do sistema: some sozinha quando o processo acaba (até se ele travar/fechar)."""
+    """só UM por vez: o painel e a tarefa do Windows rodando juntos faziam o mesmo trabalho 2 vezes. A trava é do
+    sistema: some sozinha quando o processo acaba (até se ele travar/fechar).
+
+    QUEM ESTÁ COM ELA (29/out): o arquivo guarda PID e hora de quem pegou. Um processo que trava e fica vivo (foi o
+    que aconteceu com o canal.py: preso desde 20/10) deixava todas as rodadas seguintes morrerem caladas — agora dá
+    para dizer no registro e no painel quem é, e o painel tem botão para encerrar."""
     f = open(Path(base) / nome, "a+")
     try:
         if os.name == "nt":
@@ -1665,10 +1669,31 @@ def trava_rodada(base, nome=".reels_rodando"):
         else:
             import fcntl
             fcntl.flock(f.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
-        return f
     except OSError:
         f.close()
         return None
+    try:   # deixa escrito quem pegou (a trava do sistema é no 1º byte; escrevo depois dele)
+        f.seek(1)
+        f.truncate(1)
+        f.write(f" pid={os.getpid()} desde={dt.datetime.now():%d/%m %H:%M}\n")
+        f.flush()
+    except OSError:
+        pass
+    return f
+
+
+def dono_da_trava(base, nome=".reels_rodando"):
+    """quem está com a trava: (texto, pid) — para o registro e para o painel. Sem ninguém, ("", 0)."""
+    f = Path(base) / nome
+    if not f.exists():
+        return "", 0
+    try:
+        txt = f.read_text(encoding="utf-8", errors="replace")[:200].strip()
+    except OSError:
+        txt = ""
+    m = re.search(r"pid=(\d+)", txt)
+    quando = dt.datetime.fromtimestamp(f.stat().st_mtime).strftime("%d/%m %H:%M")
+    return (txt or f"desde {quando}"), int(m.group(1)) if m else 0
 
 
 def main():

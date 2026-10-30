@@ -516,7 +516,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-10-29a";
+const VERSAO_TELA = "2026-10-29c";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -1009,7 +1009,8 @@ function hisVer(s){
 const ST_CAN = {aguardando: "esperando você", na_fila: "na fila p/ postar", postando: "postando", postado: "postado", erro: "erro", descartado: "descartado", montando: "montando"};
 function canais(){
   const C = E.canais; if(!C) return;
-  const esperando = C.noticias.esperando + C.vlogs.esperando;
+  const canaisIds = Object.keys(C).filter(k => C[k] && typeof C[k] === "object" && "esperando" in C[k]);
+  const esperando = canaisIds.reduce((s, k) => s + (C[k].esperando || 0), 0);
   $("#bCan").style.display = esperando ? "" : "none"; $("#bCan").textContent = esperando;
   $("#canSetup").innerHTML = C.segredo ? "" : `<div class="card" style="margin-bottom:14px">
     <b>Passo 1 (uma vez, vale para os dois canais): a credencial do Google</b>
@@ -1024,16 +1025,17 @@ function canais(){
   const box = $("#canCards"), k = JSON.stringify(C);
   if(box.dataset.k === k) return; box.dataset.k = k;
   const abertos = {}; box.querySelectorAll("details[data-d]").forEach(d => abertos[d.dataset.d] = d.open);
-  box.innerHTML = ["noticias", "vlogs"].map(c => cardCanal(c, C[c])).join("");
+  box.innerHTML = canaisIds.map(c => cardCanal(c, C[c])).join("");
   box.querySelectorAll("details[data-d]").forEach(d => { if(d.dataset.d in abertos) d.open = abertos[d.dataset.d]; });
 }
 function sw(c, campo, on){ return `<label class="sw"><input type="checkbox" ${on ? "checked" : ""} onchange="canCfg('${c}',{${campo}:this.checked})"><span></span></label>`; }
 function cardCanal(c, x){
+  const travado = x.travado ? `<div class="info erro">🔒 Uma rodada ANTIGA está com a trava deste canal (${esc(x.travado)}) — por isso nada é criado. <button class="mini" onclick="api('canal_destravar',{c:'${c}'}).then(r=>{toast(r.msg||r.erro||'ok');carrega(true)})">Destravar</button></div>` : "";
   const login = x.login ? `<span class="login">✔ ${esc(x.canal_yt || "YouTube conectado")}</span> <button class="mini" onclick="canLogin('${c}')">Trocar</button>`
                         : `<span class="login off">✖ YouTube não conectado</span> <button class="mini pri" onclick="canLogin('${c}')" ${E.canais.segredo ? "" : "disabled"}>Conectar</button>`;
-  let esp = "";
-  if(c === "noticias"){
-    esp = `<div class="chave" style="display:block"><b>Pautas</b> <small>Outras notícias quando quiser: cole o LINK de um vídeo, o caminho de um arquivo do PC ou escreva o ASSUNTO (um por linha). Entram no próximo vídeo, antes das do Galo.</small>
+  let esp = travado;
+  if(c === "noticias" || c === "gta6"){
+    esp += `<div class="chave" style="display:block"><b>Pautas</b> <small>Outras notícias quando quiser: cole o LINK de um vídeo, o caminho de um arquivo do PC ou escreva o ASSUNTO (um por linha). Entram no próximo vídeo, antes das do Galo.</small>
       <textarea id="pauta_${c}" rows="3" placeholder="https://youtube.com/watch?v=…&#10;Cruzeiro demite o técnico"></textarea>
       <div class="linha"><button class="pri" onclick="canPauta('${c}',false)">Pôr nas pautas</button><button onclick="canPauta('${c}',true)" ${x.rodando ? "disabled" : ""}>Pôr e fazer o vídeo agora</button></div>
       ${x.pautas.length ? `<div class="lista">${x.pautas.map((l, i) => `<div class="l"><span>${esc(l)}</span><button class="mini" onclick="canTiraPauta('${c}',${i})">✕</button></div>`).join("")}</div>` : ""}
