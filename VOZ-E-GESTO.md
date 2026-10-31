@@ -31,6 +31,29 @@ O sistema tenta nesta ordem e para na primeira que funcionar:
 Conferir a qualquer momento: `python tools\doutor.py` → a seção **VOZ** diz se ele está aberto, quantas vozes
 tem cadastradas e qual voz vai sair.
 
+### Pesquisa de mercado (31/out) — o que existe hoje e quanto custa
+
+Medido para o SEU caso: ~900 mil caracteres por mês somando os canais, e uma RTX 3050 de **4 GB**.
+
+| Opção | Clona a sua voz | Emoção | Custo no seu volume | Roda na sua placa |
+|---|---|---|---|---|
+| **VoiceStudio** (o que você já tem) | sim | sim (instrução) | **grátis** | sim |
+| **Fish Audio S2.1** | sim (10–15 s) | sim, `[excited]` no texto | **~US$ 13/mês** (US$ 15 por 1 mi de caracteres) | não precisa |
+| ElevenLabs | sim, o mais natural do mercado | sim (audio tags) | **US$ 99 a 330/mês** no seu volume | não precisa |
+| MiniMax Speech | sim (10 s) | sim, com pausas e risadas | US$ 60–100 por 1 mi | não precisa |
+| Chatterbox (local, MIT) | sim | exagero | grátis | **mal cabe** em 4 GB → lento |
+| Kokoro (local, Apache) | **não** | pouca | grátis | sim, até na CPU |
+| XTTS-v2 / OpenAudio local | sim | média | grátis | **licença não comercial** |
+
+**Conclusões honestas:**
+- **O mais natural do mercado é o ElevenLabs** — e é caro para o seu volume. Só valeria para um canal só.
+- **O melhor custo-benefício é o Fish Audio**: clona, aceita emoção no texto e custaria ~US$ 13/mês para
+  TODOS os canais. Você já tem a integração pronta; só a chave está recusada.
+- **Local de graça com a sua voz**: VoiceStudio é o caminho. O Chatterbox é MIT (pode usar comercialmente),
+  mas 4 GB de placa é pouco e por isso demora horas. Trocar a placa resolveria; software não resolve.
+- **Kokoro** é rápido e grátis, mas **não clona** e relatam sotaque gringo no português — não serve.
+- **XTTS-v2 e os modelos "open" do Fish** têm licença **não comercial**: num canal monetizado, não dá.
+
 ### Se quiser consertar o Fish (opcional)
 
 A chave atual está sendo recusada (403 = expirou, acabou o crédito ou está errada). Gere outra em fish.audio e:

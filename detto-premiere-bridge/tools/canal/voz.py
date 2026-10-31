@@ -141,17 +141,17 @@ INSTRUCAO_PADRAO = ("Narração em português do Brasil, sotaque brasileiro neut
 # Para a voz NEURAL: ritmo, tom e volume. Para o VOICESTUDIO: uma frase dizendo COMO falar.
 CLIMA_VOZ = {
     "comemorando": {"rate": +14, "pitch": +12, "vol": +6,
-                    "diz": "empolgado, comemorando, com energia alta, como quem está vibrando com a notícia"},
-    "rindo":       {"rate": +10, "pitch": +9, "vol": +3, "diz": "leve e divertido, com um sorriso na voz, zoando"},
+                    "diz": "empolgado, comemorando, com energia alta, como quem está vibrando com a notícia", "fish": "excited"},
+    "rindo":       {"rate": +10, "pitch": +9, "vol": +3, "diz": "leve e divertido, com um sorriso na voz, zoando", "fish": "happy"},
     "surpreso":    {"rate": +6, "pitch": +10, "vol": +4,
-                    "diz": "surpreso, como quem acabou de saber de algo inesperado, subindo o tom no fim da frase"},
+                    "diz": "surpreso, como quem acabou de saber de algo inesperado, subindo o tom no fim da frase", "fish": "surprised"},
     "bravo":       {"rate": +4, "pitch": -4, "vol": +5,
-                    "diz": "indignado e firme, com peso nas palavras, como quem está reclamando de algo errado"},
+                    "diz": "indignado e firme, com peso nas palavras, como quem está reclamando de algo errado", "fish": "angry"},
     "atencao":     {"rate": -2, "pitch": +2, "vol": +4,
-                    "diz": "tom de ALERTA, sério e pausado, como plantão de notícia urgente"},
-    "pensativo":   {"rate": -6, "pitch": -3, "vol": 0, "diz": "calmo e reflexivo, pensando junto com quem ouve"},
-    "concordando": {"rate": 0, "pitch": +1, "vol": 0, "diz": "concordando, em tom de conversa, próximo"},
-    "falando":     {"rate": +4, "pitch": +2, "vol": 0, "diz": "natural, de conversa, com variação de entonação"},
+                    "diz": "tom de ALERTA, sério e pausado, como plantão de notícia urgente", "fish": "determined"},
+    "pensativo":   {"rate": -6, "pitch": -3, "vol": 0, "diz": "calmo e reflexivo, pensando junto com quem ouve", "fish": "calm"},
+    "concordando": {"rate": 0, "pitch": +1, "vol": 0, "diz": "concordando, em tom de conversa, próximo", "fish": "confident"},
+    "falando":     {"rate": +4, "pitch": +2, "vol": 0, "diz": "natural, de conversa, com variação de entonação", "fish": ""},
 }
 
 
@@ -321,11 +321,16 @@ def fish_modelo(ref, pasta, chave, log=print):
     return mid
 
 
-def fish_fala(texto, saida, mid, chave, modelo="s2.1-pro-free"):
-    """uma fala pelo Fish Audio → wav 24 kHz mono"""
+def fish_fala(texto, saida, mid, chave, modelo="s2.1-pro-free", clima=""):
+    """uma fala pelo Fish Audio → wav 24 kHz mono.
+    O Fish aceita a EMOÇÃO escrita no texto (`[excited] frase...`, sintaxe do S2.1), então o clima da fala vira
+    marca de emoção — é de graça e é o que mais aproxima do jeito que ele falaria."""
     import tempfile
     import urllib.error
     import urllib.request
+    marca = jeito_de_falar(clima).get("fish") if clima else ""
+    if marca and not texto.lstrip().startswith("["):
+        texto = f"[{marca}] {texto}"
     corpo = {"text": texto, "reference_id": mid, "format": "wav", "normalize": True, "temperature": 0.7, "language": "pt-BR"}
     for tentativa in range(2):
         req = urllib.request.Request("https://api.fish.audio/v1/tts", data=json.dumps(corpo).encode(), method="POST",
@@ -586,7 +591,7 @@ def main():
         try:
             mid = fish_modelo(ref, out.parent, chave_fish)
             for k, f in enumerate(list(falta)):
-                fish_fala(f["falado"], f["arquivo"], mid, chave_fish, a.fish_modelo)
+                fish_fala(f["falado"], f["arquivo"], mid, chave_fish, a.fish_modelo, f.get("clima", ""))
                 falta.remove(f)
                 print(f"voz (Fish Audio): {k + 1}", flush=True)
         except Exception as e:
