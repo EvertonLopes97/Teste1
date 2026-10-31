@@ -16,6 +16,10 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
   no canal de notícias, no GTA 6, nas histórias e no shop. `--voz-edge`/`"voz_neural"` troca a voz
   (`pt-BR-AntonioNeural` padrão, `pt-BR-FranciscaNeural` feminina); `--sem-edge`/`"sem_voz_neural"` desliga.
   A SUA voz clonada continua sendo a primeira opção — ela só sai com o VoiceStudio aberto.
+  POR QUE A NEURAL SOAVA ROBÓTICA (30/out): não era a voz — era o `sem_pausas` esmagando TODA pausa dela para
+  0,13 s. Isso foi feito para o Chatterbox/Fish, que deixam ar morto; a neural já respira certo e, atropelada,
+  vira robô. Agora a fala que saiu da neural usa pausa mínima de 0,30 s (`DETTO_PAUSA_NEURAL`) e ela fala com
+  +4% de ritmo e +2Hz de tom (`DETTO_PITCH_NEURAL`).
 - PRESET INCOMPLETO DERRUBAVA O CANAL (29/out): o `gta6` trocava algumas chaves e não tinha as outras
   (`KeyError: 'voz_ref'` na primeira linha da rodada). Agora cada preset é o `CONFIG_PADRAO` COM as trocas
   dele (`{**CONFIG_PADRAO, **GTA6}`): nenhuma chave some.
@@ -433,6 +437,21 @@ config da pasta (`"preset"`), e canal que não é `galo` NÃO recebe as migraç�
   `peca_trecho` QUEIMA na parte de baixo da janela do vídeo (`enable=between`, placa preta, letra branca com
   contorno). A manchete e o resumo saem em português mesmo com a transcrição em inglês, e o roteiro recebe
   `[TRECHO EM EN — vai LEGENDADO]` para a fala dele avisar que é de um canal de fora.
+- O CANAL PEDIA TRECHO "SOBRE O GALO" NUM VÍDEO DE GTA (30/out): o `(o Galo)` estava FIXO no prompt do
+  `acha_trechos` — a IA recebia "marque os trechos em que falam do GTA (o Galo)" e, com razão, não achava
+  nada: TODO vídeo terminava "0 trecho(s)". Agora, sem pauta, o alvo vem do `cfg["assunto"]` do canal e o
+  registro diz o assunto certo.
+- `palavras_do_cache` (30/out): o `.words.json` virou dicionário ({"palavras", "idioma"}) e dois lugares ainda
+  liam como lista — `TypeError: string indices must be integers` no meio da montagem. Agora os dois formatos
+  valem.
+- RODADA DEMORANDO DEMAIS (30/out): transcrever 8 vídeos de 10-25 min no whisper levava a rodada inteira.
+  `palavras_rapidas` tenta a LEGENDA do YouTube antes (instantânea, serve para achar o trecho e para
+  traduzir); só cai no whisper se não houver legenda ou se ela cobrir menos de 50% do vídeo. Ligado por canal:
+  `"legenda_antes_de_transcrever"` + `"legenda_langs"` (gta6: pt e en). O gta6 também baixou
+  `max_videos_rodada` para 4 — com 13 min de alvo não precisa de 8.
+- GESTO COM CARA DE ROBÔ (30/out, `mascara_longa`): uma gravação de 6 s num trecho de 90 s dava 15 voltas do
+  mesmo gesto. Agora as gravações DIFERENTES são emendadas até cobrir o trecho (concat `-c copy`, reencoda só
+  se os parâmetros não baterem), então o loop fica muito mais longo e variado.
 - AS PALAVRAS DO ASSUNTO (29/out, `"termos"`/`"termos_nao"`): o `apelidos()` procurava o `time` no
   `times.json` (lista de times de FUTEBOL) — num canal de GTA não achava nada, o `fala_do_time` reprovava
   TODO vídeo e a rodada terminava "0 vídeo(s) de hoje" mesmo com os canais respondendo. Agora o preset traz

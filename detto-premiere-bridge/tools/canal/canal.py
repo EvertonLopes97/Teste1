@@ -413,6 +413,13 @@ def transcreve(video, idioma="pt"):
     return w, lin
 
 
+def palavras_do_cache(arquivo):
+    """as palavras do .words.json, no formato novo ({"palavras": [...], "idioma": "en"}) ou no antigo (lista).
+    Ler o dicionário como se fosse lista dava `TypeError: string indices must be integers`."""
+    d = json.loads(Path(arquivo).with_suffix(".words.json").read_text(encoding="utf-8"))
+    return (d.get("palavras") or []) if isinstance(d, dict) else d
+
+
 def linhas_tempo(words, passo=8.0):
     out, atual, ini = [], [], None
     for w in words:
@@ -440,8 +447,14 @@ def acha_trechos(words, info, cfg, assunto=None):
     """trechos que falam do time (ou do ASSUNTO de uma pauta sua): Gemini (começo/fim certos, manchete, clima);
     sem chave: janelas pela palavra (pauta sem chave: o começo do vídeo)"""
     _, _, t = apelidos(cfg)
-    alvo = (f"em que falam de: {assunto}" if assunto and assunto != "*" else "com a notícia/assunto principal deste vídeo") if assunto \
-        else f"em que falam do {t.get('nome', cfg['time'])} (o Galo): análise, elogio, crítica, polêmica, notícia, entrevista"
+    # O ASSUNTO DO CANAL manda. Antes o "(o Galo)" era FIXO: o canal de GTA pedia à IA "trechos em que falam do
+    # GTA (o Galo)" e ela, com razão, não achava nada — a rodada terminava "0 trecho(s)" em TODO vídeo.
+    if assunto:
+        alvo = f"em que falam de: {assunto}" if assunto != "*" else "com a notícia/assunto principal deste vídeo"
+    elif cfg.get("assunto"):
+        alvo = f"em que falam de {cfg['assunto']}: notícia, novidade, análise, opinião, entrevista"
+    else:
+        alvo = f"em que falam do {t.get('nome', cfg['time'])} (o Galo): análise, elogio, crítica, polêmica, notícia, entrevista"
     regra_canal = ("Este canal JUNTA notícias de vários programas: marque SÓ as partes em que fala a IMPRENSA (apresentador/jornalista "
                    "de TV, rádio, entrevista, coletiva). IGNORE a narração do dono do canal ('fala galera', 'se inscreve', leitura de "
                    "manchete, opinião do youtuber) e anúncios." if info.get("juntador") else
@@ -577,16 +590,18 @@ def _janela(alvo, ws):
     return ws[i0]["s"], ws[i1]["e"], nm
 
 
-def legenda_youtube(vid, pasta):
-    """as palavras com tempo pela legenda do YouTube (automática serve) — sem baixar o vídeo"""
+def legenda_youtube(vid, pasta, langs="pt.*,pt"):
+    """as palavras com tempo pela legenda do YouTube (automática serve) — sem baixar nem transcrever o vídeo.
+    `langs` aceita outras línguas (o canal de GTA pega canal gringo: "pt.*,pt,en.*,en")."""
     pasta.mkdir(parents=True, exist_ok=True)
     cache = pasta / f"{vid}.leg.json"
     if cache.exists():
         return le_json(cache, [])
-    ytdlp(["--skip-download", "--write-auto-subs", "--write-subs", "--sub-langs", "pt.*,pt", "--sub-format", "json3",
+    ytdlp(["--skip-download", "--write-auto-subs", "--write-subs", "--sub-langs", langs, "--sub-format", "json3",
            "-o", str(pasta / f"{vid}.%(ext)s"), f"https://www.youtube.com/watch?v={vid}"])
-    ws = []
+    ws, lin = [], ""
     for f in sorted(pasta.glob(f"{vid}*.json3")):
+        lin = (f.name.split(".")[-2] if f.name.count(".") >= 2 else "")[:2].lower()
         try:
             d = json.loads(f.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -606,7 +621,32 @@ def legenda_youtube(vid, pasta):
         if ws:
             break
     grava_json(cache, ws)
+    if ws and lin:
+        grava_json(pasta / f"{vid}.leg.idioma.json", {"idioma": lin})
     return ws
+
+
+def palavras_rapidas(v, cfg, pasta, log=log):
+    """ANTES de transcrever: tenta a LEGENDA do YouTube, que é instantânea.
+    Transcrever 8 vídeos de 10-25 min no whisper levava a rodada inteira; a legenda automática já serve para
+    achar os trechos e para traduzir. Devolve (palavras, idioma) ou (None, "") quando não dá para confiar."""
+    if not cfg.get("legenda_antes_de_transcrever") or not v.get("id"):
+        return None, ""
+    try:
+        ws = legenda_youtube(v["id"], pasta / "legendas", cfg.get("legenda_langs", "pt.*,pt,en.*,en"))
+    except Exception as e:   # noqa: BLE001
+        log(f"   legenda do YouTube: {str(e)[:90]}")
+        return None, ""
+    if not ws:
+        return None, ""
+    d = dur(v.get("arquivo") or "") or float(v.get("dur") or 0)
+    cobre = (ws[-1]["e"] - ws[0]["s"]) / d if d else 1.0
+    if len(ws) < 60 or cobre < 0.5:   # legenda picada/parcial não serve para cortar o trecho
+        log(f"   legenda do YouTube só cobre {cobre * 100:.0f}% do vídeo: vou transcrever")
+        return None, ""
+    idi = (le_json(pasta / "legendas" / f"{v['id']}.leg.idioma.json", {}) or {}).get("idioma") or "pt"
+    log(f"   peguei a legenda do YouTube ({len(ws)} palavras, {idi.upper()}) — sem transcrever, muito mais rápido")
+    return ws, idi
 
 
 def candidatos_originais(x, v, cfg, descricao=""):
@@ -719,7 +759,7 @@ def origem_falada(x):
 def ponto_de_pausa(x, alvo):
     """onde pausar a reportagem para o seu comentário: o fim de frase mais perto do alvo (nunca nos 10 s das pontas)"""
     try:
-        words = json.loads(Path(x["arquivo"]).with_suffix(".words.json").read_text(encoding="utf-8"))
+        words = palavras_do_cache(x["arquivo"])
     except (OSError, ValueError):
         return None
     lo, hi = x["ini"] + 10, x["fim"] - 10
@@ -739,7 +779,7 @@ def ponto_de_pausa(x, alvo):
 def falas_do_trecho(x, passo=7.0):
     """o que é dito no trecho, com o segundo (contado do começo do trecho) — para o comentário no meio dele"""
     try:
-        words = json.loads(Path(x["arquivo"]).with_suffix(".words.json").read_text(encoding="utf-8"))
+        words = palavras_do_cache(x["arquivo"])
     except (OSError, ValueError):
         return ""
     out, atual, t0 = [], [], None
@@ -998,6 +1038,46 @@ def mascara_de(clima, pasta, durante_reportagem=False):
     esc = random.choice(opcoes)
     _ULTIMA_MASC.append(esc)
     return esc
+
+
+def mascara_longa(clima, pasta, tmp, dur, durante_reportagem=False, log=log):
+    """Uma gravação de 6 s repetida num trecho de 90 s dá 15 voltas: é isso que deixa o GESTO com cara de robô.
+    Aqui eu EMENDO gravações DIFERENTES até cobrir o trecho, então o loop (se sobrar) é muito mais longo e variado."""
+    um = mascara_de(clima, pasta, durante_reportagem)
+    if not um:
+        return None
+    d1 = dur_mp4(um)
+    if not d1 or d1 >= dur * 0.9:
+        return um
+    partes, total, vistos = [um], d1, {um}
+    for _ in range(7):
+        if total >= dur:
+            break
+        nova = mascara_de(clima, pasta, durante_reportagem)
+        if not nova:
+            break
+        if nova in vistos and len(vistos) > 2:   # acabaram as gravações diferentes
+            break
+        vistos.add(nova)
+        partes.append(nova)
+        total += dur_mp4(nova) or 0
+    if len(partes) < 2:
+        return um
+    tmp.mkdir(parents=True, exist_ok=True)
+    saida = tmp / f"masc_{abs(hash(tuple(str(x) for x in partes))) % 10**8}.mp4"
+    if saida.exists():
+        return saida
+    lista = tmp / (saida.stem + ".txt")
+    lista.write_text("".join(f"file '{Path(x).as_posix()}'\n" for x in partes), encoding="utf-8")
+    r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lista),
+                        "-an", "-c", "copy", str(saida)])
+    if r.returncode != 0:   # parâmetros diferentes: emenda reencodando
+        r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lista),
+                            "-an", *enc(), str(saida)])
+    if r.returncode != 0 or not saida.exists():
+        return um
+    log(f"      máscara: {len(partes)} gravações emendadas ({total:.0f}s) para não repetir o gesto")
+    return saida
 
 
 def cobre(w, h):
@@ -1263,7 +1343,8 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
             leg = legenda_pngs([{**f, "ini": f["ini"] - (a0 - x["ini"]), "fim": f["fim"] - (a0 - x["ini"])}
                                 for f in trad if f["fim"] > (a0 - x["ini"]) and f["ini"] < (b0 - x["ini"])],
                                tmp, f"{i}_{n}") if trad else None
-            if peca_trecho(base, x["arquivo"], a0, b0, mascara_de(x["clima"], pasta, durante_reportagem=True), fx, p, leg):
+            masc = mascara_longa(x["clima"], pasta, tmp / "masc", b0 - a0, durante_reportagem=True, log=log)
+            if peca_trecho(base, x["arquivo"], a0, b0, masc, fx, p, leg):
                 pecas.append(p)
             if n < len(coms):
                 log(f"      comentário seu no meio: {coms[n]['texto'][:60]}")
@@ -1646,6 +1727,10 @@ GTA6 = {
     "lancamento": "2026-11-19",
     # canal gringo entra: deixa o whisper DESCOBRIR a língua e o trecho sai LEGENDADO em português
     "idioma_fontes": None,
+    # VELOCIDADE: a legenda do YouTube evita transcrever vídeo de 10-25 min (era isso que fazia a rodada demorar)
+    "legenda_antes_de_transcrever": True,
+    "legenda_langs": "pt.*,pt,en.*,en",
+    "max_videos_rodada": 4,   # com 13 min de alvo não precisa de 8 vídeos por rodada; o resto fica para a próxima
     "termos": ["gta 6", "gta6", "gta vi", "grand theft auto 6", "grand theft auto vi", "vice city", "rockstar games",
                "lucia caminos", "jason duval", "leonida"],
     "termos_nao": ["gta 5", "gta v", "gta san andreas", "gta rp", "gta online", "gta 4", "gta iv"],
@@ -1822,13 +1907,16 @@ def main():
                 continue
             v["arquivo"] = str(arq)
             v["descricao"] = (info or {}).get("description") or ""
-        log(f"transcrevendo: {Path(v['arquivo']).name}")
-        words, lin = transcreve(v["arquivo"], cfg.get("idioma_fontes", "pt"))
+        words, lin = palavras_rapidas(v, cfg, pasta, log)      # a legenda do YouTube, quando serve
+        if words is None:
+            log(f"transcrevendo: {Path(v['arquivo']).name}")
+            words, lin = transcreve(v["arquivo"], cfg.get("idioma_fontes", "pt"))
         v["idioma"] = lin
         if lin != "pt":
             log(f"   esse vídeo está em {lin.upper()}: vou traduzir e LEGENDAR o trecho em português")
         tr = acha_trechos(words, v, cfg, assunto=v.get("assunto"))
-        log(f"   {len(tr)} trecho(s) sobre " + (v["campeonato"] if v.get("campeonato") else "o Galo"))
+        do_que = v["campeonato"] if v.get("campeonato") else (cfg.get("assunto", "")[:40] or "o Galo")
+        log(f"   {len(tr)} trecho(s) sobre {do_que}")
         dv = dur(v["arquivo"]) or 1e9
         tr = [{**x, "fim": min(x["fim"], dv - 0.2)} for x in tr if min(x["fim"], dv - 0.2) - x["ini"] >= 8]  # nunca além do fim do vídeo
         for x in tr:

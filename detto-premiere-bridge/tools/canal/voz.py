@@ -375,11 +375,12 @@ def edge_fala(texto, saida, voz=EDGE_VOZ, velocidade=1.0):
         import edge_tts
     import asyncio
 
-    taxa = f"{round((velocidade - 1) * 100):+d}%"
+    # +4% de ritmo deixa a leitura menos "locutor de aeroporto"; o pitch sobe de leve para não ficar chapada
+    taxa = f"{round((velocidade - 1) * 100 + 4):+d}%"
     mp3 = str(Path(saida).with_suffix(".edge.mp3"))
 
     async def _fala():
-        await edge_tts.Communicate(texto, voz, rate=taxa).save(mp3)
+        await edge_tts.Communicate(texto, voz, rate=taxa, pitch=os.environ.get("DETTO_PITCH_NEURAL", "+2Hz")).save(mp3)
 
     asyncio.run(_fala())
     if not Path(mp3).exists() or Path(mp3).stat().st_size < 400:
@@ -568,12 +569,14 @@ def main():
                 msg += ("  <- a CHAVE do Fish foi recusada (403/401): ela expirou, acabou o crédito ou está errada. "
                         "Gere outra em fish.audio e ponha com:  setx FISH_API_KEY \"<chave>\"")
             print(f"voz: Fish Audio falhou ({msg}) — o resto iria pelo Chatterbox", flush=True)
+    feitas_no_edge = set()
     if falta and not a.sem_edge and not os.environ.get("DETTO_VOZ_FALSA"):
         # VOZ NEURAL pt-BR (Microsoft, de graça): não é a sua voz clonada, mas é NATURAL e sai em segundos —
         # muito melhor que o Chatterbox, que puxa o sotaque para Portugal e leva horas (a "voz robótica" de 29/10)
         try:
             for k, f in enumerate(list(falta)):
                 edge_fala(f["falado"], f["arquivo"], a.voz_edge, a.velocidade_vs)
+                feitas_no_edge.add(f["arquivo"])
                 falta.remove(f)
                 print(f"voz (neural pt-BR {a.voz_edge}): {k + 1}", flush=True)
             print("voz: saiu na voz NEURAL pt-BR (não é a sua voz clonada — abra o VoiceStudio para usar a sua)", flush=True)
@@ -615,7 +618,11 @@ def main():
             marca = arq.with_suffix(".sp")
             if arq.exists() and not marca.exists():
                 try:
-                    c = sem_pausas(arq, a.max_pausa)
+                    # a voz NEURAL já respira certo: cortar a pausa dela para 0,13 s deixa a fala atropelada
+                    # (foi o que soou "robótico"). Para ela a pausa mínima é maior.
+                    mp = max(a.max_pausa, float(os.environ.get("DETTO_PAUSA_NEURAL", "0.30"))) \
+                        if f["arquivo"] in feitas_no_edge else a.max_pausa
+                    c = sem_pausas(arq, mp)
                     marca.write_text(f"{c:.2f}", encoding="utf-8")
                     if c > 0.2:
                         print(f"voz: {f['id']} sem {c:.1f}s de silêncio no meio", flush=True)
