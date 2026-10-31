@@ -65,6 +65,8 @@ Apague `E:\DETTO\*\tmp`, `galo_tmp` e os `prontos` antigos. O doutor mostra quan
 
 ## O que só você pode fazer (eu não alcanço o seu PC)
 
+**Passo a passo completo disso: `VOZ-E-GESTO.md`** (como gravar a voz, as máscaras e a foto da thumb).
+
 - Gravar e subir **máscara** e **voz** no Drive.
 - Deixar o **VoiceStudio** aberto com a sua voz clonada.
 - Refazer o **login do Instagram** com a permissão de estatísticas.
