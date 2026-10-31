@@ -437,6 +437,20 @@ config da pasta (`"preset"`), e canal que não é `galo` NÃO recebe as migraç�
   `peca_trecho` QUEIMA na parte de baixo da janela do vídeo (`enable=between`, placa preta, letra branca com
   contorno). A manchete e o resumo saem em português mesmo com a transcrição em inglês, e o roteiro recebe
   `[TRECHO EM EN — vai LEGENDADO]` para a fala dele avisar que é de um canal de fora.
+- DUBLAGEM, TELA CHEIA E EMOÇÃO (30/out, pedido dele) — o trecho gringo agora é DUBLADO, não só legendado:
+  **1 DUBLAGEM** (`dublagem`, `"dublar": true`): as frases traduzidas viram fala na voz DELE (a mesma cadeia
+  VoiceStudio → Fish → neural) e entram no SEGUNDO em que são ditas no original (`adelay`); frase que não cabe
+  no espaço dela é acelerada até 1,35x (`atempo`) para não atropelar a seguinte. O áudio original fica atrás em
+  0,16 (`"volume_original_dublado"`) e a mistura sai a -16 LUFS. A legenda continua junto.
+  **2 TELA CHEIA** (`so_imagens` + `peca_trecho(cheia=True)`, `"tela_cheia_sem_rosto": true`): 5 quadros do
+  trecho passam pelo YuNet; rosto GRANDE (>1,2% da tela) em no máximo 1/3 deles = é imagem de jogo/gameplay →
+  o vídeo ocupa a TELA INTEIRA e a máscara NÃO entra (a cara dele num canto ao lado de uma gameplay só roubava
+  espaço). Tendo alguém falando na tela, o layout de sempre.
+  **3 EMOÇÃO NA VOZ** (`CLIMA_VOZ`/`jeito_de_falar` no voz.py): o `clima` de cada fala — que o roteiro já
+  escrevia e só servia para escolher a máscara — agora manda na VOZ. Na neural vira ritmo/tom/volume
+  (comemorando +14%/+12Hz/+6%, atencao -2%/+2Hz/+4%, bravo +4%/-4Hz/+5%, pensativo -6%/-3Hz...); no
+  VoiceStudio vira uma frase dizendo COMO falar ("empolgado, comemorando, com energia alta"). O clima entra na
+  chave do cache, então mudar o clima refaz a fala.
 - O CANAL PEDIA TRECHO "SOBRE O GALO" NUM VÍDEO DE GTA (30/out): o `(o Galo)` estava FIXO no prompt do
   `acha_trechos` — a IA recebia "marque os trechos em que falam do GTA (o Galo)" e, com razão, não achava
   nada: TODO vídeo terminava "0 trecho(s)". Agora, sem pauta, o alvo vem do `cfg["assunto"]` do canal e o

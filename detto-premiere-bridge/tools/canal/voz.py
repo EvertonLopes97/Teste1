@@ -136,6 +136,29 @@ VOICESTUDIO_PADRAO = "http://127.0.0.1:3900"
 INSTRUCAO_PADRAO = ("Narração em português do Brasil, sotaque brasileiro neutro, voz masculina natural e clara, "
                     "ritmo de locutor de notícias, sem pressa, pronunciando bem todas as palavras, sem sotaque europeu.")
 
+# EMOÇÃO POR FALA: o roteiro já diz o CLIMA de cada fala (rindo, bravo, comemorando...). Antes isso só escolhia a
+# máscara; a voz saía igual do começo ao fim, e fala sempre no mesmo tom é o que mais entrega que é robô.
+# Para a voz NEURAL: ritmo, tom e volume. Para o VOICESTUDIO: uma frase dizendo COMO falar.
+CLIMA_VOZ = {
+    "comemorando": {"rate": +14, "pitch": +12, "vol": +6,
+                    "diz": "empolgado, comemorando, com energia alta, como quem está vibrando com a notícia"},
+    "rindo":       {"rate": +10, "pitch": +9, "vol": +3, "diz": "leve e divertido, com um sorriso na voz, zoando"},
+    "surpreso":    {"rate": +6, "pitch": +10, "vol": +4,
+                    "diz": "surpreso, como quem acabou de saber de algo inesperado, subindo o tom no fim da frase"},
+    "bravo":       {"rate": +4, "pitch": -4, "vol": +5,
+                    "diz": "indignado e firme, com peso nas palavras, como quem está reclamando de algo errado"},
+    "atencao":     {"rate": -2, "pitch": +2, "vol": +4,
+                    "diz": "tom de ALERTA, sério e pausado, como plantão de notícia urgente"},
+    "pensativo":   {"rate": -6, "pitch": -3, "vol": 0, "diz": "calmo e reflexivo, pensando junto com quem ouve"},
+    "concordando": {"rate": 0, "pitch": +1, "vol": 0, "diz": "concordando, em tom de conversa, próximo"},
+    "falando":     {"rate": +4, "pitch": +2, "vol": 0, "diz": "natural, de conversa, com variação de entonação"},
+}
+
+
+def jeito_de_falar(clima):
+    """os ajustes da voz para o clima daquela fala (cai no 'falando' quando o clima não é conhecido)"""
+    return CLIMA_VOZ.get((clima or "").strip().lower(), CLIMA_VOZ["falando"])
+
 
 VOICESTUDIO_ACHADO = ""   # onde ele respondeu de verdade nesta rodada (pode ser outra porta)
 
@@ -364,7 +387,7 @@ def _apara(w, sr, torch):
 EDGE_VOZ = os.environ.get("DETTO_VOZ_EDGE", "pt-BR-AntonioNeural")   # masculina BR; FranciscaNeural = feminina
 
 
-def edge_fala(texto, saida, voz=EDGE_VOZ, velocidade=1.0):
+def edge_fala(texto, saida, voz=EDGE_VOZ, velocidade=1.0, clima=""):
     """Voz NEURAL em português do Brasil (edge-tts, da Microsoft): de graça, sem chave, pronta em segundos.
     NÃO é a voz clonada dele — é o degrau entre o Fish e o Chatterbox, para o canal nunca ficar sem voz nem
     sair com o sotaque de Portugal do Chatterbox."""
@@ -375,12 +398,15 @@ def edge_fala(texto, saida, voz=EDGE_VOZ, velocidade=1.0):
         import edge_tts
     import asyncio
 
-    # +4% de ritmo deixa a leitura menos "locutor de aeroporto"; o pitch sobe de leve para não ficar chapada
-    taxa = f"{round((velocidade - 1) * 100 + 4):+d}%"
+    # o CLIMA da fala manda no ritmo, no tom e no volume: é o que dá emoção de verdade
+    j = jeito_de_falar(clima)
+    taxa = f"{round((velocidade - 1) * 100 + j['rate']):+d}%"
+    tom = f"{j['pitch']:+d}Hz" if clima else os.environ.get("DETTO_PITCH_NEURAL", "+2Hz")
+    vol = f"{j['vol']:+d}%"
     mp3 = str(Path(saida).with_suffix(".edge.mp3"))
 
     async def _fala():
-        await edge_tts.Communicate(texto, voz, rate=taxa, pitch=os.environ.get("DETTO_PITCH_NEURAL", "+2Hz")).save(mp3)
+        await edge_tts.Communicate(texto, voz, rate=taxa, pitch=tom, volume=vol).save(mp3)
 
     asyncio.run(_fala())
     if not Path(mp3).exists() or Path(mp3).stat().st_size < 400:
@@ -525,7 +551,7 @@ def main():
     for f in falas:
         motor = "vs" if usa_vs else ("fish" if (os.environ.get("FISH_API_KEY") or a.fish_chave) else "cb2")
         marca = f"{motor}:{a.voz_vs}" if motor == "vs" else motor
-        h = hashlib.sha1(f"{chave_ref}|{a.exagero}|{marca}|{f['texto']}".encode()).hexdigest()[:10]
+        h = hashlib.sha1(f"{chave_ref}|{a.exagero}|{marca}|{f.get('clima', '')}|{f['texto']}".encode()).hexdigest()[:10]
         f["arquivo"] = str(out / f"{f['id']}_{h}.wav")
         if not Path(f["arquivo"]).exists():
             falta.append(f)
@@ -546,7 +572,7 @@ def main():
         for k, f in enumerate(list(falta)):
             try:
                 voicestudio_fala(f["falado"], f["arquivo"], a.voz_vs or "default", url_vs, a.modelo_vs, a.velocidade_vs,
-                                 a.instrucao_vs)
+                                 a.instrucao_vs + " Nesta fala: " + jeito_de_falar(f.get("clima", ""))["diz"] + ".")
                 falta.remove(f)
                 print(f"voz (VoiceStudio): {k + 1}/{len(falta) + k + 1}", flush=True)
             except Exception as e:
@@ -575,7 +601,7 @@ def main():
         # muito melhor que o Chatterbox, que puxa o sotaque para Portugal e leva horas (a "voz robótica" de 29/10)
         try:
             for k, f in enumerate(list(falta)):
-                edge_fala(f["falado"], f["arquivo"], a.voz_edge, a.velocidade_vs)
+                edge_fala(f["falado"], f["arquivo"], a.voz_edge, a.velocidade_vs, f.get("clima", ""))
                 feitas_no_edge.add(f["arquivo"])
                 falta.remove(f)
                 print(f"voz (neural pt-BR {a.voz_edge}): {k + 1}", flush=True)

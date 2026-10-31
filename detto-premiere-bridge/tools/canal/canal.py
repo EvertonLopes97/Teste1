@@ -1040,6 +1040,100 @@ def mascara_de(clima, pasta, durante_reportagem=False):
     return esc
 
 
+def comando_voz(cfg, pasta, fj):
+    """a linha de comando do voz.py com os ajustes do canal (a MESMA cadeia: VoiceStudio → Fish → neural)"""
+    ref = pasta / cfg.get("voz_ref", "voz/minha_voz.wav")
+    cmd = [sys.executable, str(AQUI / "voz.py"), str(fj), str(pasta / "voz" / "cache"), "--ref", str(ref),
+           "--exagero", str(cfg["exagero_voz"])]
+    for chave, bandeira in (("voicestudio", "--voicestudio"), ("voz_voicestudio", "--voz-vs"),
+                            ("velocidade_voz", "--velocidade-vs"), ("instrucao_voz", "--instrucao-vs"),
+                            ("voz_neural", "--voz-edge")):
+        if cfg.get(chave):
+            cmd += [bandeira, str(cfg[chave])]
+    if cfg.get("sem_voicestudio"):
+        cmd.append("--sem-voicestudio")
+    if cfg.get("sem_voz_neural"):
+        cmd.append("--sem-edge")
+    return cmd
+
+
+def dublagem(trad, clima, cfg, pasta, tmp, idx, log=log):
+    """A SUA VOZ traduzindo o trecho gringo, por cima do áudio original (legenda sozinha dá trabalho de ler
+    enquanto o vídeo corre). Cada frase entra no SEGUNDO em que ela é dita no original; frase que não cabe no
+    espaço dela é acelerada um pouco (até 1,35x) para não atropelar a seguinte."""
+    if not trad:
+        return None
+    tmp.mkdir(parents=True, exist_ok=True)
+    fj = tmp / f"dub_{idx}.json"
+    falas = [{"id": f"d{idx}_{k}", "texto": f["texto"], "clima": clima or "falando"} for k, f in enumerate(trad)]
+    grava_json(fj, falas)
+    r = subprocess.run(comando_voz(cfg, pasta, fj))
+    if r.returncode:
+        log("      dublagem: a voz não saiu; o trecho fica só com a legenda")
+        return None
+    falas = json.loads(fj.read_text(encoding="utf-8"))
+    ins, mix, n = [], [], 0
+    for k, (f, tr) in enumerate(zip(falas, trad)):
+        arq = f.get("arquivo")
+        if not arq or not Path(arq).exists():
+            continue
+        da = dur_mp4(arq) or 0
+        if da <= 0:
+            continue
+        espaco = (trad[k + 1]["ini"] - tr["ini"]) if k + 1 < len(trad) else da
+        rapido = min(1.35, max(1.0, da / espaco)) if espaco > 0.4 else 1.0
+        ins += ["-i", str(arq)]
+        at = f",atempo={rapido:.3f}" if rapido > 1.01 else ""
+        mix.append(f"[{n}:a]aresample=48000{at},adelay={int(max(0.0, tr['ini']) * 1000)}:all=1[d{n}]")
+        n += 1
+    if not n:
+        return None
+    saida = tmp / f"dub_{idx}.wav"
+    filtro = ";".join(mix) + ";" + "".join(f"[d{i}]" for i in range(n)) + f"amix=inputs={n}:normalize=0[o]"
+    r = subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", filtro, "-map", "[o]",
+                        "-ar", "48000", "-ac", "1", str(saida)])
+    if r.returncode or not saida.exists():
+        log("      dublagem: não consegui montar a faixa de voz; fica só a legenda")
+        return None
+    log(f"      dublagem: {n} fala(s) na sua voz por cima do original")
+    return saida
+
+
+def so_imagens(clip, ini, fim, amostras=5):
+    """O trecho é só IMAGEM (gameplay, lance, fotos do jogo) ou tem alguém FALANDO na tela?
+    Quando não tem ninguém, o vídeo merece a TELA CHEIA — pôr a cara dele num canto ao lado de uma gameplay
+    só rouba espaço. Tendo uma pessoa falando, o layout normal (janela + você no canto) continua."""
+    import cv2
+    import numpy as np
+
+    os.environ.setdefault("OPENCV_LOG_LEVEL", "ERROR")
+    modelo = TOOLS.parent / "yunet.onnx"
+    com_rosto, olhados = 0, 0
+    for k in range(amostras):
+        t_ = ini + (fim - ini) * (k + 0.5) / amostras
+        r = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{t_:.2f}", "-i", str(clip), "-frames:v", "1",
+                            "-f", "image2pipe", "-vcodec", "png", "-"], capture_output=True)
+        if not r.stdout:
+            continue
+        img = cv2.imdecode(np.frombuffer(r.stdout, np.uint8), cv2.IMREAD_COLOR)
+        if img is None:
+            continue
+        olhados += 1
+        try:
+            h, w = img.shape[:2]
+            if modelo.exists():
+                d = cv2.FaceDetectorYN.create(str(modelo), "", (w, h), 0.7)
+                _, f = d.detect(img)
+                # rosto PEQUENO (torcida, jogador no campo) não é alguém falando com a câmera
+                if f is not None and any(x[2] * x[3] > w * h * 0.012 for x in f):
+                    com_rosto += 1
+        except Exception:   # noqa: BLE001
+            return False    # na dúvida, o layout de sempre
+    if olhados < 2:
+        return False
+    return com_rosto <= olhados * 0.34      # rosto em pouquíssimos quadros = é imagem de jogo
+
+
 def mascara_longa(clima, pasta, tmp, dur, durante_reportagem=False, log=log):
     """Uma gravação de 6 s repetida num trecho de 90 s dá 15 voltas: é isso que deixa o GESTO com cara de robô.
     Aqui eu EMENDO gravações DIFERENTES até cobrir o trecho, então o loop (se sobrar) é muito mais longo e variado."""
@@ -1152,11 +1246,13 @@ def legenda_pngs(frases, pasta, idx):
     return out
 
 
-def peca_trecho(base, clip, ini, fim, masc, faixa, saida, legenda=None):
-    """o trecho da imprensa na janela grande; você de máscara (sem som) no canto"""
+def peca_trecho(base, clip, ini, fim, masc, faixa, saida, legenda=None, cheia=False, dub=None, dub_vol=0.16):
+    """o trecho da imprensa na janela grande; você de máscara (sem som) no canto.
+    `cheia`: o vídeo ocupa a TELA INTEIRA e a máscara não entra (trecho só de imagem/gameplay).
+    `dub`: wav com a SUA voz traduzindo por cima — o áudio original abaixa para `dub_vol`."""
     d = fim - ini
     ins = ["-loop", "1", "-i", str(base), "-ss", f"{ini:.2f}", "-t", f"{d:.2f}", "-i", str(clip), "-loop", "1", "-i", str(faixa)]
-    x, y, w, h = JANELA
+    x, y, w, h = (0, 0, W, H) if cheia else JANELA
     cx, cy, cw, ch = CANTO
     vw, vh = tamanho(clip)
     if vw and vh and vw / vh < 1.4:
@@ -1164,10 +1260,12 @@ def peca_trecho(base, clip, ini, fim, masc, faixa, saida, legenda=None):
         f = (f"[1:v]{cor_sdr(clip)}split[v1][v2];[v1]{cobre(w // 4, h // 4)},boxblur=8:2,scale={w}:{h},eq=brightness=-0.08[fundo];"
              f"[v2]scale={w}:{h}:force_original_aspect_ratio=decrease,setsar=1[fr];[fundo][fr]overlay=(W-w)/2:(H-h)/2,setsar=1[v];"
              f"[0:v][v]overlay={x}:{y}[a0];")
+    elif cheia:
+        f = f"[1:v]{cor_sdr(clip)}{cobre(w, h)},setsar=1[v];[0:v][v]overlay=0:0[a0];"
     else:
         f = (f"[1:v]{cor_sdr(clip)}scale={w}:{h}:force_original_aspect_ratio=decrease,pad={w}:{h}:(ow-iw)/2:(oh-ih)/2:black,setsar=1[v];"
              f"[0:v][v]overlay={x}:{y}[a0];")
-    if masc:
+    if masc and not cheia:
         ins += ["-stream_loop", "-1", "-i", str(masc)]
         f += f"[3:v]{cor_sdr(masc)}{cobre(cw, ch)},setsar=1[m];[a0][m]overlay={cx}:{cy}[a1];"
     else:
@@ -1185,7 +1283,19 @@ def peca_trecho(base, clip, ini, fim, masc, faixa, saida, legenda=None):
         atual = prox
     f += f"[{atual}]fps={FPS},format=yuv420p[vo]"
     ac = audio_bom(clip)
-    af = ["-map", f"1:a:{ac}", "-af", "loudnorm=I=-16:TP=-1.5,aresample=48000"] if ac is not None else []
+    if dub and Path(dub).exists() and ac is not None:
+        # DUBLAGEM: a sua voz por cima, o original bem baixinho atrás (dá para ouvir que é gringo, mas entende tudo)
+        ins += ["-i", str(dub)]
+        nd = ins.count("-i") - 1
+        f += (f";[1:a:{ac}]volume={dub_vol:.2f},aresample=48000[orig];"
+              f"[{nd}:a]aresample=48000,volume=1.0[fala];"
+              f"[orig][fala]amix=inputs=2:duration=first:dropout_transition=0,"
+              f"loudnorm=I=-16:TP=-1.5[ao]")
+        af = ["-map", "[ao]"]
+    elif ac is not None:
+        af = ["-map", f"1:a:{ac}", "-af", "loudnorm=I=-16:TP=-1.5,aresample=48000"]
+    else:
+        af = []
     r = subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", f, "-map", "[vo]", *af, "-t", f"{d:.2f}", *enc(), str(saida)])
     return r.returncode == 0
 
@@ -1218,7 +1328,7 @@ def peca_fala(base, wav, masc, texto, pasta, idx, saida, logo):
     cx, cy, cw, ch = CANTO
     legs = legendas(texto, da - 0.25, pasta, idx)
     ins = ["-loop", "1", "-i", str(base), "-i", str(wav)]
-    if masc:
+    if masc and not cheia:
         ins += ["-stream_loop", "-1", "-i", str(masc)]
         f = f"[2:v]{cor_sdr(masc)}{cobre(w, h)},setsar=1[m];[0:v][m]overlay={x}:{y}[b0];"
     else:
@@ -1343,8 +1453,21 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
             leg = legenda_pngs([{**f, "ini": f["ini"] - (a0 - x["ini"]), "fim": f["fim"] - (a0 - x["ini"])}
                                 for f in trad if f["fim"] > (a0 - x["ini"]) and f["ini"] < (b0 - x["ini"])],
                                tmp, f"{i}_{n}") if trad else None
-            masc = mascara_longa(x["clima"], pasta, tmp / "masc", b0 - a0, durante_reportagem=True, log=log)
-            if peca_trecho(base, x["arquivo"], a0, b0, masc, fx, p, leg):
+            # TELA CHEIA quando é só imagem de jogo/gameplay (ninguém falando na tela): a sua cara num canto
+            # ao lado de uma gameplay só rouba espaço. Com alguém falando, o layout de sempre.
+            cheia = bool(cfg.get("tela_cheia_sem_rosto", True)) and so_imagens(x["arquivo"], a0, b0)
+            masc = None if cheia else mascara_longa(x["clima"], pasta, tmp / "masc", b0 - a0,
+                                                    durante_reportagem=True, log=log)
+            if cheia:
+                log("      só imagem (ninguém falando na tela): vai em TELA CHEIA")
+            # a parte da dublagem que cai nesta peça, com o tempo contado do começo dela
+            dub = None
+            if trad and cfg.get("dublar", True):
+                aqui = [{**f, "ini": f["ini"] - (a0 - x["ini"]), "fim": f["fim"] - (a0 - x["ini"])}
+                        for f in trad if f["fim"] > (a0 - x["ini"]) and f["ini"] < (b0 - x["ini"])]
+                dub = dublagem(aqui, x.get("clima"), cfg, pasta, tmp / "dub", f"{i}_{n}", log=log)
+            if peca_trecho(base, x["arquivo"], a0, b0, masc, fx, p, leg, cheia=cheia, dub=dub,
+                           dub_vol=float(cfg.get("volume_original_dublado", 0.16))):
                 pecas.append(p)
             if n < len(coms):
                 log(f"      comentário seu no meio: {coms[n]['texto'][:60]}")
@@ -1545,7 +1668,7 @@ def short(cfg, pasta, fala, trecho, tmp, idx, saida):
     ins = ["-ss", f"{ini:.2f}", "-t", f"{fim - ini:.2f}", "-i", str(clip), "-loop", "1", "-i", str(cab)]
     f = (f"[0:v]{cor_sdr(clip)}split[v1][v2];[v1]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,boxblur=8:2,scale={VW}:{VH},eq=brightness=-0.25[bg];"
          f"[v2]scale={VW}:-2[fg];[bg][fg]overlay=0:(H-h)/2-60[b0];")
-    if masc:
+    if masc and not cheia:
         ins += ["-stream_loop", "-1", "-i", str(masc)]
         f += f"[2:v]{cor_sdr(masc)}{cobre(380, 380)}[m];[b0][m]overlay=(W-w)/2:1330[b1];"
     else:
@@ -1728,6 +1851,8 @@ GTA6 = {
     # canal gringo entra: deixa o whisper DESCOBRIR a língua e o trecho sai LEGENDADO em português
     "idioma_fontes": None,
     # VELOCIDADE: a legenda do YouTube evita transcrever vídeo de 10-25 min (era isso que fazia a rodada demorar)
+    "dublar": True,                  # trecho gringo sai com a SUA voz traduzindo por cima (+ a legenda)
+    "tela_cheia_sem_rosto": True,    # gameplay/imagem sem ninguém falando ocupa a tela inteira
     "legenda_antes_de_transcrever": True,
     "legenda_langs": "pt.*,pt,en.*,en",
     "max_videos_rodada": 4,   # com 13 min de alvo não precisa de 8 vídeos por rodada; o resto fica para a próxima
