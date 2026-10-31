@@ -1,0 +1,16 @@
+# pip install -r requirements.txt   (Python 3.11)
+numpy
+opencv-python
+pillow
+scipy
+mediapipe>=0.10.30   # abaixo disso ele usa MessageFactory.GetPrototype, que saiu do protobuf novo:
+                     # o PoseLandmarker/ImageSegmenter morre despejando o grafo inteiro na tela
+faster-whisper
+yt-dlp
+curl_cffi
+google-api-python-client
+google-auth-oauthlib
+# opcionais
+# rembg            (recorte de fotos com fundo — Galo)
+# chatterbox-tts   (voz clonada — canal de notícias; baixa ~3 GB na 1ª vez)
+edge-tts>=7.0.0   # voz neural pt-BR de graça (degrau antes do Chatterbox)

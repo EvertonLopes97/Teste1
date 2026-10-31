@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="panel.css" />
+  <title>DETTO — Histórias em Série</title>
+</head>
+<body>
+  <header class="top">
+    <div class="eyebrow">MÓDULO EXPERIMENTAL · INDEPENDENTE</div>
+    <h1>HISTÓRIAS <span>EM SÉRIE</span></h1>
+    <p>Crie o briefing de um Reel narrativo sem mexer no painel principal.</p>
+  </header>
+
+  <div class="notice"><strong>Painel separado.</strong> Este protótipo não altera projetos, sequências ou configurações do Premiere. A geração por IA ainda não está conectada.</div>
+
+  <section class="section">
+    <label for="idea">IDEIA / HISTÓRIA</label>
+    <textarea id="idea" rows="4" placeholder="Ex.: um entregador recebe uma encomenda para um apartamento que não existe..."></textarea>
+
+    <div class="two">
+      <div>
+        <label for="duration">DURAÇÃO</label>
+        <select id="duration">
+          <option value="35">35 segundos</option>
+          <option value="45">45 segundos</option>
+          <option value="60" selected>60 segundos</option>
+          <option value="90">90 segundos</option>
+        </select>
+      </div>
+      <div>
+        <label for="tone">TOM</label>
+        <select id="tone">
+          <option value="mistério e suspense" selected>Mistério / suspense</option>
+          <option value="drama emocional">Drama emocional</option>
+          <option value="terror leve">Terror leve</option>
+          <option value="curiosidade e reviravolta">Curiosidade / reviravolta</option>
+          <option value="história inspiradora">Inspirador</option>
+        </select>
+      </div>
+    </div>
+
+    <label for="voice">NARRAÇÃO</label>
+    <select id="voice">
+      <option value="usar minha própria voz gravada" selected>Minha própria voz</option>
+      <option value="voz sintética licenciada, natural e em português brasileiro">Voz sintética licenciada</option>
+    </select>
+
+    <label for="ending">FINAL / CHAMADA</label>
+    <select id="ending">
+      <option value="terminar em cliffhanger e pedir para comentar PARTE 2" selected>Gancho + pedir “PARTE 2”</option>
+      <option value="revelar a resposta completa no final">Revelação completa</option>
+      <option value="terminar com uma pergunta para os comentários">Pergunta para comentários</option>
+    </select>
+    <button id="build" class="primary">GERAR BRIEFING</button>
+  </section>
+
+  <section class="section output-section">
+    <div class="output-head"><label for="output">BRIEFING PARA A IA</label><span id="status">Aguardando ideia</span></div>
+    <textarea id="output" rows="12" placeholder="Seu briefing será montado aqui..."></textarea>
+    <button id="copy" class="secondary">COPIAR BRIEFING</button>
+  </section>
+
+  <footer>DETTO VIDEO ENGINE · painel independente v0.1 · sem integração automática de renderização</footer>
+  <script src="panel.js"></script>
+</body>
+</html>

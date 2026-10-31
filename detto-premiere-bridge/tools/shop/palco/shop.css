@@ -1,0 +1,206 @@
+/* CARTELAS DO TIKTOK SHOP — o visual dos vídeos de achadinho que vendem: texto GRANDE em caixa alta com contorno
+   grosso, palavra-chave colorida, etiqueta de preço vermelha e CTA embaixo apontando para a vitrine.
+   Tudo em PNG com fundo TRANSPARENTE: o vídeo/foto do produto entra por baixo, no FFmpeg. */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 1080px;
+  height: 1920px;
+  background: transparent;
+  overflow: hidden;
+  font-family: "TikTok Sans", "Montserrat", "Arial Black", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#palco { position: relative; width: 1080px; height: 1920px; }
+
+/* destaque do texto: *palavra* amarela, _palavra_ verde — nunca em itálico (saía torto nas vantagens) */
+#palco em { font-style: normal; color: #ffe14d; }
+#palco b { font-style: normal; font-weight: 900; color: #46ff9e; }
+
+/* ----------------------------------------------------------------- texto do topo (o gancho e as falas) */
+.topo {
+  position: absolute;
+  left: 60px;
+  right: 60px;
+  top: 300px;
+  text-align: center;
+  font-size: 92px;
+  line-height: 1.06;
+  font-weight: 900;
+  letter-spacing: -1px;
+  text-transform: uppercase;
+  color: #fff;
+  -webkit-text-stroke: 13px #000;
+  paint-order: stroke fill;
+  text-shadow: 0 10px 34px rgba(0, 0, 0, 0.55);
+}
+.topo.menor { font-size: 74px; -webkit-text-stroke: 11px #000; }
+.topo.alto { top: 215px; }
+.topo em { font-style: normal; color: #ffe14d; }
+.topo b { font-weight: 900; color: #46ff9e; }
+
+/* a tarja escura atrás do texto: em foto clara o branco sumia */
+.tarja {
+  position: absolute;
+  left: 0;
+  right: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.58) 22%, rgba(0, 0, 0, 0.58) 78%, rgba(0, 0, 0, 0) 100%);
+}
+
+/* ----------------------------------------------------------------- legenda da fala (embaixo, bloco por bloco) */
+.legenda {
+  position: absolute;
+  left: 70px;
+  right: 70px;
+  bottom: 430px;
+  text-align: center;
+  font-size: 78px;
+  line-height: 1.1;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: #fff;
+  -webkit-text-stroke: 12px #000;
+  paint-order: stroke fill;
+}
+.legenda em { font-style: normal; color: #ffe14d; }
+
+/* ----------------------------------------------------------------- etiqueta de preço */
+.preco {
+  position: absolute;
+  right: 56px;
+  top: 1180px;
+  padding: 24px 40px 30px;
+  background: #ff2d4b;
+  border-radius: 28px;
+  transform: rotate(-6deg);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+  border: 8px solid #fff;
+  text-align: center;
+}
+.preco .de {
+  font-size: 40px;
+  font-weight: 800;
+  color: #ffd9df;
+  text-decoration: line-through;
+  display: block;
+  margin-bottom: -4px;
+}
+.preco .por { font-size: 104px; font-weight: 900; color: #fff; line-height: 0.95; display: block; }
+.preco .cent { font-size: 54px; }
+
+/* ----------------------------------------------------------------- selo (NOVIDADE / ESGOTANDO / FRETE GRÁTIS) */
+.selo {
+  position: absolute;
+  left: 56px;
+  top: 190px;
+  padding: 18px 34px 22px;
+  background: #ffe14d;
+  color: #10121a;
+  font-size: 46px;
+  font-weight: 900;
+  text-transform: uppercase;
+  border-radius: 18px;
+  transform: rotate(-3deg);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+  letter-spacing: 1px;
+}
+
+/* ----------------------------------------------------------------- CTA: a vitrine é embaixo, à esquerda, no app */
+.cta {
+  position: absolute;
+  left: 60px;
+  bottom: 210px;
+  display: flex;
+  align-items: center;
+  gap: 26px;
+}
+.cta .bolha {
+  padding: 26px 44px 32px;
+  background: #fff;
+  color: #10121a;
+  font-size: 54px;
+  font-weight: 900;
+  text-transform: uppercase;
+  border-radius: 999px;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.45);
+}
+#palco .cta .bolha em { font-style: normal; color: #ff2d4b; }  /* vermelho na bolha branca (o amarelo sumia) */
+/* a seta aponta para BAIXO E PARA A ESQUERDA: é onde o TikTok põe o link do produto */
+.cta .seta {
+  width: 0;
+  height: 0;
+  border-left: 72px solid #ffe14d;
+  border-top: 52px solid transparent;
+  border-bottom: 52px solid transparent;
+  transform: rotate(135deg);
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.5));
+}
+.cta.baixo { bottom: 150px; }
+
+/* ----------------------------------------------------------------- lista de vantagens (uma linha por vez) */
+.vantagens { position: absolute; left: 70px; right: 70px; top: 560px; }
+.vantagens .v {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 26px;
+  font-size: 62px;
+  font-weight: 900;
+  color: #fff;
+  text-transform: uppercase;
+  -webkit-text-stroke: 10px #000;
+  paint-order: stroke fill;
+}
+.vantagens .v .ok {
+  flex: 0 0 auto;
+  width: 66px;
+  height: 66px;
+  border-radius: 50%;
+  background: #46ff9e;
+  color: #07130c;
+  font-size: 44px;
+  line-height: 66px;
+  text-align: center;
+  -webkit-text-stroke: 0;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+}
+.vantagens .v.apaga { opacity: 0.35; }
+
+/* ----------------------------------------------------------------- cartela final (o pedido de compra) */
+.fim { position: absolute; inset: 0; background: rgba(8, 9, 14, 0.82); }
+.fim .t {
+  position: absolute;
+  left: 70px;
+  right: 70px;
+  top: 620px;
+  text-align: center;
+  font-size: 108px;
+  font-weight: 900;
+  line-height: 1.02;
+  text-transform: uppercase;
+  color: #fff;
+}
+.fim .t em { font-style: normal; color: #ffe14d; }
+.fim .sub {
+  position: absolute;
+  left: 70px;
+  right: 70px;
+  top: 1010px;
+  text-align: center;
+  font-size: 56px;
+  font-weight: 800;
+  color: #cfd6e4;
+}
+.fim .arroba {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 240px;
+  text-align: center;
+  font-size: 50px;
+  font-weight: 900;
+  color: #fff;
+  opacity: 0.9;
+}

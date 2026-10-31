@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header>
+      <h1>DETTO VIDEO ENGINE</h1>
+      <span class="sub">Premiere Bridge</span>
+    </header>
+
+    <section class="status-grid" aria-label="Estado">
+      <span class="k">Premiere:</span><span class="v" id="st-premiere">DISCONNECTED</span>
+      <span class="k">UXP:</span><span class="v" id="st-uxp">-</span>
+      <span class="k">Project:</span><span class="v" id="st-project">-</span>
+      <span class="k">Sequence:</span><span class="v" id="st-sequence">-</span>
+      <span class="k">Edit Plan:</span><span class="v" id="st-plan">-</span>
+      <span class="k">Status:</span><span class="v" id="st-status">IDLE</span>
+    </section>
+    <div class="progress"><div class="bar" id="progress-bar"></div></div>
+    <div class="message" id="st-message"></div>
+
+    <section class="buttons">
+      <button id="btn-load">CARREGAR EDIT PLAN</button>
+      <button id="btn-analyze">ANALISAR PLANO</button>
+      <button id="btn-execute" class="cta">EXECUTAR</button>
+      <button id="btn-pause">PAUSAR</button>
+      <button id="btn-render">RENDERIZAR</button>
+      <button id="btn-open">ABRIR PROJETO</button>
+      <button id="btn-log">LOG</button>
+    </section>
+
+    <section id="preview" class="card hidden">
+      <h2>Preview</h2>
+      <pre id="preview-counts"></pre>
+      <ul id="preview-issues" class="issues"></ul>
+      <button id="btn-execute-preview" class="cta">EXECUTAR</button>
+    </section>
+
+    <section id="report" class="card hidden">
+      <h2>Relatório</h2>
+      <pre id="report-text"></pre>
+    </section>
+
+    <section id="log" class="card hidden">
+      <h2>Log</h2>
+      <div class="row">
+        <button id="btn-log-export">EXPORTAR</button>
+        <button id="btn-log-clear">LIMPAR</button>
+      </div>
+      <div id="log-list" class="log-list"></div>
+    </section>
+
+    <details class="card" id="settings">
+      <summary>Configurações</summary>
+      <div class="setting">
+        <span>Pasta detto-video-engine</span>
+        <div class="row"><span class="path" id="cfg-root">-</span><button id="btn-cfg-root">ESCOLHER</button></div>
+      </div>
+      <div class="setting">
+        <span>Preset de sequência (.sqpreset, recomendado 5V/4A)</span>
+        <div class="row"><span class="path" id="cfg-preset">-</span><button id="btn-cfg-preset">ESCOLHER</button></div>
+      </div>
+      <label><input type="checkbox" id="cfg-watch" /> Observar jobs/pending</label>
+      <label><input type="checkbox" id="cfg-autoexec" /> Executar jobs automaticamente</label>
+      <label><input type="checkbox" id="cfg-save" /> Salvar projeto ao final</label>
+      <label><input type="checkbox" id="cfg-backup" /> Backup antes de alterar</label>
+    </details>
+
+    <dialog id="confirm-dialog">
+      <form method="dialog">
+        <h2>Confirmação</h2>
+        <p id="confirm-text"></p>
+        <footer>
+          <button id="confirm-no" value="no" type="button">NÃO</button>
+          <button id="confirm-yes" value="yes" type="button" class="cta">SIM</button>
+        </footer>
+      </form>
+    </dialog>
+
+    <script src="index.js"></script>
+  </body>
+</html>

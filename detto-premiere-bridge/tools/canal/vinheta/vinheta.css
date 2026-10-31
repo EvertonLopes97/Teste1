@@ -1,0 +1,117 @@
+/* VINHETA DE ABERTURA — a identidade do canal em 3 segundos. Tudo posicionado em % para servir a qualquer
+   resolução (1920x1080 no YouTube, 1080x1920 se um dia precisar no vertical). */
+* {
+  margin: 0;
+  box-sizing: border-box;
+}
+body {
+  overflow: hidden;
+  background: #000;
+}
+#palco {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  font-family: Anton, Inter, system-ui, sans-serif;
+}
+#fundo,
+#luz,
+#sweep,
+#flash {
+  position: absolute;
+  inset: 0;
+}
+#luz {
+  mix-blend-mode: screen;
+}
+#centro {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+/* a sigla gigante do canal (DG), atrás do nome */
+#sigla {
+  position: absolute;
+  font-size: 46vh;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  opacity: 0;
+}
+#nome {
+  position: relative;
+  font-size: 13vh;
+  line-height: 0.96;
+  letter-spacing: 0.01em;
+  color: #fff;
+  padding: 0 6vw;
+  text-shadow: 0 1.2vh 0 rgba(0, 0, 0, 0.6);
+}
+#nome em {
+  font-style: normal;
+}
+#risco {
+  position: relative;
+  height: 1.4vh;
+  width: 0;
+  margin-top: 2.4vh;
+  border-radius: 1vh;
+}
+#sub {
+  position: relative;
+  margin-top: 2.6vh;
+  font-family: Inter, sans-serif;
+  font-weight: 900;
+  font-size: 2.5vh;
+  letter-spacing: 0.55em;
+  text-shadow: 0 0.4vh 0 rgba(0,0,0,.7);
+  opacity: 0;
+}
+
+/* selo vermelho de plantão (notícias) */
+#selo {
+  position: absolute;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #c0392b;
+  color: #fff;
+  font-size: 3.4vh;
+  letter-spacing: 0.22em;
+  padding: 1.2vh 3vh 0.8vh;
+  border-radius: 0.8vh;
+  opacity: 0;
+  box-shadow: 0 1vh 0 rgba(0, 0, 0, 0.45);
+}
+
+/* as duas faixas de telejornal */
+.faixa {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1.6vh;
+  transform: scaleX(0);
+}
+#faixaCima {
+  top: 26%;
+  transform-origin: left center;
+}
+#faixaBaixo {
+  bottom: 26%;
+  transform-origin: right center;
+}
+
+/* passada de luz e estouro branco no corte */
+#sweep {
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.5) 50%, transparent 62%);
+  opacity: 0;
+}
+#flash {
+  background: #fff;
+  opacity: 0;
+}

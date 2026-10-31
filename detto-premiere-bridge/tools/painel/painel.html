@@ -1,0 +1,1436 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel DETTO</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%23c8ff3d%22/%3E%3Cpath d=%22M9 8h7a8 8 0 010 16H9z%22 fill=%22%230c0f0e%22/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#0c0f0e; --card:#141917; --card2:#1a201d; --line:#26302b; --txt:#e9f1eb; --mut:#93a39a;
+  --lima:#c8ff3d; --lima2:#a6dd1c; --verm:#ff5c5c; --amar:#ffc93d; --azul:#5cc8ff; --ig:#ff4f9a; --tt:#38e1d8;
+  --r:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.4 "Segoe UI",system-ui,-apple-system,Roboto,sans-serif}
+a{color:var(--lima)}
+button,select,input,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:1px solid var(--line);background:var(--card2);border-radius:10px;padding:8px 12px}
+button:hover{border-color:var(--mut)}
+button.pri{background:var(--lima);color:#101400;border-color:var(--lima);font-weight:700}
+button.pri:hover{background:var(--lima2)}
+button.mini{padding:4px 8px;border-radius:8px;font-size:13px;min-width:30px}
+button.perigo{color:var(--verm)}
+button:disabled{opacity:.45;cursor:default}
+select,input[type=text],input[type=number],input[type=password],textarea{background:#0f1311;border:1px solid var(--line);border-radius:10px;padding:8px 10px;width:100%}
+textarea{resize:vertical;min-height:70px}
+label{color:var(--mut);font-size:13px}
+.wrap{max-width:1240px;margin:0 auto;padding:16px}
+header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:14px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:rgba(12,15,14,.92);backdrop-filter:blur(8px);z-index:5}
+.logo{font-weight:900;letter-spacing:.06em;font-size:20px}
+.logo b{color:var(--lima)}
+.sub{color:var(--mut);font-size:13px}
+.esp{flex:1}
+.chip{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600;border:1px solid var(--line);background:var(--card2)}
+.chip .bol{width:9px;height:9px;border-radius:50%;background:var(--lima);box-shadow:0 0 8px var(--lima)}
+.chip.pausa .bol{background:var(--amar);box-shadow:none}
+.chip.alerta{color:var(--amar)}
+h2{font-size:15px;text-transform:uppercase;letter-spacing:.08em;color:var(--mut);margin:26px 0 10px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px}
+.aviso{background:#2a2410;border:1px solid #5a4a12;color:#ffe08a;border-radius:var(--r);padding:10px 14px;margin-top:14px}
+.aviso button{margin-left:8px}
+/* envio */
+.envio{display:grid;grid-template-columns:1.1fr 1fr;gap:14px}
+.drop{border:2px dashed #3a4a40;border-radius:var(--r);padding:26px 14px;text-align:center;color:var(--mut);cursor:pointer;transition:.15s;display:flex;flex-direction:column;justify-content:center;min-height:170px}
+.drop.on,.drop:hover{border-color:var(--lima);color:var(--txt);background:#141c12}
+.drop strong{display:block;font-size:18px;color:var(--txt);margin-bottom:4px}
+.destinos{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 12px}
+.dest{display:flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:6px 12px;cursor:pointer;user-select:none;font-size:14px;background:var(--card2)}
+.dest input{accent-color:var(--lima)}
+.dest.sel{border-color:var(--lima);background:#1b2414}
+.envios{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.up{display:grid;grid-template-columns:1fr auto;gap:4px 10px;font-size:13px;background:var(--card2);border-radius:10px;padding:8px 10px}
+.barra{grid-column:1/-1;height:5px;background:#26302b;border-radius:3px;overflow:hidden}
+.barra i{display:block;height:100%;background:var(--lima);width:0}
+/* contas */
+.contas{display:grid;grid-template-columns:repeat(auto-fill,minmax(370px,1fr));gap:14px}
+.ctop{display:flex;align-items:center;gap:10px}
+.plat{font-weight:800;font-size:12px;border-radius:8px;padding:4px 7px;color:#0c0f0e}
+.plat.instagram{background:var(--ig)}
+.plat.tiktok{background:var(--tt)}
+.plat.youtube{background:#ff3b3b}
+.plat.kwai{background:#ff8a1f}
+.cnome{font-weight:700;font-size:17px}
+.login{font-size:12px;color:var(--mut)}
+.login.off{color:var(--verm)}
+.sw{position:relative;width:44px;height:24px;flex:none}
+.sw input{opacity:0;width:0;height:0}
+.sw span{position:absolute;inset:0;background:#3a443e;border-radius:99px;transition:.15s;cursor:pointer}
+.sw span:before{content:"";position:absolute;width:18px;height:18px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.15s}
+.sw input:checked+span{background:var(--lima)}
+.sw input:checked+span:before{transform:translateX(20px);background:#101400}
+.nums{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}
+.num{background:var(--card2);border-radius:10px;padding:8px;text-align:center}
+.num b{display:block;font-size:22px;line-height:1.1}
+.num small{color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+.num.lima b{color:var(--lima)}
+.regras{display:grid;grid-template-columns:1.2fr 1fr 1fr .8fr;gap:8px;align-items:end;margin-bottom:10px}
+.info{font-size:13px;color:var(--mut);margin:6px 0}
+.info.alerta{color:var(--amar)}
+.info.erro{color:var(--verm)}
+.fila{display:flex;flex-direction:column;gap:6px;max-height:360px;overflow:auto;padding-right:2px}
+.vid{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;background:var(--card2);border-radius:10px;padding:7px 8px}
+.vid .pos{color:var(--mut);font-size:12px;text-align:center}
+.vid .vn{font-size:13px;overflow:hidden}
+.vid .vn div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vid .vn small{color:var(--mut)}
+.vid .acoes{display:flex;gap:4px}
+.vid.dois{grid-template-columns:22px 1fr}
+.vid.dois .acoes{grid-column:2;justify-content:flex-end}
+.vazio{color:var(--mut);font-size:13px;text-align:center;padding:14px;background:var(--card2);border-radius:10px}
+details{margin-top:10px}
+summary{cursor:pointer;color:var(--mut);font-size:13px}
+.lista{display:flex;flex-direction:column;gap:5px;margin-top:8px;font-size:13px}
+.lista .l{display:flex;gap:8px;justify-content:space-between;align-items:center;background:var(--card2);border-radius:8px;padding:6px 8px}
+.lista .l span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* reels / config */
+.duas{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.campos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.linha{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+pre.log{background:#090b0a;border:1px solid var(--line);border-radius:10px;padding:10px;font:12px/1.45 Consolas,monospace;max-height:300px;overflow:auto;white-space:pre-wrap;margin:0;color:#b9c7be}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tag{font-size:12px;background:var(--card2);border:1px solid var(--line);border-radius:99px;padding:3px 9px}
+/* modal + toast */
+.fundo{position:fixed;inset:0;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+.fundo.on{display:flex}
+.modal{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;width:min(560px,100%);max-height:92vh;overflow:auto}
+.modal video{width:100%;max-height:52vh;background:#000;border-radius:10px}
+#toast{position:fixed;left:50%;bottom:20px;transform:translateX(-50%);background:#202a24;border:1px solid var(--line);padding:10px 16px;border-radius:12px;display:none;z-index:30;max-width:90vw}
+#toast.erro{border-color:var(--verm);color:#ffb3b3}
+/* abas */
+nav.abas{display:flex;gap:4px;width:100%;overflow-x:auto;margin-top:2px}
+nav.abas button{border:none;background:none;border-bottom:3px solid transparent;border-radius:0;padding:8px 14px;color:var(--mut);font-weight:600;white-space:nowrap}
+nav.abas button.on{color:var(--txt);border-bottom-color:var(--lima)}
+nav.abas .bolha{display:inline-block;min-width:18px;padding:0 5px;margin-left:5px;border-radius:9px;background:var(--lima);color:#101400;font-size:11px;line-height:18px;text-align:center}
+section.aba{display:none}
+section.aba.on{display:block}
+/* edição */
+.nova{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.mini-drop{border:2px dashed #3a4a40;border-radius:12px;padding:14px;text-align:center;color:var(--mut);cursor:pointer;display:block}
+.mini-drop.on,.mini-drop:hover{border-color:var(--lima);color:var(--txt)}
+.mini-drop.ok{border-style:solid;border-color:var(--lima2);color:var(--txt)}
+.opcoes{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.ed{margin-bottom:12px}
+.ed .topo{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ed .titulo{font-weight:700;font-size:17px;flex:1;min-width:160px}
+.st{font-size:12px;font-weight:700;border-radius:99px;padding:4px 10px;background:var(--card2);border:1px solid var(--line)}
+.st.editando{color:#101400;background:var(--lima);border-color:var(--lima)}
+.st.pronto{color:var(--lima);border-color:var(--lima2)}
+.st.erro,.st.interrompido{color:var(--verm);border-color:#5a2222}
+.st.na_fila{color:var(--amar)}
+.saidas{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.saida{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;background:var(--card2);border-radius:10px;padding:8px 10px}
+.saida small{color:var(--mut)}
+.imgs{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:10px}
+.imgs a{display:block;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#000}
+.imgs img{width:100%;height:90px;object-fit:cover;display:block}
+.imgs span{display:block;font-size:11px;color:var(--mut);padding:3px 6px;background:var(--card2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.teste{background:var(--card2);border-radius:10px;padding:8px 10px;margin:8px 0}
+.teste .linha{margin-top:0}
+.vw{font-weight:700}
+.vw.bateu{color:var(--lima)}
+.fogo{border:1px solid var(--lima2);background:#18210f}
+.lista-t .l{flex-wrap:wrap;row-gap:4px}
+.lista-t .l > span:first-child{flex:1 1 100%;white-space:normal}
+.lista-t .l > span:last-child{margin-left:auto}
+@media (max-width:820px){
+  .envio,.duas,.campos,.nova{grid-template-columns:1fr}
+  .contas{grid-template-columns:1fr}
+  .regras{grid-template-columns:1fr 1fr}
+  .fila{max-height:none}
+  .vid{grid-template-columns:22px 1fr}
+  .vid .acoes{grid-column:2;justify-content:flex-end}
+  .vid .acoes .mini{min-width:40px;padding:7px 10px}
+  header{gap:8px}
+}
+.st.aguardando{color:var(--amar);border-color:#5a4a12}
+.st.postando,.st.montando{color:#101400;background:var(--lima);border-color:var(--lima)}
+.st.postado{color:var(--lima);border-color:var(--lima2)}
+.st.descartado{color:var(--mut)}
+.can .topo{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.can .titulo{font-weight:800;font-size:18px;flex:1}
+.can .chave{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--card2);border-radius:10px;padding:8px 10px;margin-top:8px}
+.can .chave small{color:var(--mut);display:block;font-size:12px}
+.pr{background:var(--card2);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
+.pr .t{display:flex;gap:8px;align-items:center;justify-content:space-between}
+.pr .t b{font-size:14px;overflow:hidden;text-overflow:ellipsis}
+.pr img{width:120px;border-radius:6px;flex:none}
+@media (max-width:820px){ .pr img{width:90px} }
+</style>
+</head>
+<body>
+<header>
+  <div><div class="logo">DET<b>TO</b> · central</div><div class="sub" id="agora">carregando…</div></div>
+  <div class="esp"></div>
+  <span class="chip" id="chipAuto"><span class="bol"></span><span id="txtAuto">…</span></span>
+  <button id="btPausa">Pausar</button>
+  <button id="btRodada" title="Confere a fila agora e posta quem estiver na hora">Conferir fila agora</button>
+  <span class="chip" id="chipDisco" title="Espaço livre no disco E:">💾 …</span>
+  <nav class="abas" id="abas">
+    <button data-aba="postagem">Postagem</button>
+    <button data-aba="edicao">Edição<span class="bolha" id="bEd" style="display:none"></span></button>
+    <button data-aba="reels">Reels automáticos</button>
+    <button data-aba="canais">Canais<span class="bolha" id="bCan" style="display:none"></span></button>
+    <button data-aba="historias">Histórias</button>
+    <button data-aba="shop">TikTok Shop</button>
+    <button data-aba="config">Configurações</button>
+  </nav>
+</header>
+
+<div class="wrap">
+  <div id="avisos"></div>
+
+  <section class="aba" id="aba-postagem">
+  <h2>Enviar vídeos</h2>
+  <div class="envio">
+    <label class="drop" id="drop">
+      <input type="file" id="arq" accept="video/*,.mov,.mp4,.mkv,.webm" multiple hidden>
+      <strong>Arraste os vídeos aqui</strong>
+      ou toque para escolher (dá para mandar vários de uma vez, do PC ou do celular)
+    </label>
+    <div class="card">
+      <label>Para onde vai</label>
+      <div class="destinos" id="destinos"></div>
+      <div id="campoApelido" style="display:none;margin-bottom:10px">
+        <label>Começo de reel: o que você faz no vídeo (vira o nome do arquivo)</label>
+        <input type="text" id="apelido" placeholder="ex.: cruzando os braços desconfiado">
+      </div>
+      <label>Legenda + tags (opcional, vale para todos deste envio)</label>
+      <textarea id="legEnvio" placeholder="Legenda do post…&#10;&#10;#futebol #humor"></textarea>
+      <div class="envios" id="envios"></div>
+    </div>
+  </div>
+
+  <h2>Contas</h2>
+  <div class="contas" id="contas"></div>
+
+  </section>
+
+  <section class="aba" id="aba-edicao">
+  <h2>Nova edição</h2>
+  <div class="card">
+    <label>Que tipo de edição?</label>
+    <div class="destinos tipos" id="edTipos">
+      <label class="dest sel"><input type="radio" name="edTipo" value="roteiro" checked> 🎬 Vídeo com roteiro</label>
+      <label class="dest"><input type="radio" name="edTipo" value="reels"> 📲 Reels com roteiro (9:16)</label>
+      <label class="dest"><input type="radio" name="edTipo" value="galo"> 🐓 Galo — bater nos jogadores</label>
+      <label class="dest"><input type="radio" name="edTipo" value="react"> 📺 DETTO REAGE</label>
+      <label class="dest"><input type="radio" name="edTipo" value="vertical"> 📱 Vertical de vídeo já editado</label>
+      <label class="dest"><input type="radio" name="edTipo" value="vlog"> 🎥 Vlog</label>
+    </div>
+    <div class="info" id="edTipoInfo"></div>
+    <div class="nova" style="margin-top:10px">
+      <div>
+        <label>Título (vira o nome da pasta)</label>
+        <input type="text" id="edTitulo" placeholder="ex.: notas Galo x Cruzeiro">
+        <div id="edCampos"></div>
+        <div data-so="vlog" style="margin-top:10px">
+          <label>Clipes do vlog: pasta do Google Drive</label>
+          <div class="linha" style="margin-top:4px"><select id="vlDrive" style="flex:1"><option value="">— escolha a pasta —</option></select><button class="mini" id="btDrive" title="Atualizar a lista">↻</button></div>
+          <div class="info" id="vlDriveInfo"></div>
+          <input type="text" id="vlPasta" placeholder="…ou o caminho de uma pasta no PC" style="margin-top:6px">
+          <label class="mini-drop" id="vlDrop" style="margin-top:6px"><input type="file" id="vlClipes" accept="video/*,.mov,.mp4" multiple hidden><span>…ou arraste os clipes aqui (vários)</span></label>
+        </div>
+        <div data-so="roteiro" style="margin-top:10px"><label>O roteiro (opcional — sem roteiro o Gemini escreve)</label>
+          <label class="mini-drop" id="edDropR"><input type="file" id="edRoteiro" accept=".txt,.md,.docx" hidden><span>Arraste o roteiro (.txt ou .docx)</span></label>
+          <textarea id="edRoteiroTxt" rows="4" placeholder="…ou cole o roteiro aqui" style="margin-top:6px"></textarea>
+        </div>
+        <div data-so="roteiro" style="margin-top:10px"><label>Imagens (opcional): camisa = nome do time (Vasco.jpg); foto de apoio = o que buscaria (Santos 1997.jpg)</label>
+          <label class="mini-drop" id="edDropI"><input type="file" id="edImgs" accept="image/*" multiple hidden><span>Arraste as imagens</span></label>
+        </div>
+      </div>
+      <div>
+        <div data-so="roteiro">
+          <label>Opções</label>
+          <div class="opcoes">
+            <label class="dest"><input type="checkbox" id="opTeste"> Teste (só 1 minuto)</label>
+            <label class="dest"><input type="checkbox" id="opSemLances"> Sem lances</label>
+            <label class="dest"><input type="checkbox" id="opSemThumbs"> Sem thumbs</label>
+            <label class="dest"><input type="checkbox" id="opSemVert"> Sem cortes 9:16</label>
+          </div>
+          <div class="campos">
+            <div><label>Horizontal</label><select id="opFps"><option value="60">60 fps (YouTube)</option><option value="30">30 fps (mais rápido)</option></select></div>
+            <div><label>Efeitos sonoros</label><select id="opSfx"><option value="0">Sem</option><option value="0.15">Baixo</option><option value="0.3" selected>Normal</option><option value="0.5">Alto</option></select></div>
+          </div>
+        </div>
+        <div data-so="galo">
+          <label>Jogo (times, para as notas do SofaScore: quem apanha = pior nota)</label>
+          <input type="text" id="exJogo" placeholder="ex.: Atletico Mineiro Cruzeiro">
+          <div class="opcoes"><label class="dest"><input type="checkbox" id="exPlacar"> Com placar no topo</label></div>
+        </div>
+        <div data-so="react">
+          <label>Título da faixa (o que aparece no layout)</label>
+          <input type="text" id="exFaixa" placeholder="ex.: Messi se despede da seleção">
+          <div style="margin-top:8px"><label>Formato</label><select id="exFormato"><option value="horizontal">Horizontal (YouTube)</option><option value="vertical">Vertical (Reels/TikTok)</option></select></div>
+        </div>
+        <div data-so="vlog">
+          <label>Estilo (o diretor segue isso)</label>
+          <input type="text" id="vlEstilo" placeholder="ex.: cinematográfico, estilo AM3NIC  —  ou: dinâmico e engraçado, estilo Afreim">
+          <div class="campos" style="margin-top:8px">
+            <div><label>Formato</label><select id="vlFormato"><option value="horizontal">Horizontal (YouTube)</option><option value="vertical">Vertical (Reels/TikTok)</option></select></div>
+            <div><label>Duração alvo</label><select id="vlDur"><option value="3">~3 min</option><option value="6">~6 min</option><option value="10" selected>~10 min</option><option value="15">~15 min</option><option value="20">~20 min</option></select></div>
+          </div>
+          <div class="opcoes"><label class="dest"><input type="checkbox" id="vlLeg"> Legendas das falas</label></div>
+          <div class="info">Trilha por clima: músicas em E:\DETTO\musicas\animado, tranquilo, engracado, emocionante, tenso, epico.</div>
+        </div>
+        <div data-so="vertical">
+          <div class="campos">
+            <div><label>Quando tem gráfico/foto grande</label><select id="exGrafico"><option value="pip">Gráfico grande + você no canto</option><option value="tela">Só o gráfico</option><option value="dividido">Metade / metade</option></select></div>
+            <div><label>Cortar em partes</label><select id="exPartes"><option value="0">Não (um vídeo só)</option><option value="60">De 60 s</option><option value="90">De 90 s</option></select></div>
+          </div>
+        </div>
+        <div class="info">Quando ficar pronto, mandar para a fila de:</div>
+        <div class="destinos" id="edPara"></div>
+        <div class="linha"><button class="pri" id="btEditar" style="padding:12px 22px">Editar</button><span class="info" id="edProg"></span></div>
+        <div class="info">Uma edição por vez (placa de vídeo). As outras esperam na fila. Pode fechar o navegador: o PC continua.</div>
+      </div>
+    </div>
+  </div>
+  <h2>Edições</h2>
+  <div id="edicoes"></div>
+  </section>
+
+  <section class="aba" id="aba-reels">
+  <h2>Reels automáticos</h2>
+  <div class="duas">
+    <div class="card" id="reelsInfo"></div>
+    <div class="card">
+      <label>Links de vídeos para virar reel (TikTok, Instagram, YouTube) — pode colar vários, um por linha</label>
+      <textarea id="link" rows="4" placeholder="https://www.instagram.com/reel/…&#10;https://www.tiktok.com/@…/video/…&#10;…"></textarea>
+      <div class="linha">
+        <select id="linkInicio" style="width:auto;flex:1"><option value="">Começo: o Gemini escolhe</option></select>
+        <select id="linkModo" style="width:auto"><option value="troca">Igual ao original (troca)</option><option value="novo">Texto novo</option></select>
+      </div>
+      <div class="linha"><button class="pri" id="btLink">Pôr na lista</button><button id="btLinkJa" title="Só o primeiro link, com o começo e o modo escolhidos">Fazer o 1º agora</button></div>
+      <div class="linha"><label class="dest" id="lbAuto"><input type="checkbox" id="autoLinks"> Fazer os links da lista sozinho (um atrás do outro, já entram na fila)</label></div>
+      <div class="linha">
+        <label>Fazer</label>
+        <select id="quantos" style="width:80px"><option>1</option><option>3</option><option selected>5</option><option>10</option><option>15</option><option>20</option></select>
+        <label>reels agora</label>
+        <button class="pri" id="btReels">Gerar</button>
+        <button id="btReelsParar" style="display:none">Parar</button>
+      </div>
+      <div class="info">Os reels prontos entram sozinhos na fila destas contas:</div>
+      <div class="destinos" id="reelsPara"></div>
+      <pre class="log" id="reelsLog" style="display:none;max-height:180px"></pre>
+    </div>
+  </div>
+
+  </section>
+
+  <section class="aba" id="aba-canais">
+  <h2>Canais automáticos do YouTube</h2>
+  <div id="canSetup"></div>
+  <div class="duas" id="canCards"></div>
+  </section>
+
+  <section class="aba" id="aba-historias">
+  <h2>Histórias em série <small style="opacity:.6;font-weight:400">— o público escolhe a continuação</small></h2>
+  <div id="hisTopo"></div>
+  <div class="duas" id="hisCards"></div>
+  </section>
+
+  <section class="aba" id="aba-shop">
+  <h2>TikTok Shop <small style="opacity:.6;font-weight:400">— vídeo de produto pronto para a vitrine</small></h2>
+  <div id="shopTopo"></div>
+  <div class="duas" id="shopCards"></div>
+  </section>
+
+  <section class="aba" id="aba-config">
+  <h2>Configurações</h2>
+  <div class="card">
+    <details id="detCfg" open>
+      <summary>Chaves dos apps, login das contas, PIN do celular, contas novas</summary>
+      <div class="duas" style="margin-top:12px">
+        <div>
+          <b>Instagram (app da Meta)</b>
+          <div class="campos" style="margin-top:8px">
+            <div><label>ID do app</label><input type="text" id="ig_app_id"></div>
+            <div><label>Chave secreta do app</label><input type="password" id="ig_app_secret"></div>
+          </div>
+          <div style="margin-top:8px"><label>config_id (opcional)</label><input type="text" id="ig_config_id"></div>
+          <b style="display:block;margin-top:16px">TikTok (app de desenvolvedor)</b>
+          <div class="campos" style="margin-top:8px">
+            <div><label>Client key</label><input type="text" id="tt_client_key"></div>
+            <div><label>Client secret</label><input type="password" id="tt_client_secret"></div>
+          </div>
+          <div class="campos" style="margin-top:8px">
+            <div><label>Modo do TikTok</label>
+              <select id="tt_modo"><option value="studio">TikTok Studio (você agenda no site) — recomendado</option><option value="rascunho">Rascunho pela API (precisa app)</option><option value="direto">Direto pela API (app aprovado)</option></select></div>
+            <div><label>&nbsp;</label><label class="dest" style="width:max-content"><input type="checkbox" id="tt_ia"> marcar como feito com IA</label></div>
+          </div>
+          <div style="margin-top:12px"><label>Pasta do Google Drive (Google Drive para computador)</label><input type="text" id="cfgDrive" placeholder="ex.: G:\Meu Drive"></div>
+          <div style="margin-top:12px"><label>PIN do celular (4 a 8 números)</label><input type="password" id="pin" inputmode="numeric" placeholder="vazio = não muda"></div>
+          <div class="linha"><button class="pri" id="btSalvarCfg">Salvar</button><span class="info">Chaves em branco não mudam o que já está salvo.</span></div>
+        </div>
+        <div>
+          <b>Login das contas</b>
+          <div class="info">O navegador abre <b>no PC</b>: entre na conta certa e autorize.</div>
+          <div class="lista" id="logins"></div>
+          <details open><summary><b>Instagram: colar o token</b> (app → Casos de uso → API do Instagram → Gerar token; ou do Graph API Explorer)</summary>
+            <div class="linha"><select id="tokConta" style="width:auto"></select><input type="text" id="tokIg" placeholder="token" style="flex:1"><button id="btTok">Ligar</button></div>
+          </details>
+          <pre class="log" id="loginLog" style="display:none;margin-top:8px;max-height:160px"></pre>
+          <b style="display:block;margin-top:16px">Conta nova</b>
+          <div class="linha">
+            <select id="novaPlat" style="width:auto"><option value="tiktok">TikTok</option><option value="instagram">Instagram</option><option value="youtube">YouTube (Shorts)</option><option value="kwai">Kwai</option></select>
+            <input type="text" id="novaConta" placeholder="@usuario" style="flex:1">
+            <button id="btNova">Adicionar</button>
+          </div>
+          <div class="info" id="endCel"></div>
+          <div class="linha"><button id="btPastaP">Abrir pasta da postagem</button><button id="btPastaR">Abrir pasta dos reels</button><button id="btPastaE">Abrir pasta das edições</button></div>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <h2>Registro</h2>
+  <pre class="log" id="log"></pre>
+  </section>
+  <div style="height:40px"></div>
+</div>
+
+<div class="fundo" id="fundo"><div class="modal" id="modal"></div></div>
+<div id="toast"></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let E = null, destSel = JSON.parse(localStorageGet("destinos") || "null");
+function localStorageGet(k){ try { return localStorage.getItem(k) } catch(e){ return null } }
+function localStorageSet(k,v){ try { localStorage.setItem(k,v) } catch(e){} }
+
+function toast(m, erro){
+  const t = $("#toast"); t.textContent = m; t.className = erro ? "erro" : ""; t.style.display = "block";
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", erro ? 6000 : 2500);
+}
+async function api(acao, dados){
+  const r = await fetch("/api/" + acao, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(dados || {})});
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok){ toast(j.erro || ("erro " + r.status), true); throw new Error(j.erro); }
+  return j;
+}
+/* abas */
+function aba(nome){
+  document.querySelectorAll("section.aba").forEach(x => x.classList.toggle("on", x.id === "aba-" + nome));
+  document.querySelectorAll("#abas button").forEach(b => b.classList.toggle("on", b.dataset.aba === nome));
+  localStorageSet("aba", nome); if(location.hash !== "#" + nome) history.replaceState(null, "", "#" + nome);
+}
+document.querySelectorAll("#abas button").forEach(b => b.onclick = () => aba(b.dataset.aba));
+aba((location.hash || "").slice(1) || localStorageGet("aba") || "postagem");
+if(!document.querySelector("section.aba.on")) aba("postagem");
+window.addEventListener("hashchange", () => { const h = location.hash.slice(1); if(document.getElementById("aba-" + h)) aba(h); });
+const NOMES_PLAT = {instagram: "Instagram", tiktok: "TikTok", youtube: "YouTube", kwai: "Kwai"}, SIGLA = {instagram: "IG", tiktok: "TT", youtube: "YT", kwai: "KW"};
+const nomeConta = c => (NOMES_PLAT[c.plataforma] || c.plataforma) + " @" + c.conta;
+// "2026-10-15 230846 gol do hulk.mp4" → "gol do hulk" (a data vai embaixo)
+const limpo = n => n.replace(/^\d{4}-\d{2}-\d{2}( \d{4,6})? ?(\d+ - )?/, "").replace(/\.[^.]+$/, "") || n;
+const durTxt = m => m < 60 ? m + " min" : (m % 60 ? Math.floor(m/60) + "h" + String(m%60).padStart(2,"0") : (m/60) + " h");
+
+/* ------------------------------------------------------------ estado */
+let editando = false;
+document.addEventListener("focusin", e => { if(e.target.matches("input,textarea,select")) editando = true; });
+document.addEventListener("focusout", () => setTimeout(() => editando = !!document.activeElement?.matches("input,textarea,select"), 50));
+
+async function carrega(forca){
+  if(editando && !forca) return;
+  try{
+    const r = await fetch("/api/estado", {cache:"no-store"});
+    if(r.status === 401){ location.reload(); return; }
+    E = await r.json(); desenha();
+  }catch(e){ $("#agora").textContent = "sem conexão com o PC…"; }
+}
+
+function desenha(){
+  $("#agora").textContent = "atualizado " + E.agora + (E.postando ? " · postando: " + E.postando : "");
+  $("#chipAuto").className = "chip" + (E.pausado ? " pausa" : "");
+  $("#txtAuto").textContent = E.pausado ? "Pausado" : "Postando sozinho";
+  $("#btPausa").textContent = E.pausado ? "Ligar" : "Pausar";
+  $("#btPausa").className = E.pausado ? "pri" : "";
+  $("#chipDisco").textContent = "💾 " + E.disco + " livres";
+  $("#chipDisco").className = "chip" + (E.disco_pouco ? " alerta" : "");
+  const bateram = E.contas.flatMap(c => c.testes.filter(t => t.bateu && !t.situacao && t.graduar !== "automatico"));
+  let ch = $("#chipMeta");
+  if(bateram.length){
+    if(!ch){ ch = document.createElement("span"); ch.id = "chipMeta"; ch.className = "chip fogo"; ch.style.cursor = "pointer"; ch.onclick = () => { aba("postagem"); document.querySelector(".teste.lista-t")?.scrollIntoView({behavior:"smooth"}); }; $("#chipAuto").before(ch); }
+    ch.textContent = "🔥 " + bateram.length + (bateram.length > 1 ? " reels teste bateram a meta" : " reel teste bateu a meta");
+  } else if(ch) ch.remove();
+  // mantém aberto o que você abriu (o painel se redesenha a cada 8 s)
+  const abertos = {}; document.querySelectorAll("details[data-d]").forEach(d => abertos[d.dataset.d] = d.open);
+  const rolagem = [...document.querySelectorAll(".fila")].map(f => f.scrollTop);
+  avisos(); destinos(); contas(); reels(); configs(); edicao(); canais(); historias(); shop();
+  document.querySelectorAll("details[data-d]").forEach(d => { if(d.dataset.d in abertos) d.open = abertos[d.dataset.d]; });
+  document.querySelectorAll(".fila").forEach((f, i) => f.scrollTop = rolagem[i] || 0);
+  const lg = $("#log"), fim = lg.scrollTop + lg.clientHeight >= lg.scrollHeight - 10;
+  lg.textContent = E.log.join("\n") || "nada ainda";
+  if(fim) lg.scrollTop = lg.scrollHeight;
+}
+
+// Claude da sua assinatura respondendo no lugar do Gemini (sem cota): mostra tudo e deixa PARAR
+function claudeAviso(){
+  const c = E.claude || {};
+  if(!c.n && !c.parado) return "";
+  const ruim = c.parado || c.repetindo || c.seguidas >= 2;
+  const det = (c.ultimas || []).map(x => `<div style="opacity:.85">${x.hora} ${x.ok ? "✔" : "✖"} ${esc(x.de)} <span style="opacity:.6">(${x.s}s)</span>${x.ok ? "" : ` — <span style="color:#ff9a9a">${esc(x.erro)}</span>`}</div>`).join("");
+  let msg = `🤖 Claude (reserva do Gemini): <b>${c.n}</b> pergunta(s) hoje, ${c.falhas} falharam`;
+  if(c.repetindo) msg += ` · <b style="color:#ff6b6b">REPETINDO a mesma pergunta (${c.repetindo}x em 1 h)</b>`;
+  if(c.seguidas >= 2) msg += ` · <b style="color:#ff6b6b">${c.seguidas} falhas seguidas</b>`;
+  if(c.parado) msg += ` · <b>PARADO</b> (${esc(c.motivo)})`;
+  return `<div class="aviso"${ruim ? ' style="border-color:#a33;background:#2a1414"' : ' style="border-color:#335;background:#14182a;color:#cfd8ff"'}>${msg}
+    <button class="mini${c.parado ? " pri" : ""}" onclick="api('claude_parar',{parado:${!c.parado}}).then(()=>carrega(true))">${c.parado ? "Ligar o Claude" : "Parar o Claude"}</button>
+    <details data-d="claudeDet" style="margin-top:6px"><summary style="cursor:pointer">últimas perguntas</summary>${det || "nada"}</details></div>`;
+}
+
+function avisos(){
+  const a = [];
+  if(!E.instagram.chaves && E.contas.some(c => c.plataforma === "instagram" && !c.login)) a.push("Instagram sem login: Configurações → colar o token do Instagram.");
+  if(!E.tiktok.chaves && E.contas.some(c => c.plataforma === "tiktok" && !c.studio)) a.push("Falta a chave do app do TikTok.");
+  const sem = E.contas.filter(c => !c.login && !c.studio).map(nomeConta);
+  if(sem.length) a.push("Sem login: " + sem.join(", ") + ".");
+  if(E.disco_pouco) a.push("Pouco espaço no disco (" + E.disco + ").");
+  const noCel = E.contas.flatMap(c => (c.celular || []).map(x => ({...x, k: c.k})));
+  if(noCel.length) a.push("📱 " + noCel.length + " vídeo(s) na pasta do Drive esperando você postar como Reel de teste pelo celular.");
+  // Esta TELA vem do disco (sempre nova); o PYTHON fica em memória. Versões diferentes = precisa reiniciar.
+  if(E.versao !== VERSAO_TELA){
+    $("#avisos").innerHTML = `<div class="aviso" style="background:#3a1410;border-color:#8c2f22">
+      ⛔ <b>O painel está rodando o código ANTIGO.</b> Esta tela já é a nova (${esc(VERSAO_TELA)}), mas o programa em
+      memória é ${E.versao ? "de " + esc(E.versao) : "anterior às últimas correções"}. Enquanto isso o Instagram, as
+      histórias e as vozes continuam no jeito velho.<br>
+      <b>Feche o painel e abra de novo</b> (atalho <i>Painel DETTO</i> na Área de Trabalho).
+      <button class="mini pri" onclick="reinicia()">Tentar reiniciar daqui</button></div>`;
+    return;
+  }
+  // depois de um `git pull` o painel continua rodando o código VELHO até ser fechado e aberto de novo
+  const novo = (E.codigo_novo || []).length ? `<div class="aviso" style="background:#2a1f08;border-color:#6b5312">
+      🔄 <b>Código atualizado no PC</b> (${E.codigo_novo.map(esc).join(", ")}${E.codigo_novo.length >= 6 ? "…" : ""}), mas o painel
+      ainda está rodando o antigo. <b>Reinicie para valer.</b>
+      <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
+  $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
+}
+const VERSAO_TELA = "2026-10-29d";
+async function reinicia(){
+  if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
+  let ok = true;
+  try{ const r = await api("reiniciar"); ok = !!(r && r.ok); }catch(e){ ok = false; }
+  if(!ok){ alert("Este painel é antigo demais para se reiniciar sozinho.\n\nFeche a janela preta do painel e abra pelo atalho 'Painel DETTO' na Área de Trabalho."); return; }
+  $("#agora").textContent = "reiniciando… recarrego em 12 s";
+  setTimeout(() => location.reload(), 12000);
+}
+function abreCfg(){ aba("config"); $("#detCfg").open = true; $("#detCfg").scrollIntoView({behavior:"smooth"}); }
+
+/* ------------------------------------------------------------ envio */
+function destinos(){
+  const ops = E.contas.map(c => ({v: c.plataforma + ":" + c.conta, t: nomeConta(c)})).concat([{v:"reels:inicios", t:"Começo de reel"}]);
+  if(!destSel) destSel = ops.filter(o => o.v !== "reels:inicios" && o.v.endsWith("detto.galo")).map(o => o.v);
+  const box = $("#destinos");
+  const chave = JSON.stringify(ops) + JSON.stringify(destSel);
+  if(box.dataset.k === chave) return;
+  box.dataset.k = chave;
+  box.innerHTML = ops.map(o => `<label class="dest ${destSel.includes(o.v) ? "sel" : ""}"><input type="checkbox" value="${esc(o.v)}" ${destSel.includes(o.v) ? "checked" : ""}> ${esc(o.t)}</label>`).join("");
+  box.querySelectorAll("input").forEach(i => i.onchange = () => {
+    destSel = [...box.querySelectorAll("input:checked")].map(x => x.value);
+    localStorageSet("destinos", JSON.stringify(destSel)); box.dataset.k = ""; destinos();
+  });
+  $("#campoApelido").style.display = destSel.includes("reels:inicios") ? "block" : "none";
+}
+
+const drop = $("#drop");
+["dragenter","dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("on"); }));
+["dragleave","drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("on"); }));
+drop.addEventListener("drop", e => envia([...e.dataTransfer.files]));
+$("#arq").onchange = e => { envia([...e.target.files]); e.target.value = ""; };
+
+let filaEnvio = Promise.resolve();
+function envia(arqs){
+  arqs = arqs.filter(a => /\.(mp4|mov|m4v|mkv|webm)$/i.test(a.name));
+  if(!arqs.length) return toast("Só vídeos (.mp4, .mov…)", true);
+  if(!destSel || !destSel.length) return toast("Escolha para onde vai", true);
+  const dest = destSel.join(","), leg = $("#legEnvio").value, apelido = $("#apelido").value;
+  for(const a of arqs){
+    const linha = document.createElement("div"); linha.className = "up";
+    linha.innerHTML = `<span>${esc(a.name)}</span><span class="pc">esperando…</span><div class="barra"><i></i></div>`;
+    $("#envios").prepend(linha);
+    filaEnvio = filaEnvio.then(() => new Promise(ok => {
+      const x = new XMLHttpRequest();
+      const q = new URLSearchParams({nome: a.name, destinos: dest, legenda: leg, apelido});
+      x.open("POST", "/api/enviar?" + q);
+      x.upload.onprogress = e => { if(e.lengthComputable){ const p = Math.round(e.loaded / e.total * 100); linha.querySelector("i").style.width = p + "%"; linha.querySelector(".pc").textContent = p + "%"; } };
+      x.onload = () => {
+        let j = {}; try { j = JSON.parse(x.responseText) } catch(e){}
+        if(x.status === 200){ linha.querySelector(".pc").textContent = "✔ na fila"; linha.querySelector("i").style.width = "100%"; }
+        else { linha.querySelector(".pc").textContent = "✖ " + (j.erro || x.status); linha.querySelector("i").style.background = "var(--verm)"; }
+        carrega(true); ok();
+      };
+      x.onerror = () => { linha.querySelector(".pc").textContent = "✖ caiu a conexão"; ok(); };
+      x.send(a);
+    }));
+  }
+  filaEnvio.then(() => { $("#legEnvio").value = ""; $("#apelido").value = ""; });
+}
+
+/* ------------------------------------------------------------ contas */
+const INTERVALOS = [15,20,30,45,60,80,90,120,150,180,240,300,360,480,720,1440];
+function opcHoras(sel){ let s = ""; for(let h = 0; h < 24; h++) s += `<option value="${h}" ${h === sel ? "selected" : ""}>${String(h).padStart(2,"0")}h</option>`; return s; }
+
+function contas(){
+  const box = $("#contas");
+  box.innerHTML = E.contas.map((c, ci) => {
+    const [h0, h1] = c.horas.split("-").map(Number);
+    const ints = INTERVALOS.includes(c.intervalo_min) ? INTERVALOS : [...INTERVALOS, c.intervalo_min].sort((a,b) => a-b);
+    const prox = !c.ativo ? "pausada" : !c.fila.length ? "—" : c.proximo_ja ? "agora" : c.proximo.slice(-5) + (c.proximo.slice(0,5) !== E.agora.slice(0,5) ? " (" + c.proximo.slice(0,5) + ")" : "");
+    let extra = "";
+    if(c.studio && c.plataforma === "kwai"){
+      const n10 = c.plano.filter(Boolean).length;
+      extra += `<div class="teste">
+        <b>Kwai</b> <small style="color:var(--mut)">— o Kwai não tem como postar pelo PC: a pasta vai para o Google Drive e você posta pelo app</small>
+        <div class="linha">
+          <button class="pri" onclick="prepara(${ci})" ${n10 ? "" : "disabled"}>Preparar pasta (${n10} vídeo${n10 === 1 ? "" : "s"})</button>
+          ${c.preparados ? `<button onclick="agendeiPasta(${ci})">✔ Postei os ${c.preparados} da pasta</button>` : ""}
+        </div>
+        <div class="info">Preparar = pasta no Drive (DETTO\\kwai\\${esc(c.conta)}) com os vídeos numerados com dia e hora + LEGENDAS.txt. No celular: app do Drive → vídeo → ⋮ → Enviar cópia → Kwai → cole a legenda → Publicar.</div>
+      </div>`;
+    } else if(c.studio){
+      const n10 = c.plano.filter(Boolean).length;
+      extra += `<div class="teste">
+        <b>TikTok Studio</b> <small style="color:var(--mut)">— o TikTok agenda até 10 dias à frente</small>
+        <div class="linha">
+          <button class="pri" onclick="prepara(${ci})" ${n10 ? "" : "disabled"}>Preparar pasta (${n10} vídeo${n10 === 1 ? "" : "s"})</button>
+          <a href="https://www.tiktok.com/tiktokstudio/upload" target="_blank" rel="noopener"><button>Abrir o TikTok Studio</button></a>
+          ${c.preparados ? `<button onclick="agendeiPasta(${ci})">✔ Agendei os ${c.preparados} da pasta</button>` : ""}
+        </div>
+        <div class="info">Preparar = pasta com os vídeos numerados com dia e hora + LEGENDAS.txt. No Studio: Enviar → arquivo → cole a legenda → Agendar no horário do nome.</div>
+      </div>`;
+    } else if(c.plataforma === "tiktok" && E.tiktok.modo !== "direto"){
+      if(c.pendentes){
+        const n = c.pendentes.length;
+        extra += `<div class="info ${n >= 5 ? "alerta" : ""}">Rascunhos esperando você publicar no app: <b>${n}/5</b>${n >= 5 ? " — publique um para liberar o próximo" : ""}</div>`;
+        if(n) extra += `<details data-d="${c.k}-pend"><summary>Legendas para colar no TikTok</summary><div class="lista">${c.pendentes.map((p, i) =>
+          `<div class="l"><span title="${esc(p.legenda)}">${esc(p.quando)} · ${esc(p.legenda || p.nome)}</span><button class="mini" onclick="copia(${ci},${i})">Copiar</button></div>`).join("")}</div></details>`;
+      } else if(c.login) extra += `<div class="info">Rascunhos: conferindo…</div>`;
+    }
+    if(c.plataforma === "instagram"){
+      const pend = Object.entries(c.fb_pend || {});
+      extra += `<div class="teste">
+        <div class="linha" style="justify-content:space-between">
+          <span><b>Facebook também</b> <small style="color:var(--mut)">(Reels na página)</small></span>
+          <label class="sw"><input type="checkbox" ${c.facebook ? "checked" : ""} onchange="regra(${ci},{facebook:this.checked})"><span></span></label>
+        </div>
+        ${pend.length ? `<div class="info erro">⚠ Facebook: ${pend.length} vídeo(s) esperando nova tentativa — ${esc(pend[0][1].erro || "")}</div>` : ""}
+        ${c.pausa_ate ? `<div class="info erro">⏸ Instagram em pausa até ${esc(c.pausa_ate)} — ${esc(c.pausa_motivo || "limite de Reels teste ou erro há pouco")} <button class="mini" onclick="api('tira_pausa',{k:'${esc(c.k || (c.plataforma + "_" + c.conta))}'}).then(()=>carrega(true))">Tirar pausa</button></div>` : ""}
+        ${c.teste && c.plataforma === "instagram" ? `<div class="info${c.teste_sem_vaga ? " erro" : ""}">🧪 Reels teste ativos pela API (janela de 72 h): <b>${c.teste_ativos}</b>${c.teste_vagas ? " de " + c.teste_vagas : ""}${c.teste_libera ? ` · próxima vaga ${esc(c.teste_libera)}` : ""}${c.teste_sem_vaga ? ` — ${esc(c.teste_sem_vaga)}; ${c.teste_normal ? "o próximo sobe como reels NORMAL" : "o próximo espera a vaga"}` : ""} <button class="mini" onclick="api('teste_reset',{k:'${esc(c.k || (c.plataforma + "_" + c.conta))}'}).then(()=>carrega(true))" title="Esquece o limite que a conta aprendeu numa recusa e experimenta de novo">↻ Testar a API de novo</button></div>
+        <div class="info">A API do Instagram tem um limite PRÓPRIO e pequeno de reels teste — nada a ver com os 10/dia do app. Para chegar nos 10, prepare a pasta e poste os que faltam como teste pelo celular. Liberar vaga da API: marque <b>“Já mandei”</b> ou <b>✕</b> nos reels teste da lista abaixo.</div>
+        <div class="linha">
+          <button class="mini pri" onclick="api('teste_preparar',{k:'${esc(c.k)}',quantos:10}).then(r=>{toast((r.n||0)+' vídeo(s) na pasta do celular');carrega(true)})">📱 Preparar pasta do Reels TESTE</button>
+          ${c.teste_preparados ? `<button class="mini" onclick="if(confirm('Você postou os ${c.teste_preparados} da pasta como Reel de teste pelo app?')) api('teste_postei',{k:'${esc(c.k)}'}).then(r=>{toast((r.feitos||0)+' marcados como postados');carrega(true)})">✔ Postei os ${c.teste_preparados} da pasta</button>` : ""}
+          <label style="display:flex;gap:6px;align-items:center"><input type="checkbox" ${c.teste_normal?"checked":""} onchange="regra(${ci},{teste_cai_para_normal:this.checked})"> Sem vaga, subir como reels normal</label>
+        </div>
+        ${(c.celular || []).length ? `<details class="teste" data-d="${c.k}-cel" open><summary>📱 Esperando você postar pelo celular (${c.celular.length})</summary>
+          <div class="info">A API não conseguiu postar como Reels teste, então o vídeo já está no Drive <b>com a legenda</b>: <code>${esc(c.teste_pasta)}</code>.<br>
+          No celular: app do Drive → ⋮ → Enviar cópia → Instagram → Reels → ligue <b>"Reel de teste"</b> → Compartilhar.</div>
+          <div class="lista">${c.celular.map(x => `<div class="l"><span>${esc(x.nome)}<br><small style="opacity:.7">${esc(x.quando || "")} · ${esc(x.motivo || "")}</small></span>
+            <span><button class="mini pri" onclick="api('celular_postei',{k:'${esc(c.k)}',nomes:['${esc(x.nome)}']}).then(()=>carrega(true))">✔ Postei</button>
+            <button class="mini" title="Devolver para a fila da API" onclick="api('celular_devolver',{k:'${esc(c.k)}',nomes:['${esc(x.nome)}']}).then(()=>carrega(true))">↩ fila</button></span></div>`).join("")}</div>
+          <div class="linha"><button class="mini" onclick="if(confirm('Postou TODOS os ${c.celular.length} pelo celular?')) api('celular_postei',{k:'${esc(c.k)}'}).then(()=>carrega(true))">✔ Postei todos</button></div></details>` : ""}
+        ${c.teste_preparados ? `<div class="info">Pasta: <code>${esc(c.teste_pasta)}</code> — no celular, app do Drive → ⋮ → Enviar cópia → Instagram → Reels → ligue <b>“Reel de teste”</b>.</div>` : ""}` : ""}
+      </div>`;
+      extra += `<div class="teste">
+        <div class="linha" style="justify-content:space-between">
+          <span><b>Reels teste</b> <small style="color:var(--mut)">(só para quem não te segue)</small></span>
+          <label class="sw"><input type="checkbox" ${c.teste ? "checked" : ""} onchange="regra(${ci},{teste:this.checked})"><span></span></label>
+        </div>
+        ${c.teste ? `<div class="campos" style="margin-top:8px">
+          <div><label>Para os seguidores</label><select onchange="regra(${ci},{graduar:this.value})">
+            <option value="manual" ${c.graduar === "manual" ? "selected" : ""}>Eu mando no app</option>
+            <option value="automatico" ${c.graduar === "automatico" ? "selected" : ""}>O Instagram decide</option></select></div>
+          <div><label>Avisar com (views)</label><input type="number" min="0" step="1000" value="${c.meta_views}" onchange="regra(${ci},{meta_views:+this.value||0})"></div>
+        </div>` : ""}
+      </div>`;
+      if(c.testes.length){
+        const t = c.testes;
+        extra += `<details class="teste lista-t" data-d="${c.k}-testes" ${t.some(x => x.bateu && !x.situacao) ? "open" : ""}><summary>Reels teste postados (${t.length}) — views</summary><div class="lista">${t.map((x, ti) => `
+          <div class="l ${x.bateu && !x.situacao ? "fogo" : ""}"><span>${esc(x.quando.slice(5))} · ${esc(limpo(x.nome))}</span>
+          <span style="display:flex;gap:6px;align-items:center;flex:none">
+            <span class="vw ${x.bateu ? "bateu" : ""}">${x.views == null ? "…" : x.views.toLocaleString("pt-BR")}</span>
+            ${x.link ? `<a href="${esc(x.link)}" target="_blank" rel="noopener">abrir</a>` : ""}
+            ${x.fb ? `<a href="${esc(x.fb)}" target="_blank" rel="noopener" title="no Facebook">fb</a>` : x.fb_erro ? `<small class="erro" title="${esc(x.fb_erro)}">fb ✕</small>` : ""}
+            ${x.situacao === "promovido" ? `<small style="color:var(--lima)">✔ seguidores</small>` : x.graduar === "automatico" ? `<small style="color:var(--mut)">auto</small>` :
+              `<button class="mini ${x.bateu ? "pri" : ""}" title="Já mandei para os seguidores no app" onclick="marcaT(${ci},${ti},'promovido')">Já mandei</button>`}
+            <button class="mini" title="Tirar da lista" onclick="marcaT(${ci},${ti},'ignorado')">✕</button>
+          </span></div>`).join("")}</div>
+          <div class="info">Bateu a meta → abra o reel no app e toque em <b>“Compartilhar com seguidores”</b>, depois “Já mandei”. Views atualizam a cada 30 min · <a href="#" onclick="api('views_agora');toast('Atualizando as views…');setTimeout(()=>carrega(true),6000);return false">atualizar agora</a></div></details>`;
+      }
+      if(c.limite) extra += `<div class="info">Limite da API nas últimas 24 h: ${c.limite[0]}/${c.limite[1]}</div>`;
+    }
+    if(c.erro) extra += `<div class="info erro">⚠ ${esc(c.erro)}</div>`;
+    const fila = c.fila.length ? c.fila.map((v, i) => {
+      const t = c.tentativas[v.nome];
+      return `<div class="vid ${c.studio ? "dois" : ""}">
+        <div class="pos">${i + 1}</div>
+        <div class="vn"><div title="${esc(v.nome)}">${esc(limpo(v.nome))}</div><small>${c.studio ? (c.plano[i] ? `<b style="color:var(--lima)">agendar: ${esc(diaHora(c.plano[i]))}</b>` : "depois (mais de 10 dias)") : esc(v.quando)} · ${esc(v.tam)} · ${v.legenda ? esc(v.legenda.slice(0, 60)) : "<i>sem legenda</i>"}${t ? ` · <span style="color:var(--amar)">${t} erro(s)</span>` : ""}</small></div>
+        <div class="acoes">
+          <button class="mini" title="Subir" onclick="move(${ci},${i},-1)" ${i ? "" : "disabled"}>↑</button>
+          <button class="mini" title="Descer" onclick="move(${ci},${i},1)" ${i < c.fila.length - 1 ? "" : "disabled"}>↓</button>
+          <button class="mini" title="Ver e editar a legenda" onclick="abre(${ci},${i})">✎</button>
+          ${c.studio ? `<a href="/arquivo?${new URLSearchParams({k: c.k, nome: v.nome, onde: "entrada", baixar: 1, como: (c.plano[i] ? diaHora(c.plano[i]).replace(/[/:]/g, "-") + " - " : "") + limpo(v.nome) + ".mp4"})}"><button class="mini" title="Baixar">⬇</button></a>
+          <button class="mini" title="Copiar a legenda" onclick="copiaLeg(${ci},${i})">📋</button>
+          ${c.plano[i] ? `<button class="mini" title="${c.plataforma === "kwai" ? "Já postei este no Kwai" : "Já agendei este no TikTok Studio"}" onclick="agendei(${ci},${i})">✔</button>` : ""}`
+          : `<button class="mini" title="Postar agora" onclick="ja(${ci},${i})">🚀</button>`}
+          <button class="mini perigo" title="Tirar da fila" onclick="tira(${ci},${i})">✕</button>
+        </div></div>`;
+    }).join("") : `<div class="vazio">Fila vazia — mande vídeos aqui em cima</div>`;
+    const falhas = c.falhas.length ? `<details open data-d="${c.k}-falhas"><summary style="color:var(--verm)">${c.falhas.length} com erro (3 tentativas)</summary><div style="margin:6px 0"><button class="mini" onclick="tentaTodas(${ci})">↻ Tentar todos de novo</button></div><div class="lista">${c.falhas.map((v, i) =>
+      `<div class="l"><span>${esc(limpo(v.nome))}</span><span><button class="mini" onclick="tenta(${ci},${i})">Tentar de novo</button> <button class="mini perigo" onclick="tiraF(${ci},${i})">✕</button></span></div>`).join("")}</div></details>` : "";
+    const ult = c.ultimos.length ? `<details data-d="${c.k}-ult"><summary>Últimos postados</summary><div class="lista">${c.ultimos.map(u =>
+      `<div class="l"><span>${esc(u.quando)} · ${esc(limpo(u.nome))}</span>${u.link ? `<a href="${esc(u.link)}" target="_blank" rel="noopener">abrir</a>` : `<small style="color:var(--mut)">${u.modo === "rascunho" ? "rascunho" : u.modo === "studio" ? "agendado" : ""}</small>`}</div>`).join("")}</div></details>` : "";
+    return `<div class="card">
+      <div class="ctop">
+        <span class="plat ${c.plataforma}">${SIGLA[c.plataforma] || "?"}</span>
+        <div style="flex:1"><div class="cnome">@${esc(c.conta)}</div>
+          <div class="login ${c.login || c.studio ? "" : "off"}">${c.studio ? (c.plataforma === "kwai" ? "pelo app do Kwai (você posta)" : "pelo TikTok Studio (você agenda)") : c.login ? "conectado" : "sem login — "}${c.login || c.studio ? "" : `<a href="#" onclick="abreCfg();return false">conectar</a>`}</div></div>
+        <label class="sw" title="${c.ativo ? "Postando" : "Pausada"}"><input type="checkbox" ${c.ativo ? "checked" : ""} onchange="regra(${ci},{ativo:this.checked})"><span></span></label>
+      </div>
+      <div class="nums">
+        <div class="num lima"><b>${c.fila.length}</b><small>na fila</small></div>
+        <div class="num"><b>${c.hoje}${c.max_dia ? "/" + c.max_dia : ""}</b><small>hoje</small></div>
+        <div class="num"><b style="font-size:${prox.length > 6 ? 14 : 22}px">${esc(prox)}</b><small>próximo</small></div>
+        <div class="num"><b>${c.postados}</b><small>postados</small></div>
+      </div>
+      <div class="regras">
+        <div><label>Postar a cada</label><select onchange="regra(${ci},{intervalo_min:+this.value})">${ints.map(m => `<option value="${m}" ${m === c.intervalo_min ? "selected" : ""}>${durTxt(m)}</option>`).join("")}</select></div>
+        <div><label>Das</label><select onchange="regra(${ci},{horas:this.value+'-'+${h1}})">${opcHoras(h0)}</select></div>
+        <div><label>Até</label><select onchange="regra(${ci},{horas:${h0}+'-'+this.value})">${opcHoras(h1)}</select></div>
+        <div><label>Máx./dia</label><input type="number" min="0" max="100" value="${c.max_dia}" title="0 = sem limite" onchange="regra(${ci},{max_dia:+this.value||0})"></div>
+      </div>
+      ${extra}
+      <div class="fila">${fila}</div>
+      ${falhas}${ult}
+    </div>`;
+  }).join("");
+}
+
+async function marcaT(ci, ti, como){ const c = E.contas[ci]; await api("teste_marca", {k: c.k, arq: c.testes[ti].arq, como}); carrega(true); }
+const DIAS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
+function diaHora(iso){ const d = new Date(iso); return DIAS[d.getDay()] + " " + String(d.getDate()).padStart(2,"0") + "/" + String(d.getMonth()+1).padStart(2,"0") + " " + iso.slice(11, 16); }
+async function prepara(ci){ const c = E.contas[ci]; const r = await api("studio_preparar", {k: c.k}); toast(`Pasta pronta: ${r.n} vídeos — ${r.pasta}`); carrega(true); }
+async function agendeiPasta(ci){ const c = E.contas[ci]; if(!confirm(c.plataforma === "kwai" ? `Você postou os ${c.preparados} vídeos da pasta no Kwai?` : `Você agendou os ${c.preparados} vídeos da pasta no TikTok Studio?`)) return; const r = await api("studio_agendei", {k: c.k, da_pasta: true}); toast(r.feitos + " marcados como agendados"); carrega(true); }
+async function agendei(ci, i){ const c = E.contas[ci]; await api("studio_agendei", {k: c.k, nomes: [c.fila[i].nome]}); toast("Marcado como agendado"); carrega(true); }
+function copiaLeg(ci, i){ const t = E.contas[ci].fila[i].legenda || "";
+  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast("Legenda copiada")).catch(() => prompt("Copie a legenda:", t)); }
+async function regra(ci, d){ const c = E.contas[ci]; await api("conta", {k: c.k, ...d}); toast("Salvo"); editando = false; carrega(true); }
+async function move(ci, i, dir){
+  const c = E.contas[ci], nomes = c.fila.map(v => v.nome);
+  [nomes[i], nomes[i + dir]] = [nomes[i + dir], nomes[i]];
+  await api("ordem", {k: c.k, nomes}); carrega(true);
+}
+async function ja(ci, i){
+  const c = E.contas[ci], v = c.fila[i];
+  if(!confirm(`Postar agora em ${nomeConta(c)}?\n\n${v.nome}`)) return;
+  await api("agora", {k: c.k, nome: v.nome}); toast("Postando… acompanhe no registro"); setTimeout(() => carrega(true), 1500);
+}
+async function tira(ci, i){
+  const c = E.contas[ci], v = c.fila[i];
+  if(!confirm(`Tirar da fila de ${nomeConta(c)}?\n\n${v.nome}`)) return;
+  await api("apagar", {k: c.k, nome: v.nome}); carrega(true);
+}
+async function tenta(ci, i){ const c = E.contas[ci]; await api("tentar", {k: c.k, nome: c.falhas[i].nome}); carrega(true); }
+async function tentaTodas(ci){ const c = E.contas[ci]; if(!confirm(`Devolver os ${c.falhas.length} vídeos com erro para a fila?`)) return; await api("tentar_todas", {k: c.k}); carrega(true); }
+async function tiraF(ci, i){ const c = E.contas[ci]; if(!confirm("Apagar este vídeo com erro?")) return; await api("apagar", {k: c.k, nome: c.falhas[i].nome, onde: "falhas"}); carrega(true); }
+function copia(ci, i){
+  const t = E.contas[ci].pendentes[i].legenda;
+  (navigator.clipboard ? navigator.clipboard.writeText(t) : Promise.reject()).then(() => toast("Legenda copiada")).catch(() => { prompt("Copie a legenda:", t); });
+}
+
+function abre(ci, i){
+  const c = E.contas[ci], v = c.fila[i];
+  const outras = E.contas.filter(x => x.k !== c.k);
+  const src = "/arquivo?" + new URLSearchParams({k: c.k, nome: v.nome, onde: "entrada"});
+  $("#modal").innerHTML = `
+    <div class="ctop" style="margin-bottom:10px"><span class="plat ${c.plataforma}">${SIGLA[c.plataforma] || "?"}</span><b style="flex:1;overflow:hidden;text-overflow:ellipsis">${esc(limpo(v.nome))}</b><button class="mini" onclick="fecha()">✕</button></div>
+    <video src="${src}" controls playsinline preload="metadata"></video>
+    <div style="margin-top:10px"><label>Legenda + tags</label><textarea id="mLeg" rows="6">${esc(v.legenda)}</textarea></div>
+    ${outras.length ? `<div class="info">Mandar também para:</div><div class="destinos" id="mPara">${outras.map(o => `<label class="dest"><input type="checkbox" value="${esc(o.k)}"> ${esc(nomeConta(o))}</label>`).join("")}</div>` : ""}
+    <div class="linha" style="justify-content:flex-end"><button onclick="fecha()">Cancelar</button><button class="pri" id="mSalvar">Salvar</button></div>`;
+  $("#fundo").classList.add("on");
+  $("#mSalvar").onclick = async () => {
+    await api("legenda", {k: c.k, nome: v.nome, legenda: $("#mLeg").value});
+    const para = [...document.querySelectorAll("#mPara input:checked")].map(x => x.value);
+    if(para.length) await api("copiar", {k: c.k, nome: v.nome, para});
+    toast("Salvo"); fecha(); carrega(true);
+  };
+}
+function fecha(){ $("#fundo").classList.remove("on"); $("#modal").innerHTML = ""; editando = false; }
+$("#fundo").onclick = e => { if(e.target.id === "fundo") fecha(); };
+document.addEventListener("keydown", e => { if(e.key === "Escape") fecha(); });
+
+/* ------------------------------------------------------------ reels */
+function reels(){
+  const r = E.reels;
+  $("#reelsInfo").innerHTML = `
+    <div class="nums" style="grid-template-columns:repeat(3,1fr);margin-top:0">
+      <div class="num lima"><b>${r.prontos_hoje}</b><small>prontos hoje</small></div>
+      <div class="num"><b>${r.inicios.length}</b><small>seus começos</small></div>
+      <div class="num"><b>${r.n_links}</b><small>links</small></div>
+    </div>
+    <div class="info">${r.rodando ? "⏳ Fazendo reels agora…" : "Mande começos novos em “Enviar vídeos” → “Começo de reel”."}</div>
+    ${r.inicios.length ? `<details data-d="r-ini"><summary>Seus começos</summary><div class="tags">${r.inicios.map(n => `<span class="tag">${esc(n)}</span>`).join("")}</div></details>` : `<div class="info alerta">Ainda não tem nenhum começo gravado.</div>`}
+    ${r.links.length ? `<details data-d="r-links" open><summary>Na lista para fazer (${r.n_links})</summary><div class="lista">${r.links.map((l, li) => `<div class="l"><span>${esc(l)}</span><button class="mini" title="Tirar da lista" onclick="tiraLink(${li})">✕</button></div>`).join("")}</div></details>` : ""}
+    ${r.falhos && r.falhos.length ? `<details data-d="r-falhos" open><summary>⚠ Links que NÃO viraram reels (${r.falhos.length})</summary><div class="lista">${r.falhos.map(f => `<div class="l"><span>${esc(f.quando)} · ${esc(f.url)}<br><small>${esc(f.motivo)}</small></span></div>`).join("")}</div></details>` : ""}
+    ${r.travado ? `<div class="info">⏳ Outro reels.py está rodando (a tarefa do Windows) — os links da lista esperam a vez.</div>` : ""}
+    ${r.feitos.length ? `<details data-d="r-feitos"><summary>Links já feitos</summary><div class="lista">${r.feitos.map(f => `<div class="l"><span>${f.ok ? "✔" : "✖"} ${esc(f.dia)} · ${esc(f.url)}</span></div>`).join("")}</div></details>` : ""}`;
+  $("#autoLinks").checked = !!r.auto_links; $("#lbAuto").classList.toggle("sel", !!r.auto_links);
+  $("#btReels").disabled = r.rodando; $("#btLinkJa").disabled = r.rodando; $("#btReelsParar").style.display = r.rodando ? "" : "none";
+  const li = $("#linkInicio"), kI = JSON.stringify(r.inicios);
+  if(li.dataset.k !== kI){ const v = li.value; li.dataset.k = kI;
+    li.innerHTML = `<option value="">Começo: o Gemini escolhe</option>` + r.inicios.map(n => `<option>${esc(n)}</option>`).join(""); li.value = v; }
+  const rl = $("#reelsLog"); rl.style.display = r.log.length ? "block" : "none"; rl.textContent = r.log.join("\n"); rl.scrollTop = rl.scrollHeight;
+  const box = $("#reelsPara"), ops = E.contas.map(c => c.plataforma + ":" + c.conta), k = JSON.stringify([ops, r.postar]);
+  if(box.dataset.k !== k){
+    box.dataset.k = k;
+    const todas = r.postar.includes("todas");
+    box.innerHTML = `<label class="dest ${todas ? "sel" : ""}"><input type="checkbox" value="todas" ${todas ? "checked" : ""}> <b>Todas as contas ligadas</b></label>` +
+      E.contas.map(c => { const v = c.plataforma + ":" + c.conta, on = todas ? (c.ativo !== false && c.conta !== "detto.tv") : r.postar.includes(v);
+      return `<label class="dest ${on ? "sel" : ""}"${todas ? ' style="opacity:.6"' : ""}><input type="checkbox" value="${esc(v)}" ${on ? "checked" : ""} ${todas ? "disabled" : ""}> ${esc(nomeConta(c))}</label>`; }).join("");
+    box.querySelectorAll("input").forEach(i => i.onchange = async () => {
+      const marcadas = [...box.querySelectorAll("input:checked")].map(x => x.value);
+      await api("reels_postar", {para: i.value === "todas" ? (i.checked ? ["todas"] : marcadas.filter(x => x !== "todas")) : marcadas}); toast("Salvo"); carrega(true);
+    });
+  }
+}
+$("#btLink").onclick = async () => { const r = await api("reels_link", {url: $("#link").value}); $("#link").value = ""; editando = false;
+  toast(r.n ? `${r.n} link(s) na lista — ${E.reels.auto_links ? "o PC já vai fazendo" : "ligue “fazer sozinho” ou clique em Gerar"}` : "Esses links já estavam na lista"); carrega(true); };
+$("#autoLinks").onchange = async e => { await api("reels_auto", {on: e.target.checked}); carrega(true); };
+async function tiraLink(li){ await api("reels_tira_link", {url: E.reels.links[li]}); carrega(true); }
+$("#btLinkJa").onclick = async () => {
+  const u = ($("#link").value.match(/https?:\/\/\S+/) || [""])[0];
+  await api("reels_um", {url: u, inicio: $("#linkInicio").value, modo: $("#linkModo").value});
+  $("#link").value = ""; toast("Fazendo o reel — ele entra na fila de postagem quando ficar pronto"); carrega(true);
+};
+$("#btReels").onclick = async () => { await api("reels_gerar", {quantos: +$("#quantos").value}); toast("Começou — pode demorar alguns minutos por reel"); carrega(true); };
+$("#btReelsParar").onclick = async () => { await api("reels_parar"); carrega(true); };
+
+
+/* ------------------------------------------------------------ TikTok Shop */
+function shop(){
+  const S = E.shop; if(!S) return;
+  const modos = [["ia","Fotos/vídeos do produto + voz IA"],["eu","A minha gravação + fotos"],["vendedor","Reaproveitar o vídeo do vendedor"]];
+  const selModo = (id, v) => `<select id="${id}">${modos.map(m => `<option value="${m[0]}"${(v||S.modo)===m[0]?" selected":""}>${m[1]}</option>`).join("")}</select>`;
+  $("#shopTopo").innerHTML = `<div class="card" style="margin-bottom:14px">
+    <div class="linha" style="align-items:flex-start">
+      <div style="flex:1;min-width:300px">
+        <b>1. Colar links de produto</b>
+        <small style="display:block;opacity:.7;margin:4px 0 6px">Um por linha. <b>Link de vitrine</b> (o TikTok Shop barra robô na página): escreva o <b>nome do produto</b> depois do link, separado por <b>|</b> — com o nome eu busco as fotos na internet. Link do <b>vídeo</b> do produto já traz o vídeo do vendedor.</small>
+        <div class="dica" style="font-size:12px;opacity:.8;margin-bottom:4px">
+          O TikTok Shop barra robô na página da vitrine: do link sozinho não vem nome nem foto.
+          <b>Escreva o nome do produto depois do link</b>, separado por <b>|</b> — com o nome eu busco as fotos.
+        </div>
+        <textarea id="shopLinks" rows="3" placeholder="https://vt.tiktok.com/XXXX | suporte de celular para mesa | 49,90" style="width:100%"></textarea>
+        <div class="linha" style="margin-top:6px">
+          <button class="mini" onclick="shopColar()">Pôr na lista</button>
+          <button class="mini" onclick="api('shop_fazer',{so_links:1,modo:$('#shopModo').value}).then(()=>carrega(true))" ${S.rodando?"disabled":""}>▶ Fazer os links (${S.n_links})</button>
+          ${selModo("shopModo")}
+        </div>
+      </div>
+      <div style="flex:1;min-width:280px">
+        <b>3. Achar o que está vendendo</b>
+        <small style="display:block;opacity:.7;margin:4px 0 6px">Ele procura os vídeos de Shop que mais bombaram na categoria e a IA diz qual é o produto.</small>
+        <div class="linha">
+          <input type="text" id="shopCat" list="shopCats" placeholder="ex.: cozinha" style="flex:1">
+          <datalist id="shopCats">${(S.categorias||[]).map(c => `<option value="${esc(c)}">`).join("")}</datalist>
+          <input type="number" id="shopQtd" value="1" min="1" max="5" style="width:70px">
+          <button class="mini" onclick="api('shop_fazer',{categoria:$('#shopCat').value,quantos:+$('#shopQtd').value,modo:'vendedor'}).then(()=>carrega(true))" ${S.rodando?"disabled":""}>🔎 Procurar e fazer</button>
+        </div>
+      </div>
+    </div>
+    ${S.rodando ? `<div class="info">⏳ fazendo: <b>${esc(S.o_que)}</b> <button class="mini" onclick="api('shop_parar').then(()=>carrega(true))">Parar</button></div>` : ""}
+    ${S.log && S.log.length ? `<details data-d="shop-log"${S.rodando?" open":""}><summary>Registro</summary><pre class="log">${S.log.map(esc).join("\n")}</pre></details>` : ""}
+    ${S.falhos && S.falhos.length ? `<details data-d="shop-falhos" open><summary>⚠ Produtos que NÃO viraram vídeo (${S.falhos.length})</summary><div class="lista">${S.falhos.map(f => `<div class="l"><span>${esc(f.quando)} · ${esc(f.url)}<br><small>${esc(f.motivo)}</small></span></div>`).join("")}</div></details>` : ""}
+  </div>`;
+
+  const prod = `<div class="card">
+    <b>2. Produtos que chegaram em casa</b>
+    <small style="display:block;opacity:.7;margin:4px 0 8px">Pasta <code>${esc(S.pasta)}\\produtos\\&lt;nome&gt;\\</code> com as fotos/vídeos e um <code>produto.json</code> ({"nome","preco","link","sobre"}). A gravação com "eu" ou "review" no nome vira o modo <b>eu</b>.</small>
+    ${(S.produtos||[]).length ? (S.produtos||[]).map(p => `<div class="l">
+      <span><b>${esc(p.nome)}</b> ${p.preco?`· R$ ${esc(p.preco)}`:""} <small style="opacity:.7">${p.fotos} foto(s), ${p.videos} vídeo(s)${p.feito?` · feito em ${esc(p.feito)}`:""}</small></span>
+      <span>${p.feito?`<button class="mini" onclick="api('shop_refazer',{produto:'${esc(p.pasta)}'}).then(()=>carrega(true))">Marcar para refazer</button>`:""}
+      <button class="mini" onclick="api('shop_fazer',{produto:'${esc(p.pasta)}',modo:$('#shopModo').value}).then(()=>carrega(true))" ${S.rodando?"disabled":""}>▶ Fazer</button></span>
+    </div>`).join("") : `<div class="info">Nenhuma pasta de produto ainda.</div>`}
+  </div>`;
+
+  const prontos = `<div class="card">
+    <b>Prontos de hoje</b>
+    ${(S.prontos||[]).length ? (S.prontos||[]).map(v => `<div class="l">
+      <span>${esc(v.nome)}</span>
+      <span><a class="mini" href="/shop_arquivo?nome=${encodeURIComponent(v.nome)}&dia=${esc(v.dia)}" target="_blank">Assistir</a>
+      <a class="mini" href="/shop_arquivo?nome=${encodeURIComponent(v.nome)}&dia=${esc(v.dia)}&baixar=1">Baixar</a></span>
+    </div>`).join("") : `<div class="info">Nada hoje ainda. Cada vídeo pronto já entra na fila de postagem.</div>`}
+    <div class="linha" style="margin-top:10px">
+      <label>Duração alvo</label><input type="number" id="shopDur" value="${S.duracao}" min="15" max="90" style="width:80px">
+      <label>CTA</label><input type="text" id="shopCta" value="${esc(S.cta)}" style="flex:1;min-width:160px">
+      <button class="mini" onclick="api('shop_cfg',{duracao:+$('#shopDur').value,cta:$('#shopCta').value,modo:$('#shopModo').value}).then(()=>toast('salvo'))">Salvar</button>
+    </div>
+  </div>`;
+  $("#shopCards").innerHTML = prod + prontos;
+}
+async function shopColar(){
+  const r = await api("shop_links", {links: $("#shopLinks").value});
+  if(r && r.ok){ $("#shopLinks").value = ""; toast(r.n + " link(s) na lista"); carrega(true); }
+}
+
+/* ------------------------------------------------------------ histórias em série */
+function historias(){
+  const H = E.historias; if(!H) return;
+  $("#hisTopo").innerHTML = `<div class="card" style="margin-bottom:14px">
+    <div class="linha" style="align-items:flex-start">
+      <div style="flex:1;min-width:280px">
+        <b>Nova história</b>
+        <small style="display:block;opacity:.7;margin:4px 0 6px">A ideia em uma frase. A IA monta o mundo, as regras e os personagens; depois cada episódio sai sozinho e termina numa escolha A/B.</small>
+        <input type="text" id="hisIdeia" placeholder="ex.: apagão de 30 dias num prédio de BH / o técnico do Galo tem 1 jogo para salvar o emprego" style="width:100%">
+        <div class="linha" style="margin-top:6px">
+          <input type="text" id="hisConta" placeholder="instagram:detto.historias" value="${esc((H.contas||[])[0]||"")}" style="flex:1">
+          <button class="pri" onclick="hisNovo()" ${H.rodando?"disabled":""}>Criar história</button>
+        </div>
+      </div>
+      <div style="min-width:230px">
+        <div class="campos">
+          <div><label>Episódios por dia</label><input type="number" min="1" max="5" value="${H.por_dia}" onchange="api('hist_cfg',{por_dia:this.value}).then(()=>carrega(true))"></div>
+          <div><label>Duração (s)</label><input type="number" min="30" max="180" value="${H.duracao_s}" onchange="api('hist_cfg',{duracao_s:this.value}).then(()=>carrega(true))"></div>
+          <div><label>@ no rodapé do vídeo</label><input type="text" value="${esc(H.marca)}" onchange="api('hist_cfg',{marca:this.value}).then(()=>carrega(true))"></div>
+        </div>
+        <label class="dest" style="margin-top:6px"><input type="checkbox" ${H.auto_postar?"checked":""} onchange="api('hist_cfg',{auto_postar:this.checked}).then(()=>carrega(true))"> Fazer e postar sozinho</label>
+        <div class="linha" style="margin-top:6px"><button class="mini" onclick="api('hist_apurar').then(()=>carrega(true))" ${H.rodando?"disabled":""}>Contar os votos agora</button>
+          <button class="mini" onclick="api('hist_sons',{quantos:4}).then(()=>carrega(true))" ${H.rodando?"disabled":""}>🔊 Baixar efeitos sonoros</button>
+          ${H.rodando?`<button class="mini perigo" onclick="api('hist_parar').then(()=>carrega(true))">Parar</button>`:""}</div>
+        <div class="info" style="margin-top:4px">Pasta de efeitos: <b>${H.sons||0}</b> som(ns) — o botão completa as categorias que faltam.</div>
+      </div>
+    </div>
+    ${H.rodando?`<div class="info" style="margin-top:8px">⏳ fazendo: <b>${esc(H.serie_rodando)}</b></div>`:""}
+    ${H.log.length?`<pre class="log" style="margin-top:8px;max-height:150px">${esc(H.log.join("\n"))}</pre>`:""}
+    <div class="info" style="margin-top:6px">Pasta: ${esc(H.pasta)}</div>
+  </div>`;
+  $("#hisCards").innerHTML = H.series.length ? H.series.map(s => {
+    const u = s.ultimo;
+    return `<div class="card">
+      <div class="linha" style="justify-content:space-between"><b>${esc(s.nome)}</b>
+        <label class="dest"><input type="checkbox" ${s.ligada?"checked":""} onchange="api('hist_serie_cfg',{pasta:'${s.pasta}',ligada:this.checked}).then(()=>carrega(true))"> ligada</label></div>
+      <div class="info">${esc(s.tema)} · <b>${s.n}</b> episódio(s) · ${esc(s.conta||"sem conta")}</div>
+      ${s.personagens.length?`<div class="info" style="opacity:.75">${s.personagens.map(p=>esc(p.nome)).join(" · ")}</div>`:""}
+      ${u?`<div class="chave" style="display:block;margin-top:8px">
+        <b>Ep ${u.n}: ${esc(u.titulo)}</b>
+        ${u.escolha&&u.escolha.pergunta?`<div class="info">${esc(u.escolha.pergunta)} <br><b>A)</b> ${esc(u.escolha.a||"")} · <b>B)</b> ${esc(u.escolha.b||"")}</div>`:""}
+        ${u.resultado?`<div class="info" style="color:var(--lima)">🗳️ ${esc(u.resultado)}</div>`:`<div class="info" style="opacity:.6">votos ainda não contados</div>`}
+        ${u.existe?`<div class="linha" style="margin-top:6px"><button class="mini" onclick="hisVer('${s.pasta}')">Assistir</button>
+          <a class="mini" href="/historia?s=${encodeURIComponent(s.pasta)}&baixar=1" download>Baixar</a>
+          ${u.capa?`<a class="mini" href="/historia?s=${encodeURIComponent(s.pasta)}&a=${encodeURIComponent(u.capa)}" target="_blank">Capa</a>`:""}</div>`:""}
+      </div>`:`<div class="info" style="margin-top:8px;opacity:.7">nenhum episódio ainda</div>`}
+      <div class="chave" style="display:block;margin-top:8px">
+        <b>Perfil do Instagram</b>
+        <small style="display:block;opacity:.7;margin:3px 0 6px">A capa de cada episódio e a foto de perfil, no mesmo padrão — é o que faz a grade parecer uma série.</small>
+        <div class="linha">
+          <button class="mini" onclick="api('hist_capas',{pasta:'${s.pasta}'}).then(()=>carrega(true))" ${H.rodando?"disabled":""}>Refazer capas + arte</button>
+          ${s.perfil?`<a class="mini" href="/historia?s=${encodeURIComponent(s.pasta)}&a=${encodeURIComponent(s.perfil)}" download>Foto de perfil</a>`:""}
+          ${s.grade?`<a class="mini" href="/historia?s=${encodeURIComponent(s.pasta)}&a=${encodeURIComponent(s.grade)}" target="_blank">Ver a grade</a>`:""}
+        </div>
+      </div>
+      ${u && u.escolha && u.escolha.pergunta ? `<div class="chave" style="display:block;margin-top:8px">
+        <b>Como continuar?</b>
+        <small style="display:block;opacity:.7;margin:3px 0 6px">Deixe em "contar os comentários" para apurar sozinho, ou escolha você mesmo.</small>
+        <select id="hc-${s.pasta}" style="width:100%">
+          <option value="">contar os comentários (automático)</option>
+          <option value="a">A venceu — ${esc(u.escolha.a || "")}</option>
+          <option value="b">B venceu — ${esc(u.escolha.b || "")}</option>
+        </select></div>` : ""}
+      <div style="margin-top:8px"><label style="font-size:13px;opacity:.75">O que acontece neste episódio (opcional)</label>
+        <input type="text" id="hr-${s.pasta}" placeholder="ex.: aparece um drone da prefeitura / vi um viral com isso e quero usar" style="width:100%"></div>
+      <div class="linha" style="margin-top:8px"><button class="pri" onclick="hisEp('${s.pasta}')" ${H.rodando?"disabled":""}>Fazer o episódio ${s.n+1}</button>
+        ${u?`<button class="mini" onclick="hisRoteiro('${s.pasta}')">Ver e mexer no roteiro</button>
+        <button class="mini" onclick="api('hist_melhorar',{pasta:'${s.pasta}'}).then(()=>carrega(true))" ${H.rodando?"disabled":""}>✨ Mais edição no ep ${u.n}</button>`:""}</div>
+      <details style="margin-top:10px"><summary style="cursor:pointer;font-size:13px;opacity:.8">Contexto da história e ajustes</summary>
+        <label style="font-size:13px;opacity:.75;display:block;margin-top:6px">Contexto — vale para TODOS os episódios (quem é quem, as regras, o tom, o que não pode acontecer)</label>
+        <textarea id="hx-${s.pasta}" rows="5" style="width:100%" placeholder="ex.: o Marcos tem 34 anos, é advogado e mora sozinho no 12º andar com a gata Paçoca. A luz cai às 18h todo dia. Nunca matar personagem. Tom de suspense, sem sangue.">${esc(s.contexto||"")}</textarea>
+        <div class="linha" style="margin-top:6px">
+          <input type="text" id="he-${s.pasta}" value="${esc(s.emoji||"")}" placeholder="emoji da capa (🧟)" style="width:140px">
+          <button class="mini" onclick="api('hist_serie_cfg',{pasta:'${s.pasta}',contexto:$('#hx-${s.pasta}').value,emoji:$('#he-${s.pasta}').value}).then(()=>carrega(true))">Salvar contexto</button>
+        </div>
+        <div class="linha" style="margin-top:10px;border-top:1px solid rgba(255,255,255,.1);padding-top:8px">
+          <input type="text" id="hd-${s.pasta}" placeholder="digite ${esc(s.pasta)} para apagar" style="flex:1">
+          <button class="mini" style="color:#ff8a7a" onclick="hisApaga('${s.pasta}')">Apagar esta história</button>
+        </div>
+      </details>
+    </div>`;
+  }).join("") : `<div class="card"><div class="info">Nenhuma história ainda — crie a primeira aí em cima.</div></div>`;
+}
+function hisEp(p){
+  const sel = $("#hc-" + p), txt = $("#hr-" + p);
+  api("hist_episodio", {pasta: p, continuar: sel ? sel.value : "", rumo: txt ? txt.value.trim() : ""}).then(() => { if(txt) txt.value = ""; carrega(true); });
+}
+function hisNovo(){
+  const ideia = $("#hisIdeia").value.trim(); if(!ideia) return alert("Escreva a ideia da história.");
+  api("hist_novo", {ideia, conta: $("#hisConta").value.trim()}).then(()=>{ $("#hisIdeia").value=""; carrega(true); });
+}
+function hisApaga(p){
+  const c = $("#hd-" + p);
+  if(!c || c.value.trim() !== p) return alert("Para apagar, digite o nome da pasta igualzinho: " + p);
+  if(!confirm("Apagar a história \"" + p + "\" com todos os episódios? Não dá para desfazer.")) return;
+  api("hist_apagar", {pasta: p, confirma: c.value.trim()}).then(r => { if(r && r.msg) alert(r.msg); carrega(true); });
+}
+function hisRoteiro(p){
+  api("hist_roteiro", {pasta: p}).then(r => {
+    if(!r || !r.ok) return alert((r && r.erro) || "não consegui abrir o roteiro");
+    $("#modal").innerHTML = `<div class="ctop" style="margin-bottom:10px"><b style="flex:1">Roteiro do episódio ${r.n}</b><button class="mini" onclick="fecha()">✕</button></div>
+      <div class="info" style="margin-bottom:6px">Mexa no que quiser (as falas, as cenas, os efeitos). "Refazer este episódio" apaga a voz e o vídeo e monta de novo com o que está aqui; "Usar como base" manda a IA escrever o próximo seguindo este.</div>
+      <textarea id="hrot" rows="18" style="width:100%;font-family:ui-monospace,monospace;font-size:12px">${esc(r.texto)}</textarea>
+      <div class="linha" style="margin-top:8px">
+        <button class="pri" onclick="hisSalvaRot('${p}',${r.n},'refazer')">Refazer este episódio</button>
+        <button class="mini" onclick="api('hist_melhorar',{pasta:'${p}',n:${r.n}}).then(()=>{fecha();carrega(true);})">✨ Pedir mais edição à IA</button>
+        <button class="mini" onclick="hisSalvaRot('${p}',${r.n},'base')">Usar como base do próximo</button>
+      </div>`;
+    $("#fundo").classList.add("on");
+  });
+}
+function hisSalvaRot(p, n, como){
+  api("hist_salva_roteiro", {pasta: p, n, como, texto: $("#hrot").value}).then(r => {
+    if(r && r.ok === false) return alert(r.erro || "não deu");
+    fecha(); carrega(true);
+  });
+}
+function hisVer(s){
+  const se = (E.historias.series || []).find(x => x.pasta === s) || {};
+  $("#modal").innerHTML = `<div class="ctop" style="margin-bottom:10px"><b style="flex:1">${esc(se.nome || s)} — ep ${se.ultimo ? se.ultimo.n : ""}</b><button class="mini" onclick="fecha()">✕</button></div>
+    <video src="/historia?s=${encodeURIComponent(s)}" controls playsinline autoplay></video>`;
+  $("#fundo").classList.add("on");
+}
+
+/* ------------------------------------------------------------ canais */
+const ST_CAN = {aguardando: "esperando você", na_fila: "na fila p/ postar", postando: "postando", postado: "postado", erro: "erro", descartado: "descartado", montando: "montando"};
+function canais(){
+  const C = E.canais; if(!C) return;
+  const canaisIds = Object.keys(C).filter(k => C[k] && typeof C[k] === "object" && "esperando" in C[k]);
+  const esperando = canaisIds.reduce((s, k) => s + (C[k].esperando || 0), 0);
+  $("#bCan").style.display = esperando ? "" : "none"; $("#bCan").textContent = esperando;
+  $("#canSetup").innerHTML = C.segredo ? "" : `<div class="card" style="margin-bottom:14px">
+    <b>Passo 1 (uma vez, vale para os dois canais): a credencial do Google</b>
+    <ol class="info" style="padding-left:18px;line-height:1.6">
+      <li><a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">console.cloud.google.com</a> → criar projeto “DETTO canais”.</li>
+      <li>APIs e serviços → Biblioteca → <b>YouTube Data API v3</b> → Ativar.</li>
+      <li>Tela de consentimento OAuth → Externo → seu e-mail como <b>usuário de teste</b>.</li>
+      <li>Credenciais → Criar → ID do cliente OAuth → <b>App para computador</b> → baixar o JSON.</li>
+      <li>Mande o arquivo aqui: <input type="file" id="canSeg" accept=".json,application/json" style="width:auto"></li>
+    </ol></div>`;
+  const s = $("#canSeg"); if(s) s.onchange = async () => { const t = await s.files[0].text(); await api("canal_segredo", {texto: t}); toast("Credencial salva"); carrega(true); };
+  const box = $("#canCards"), k = JSON.stringify(C);
+  if(box.dataset.k === k) return; box.dataset.k = k;
+  const abertos = {}; box.querySelectorAll("details[data-d]").forEach(d => abertos[d.dataset.d] = d.open);
+  box.innerHTML = canaisIds.map(c => cardCanal(c, C[c])).join("");
+  box.querySelectorAll("details[data-d]").forEach(d => { if(d.dataset.d in abertos) d.open = abertos[d.dataset.d]; });
+}
+function sw(c, campo, on){ return `<label class="sw"><input type="checkbox" ${on ? "checked" : ""} onchange="canCfg('${c}',{${campo}:this.checked})"><span></span></label>`; }
+function cardCanal(c, x){
+  const travado = x.travado ? `<div class="info">⏳ Uma rodada deste canal está TRABALHANDO agora${x.travado_quem ? " (" + esc(x.travado_quem) + ")" : ""} — as outras esperam a vez. Se já passou de uma hora, quase sempre é a VOZ moendo no Chatterbox (abra o VoiceStudio): veja o registro abaixo. <button class="mini" onclick="if(confirm('Encerrar a rodada que está trabalhando agora?'))api('canal_destravar',{c:'${c}'}).then(r=>{toast(r.msg||r.erro||'ok');carrega(true)})">Encerrar a rodada</button></div>` : "";
+  const login = x.login ? `<span class="login">✔ ${esc(x.canal_yt || "YouTube conectado")}</span> <button class="mini" onclick="canLogin('${c}')">Trocar</button>`
+                        : `<span class="login off">✖ YouTube não conectado</span> <button class="mini pri" onclick="canLogin('${c}')" ${E.canais.segredo ? "" : "disabled"}>Conectar</button>`;
+  let esp = travado;
+  if(c === "noticias" || c === "gta6"){
+    esp += `<div class="chave" style="display:block"><b>Pautas</b> <small>Outras notícias quando quiser: cole o LINK de um vídeo, o caminho de um arquivo do PC ou escreva o ASSUNTO (um por linha). Entram no próximo vídeo, antes das do Galo.</small>
+      <textarea id="pauta_${c}" rows="3" placeholder="https://youtube.com/watch?v=…&#10;Cruzeiro demite o técnico"></textarea>
+      <div class="linha"><button class="pri" onclick="canPauta('${c}',false)">Pôr nas pautas</button><button onclick="canPauta('${c}',true)" ${x.rodando ? "disabled" : ""}>Pôr e fazer o vídeo agora</button></div>
+      ${x.pautas.length ? `<div class="lista">${x.pautas.map((l, i) => `<div class="l"><span>${esc(l)}</span><button class="mini" onclick="canTiraPauta('${c}',${i})">✕</button></div>`).join("")}</div>` : ""}
+      ${x.feitas.length ? `<details data-d="pf"><summary>Pautas já feitas</summary><div class="lista">${x.feitas.map(l => `<div class="l"><span>${esc(l)}</span></div>`).join("")}</div></details>` : ""}</div>
+    <details data-d="cfg-${c}"><summary>Ajustes do canal de notícias</summary><div class="campos" style="margin-top:8px">
+      <div><label>Nome do canal (na tela)</label><input type="text" value="${esc(x.nome_canal)}" onchange="canCfg('${c}',{nome_canal:this.value})"></div>
+      <div><label>Duração do vídeo (min)</label><input type="number" min="3" value="${x.duracao}" onchange="canCfg('${c}',{duracao_alvo_min:this.value})"></div>
+      <div><label>Vídeos por dia (máx.)</label><input type="number" min="1" value="${x.max_dia}" onchange="canCfg('${c}',{max_videos_dia:this.value})"></div>
+      <div><label>Shorts por vídeo</label><input type="number" min="0" max="5" value="${x.shorts}" onchange="canCfg('${c}',{shorts:this.value})"></div></div>
+      <div class="chave" style="display:block;margin-top:8px"><b>🎙️ Voz do vídeo</b>
+        <div class="info">${x.vs_ligado
+          ? `<b style="color:var(--verd,#7ddc6b)">VoiceStudio ligado</b> em ${esc(x.vs_url)} — é ele que narra (de graça, no seu PC)`
+          : `VoiceStudio <b style="color:var(--amar)">fechado</b> (${esc(x.vs_url || "127.0.0.1:3900")}) — abra o app para usar a voz boa; agora vai pelo Fish/Chatterbox`}</div>
+        ${x.vs_ligado ? `<div class="campos" style="margin-top:6px">
+          <div><label>Voz (perfil do VoiceStudio)</label><select onchange="canCfg('${c}',{voz_voicestudio:this.value})">
+            <option value="">padrão do VoiceStudio</option>
+            ${x.vs_vozes.map(v => `<option value="${esc(v.id)}" ${x.voz_voicestudio === v.id ? "selected" : ""}>${esc(v.nome)}</option>`).join("")}
+          </select></div>
+          <div><label>Velocidade</label><input type="number" min="0.5" max="2" step="0.05" value="${x.velocidade_voz}" onchange="canCfg('${c}',{velocidade_voz:this.value})"></div>
+        </div>` : ""}
+        <label class="dest"><input type="checkbox" ${x.sem_voicestudio ? "checked" : ""} onchange="canCfg('${c}',{sem_voicestudio:this.checked})"> Não usar o VoiceStudio (ir pelo Fish/Chatterbox)</label>
+      </div>
+      <div class="info">Máscara: ${x.mascaras.length ? x.mascaras.length + " gravações" : "<b style='color:var(--amar)'>nenhuma gravação</b>"} · Voz de referência: ${x.voz ? "✔ minha_voz.wav" : "<b style='color:var(--amar)'>falta voz\\minha_voz.wav</b>"}
+      <div class="linha"><button class="mini" onclick="canAbrir('${c}','mascara')">Abrir pasta da máscara</button><button class="mini" onclick="canAbrir('${c}','voz')">Abrir pasta da voz</button></div></div></details>`;
+  } else {
+    esp = `<div class="chave" style="display:block"><b>Pasta no Drive</b> <small>Uma pasta por vlog, com os clipes dentro. Quando a pasta fica ${20} min sem arquivo novo, o vlog é montado.</small>
+      <div class="info">${x.drive ? "📁 " + esc(x.drive) : "<b style='color:var(--amar)'>Drive não encontrado</b> — Configurações → pasta do Google Drive"}</div>
+      ${x.pastas_drive.length ? `<div class="lista">${x.pastas_drive.map(pd => `<div class="l"><span>${esc(pd.nome)} · ${pd.clipes} clipes</span><span>${esc({novo: "novo", montando: "montando…", pronto: "feito", erro: "erro"}[pd.status] || pd.status)}
+        ${pd.status === "pronto" || pd.status === "erro" ? ` <button class="mini" title="Montar de novo" onclick="canRefazVlog('${c}','${esc(pd.nome).replace(/'/g, "\\'")}')">↻</button>` : ""}</span></div>`).join("")}</div>` : `<div class="info">Nenhuma pasta de vlog ainda.</div>`}</div>
+    <details data-d="cfg-${c}"><summary>Ajustes do canal de vlogs</summary><div class="campos" style="margin-top:8px">
+      <div style="grid-column:1/-1"><label>Estilo da edição</label><input type="text" value="${esc(x.estilo)}" onchange="canCfg('${c}',{estilo:this.value})"></div>
+      <div><label>Duração (min)</label><input type="number" min="3" value="${x.duracao}" onchange="canCfg('${c}',{duracao:this.value})"></div>
+      <div><label>Shorts por vlog</label><input type="number" min="0" max="5" value="${x.shorts}" onchange="canCfg('${c}',{shorts:this.value})"></div>
+      <div style="grid-column:1/-1"><label>Outra pasta do Drive (vazio = Meu Drive\\DETTO\\canal_vlogs)</label><input type="text" value="${esc(x.drive_cfg)}" onchange="canCfg('${c}',{drive:this.value})"></div></div></details>`;
+  }
+  const prs = x.prontos.map((p, i) => {
+    const q = n => "/canal_arquivo?" + new URLSearchParams({c, id: p.id, nome: n});
+    return `<div class="pr"><div class="t">${p.thumb ? `<img src="${q(p.thumb)}" alt="">` : ""}<div style="flex:1;min-width:0"><b>${esc(p.titulo)}</b><div class="info" style="margin:2px 0">${esc(p.criado)} ${p.shorts.length ? "· " + p.shorts.length + " shorts" : ""}</div></div>
+      <span class="st ${esc(p.status)}">${esc(ST_CAN[p.status] || p.status)}</span></div>
+      ${p.erro ? `<div class="info erro">⚠ ${esc(p.erro)}</div>` : ""}
+      <div class="linha" style="margin-top:0">
+        ${p.video ? `<button class="mini" onclick="canVer('${c}',${i},'${esc(p.video)}')">▶ Vídeo</button>` : ""}
+        ${p.shorts.map((sv, si) => `<button class="mini" onclick="canVer('${c}',${i},'${esc(sv)}')">▶ Short ${si + 1}</button>`).join("")}
+        ${p.video ? `<a class="mini" href="${q(p.video) + "&baixar=1"}" style="text-decoration:none"><button class="mini">⬇</button></a>` : ""}
+        ${["aguardando", "erro"].includes(p.status) && p.video ? `<button class="mini pri" onclick="canAprova('${c}',${i})">${p.status === "erro" ? "Tentar de novo" : "Aprovar e postar"}</button>` : ""}
+        ${["aguardando", "erro"].includes(p.status) ? `<button class="mini perigo" onclick="canDescarta('${c}',${i})">Descartar</button>` : ""}
+        ${p.youtube ? `<a href="${esc(p.youtube)}" target="_blank" rel="noopener">YouTube</a>` : ""}
+        ${p.shorts_youtube.map((u, si) => `<a href="${esc(u)}" target="_blank" rel="noopener">short ${si + 1}</a>`).join(" ")}
+      </div></div>`; }).join("");
+  return `<div class="card can">
+    <div class="topo"><span class="titulo">${esc(x.nome)}</span>${x.rodando ? `<span class="st montando">montando…</span><button class="mini" onclick="canParar('${c}')">Parar</button>` : `<button class="mini" onclick="canRodar('${c}')">Rodar agora</button>${c === "noticias" ? `<button class="mini" title="monta um vídeo com voz de computador, sem postar — para ver a edição antes da sua voz e das máscaras" onclick="canTeste('${c}')">Teste</button>` : ""}`}</div>
+    <div class="linha">${login}</div>
+    <div class="chave"><span><b>Ligado</b><small>${c === "noticias" ? "Monta sozinho a cada 2 h (8h às 23h), com as notícias do dia e as suas pautas" : "Olha a pasta do Drive a cada 10 min e monta os vlogs novos"}</small></span>${sw(c, "ligado", x.ligado)}</div>
+    <div class="chave"><span><b>Postar sozinho</b><small>${x.auto_postar ? "Posta assim que fica pronto (vídeo + Shorts a cada 3 h)" : "Desligado: espera você assistir e aprovar aqui embaixo"}</small></span>${sw(c, "auto_postar", x.auto_postar)}</div>
+    ${c === "noticias" ? `
+    <div class="chave"><span><b>Mesclar assunto do dia</b><small>${x.mesclar_assunto ? "Um assunto que já saiu hoje pode voltar como notícia secundária — só com FATO NOVO (nota alta e informação que não estava no vídeo anterior). Nunca vira título nem thumb." : "Desligado: o que já saiu hoje fica de fora do próximo vídeo"}</small></span>${sw(c, "mesclar_assunto", x.mesclar_assunto)}</div>
+    <div class="chave"><span><b>A volta pelo mundo</b><small>${x.campeonatos_ligado ? "Em dia de Libertadores, Champions, Copa do Brasil ou rodada, entram 2 trechos no fim do vídeo" : "Desligado: só notícia do Galo"}</small></span>${sw(c, "campeonatos_ligado", x.campeonatos_ligado)}</div>` : ""}
+    ${esp}
+    <h2 style="margin:16px 0 8px">Vídeos ${x.esperando ? `<span class="st aguardando">${x.esperando} esperando você</span>` : ""}</h2>
+    <div class="fila">${prs || `<div class="vazio">Nenhum vídeo montado ainda.</div>`}</div>
+    ${x.log.length ? `<details data-d="log-${c}"><summary>Registro</summary><pre class="log">${esc(x.log.join("\n"))}</pre></details>` : ""}
+  </div>`;
+}
+async function canCfg(c, d){ await api("canal_cfg", {c, ...d}); toast("Salvo"); editando = false; carrega(true); }
+async function canRodar(c){ await api("canal_rodar", {c}); toast("Começou — acompanhe no registro"); carrega(true); }
+async function canTeste(c){ await api("canal_teste", {c}); toast("Teste começou (voz de computador, não posta) — o vídeo aparece em Esperando você"); carrega(true); }
+async function canParar(c){ if(!confirm("Parar a montagem?")) return; await api("canal_parar", {c}); carrega(true); }
+async function canAbrir(c, qual){ await api("canal_abrir", {c, qual}); toast("Abri a pasta no PC"); }
+async function canPauta(c, agora){ const t = $("#pauta_" + c).value; if(!t.trim()) return toast("Escreva a pauta", true);
+  await api("canal_pautas", {c, texto: t, agora}); editando = false; toast(agora ? "Fazendo o vídeo com as pautas" : "Na lista de pautas"); carrega(true); }
+async function canTiraPauta(c, i){ await api("canal_tira_pauta", {c, linha: E.canais[c].pautas[i]}); carrega(true); }
+async function canRefazVlog(c, nome){ if(!confirm("Montar este vlog de novo?")) return; await api("canal_refazer_vlog", {c, nome}); toast("Vai ser montado na próxima rodada"); carrega(true); }
+function canVer(c, i, nome){ const p = E.canais[c].prontos[i];
+  $("#modal").innerHTML = `<div class="ctop" style="margin-bottom:10px"><b style="flex:1">${esc(p.titulo)}</b><button class="mini" onclick="fecha()">✕</button></div>
+    <video src="/canal_arquivo?${new URLSearchParams({c, id: p.id, nome})}" controls playsinline autoplay></video>`;
+  $("#fundo").classList.add("on"); }
+function canAprova(c, i){ const p = E.canais[c].prontos[i]; editando = true;
+  $("#modal").innerHTML = `<div class="ctop" style="margin-bottom:10px"><b style="flex:1">Postar no YouTube</b><button class="mini" onclick="fecha()">✕</button></div>
+    <label>Título</label><input type="text" id="apTit" value="${esc(p.titulo)}" maxlength="100">
+    <label>Descrição</label><textarea id="apDesc" rows="6">${esc(p.descricao)}</textarea>
+    <label>Tags (separadas por vírgula)</label><input type="text" id="apTags" value="${esc(p.tags.join(", "))}">
+    <div class="info">Vai o vídeo agora${p.shorts.length ? ` e ${p.shorts.length} Short(s), um a cada 3 h` : ""}.</div>
+    <div class="linha"><button class="pri" id="apOk">Postar</button><button onclick="fecha()">Cancelar</button></div>`;
+  $("#fundo").classList.add("on");
+  $("#apOk").onclick = async () => { await api("canal_aprovar", {c, id: p.id, titulo: $("#apTit").value, descricao: $("#apDesc").value, tags: $("#apTags").value});
+    fecha(); toast("Na fila para postar"); carrega(true); }; }
+async function canDescarta(c, i){ const p = E.canais[c].prontos[i]; if(!confirm("Descartar este vídeo (não vai ser postado)?")) return;
+  await api("canal_descartar", {c, id: p.id}); carrega(true); }
+let vigiaCan = null;
+async function canLogin(c){
+  if(!confirm("Vai abrir o navegador NO PC: entre com a conta do Google e escolha o CANAL " + (c === "noticias" ? "DE NOTÍCIAS" : "DE VLOGS") + ", depois Permitir.")) return;
+  await api("canal_login", {c}); toast("Abrindo o login no PC…");
+  clearInterval(vigiaCan);
+  vigiaCan = setInterval(async () => { const r = await api("canal_login_resultado", {c});
+    if(!r.rodando){ clearInterval(vigiaCan); toast(/Ligado ao canal/.test(r.texto) ? "Canal conectado!" : "Login não terminou: " + r.texto.slice(-200), !/Ligado ao canal/.test(r.texto)); carrega(true); }
+    else if(r.url && !$("#canUrl")){ $("#modal").innerHTML = `<div class="ctop"><b style="flex:1">Login do YouTube</b><button class="mini" onclick="fecha()">✕</button></div>
+      <div class="info">Se o navegador não abriu sozinho no PC: <a id="canUrl" href="${esc(r.url)}" target="_blank" rel="noopener">abrir a página de login</a> (no PC).</div>`; $("#fundo").classList.add("on"); }
+  }, 2500);
+}
+/* ------------------------------------------------------------ config */
+function configs(){
+  $("#tt_modo").value = E.tiktok.modo; $("#tt_ia").checked = E.tiktok.ia;
+  $("#ig_app_secret").placeholder = E.instagram.chaves ? "já preenchida" : "";
+  $("#ig_app_id").placeholder = E.instagram.chaves ? "já preenchido" : "";
+  $("#tt_client_key").placeholder = E.tiktok.chaves ? "já preenchido" : "";
+  $("#tt_client_secret").placeholder = E.tiktok.chaves ? "já preenchida" : "";
+  $("#cfgDrive").placeholder = E.drive ? "achei: " + E.drive : "ex.: G:\\Meu Drive";
+  $("#pin").placeholder = E.pin ? "já tem PIN (vazio = não muda)" : "crie um PIN para abrir pelo celular";
+  $("#endCel").innerHTML = `No celular (mesmo Wi-Fi): <b>${esc(E.endereco)}</b>`;
+  const lg = $("#logins"), k = JSON.stringify(E.contas.map(c => [c.k, c.login, c.fila.length, c.studio]));
+  if(lg.dataset.k !== k){
+    lg.dataset.k = k;
+    lg.innerHTML = E.contas.map((c, ci) => c.studio ? `<div class="l"><span>${esc(nomeConta(c))} · ${c.plataforma === "kwai" ? "pelo app (sem login)" : "TikTok Studio (sem login)"}</span><span></span></div>` : `<div class="l"><span>${esc(nomeConta(c))} · ${c.login ? "✔ conectado" : "✖ sem login"}</span>
+      <span><button class="mini ${c.login ? "" : "pri"}" onclick="loga(${ci})">${c.login ? "Refazer" : "Conectar"}</button>${c.fila.length ? "" : ` <button class="mini perigo" title="Tirar a conta" onclick="tiraConta(${ci})">✕</button>`}</span></div>`).join("");
+    $("#tokConta").innerHTML = E.contas.filter(c => c.plataforma === "instagram").map(c => `<option>${esc(c.conta)}</option>`).join("");
+  }
+}
+$("#btSalvarCfg").onclick = async () => {
+  const d = {tt_modo: $("#tt_modo").value, tt_ia: $("#tt_ia").checked};
+  for(const id of ["ig_app_id","ig_app_secret","ig_config_id","tt_client_key","tt_client_secret"]) d[id] = $("#" + id).value;
+  if($("#pin").value) d.pin = $("#pin").value;
+  if($("#cfgDrive").value.trim()) d.drive = $("#cfgDrive").value.trim();
+  await api("global", d);
+  for(const id of ["ig_app_id","ig_app_secret","ig_config_id","tt_client_key","tt_client_secret","pin"]) $("#" + id).value = "";
+  toast("Configurações salvas"); editando = false; carrega(true);
+};
+let vigiaLogin = null;
+async function loga(ci, token){
+  const c = E.contas[ci];
+  if(!token && !confirm(`Vai abrir o navegador NO PC para conectar ${nomeConta(c)}.\nEntre na conta certa antes de autorizar.`)) return;
+  await api("login", {plataforma: c.plataforma, conta: c.conta, token});
+  const box = $("#loginLog"); box.style.display = "block"; box.textContent = "esperando você autorizar no navegador do PC…";
+  clearInterval(vigiaLogin);
+  vigiaLogin = setInterval(async () => {
+    const r = await api("login_resultado");
+    box.textContent = r.texto || "esperando…";
+    // o navegador do PC nem sempre abre sozinho: link para abrir aqui mesmo
+    const m = (r.texto || "").match(/https:\/\/www\.(facebook|tiktok)\.com\/\S+/);
+    if(m && r.rodando && !$("#loginLink")){
+      const a = document.createElement("a"); a.id = "loginLink"; a.href = m[0]; a.target = "_blank"; a.rel = "noopener";
+      a.innerHTML = "<button class='pri' style='margin-top:8px'>Abrir a página de login</button>"; box.after(a);
+    }
+    if(!r.rodando) $("#loginLink")?.remove();
+    if(!r.rodando){ clearInterval(vigiaLogin); carrega(true); }
+  }, 2000);
+}
+$("#btTok").onclick = () => {
+  const conta = $("#tokConta").value, ci = E.contas.findIndex(c => c.plataforma === "instagram" && c.conta === conta);
+  if(ci < 0 || !$("#tokIg").value.trim()) return toast("Escolha a conta e cole o token", true);
+  loga(ci, $("#tokIg").value.trim()); $("#tokIg").value = "";
+};
+async function tiraConta(ci){ const c = E.contas[ci]; if(!confirm("Tirar " + nomeConta(c) + " do painel?")) return; await api("tirar_conta", {k: c.k}); carrega(true); }
+$("#btNova").onclick = async () => { await api("nova_conta", {plataforma: $("#novaPlat").value, conta: $("#novaConta").value}); $("#novaConta").value = ""; toast("Conta adicionada — agora conecte"); carrega(true); };
+$("#btPastaE") && ($("#btPastaE").onclick = () => api("abrir_pasta", {qual: "edicao"}));
+$("#btPastaP").onclick = () => api("abrir_pasta", {qual: "postar"});
+$("#btPastaR").onclick = () => api("abrir_pasta", {qual: "reels"});
+
+$("#btPausa").onclick = async () => { await api("pausar", {pausado: !E.pausado}); carrega(true); };
+$("#btRodada").onclick = async () => { await api("rodada"); await api("atualizar"); toast("Conferindo a fila…"); setTimeout(() => carrega(true), 2500); };
+
+/* ------------------------------------------------------------ edição */
+const ST = {rascunho:"Rascunho", na_fila:"Na fila", editando:"Editando", pronto:"Pronto", erro:"Erro", interrompido:"Interrompido", cancelado:"Cancelado"};
+const gb = b => b > 1e9 ? (b / 1073741824).toFixed(1) + " GB" : Math.max(1, Math.round(b / 1048576)) + " MB";
+const mmss = s => s == null ? "" : (s >= 3600 ? Math.floor(s/3600) + "h" : "") + String(Math.floor(s % 3600 / 60)).padStart(s >= 3600 ? 2 : 1, "0") + "min" + String(s % 60).padStart(2, "0") + "s";
+function nomeSaida(n){
+  if(!/^(horizontal|vertical_)/.test(n)) return n.replace(/\.mp4$/, "");
+  let m, t = n.replace(/\.mp4$/, ""), lances = /_lances$/.test(t); t = t.replace(/_lances$/, "");
+  if(t === "horizontal") t = "Horizontal (YouTube)"; else if(t === "vertical_completo") t = "Vertical completo (9:16)";
+  else if(m = t.match(/^vertical_(\d+)$/)) t = "Corte 9:16 nº " + m[1];
+  return t + (lances ? " · com lances" : "");
+}
+function edicao(){
+  const eds = E.edicao, ativos = eds.filter(e => ["na_fila","editando"].includes(e.status)).length;
+  $("#bEd").style.display = ativos ? "" : "none"; $("#bEd").textContent = ativos;
+  const box = $("#edPara"), k = JSON.stringify(E.contas.map(c => c.k));
+  if(box.dataset.k !== k){ box.dataset.k = k;
+    box.innerHTML = E.contas.map(c => `<label class="dest"><input type="checkbox" value="${esc(c.plataforma + ":" + c.conta)}"> ${esc(nomeConta(c))}</label>`).join(""); }
+  if(!eds.length){ $("#edicoes").innerHTML = `<div class="vazio">Nenhuma edição ainda — mande a gravação aqui em cima</div>`; return; }
+  $("#edicoes").innerHTML = eds.map((e, ei) => {
+    const s = e.saidas;
+    const st = e.status === "editando" ? `Editando · ${esc(e.etapa || "começando")} · ${mmss(e.duracao)}` :
+               e.status === "na_fila" ? `Na fila${e.na_frente ? " (" + e.na_frente + " antes)" : ""}` :
+               e.status === "pronto" ? `Pronto em ${mmss(e.duracao)}` : ST[e.status] || e.status;
+    const op = e.opcoes || {}, ex = e.extra || {};
+    const tags = (e.tipo === "roteiro" || e.tipo === "reels") ? [op.teste && "teste 1 min", op.sem_lances && "sem lances", op.fps == 30 && "30 fps", e.imagens && e.imagens + " imagens", e.roteiro ? "com roteiro" : "roteiro do Gemini"]
+      : e.tipo === "galo" ? [ex.jogo, ex.com_placar && "com placar"] : e.tipo === "react" ? [ex.formato]
+      : e.tipo === "vlog" ? [ex.formato, "~" + ex.duracao + " min", ex.estilo, ex.pasta && ex.pasta.split(/[\\/]/).slice(-1)[0]]
+      : [ex.grafico, ex.partes && "partes de " + ex.partes + " s"];
+    tags.unshift(e.tipo_nome);
+    let corpo = "";
+    if(["editando","erro","interrompido"].includes(e.status) && e.registro.length)
+      corpo += `<details data-d="ed-${esc(e.id)}-log" ${e.status === "editando" ? "open" : ""}><summary>Registro</summary><pre class="log" style="max-height:220px;margin-top:6px">${esc(e.registro.join("\n"))}</pre></details>`;
+    if(e.erro) corpo += `<div class="info erro">⚠ ${esc(e.erro)}</div>`;
+    if(s && s.videos.length) corpo += `<div class="saidas">${s.videos.map((v, vi) => `<div class="saida">
+        <div><b>${esc(nomeSaida(v.nome))}</b><br><small>${gb(v.tam)} · ${esc(v.quando)}</small></div>
+        <div class="acoes" style="display:flex;gap:4px">
+          <button class="mini" title="Ver" onclick="verEd(${ei},${vi})">▶</button>
+          <a href="/ed_arquivo?${new URLSearchParams({id: e.id, rel: v.rel, baixar: 1})}"><button class="mini" title="Baixar">⬇</button></a>
+          <button class="mini pri" onclick="postaEd(${ei},${vi})">Postar</button>
+        </div></div>`).join("")}</div>`;
+    if(s && s.imagens.length) corpo += `<div class="imgs">${s.imagens.map(i => `<a href="/ed_arquivo?${new URLSearchParams({id: e.id, rel: i.rel})}" target="_blank" rel="noopener">
+        <img loading="lazy" src="/ed_arquivo?${new URLSearchParams({id: e.id, rel: i.rel})}&v=${e.status}"><span>${esc(i.nome)}</span></a>`).join("")}</div>`;
+    if(s && s.textos["conferencia.txt"]) corpo += `<details data-d="ed-${esc(e.id)}-conf"><summary>Conferência: ${esc(s.textos["conferencia.txt"].split("\n")[0])}</summary><pre class="log" style="margin-top:6px">${esc(s.textos["conferencia.txt"])}</pre></details>`;
+    if(s && s.textos["ajustes.txt"]) corpo += `<details data-d="ed-${esc(e.id)}-aj"><summary>Roteiro × o que você falou</summary><pre class="log" style="margin-top:6px">${esc(s.textos["ajustes.txt"])}</pre></details>`;
+    const bts = [];
+    if(e.status === "editando" || e.status === "na_fila") bts.push(`<button class="perigo" onclick="edAcao('ed_cancelar',${ei},'Cancelar esta edição?')">Cancelar</button>`);
+    if(e.status === "rascunho") bts.push(`<button class="pri" onclick="edAcao('ed_iniciar',${ei})">Começar</button>`);
+    if(["pronto","erro","interrompido","cancelado"].includes(e.status) && (e.tipo === "roteiro" || e.tipo === "reels")) bts.push(`<button onclick="ajusta(${ei})">Ajustar roteiro e refazer</button>`);
+    if(["pronto","erro","interrompido","cancelado"].includes(e.status) && e.tipo === "galo") bts.push(`<button onclick="regestos(${ei})" title="Apaga os gestos lidos e lê de novo">Refazer lendo os gestos de novo</button>`);
+    if(e.status === "pronto" && !["roteiro", "vlog"].includes(e.tipo)) bts.push(`<button onclick="edAcao('ed_iniciar',${ei})">Refazer</button>`);
+    if(["pronto","erro","interrompido","cancelado"].includes(e.tipo === "vlog" ? e.status : "") ) {
+      bts.push(`<button onclick="refazVlog(${ei}, true)" title="Mesmo roteiro (plano.json, se você ajustou)">Refazer (mesmo roteiro)</button>`);
+      bts.push(`<button onclick="refazVlog(${ei}, false)" title="O diretor monta tudo de novo">Refazer do zero</button>`);
+    }
+    if(["erro","interrompido","cancelado"].includes(e.status)) bts.push(`<button class="pri" onclick="edAcao('ed_iniciar',${ei})">Tentar de novo</button>`);
+    if(e.status !== "editando") bts.push(`<button class="perigo" onclick="edAcao('ed_apagar',${ei},'Apagar esta edição e todos os arquivos dela (${gb(e.tam)})?')">Apagar (${gb(e.tam)})</button>`);
+    return `<div class="card ed">
+      <div class="topo"><div class="titulo">${esc(e.titulo)}<div class="info" style="margin:2px 0 0">${esc(e.criado)} · ${tags.filter(Boolean).map(esc).join(" · ")}</div></div>
+      <span class="st ${e.status}">${st}</span></div>
+      ${corpo}
+      <div class="linha">${bts.join("")}</div></div>`;
+  }).join("");
+}
+async function refazVlog(ei, mesmo){ const e = E.edicao[ei]; await api("ed_refazer", {id: e.id, plano: mesmo}); toast("Na fila"); carrega(true); }
+async function regestos(ei){ const e = E.edicao[ei]; if(!confirm("Ler seus gestos de novo e refazer?")) return; await api("ed_refazer", {id: e.id, refazer_gestos: true}); carrega(true); }
+async function edAcao(acao, ei, pergunta){ const e = E.edicao[ei]; if(pergunta && !confirm(pergunta)) return; await api(acao, {id: e.id}); carrega(true); }
+function verEd(ei, vi){
+  const e = E.edicao[ei], v = e.saidas.videos[vi];
+  $("#modal").innerHTML = `<div class="ctop" style="margin-bottom:10px"><b style="flex:1">${esc(nomeSaida(v.nome))}</b><button class="mini" onclick="fecha()">✕</button></div>
+    <video src="/ed_arquivo?${new URLSearchParams({id: e.id, rel: v.rel})}" controls playsinline autoplay></video>`;
+  $("#fundo").classList.add("on");
+}
+function postaEd(ei, vi){
+  const e = E.edicao[ei], v = e.saidas.videos[vi], vert = e.tipo === "reels" ? true : e.tipo === "roteiro" ? /vertical/.test(v.nome) : !(e.tipo === "react" && (e.extra || {}).formato !== "vertical");
+  $("#modal").innerHTML = `<div class="ctop" style="margin-bottom:10px"><b style="flex:1">Postar: ${esc(nomeSaida(v.nome))}</b><button class="mini" onclick="fecha()">✕</button></div>
+    ${vert ? "" : `<div class="info alerta">Este é o horizontal (16:9). Para Reels/TikTok o normal é o vertical.</div>`}
+    <div class="info">Mandar para a fila de:</div>
+    <div class="destinos" id="pPara">${E.contas.map(c => `<label class="dest"><input type="checkbox" value="${esc(c.plataforma + ":" + c.conta)}" ${vert && c.conta === "detto.galo" ? "checked" : ""}> ${esc(nomeConta(c))}</label>`).join("")}</div>
+    <label>Legenda + tags</label><textarea id="pLeg" rows="5" placeholder="Legenda do post…"></textarea>
+    <div class="linha" style="justify-content:flex-end"><button onclick="fecha()">Cancelar</button><button class="pri" id="pOk">Pôr na fila</button></div>`;
+  $("#fundo").classList.add("on");
+  $("#pOk").onclick = async () => {
+    const para = [...document.querySelectorAll("#pPara input:checked")].map(x => x.value);
+    if(!para.length) return toast("Escolha as contas", true);
+    await api("ed_postar", {id: e.id, rel: v.rel, para, legenda: $("#pLeg").value});
+    toast("Na fila de postagem"); fecha(); carrega(true);
+  };
+}
+async function ajusta(ei){
+  const e = E.edicao[ei], r = await api("ed_roteiro", {id: e.id}), op = e.opcoes || {};
+  $("#modal").innerHTML = `<div class="ctop" style="margin-bottom:10px"><b style="flex:1">Ajustar e refazer: ${esc(e.titulo)}</b><button class="mini" onclick="fecha()">✕</button></div>
+    <div class="info">${r.de === "job" ? "Este é o roteiro que a edição usou (já alinhado). Mude o que quiser:" : "Roteiro:"} a transcrição e o rosto são reaproveitados, só refaz o resto.</div>
+    <textarea id="aTxt" rows="16" style="font:13px/1.4 Consolas,monospace">${esc(r.texto)}</textarea>
+    <div class="opcoes">
+      <label class="dest"><input type="checkbox" id="aTeste" ${op.teste ? "checked" : ""}> Teste (1 min)</label>
+      <label class="dest"><input type="checkbox" id="aLances" ${op.sem_lances ? "checked" : ""}> Sem lances</label>
+      <label class="dest"><input type="checkbox" id="aThumbs" ${op.sem_thumbs ? "checked" : ""}> Sem thumbs</label>
+      <label class="dest"><input type="checkbox" id="aVert" ${op.sem_verticais ? "checked" : ""}> Sem cortes 9:16</label>
+    </div>
+    <div class="linha" style="justify-content:flex-end"><button onclick="fecha()">Cancelar</button><button class="pri" id="aOk">Salvar e refazer</button></div>`;
+  $("#fundo").classList.add("on");
+  $("#aOk").onclick = async () => {
+    await api("ed_refazer", {id: e.id, texto: $("#aTxt").value, opcoes: {teste: $("#aTeste").checked, sem_lances: $("#aLances").checked, sem_thumbs: $("#aThumbs").checked, sem_verticais: $("#aVert").checked}});
+    toast("Na fila para refazer"); fecha(); carrega(true);
+  };
+}
+
+/* nova edição: tipo, arquivos escolhidos */
+const TIPOS = {
+  roteiro: {campos: [["video", "A gravação"]], info: "Sua gravação lendo o roteiro → horizontal (YouTube), vertical completo e cortes 9:16, com gráficos, cards, efeitos, lances e thumbs."},
+  reels: {campos: [["video", "A gravação (lendo o roteiro do reels)"]], info: "O vídeo INTEIRO vira um reels 9:16, com o gancho escrito na tela nos 3 primeiros segundos, legendas, gráficos e efeitos. Sem horizontal, sem cortes, sem thumb — sai um reels pronto para a fila."},
+  galo: {campos: [["video", "A gravação no estádio"]], info: "Os jogadores do Galo entram ao seu lado e você bate/passa/joga longe — o sistema lê seus gestos. Sai em 9:16, sem música (você põe no app)."},
+  react: {campos: [["video", "Sua câmera"], ["tela", "A gravação da tela (com as pausas)"], ["original", "O vídeo original (o que você reagiu)"]], info: "Layout DETTO REAGE: o vídeo na moldura e você no quadro; nas pausas, zoom em você em tela cheia. Sincroniza pelo áudio (bater palma no começo ajuda)."},
+  vertical: {campos: [["video", "O vídeo já editado (16:9)"]], info: "Vira 9:16 com recorte no seu rosto; quando tem gráfico ou foto grande, ele aparece grande e você no canto."},
+  vlog: {campos: [], info: "Os clipes do dia (pasta do Google Drive ou enviados aqui) viram o vlog: cor certa, cortes sem silêncio, gancho, transições, textos, efeitos sonoros e trilha por clima."},
+};
+const edArq = {roteiro: null, imgs: []};
+const tipoAtual = () => (document.querySelector("input[name=edTipo]:checked") || {}).value || "roteiro";
+function montaTipo(){
+  const t = tipoAtual(), T = TIPOS[t];
+  document.querySelectorAll("#edTipos .dest").forEach(l => l.classList.toggle("sel", l.querySelector("input").checked));
+  $("#edTipoInfo").textContent = T.info;
+  document.querySelectorAll("[data-so]").forEach(e => e.style.display = e.dataset.so === t ? "" : "none");
+  $("#edCampos").innerHTML = T.campos.map(([c, rot]) => `<div style="margin-top:10px"><label>${esc(rot)}</label>
+    <label class="mini-drop" id="drop-${c}"><input type="file" accept="video/*,.mov,.mp4" hidden><span>Arraste ou toque para escolher</span></label>
+    <input type="text" id="cam-${c}" placeholder="…ou o caminho no PC (ex.: E:\\Gravações\\video.MOV) — não copia, é mais rápido" style="margin-top:6px"></div>`).join("");
+  for(const [c] of T.campos){
+    const d = $("#drop-" + c), i = d.querySelector("input");
+    ["dragenter","dragover"].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.add("on"); }));
+    ["dragleave","drop"].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.remove("on"); }));
+    const pegaV = fs => { const f = fs.find(f => /\.(mp4|mov|m4v|mkv|webm)$/i.test(f.name)); if(!f) return toast("Escolha um vídeo", true);
+      edArq[c] = f; d.classList.add("ok"); d.querySelector("span").textContent = "🎬 " + f.name + " (" + gb(f.size) + ")";
+      if(c === "video" && !$("#edTitulo").value) $("#edTitulo").value = f.name.replace(/\.[^.]+$/, ""); };
+    d.addEventListener("drop", e => pegaV([...e.dataTransfer.files]));
+    i.onchange = e => { pegaV([...e.target.files]); e.target.value = ""; };
+    if(edArq[c]){ d.classList.add("ok"); d.querySelector("span").textContent = "🎬 " + edArq[c].name + " (" + gb(edArq[c].size) + ")"; }
+  }
+  localStorageSet("edTipo", t);
+}
+document.querySelectorAll("input[name=edTipo]").forEach(r => r.onchange = () => { montaTipo(); if(tipoAtual() === "vlog") carregaDrive(); });
+const vlClipes = [];
+async function carregaDrive(){
+  try{
+    const r = await api("ed_drive", {});
+    const sel = $("#vlDrive"), v = sel.value;
+    sel.innerHTML = `<option value="">— escolha a pasta —</option>` + r.pastas.map(p => `<option value="${esc(p.pasta)}">${esc(p.nome)} (${p.n} vídeos)</option>`).join("");
+    sel.value = v;
+    $("#vlDriveInfo").textContent = r.raiz ? `Google Drive: ${r.base || r.raiz}` : "Google Drive para computador não encontrado — instale e/ou informe a pasta em Configurações.";
+  }catch(e){}
+}
+$("#btDrive").onclick = carregaDrive;
+if(tipoAtual() === "vlog") carregaDrive();
+{ const d = $("#vlDrop"), i = $("#vlClipes");
+  ["dragenter","dragover"].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.add("on"); }));
+  ["dragleave","drop"].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.remove("on"); }));
+  const pegaC = fs => { fs.filter(f => /\.(mp4|mov|m4v|mkv)$/i.test(f.name)).forEach(f => vlClipes.push(f));
+    d.classList.toggle("ok", vlClipes.length > 0); d.querySelector("span").textContent = vlClipes.length ? `🎬 ${vlClipes.length} clipes (${gb(vlClipes.reduce((a, f) => a + f.size, 0))})` : "…ou arraste os clipes aqui (vários)"; };
+  d.addEventListener("drop", e => pegaC([...e.dataTransfer.files]));
+  i.onchange = e => { pegaC([...e.target.files]); e.target.value = ""; };
+}
+{ const t = localStorageGet("edTipo"); const r = t && document.querySelector(`input[name=edTipo][value="${t}"]`); if(r) r.checked = true; }
+montaTipo();
+
+function liga(dropSel, inputSel, tipo){
+  const d = $(dropSel), i = $(inputSel);
+  ["dragenter","dragover"].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.add("on"); }));
+  ["dragleave","drop"].forEach(ev => d.addEventListener(ev, e => { e.preventDefault(); d.classList.remove("on"); }));
+  d.addEventListener("drop", e => pega(tipo, [...e.dataTransfer.files]));
+  i.onchange = e => { pega(tipo, [...e.target.files]); e.target.value = ""; };
+}
+function pega(tipo, fs){
+  if(tipo === "roteiro"){ const f = fs.find(f => /\.(txt|md|docx)$/i.test(f.name)); if(!f) return toast("Roteiro em .txt ou .docx", true); edArq.roteiro = f; }
+  if(tipo === "imgs") edArq.imgs = edArq.imgs.concat(fs.filter(f => /\.(jpe?g|png|webp)$/i.test(f.name)));
+  mostraArq();
+}
+function mostraArq(){
+  const r = $("#edDropR"), im = $("#edDropI");
+  r.classList.toggle("ok", !!edArq.roteiro); r.querySelector("span").textContent = edArq.roteiro ? "📄 " + edArq.roteiro.name : "Arraste o roteiro (.txt ou .docx)";
+  im.classList.toggle("ok", edArq.imgs.length > 0); im.querySelector("span").textContent = edArq.imgs.length ? "🖼 " + edArq.imgs.map(f => f.name).join(", ") : "Arraste as imagens";
+}
+liga("#edDropR", "#edRoteiro", "roteiro"); liga("#edDropI", "#edImgs", "imgs");
+
+function sobe(url, arquivo, rotulo){
+  return new Promise((ok, falha) => {
+    const x = new XMLHttpRequest(); x.open("POST", url);
+    x.upload.onprogress = e => { if(e.lengthComputable) $("#edProg").textContent = rotulo + " " + Math.round(e.loaded / e.total * 100) + "%"; };
+    x.onload = () => { if(x.status === 200) ok(); else { let j = {}; try { j = JSON.parse(x.responseText) } catch(e){} falha(new Error(j.erro || x.status)); } };
+    x.onerror = () => falha(new Error("caiu a conexão")); x.send(arquivo);
+  });
+}
+$("#btEditar").onclick = async () => {
+  const t = tipoAtual(), T = TIPOS[t];
+  for(const [c, rot] of T.campos) if(!edArq[c] && !$("#cam-" + c).value.trim()) return toast("Falta: " + rot.toLowerCase(), true);
+  const pastaVlog = t === "vlog" ? ($("#vlPasta").value.trim() || $("#vlDrive").value) : "";
+  if(t === "vlog" && !pastaVlog && !vlClipes.length) return toast("Escolha a pasta do Drive ou envie os clipes", true);
+  const bt = $("#btEditar"); bt.disabled = true;
+  try{
+    const opcoes = {teste: $("#opTeste").checked, sem_lances: $("#opSemLances").checked, sem_thumbs: $("#opSemThumbs").checked,
+      sem_verticais: $("#opSemVert").checked, fps: $("#opFps").value, sfx: $("#opSfx").value,
+      postar: [...document.querySelectorAll("#edPara input:checked")].map(x => x.value)};
+    const extra = {jogo: $("#exJogo").value, com_placar: $("#exPlacar").checked, faixa: $("#exFaixa").value, formato: $("#exFormato").value,
+      grafico: $("#exGrafico").value, partes: $("#exPartes").value};
+    if(t === "vlog") Object.assign(extra, {pasta: pastaVlog, estilo: $("#vlEstilo").value, duracao: $("#vlDur").value, formato: $("#vlFormato").value,
+      legendas: $("#vlLeg").checked});
+    const {id} = await api("ed_novo", {tipo: t, titulo: $("#edTitulo").value, opcoes, extra,
+      roteiro_texto: t === "roteiro" && !edArq.roteiro ? $("#edRoteiroTxt").value : ""});
+    const q = (tipo, nome) => "/api/ed_enviar?" + new URLSearchParams({id, tipo, nome});
+    for(const [c, rot] of T.campos){
+      if(edArq[c]) await sobe(q(c, edArq[c].name), edArq[c], "Enviando " + rot.toLowerCase());
+      else await api("ed_caminho", {id, campo: c, caminho: $("#cam-" + c).value.trim()});
+    }
+    if(t === "vlog" && !pastaVlog){
+      for(const [n, f] of vlClipes.entries()) await sobe(q("clipe", f.name), f, `Clipe ${n + 1}/${vlClipes.length}`);
+      vlClipes.length = 0;
+    }
+    if(t === "roteiro"){
+      if(edArq.roteiro) await sobe(q("roteiro", edArq.roteiro.name), edArq.roteiro, "Enviando o roteiro");
+      for(const [n, f] of edArq.imgs.entries()) await sobe(q("imagem", f.name), f, `Imagem ${n + 1}/${edArq.imgs.length}`);
+    }
+    await api("ed_iniciar", {id});
+    toast("Edição na fila!"); $("#edProg").textContent = "";
+    for(const k of Object.keys(edArq)) edArq[k] = Array.isArray(edArq[k]) ? [] : null;
+    for(const s of ["#edTitulo","#edRoteiroTxt","#exJogo","#exFaixa"]) $(s).value = "";
+    mostraArq(); montaTipo();
+    editando = false; carrega(true);
+  }catch(e){ $("#edProg").textContent = "✖ " + e.message; toast("Não deu: " + e.message, true); }
+  bt.disabled = false;
+};
+
+carrega(true);
+setInterval(carrega, 8000);
+</script>
+</body>
+</html>
