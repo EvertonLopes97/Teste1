@@ -468,6 +468,7 @@ NATURAIS (frase completa, nunca cortar no meio), entre {cfg.get("trecho_min_s", 
 {"Ignore o resto." if assunto else "Ignore trechos sobre outros times."}
 A transcrição pode estar em OUTRA LÍNGUA (canal gringo). Nesse caso entenda normalmente, mas escreva a "manchete" e
 o "resumo" SEMPRE EM PORTUGUÊS DO BRASIL.
+{regra_nota}
 Responda SÓ JSON:
 {{"trechos": [{{"ini": <s>, "fim": <s>, "manchete": "<MANCHETE CURTA EM MAIÚSCULAS, até 60 letras>", "resumo": "<1 frase>",
  "programa": "<de onde é a fala, se der para saber: ex. Globo Esporte MG, Jogo Aberto, Rádio Itatiaia, coletiva; senão vazio>",
@@ -1328,7 +1329,7 @@ def peca_fala(base, wav, masc, texto, pasta, idx, saida, logo):
     cx, cy, cw, ch = CANTO
     legs = legendas(texto, da - 0.25, pasta, idx)
     ins = ["-loop", "1", "-i", str(base), "-i", str(wav)]
-    if masc and not cheia:
+    if masc:
         ins += ["-stream_loop", "-1", "-i", str(masc)]
         f = f"[2:v]{cor_sdr(masc)}{cobre(w, h)},setsar=1[m];[0:v][m]overlay={x}:{y}[b0];"
     else:
@@ -1668,7 +1669,7 @@ def short(cfg, pasta, fala, trecho, tmp, idx, saida):
     ins = ["-ss", f"{ini:.2f}", "-t", f"{fim - ini:.2f}", "-i", str(clip), "-loop", "1", "-i", str(cab)]
     f = (f"[0:v]{cor_sdr(clip)}split[v1][v2];[v1]scale=270:480:force_original_aspect_ratio=increase,crop=270:480,boxblur=8:2,scale={VW}:{VH},eq=brightness=-0.25[bg];"
          f"[v2]scale={VW}:-2[fg];[bg][fg]overlay=0:(H-h)/2-60[b0];")
-    if masc and not cheia:
+    if masc:
         ins += ["-stream_loop", "-1", "-i", str(masc)]
         f += f"[2:v]{cor_sdr(masc)}{cobre(380, 380)}[m];[b0][m]overlay=(W-w)/2:1330[b1];"
     else:
@@ -1833,7 +1834,6 @@ GTA6 = {
     "outras_fontes": [],
     "fora": ["ao vivo", "live", "podcast completo", "sorteio", "gta 5 rp", "gta rp", "roleplay"],
     "max_horas": 48,
-    "max_videos_rodada": 8,
     "trecho_min_s": 15,
     "trecho_max_s": 120,      # pedaço de gameplay/notícia; o comentário dele entra entre os trechos
     "max_trechos_video": 3,

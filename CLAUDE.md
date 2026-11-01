@@ -41,6 +41,21 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
 - CANAL SEM MÁSCARA/VOZ NÃO RODA MAIS À TOA (29/out): sem gravação em `mascara\` ou sem `voz\minha_voz.wav` a
   rodada ia até o fim e terminava "(ok)" sem entregar nada. Agora ela PARA no começo dizendo o que falta e onde
   subir no Drive. (`DETTO_VOZ_FALSA=1` pula a conferência, para testes.)
+- `NameError: name 'cheia' is not defined` DERRUBOU O CANAL (01/nov): a tela cheia (30/out) deixou `not cheia`
+  em DUAS funções que não têm esse parâmetro (`peca_fala`, a SUA narração, e o short vertical). O arquivo
+  importava normalmente, então o `teste_rapido.py` passava — o erro só estourava quando aquela função rodava,
+  **depois de 24 min de transcrição**, e o registro terminava em Traceback. Só o pyflakes do GitHub pegava.
+  Agora `teste_rapido.py` tem `confere_nomes()` (pyflakes dentro do teste: "undefined name" e chave de
+  dicionário repetida), então isso não sai mais do PC. `pyflakes` entrou no requirements.txt.
+  Junto: `regra_nota` era montada e NÃO entrava no prompt (a regra medida dos títulos não valia de nada) e o
+  preset gta6 tinha `max_videos_rodada` duas vezes (8 e 4).
+- FISH 400 NO SHOP E NAS HISTÓRIAS (01/nov): esses dois mandavam `FISH_VOZ` (variável que não existe, string
+  vazia) como `reference_id` → `400 reference_id must be 1..=128 chars` em TODA fala, caíam na voz neural e o
+  registro só dizia "o Fish falhou". Agora `voz.fish_voz_dele()` procura a sua `voz\minha_voz.wav`
+  (canal_galo → canal_gta6 → `<DETTO>\voz`) e clona uma vez, igual ao canal. `FISH_VOZ` posto na mão continua
+  valendo.
+- PAINEL DEMORANDO PARA ABRIR (01/nov): o `main()` preparava as pastas em `E:\` e o Drive ANTES de abrir a
+  porta, então o navegador subia em branco por segundos. Agora a porta abre primeiro e o resto vem depois.
 - BOTÃO "RODAR AGORA" QUE NÃO IA E CANAL QUE PAROU DE RODAR SOZINHO (01/nov): o `roda_agora` disparava o
   canal.py, gravava `ultimo=agora` e devolvia "ok" na hora. Se o filho morresse em 1 s (trava presa, sem
   máscara/voz, SemVoz, erro de código), o botão dizia que começou, nada acontecia **e o `ultimo` já estava

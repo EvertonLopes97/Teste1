@@ -321,6 +321,26 @@ def fish_modelo(ref, pasta, chave, log=print):
     return mid
 
 
+def fish_voz_dele(chave, log=print):
+    """o id da voz CLONADA dele no Fish, para quem não tem uma pasta de canal (shop e histórias).
+
+    Antes esses dois mandavam `FISH_VOZ` (vazio) como reference_id e o Fish devolvia
+    `400 reference_id must be 1..=128 chars of [A-Za-z0-9_-]` em TODA fala — o shop e as histórias nunca
+    saíam na voz dele, caíam na neural e ninguém sabia por quê (01/11). Agora procuramos a MESMA gravação de
+    referência que o canal de notícias usa e clonamos uma vez; o id fica guardado ao lado dela.
+    """
+    posto = (os.environ.get("FISH_VOZ") or "").strip()
+    if posto:
+        return posto
+    base = Path(os.environ.get("DETTO_MIDIA") or r"E:\DETTO")
+    for p in (base / "canal_galo" / "voz", base / "canal_gta6" / "voz", base / "voz"):
+        ref = p / "minha_voz.wav"
+        if ref.exists():
+            return fish_modelo(ref, p, chave, log)
+    raise RuntimeError("não achei a sua gravação de referência (voz\\minha_voz.wav) para clonar no Fish: "
+                       "suba o áudio em Meu Drive\\DETTO\\canal_noticias\\voz")
+
+
 def fish_fala(texto, saida, mid, chave, modelo="s2.1-pro-free", clima=""):
     """uma fala pelo Fish Audio → wav 24 kHz mono.
     O Fish aceita a EMOÇÃO escrita no texto (`[excited] frase...`, sintaxe do S2.1), então o clima da fala vira

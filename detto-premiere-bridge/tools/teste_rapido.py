@@ -15,6 +15,7 @@ VOLTA para a última versão boa se falhar; o GitHub Actions roda a cada push.
 """
 import ast
 import importlib.util
+import os
 import sys
 import traceback
 from pathlib import Path
@@ -124,13 +125,38 @@ def importa_tudo():
     return problemas, ok, pulados
 
 
+def confere_nomes():
+    """NOME QUE NÃO EXISTE DENTRO DE UMA FUNÇÃO (pyflakes).
+
+    O import só prova que o arquivo CARREGA; um `cheia` que não existe dentro de uma função só estoura quando
+    aquela função roda — foi assim que o canal de notícias morreu com `NameError: name 'cheia' is not defined`
+    DEPOIS de transcrever 1.429 s de vídeo (01/11). O CI do GitHub pegava; aqui no PC, não. Agora pega.
+    """
+    try:
+        from pyflakes import api, reporter   # noqa: PLC0415
+    except ImportError:
+        print("  (pyflakes não está instalado: pip install pyflakes — o GitHub confere, aqui não deu)")
+        return []
+    import io  # noqa: PLC0415
+    saida, erros = io.StringIO(), io.StringIO()
+    api.checkRecursive([str(PONTE / "tools")], reporter.Reporter(saida, erros))
+    graves = []
+    for l in saida.getvalue().splitlines():
+        # só o que QUEBRA de verdade; "importado e não usado" e companhia não param uma rodada
+        if "undefined name" in l or "repeated with different values" in l or "syntax" in l.lower():
+            graves.append(l.replace(str(PONTE) + os.sep, "").replace(str(PONTE) + "/", ""))
+    return graves
+
+
 def main():
     print("TESTE RÁPIDO DETTO")
     p1, ok, pulados = importa_tudo()
     print(f"  importei {ok} arquivo(s), pulei {pulados} por biblioteca de fora que falta neste computador")
     p2 = confere_contrato()
     print(f"  contrato entre os arquivos: {len(CONTRATO)} arquivo(s) conferido(s)")
-    todos = p1 + p2
+    p3 = confere_nomes()
+    print(f"  nomes dentro das funções: {len(p3)} problema(s)")
+    todos = p1 + p2 + p3
     if not todos:
         print("\nTUDO SÃO ✔")
         return 0

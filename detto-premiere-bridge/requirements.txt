@@ -14,3 +14,5 @@ google-auth-oauthlib
 # rembg            (recorte de fotos com fundo — Galo)
 # chatterbox-tts   (voz clonada — canal de notícias; baixa ~3 GB na 1ª vez)
 edge-tts>=7.0.0   # voz neural pt-BR de graça (degrau antes do Chatterbox)
+pyflakes          # o teste_rapido.py usa para achar nome que não existe DENTRO de uma função
+                  # (um `cheia` inexistente derrubou o canal depois de 24 min de transcrição)

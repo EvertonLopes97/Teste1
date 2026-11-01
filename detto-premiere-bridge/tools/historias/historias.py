@@ -661,7 +661,7 @@ def narra(texto, saida, cfg, log=log):
         if chave:
             try:
                 log("voz: Fish Audio (o VoiceStudio está fechado ou sem voz cadastrada)")
-                V.fish_fala(falado, saida, os.environ.get("FISH_VOZ", ""), chave)
+                V.fish_fala(falado, saida, V.fish_voz_dele(chave, log), chave)
                 feito = True
             except Exception as e:
                 log(f"voz: o Fish falhou ({str(e)[:140]})")

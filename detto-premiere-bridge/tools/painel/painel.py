@@ -290,7 +290,7 @@ SUBIU_EM = time.time()
 # Versão do PYTHON que está rodando. O painel.html é lido do disco a cada acesso, então depois de um `git pull` o
 # navegador recebe a tela NOVA enquanto o Python continua o VELHO (foi o que aconteceu: a aba Histórias apareceu
 # vazia e o Instagram continuou no caminho antigo). A tela compara esta versão com a dela e avisa.
-PAINEL_VERSAO = "2026-10-29d"
+PAINEL_VERSAO = "2026-11-01a"
 
 
 def codigo_novo():
@@ -1330,15 +1330,17 @@ def main():
     if os.name == "nt" and sys.executable.lower().endswith("pythonw.exe"):
         # sem janela: o print iria para lugar nenhum
         sys.stdout = sys.stderr = open(Path(a.pasta) / "painel.log", "a", encoding="utf-8", buffering=1)
-    cfg()
-    REELS.mkdir(parents=True, exist_ok=True)
-    EDI.ED.mkdir(parents=True, exist_ok=True)
+    # A PORTA PRIMEIRO: preparar as pastas em E:\ (e o Drive) levava segundos e o navegador abria em branco
+    # ("demorando para iniciar o painel", 01/11). Agora ele responde na hora e o resto é preparado em seguida.
     try:
         srv = hserver.ThreadingHTTPServer(("127.0.0.1" if a.so_pc else "0.0.0.0", PORTA), Painel)
     except OSError:
         print(f"O painel já está aberto (porta {PORTA}). Abrindo no navegador.")
         webbrowser.open(f"http://localhost:{PORTA}/")
         return
+    cfg()
+    REELS.mkdir(parents=True, exist_ok=True)
+    EDI.ED.mkdir(parents=True, exist_ok=True)
     srv.daemon_threads = True
     if not a.sem_postar:
         threading.Thread(target=laco_postagem, daemon=True).start()
