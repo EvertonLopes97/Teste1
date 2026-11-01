@@ -41,6 +41,17 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
 - CANAL SEM MÁSCARA/VOZ NÃO RODA MAIS À TOA (29/out): sem gravação em `mascara\` ou sem `voz\minha_voz.wav` a
   rodada ia até o fim e terminava "(ok)" sem entregar nada. Agora ela PARA no começo dizendo o que falta e onde
   subir no Drive. (`DETTO_VOZ_FALSA=1` pula a conferência, para testes.)
+- BOTÃO "RODAR AGORA" QUE NÃO IA E CANAL QUE PAROU DE RODAR SOZINHO (01/nov): o `roda_agora` disparava o
+  canal.py, gravava `ultimo=agora` e devolvia "ok" na hora. Se o filho morresse em 1 s (trava presa, sem
+  máscara/voz, SemVoz, erro de código), o botão dizia que começou, nada acontecia **e o `ultimo` já estava
+  gravado — então o AUTOMÁTICO só tentaria de novo 2 h depois**, repetindo isso o dia inteiro em silêncio.
+  Agora ele (1) confere a TRAVA antes e manda usar o Destravar, (2) espera 2,5 s e, se o processo já morreu,
+  lê o MOTIVO no registro (`_por_que_parou`: a linha com "NÃO RODEI"/"SEM VOZ"/Traceback), devolve esse motivo
+  como erro do botão, guarda em `painel_canal.json` (`erro`/`erro_em`, que o card mostra) e marca o `ultimo`
+  para TENTAR DE NOVO EM ~10 min em vez de 2 h.
+- `doutor.py` ganhou a seção **CANAIS AUTOMÁTICOS**: por canal, se está LIGADO, quando foi a última rodada
+  (avisando quando passou do dobro do intervalo), o MOTIVO da última falha, se a trava está presente e se a
+  máscara/voz chegaram do Drive. É a resposta direta para "por que não rodou sozinho".
 - `python tools\doutor.py` → **por que** parou: versão do código · travas presas · **IA de texto** (testa Gemini,
   as grátis e o Claude, uma por uma) · voz (VoiceStudio aberto? com voz cadastrada?) · Instagram (vagas de Reels
   teste, pausa, fila, Drive) · disco · e a última linha de ERRO de cada registro → `tools\diagnostico.txt`.

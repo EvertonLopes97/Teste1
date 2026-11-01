@@ -145,6 +145,7 @@ def estado():
              "prontos": prs, "esperando": sum(1 for x in prs if x["status"] == "aguardando"),
              "log": _tail(p / "canal.log"), "shorts": cf.get("shorts", 2), "privacidade": cf.get("privacidade", "public"),
              "mesclar_assunto": bool(cf.get("mesclar_assunto", False)), "travado": bool(tv_), "travado_quem": tv_,
+             "erro": el.get("erro", ""), "erro_em": el.get("erro_em", ""),
              "campeonatos_ligado": bool(cf.get("campeonatos_ligado", True))}
         if CANAIS[c]["script"].name == "canal.py":   # notícias e GTA 6 (mesmo motor: pautas, voz, máscara)
             pf = p / "pautas.txt"
@@ -370,17 +371,43 @@ def acao(nome, d):
 PESADO_LOGIN = {}
 
 
+def _por_que_parou(c, n=25):
+    """a última linha do registro que explica a parada (o canal.py escreve "NÃO RODEI: ...")"""
+    linhas = [l.strip() for l in _tail(pasta(c) / "canal.log", n) if l.strip()]
+    for l in reversed(linhas):
+        if "NÃO RODEI" in l or "SEM VOZ" in l or "Error" in l or "error" in l or "Traceback" in l:
+            return l[:300]
+    return linhas[-1][:300] if linhas else "sem nada no registro"
+
+
 def roda_agora(c, forcar=True, teste=False):
     """teste = monta com voz de computador (sem a sua voz clonada), não posta — para ver a edição"""
     with TRAVA:
         if ocupado():
             raise ValueError(f"já tem um canal montando agora ({CANAIS[PESADO['id']]['nome']})")
+        preso = travado(c)
+        if preso:   # outra rodada está com a trava: o filho morreria em 1 s e o botão pareceria não fazer nada
+            raise ValueError(f"outra rodada deste canal está com a trava ({preso}). Use o botão Destravar.")
         de_noticias = CANAIS[c]["script"].name == "canal.py"   # noticias e GTA 6 usam o mesmo script
         args = ["--forcar"] if (forcar and de_noticias) else []
         if teste:
             args = ["--forcar", "--nao-postar"] if de_noticias else args
         PESADO.update(id=c, p=_roda(c, args, env_extra={"DETTO_VOZ_FALSA": "1"} if teste else None), o_que="montando (teste)" if teste else "montando")
-        grava_estado(c, ultimo=dt.datetime.now().isoformat(timespec="minutes"))
+    # A RODADA MORREU NA LARGADA? (sem máscara, sem voz, trava, erro de código) — antes isso era invisível: o
+    # botão dizia "começou", nada acontecia, e o `ultimo` já tinha sido gravado, então o AUTOMÁTICO só tentaria
+    # de novo daqui a 2 h. É por isso que o canal passava o dia sem criar nada e sem avisar.
+    time.sleep(2.5)
+    pr = PESADO["p"]
+    if pr and pr.poll() is not None:
+        motivo = _por_que_parou(c)
+        PESADO.update(id=None, p=None, o_que="")
+        # tenta de novo em ~10 min, não daqui a 2 h
+        tenta = dt.datetime.now() - dt.timedelta(minutes=max(0, CANAIS[c]["intervalo_min"] - 10))
+        grava_estado(c, ultimo=tenta.isoformat(timespec="minutes"), erro=motivo,
+                     erro_em=dt.datetime.now().isoformat(timespec="minutes"))
+        LOG(f"canal {CANAIS[c]['nome']}: NÃO RODOU — {motivo}")
+        raise ValueError(f"a rodada parou na largada: {motivo}")
+    grava_estado(c, ultimo=dt.datetime.now().isoformat(timespec="minutes"), erro="")
     LOG(f"canal {CANAIS[c]['nome']}: rodada começou")
     return {"ok": True}
 

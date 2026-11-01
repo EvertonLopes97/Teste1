@@ -232,6 +232,54 @@ def instagram():
 
 
 # ----------------------------------------------------------------- disco e registros
+def canais():
+    """por que o canal não rodou sozinho: está LIGADO? quando foi a última? parou por quê? falta máscara/voz?"""
+    titulo("CANAIS AUTOMÁTICOS (notícias, GTA 6, vlogs)")
+    r = raiz()
+    for pasta, nome, intervalo in ((r / "canal_galo", "NOTÍCIAS (Galo)", 120), (r / "canal_gta6", "GTA 6", 180),
+                                   (r / "canal_vlogs", "VLOGS", 10)):
+        if not pasta.exists():
+            diz(f"{nome}: a pasta {pasta} nem existe (nunca rodou)")
+            continue
+        el = {}
+        f = pasta / "painel_canal.json"
+        if f.exists():
+            try:
+                el = json.loads(f.read_text(encoding="utf-8"))
+            except ValueError:
+                el = {}
+        lig = "LIGADO" if el.get("ligado") else "DESLIGADO  ← não roda sozinho; ligue no painel, aba CANAIS"
+        diz(f"{nome}: {lig}")
+        ult = el.get("ultimo") or ""
+        if ult:
+            try:
+                q = dt.datetime.fromisoformat(ult)
+                faz = (dt.datetime.now() - q).total_seconds() / 60
+                aviso = "  ← passou da hora: veja o erro abaixo" if faz > intervalo * 2 else ""
+                diz(f"   última rodada: {q:%d/%m %H:%M} ({faz / 60:.1f} h atrás; o intervalo é {intervalo} min){aviso}")
+            except ValueError:
+                diz(f"   última rodada: {ult}")
+        else:
+            diz("   última rodada: NUNCA")
+        if el.get("erro"):
+            diz(f"   NÃO RODOU da última vez ({el.get('erro_em', '')}): {el['erro']}")
+        if (pasta / ".canal_rodando").exists():
+            diz("   TRAVA PRESENTE (.canal_rodando) — se nada estiver rodando, use Destravar no painel")
+        ms = sorted(x.name for x in (pasta / "mascara").glob("*") if x.is_file()) if (pasta / "mascara").exists() else []
+        vz = (pasta / "voz" / "minha_voz.wav").exists()
+        if not ms:
+            diz("   SEM MÁSCARA: suba 6 a 10 gravações em Meu Drive\\DETTO\\canal_noticias\\mascara (veja VOZ-E-GESTO.md)")
+        if not vz:
+            diz("   SEM VOZ DE REFERÊNCIA: suba 30-60 s da sua voz em Meu Drive\\DETTO\\canal_noticias\\voz")
+        if ms and vz:
+            diz(f"   máscara: {len(ms)} gravação(ões) · voz de referência: ok")
+        pr = pasta / "prontos"
+        if pr.exists():
+            esperando = [d for d in sorted(pr.iterdir()) if (d / "post.json").exists()]
+            if esperando:
+                diz(f"   prontos na pasta: {len(esperando)} (o último: {esperando[-1].name})")
+
+
 def disco():
     titulo("DISCO")
     for d in ({Path(PONTE.anchor or "/"), raiz()} if raiz().exists() else {Path(PONTE.anchor or "/")}):
@@ -288,7 +336,7 @@ def main():
     ap.add_argument("--saida", default=str(AQUI / "diagnostico.txt"))
     a = ap.parse_args()
     diz(f"DOUTOR DETTO — {dt.datetime.now():%d/%m/%Y %H:%M}")
-    for passo in (versao, travas, lambda: ia_de_texto(a.rapido), lambda: voz(a.rapido), instagram, disco, registros):
+    for passo in (versao, travas, lambda: ia_de_texto(a.rapido), lambda: voz(a.rapido), canais, instagram, disco, registros):
         try:
             passo()
         except Exception as e:  # noqa: BLE001 — um pedaço que falha não pode derrubar o diagnóstico
