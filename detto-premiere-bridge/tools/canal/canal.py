@@ -1419,6 +1419,12 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
             comenta.setdefault(f["comenta"], []).append(f)
     # 2) peças: abertura → (fala → trecho [→ comentário → resto do trecho])… → fechamento
     pecas = []
+    # CAPÍTULOS: as peças são emendadas em ORDEM com -c copy, então somando a duração das anteriores eu
+    # sei o segundo EXATO em que cada notícia começa no vídeo final — e a manchete dela já é o título.
+    marcas = []
+
+    def onde_estou():
+        return sum(dur_mp4(p) for p in pecas)
 
     def add_fala(f):
         p = tmp / f"p{len(pecas):03d}.mp4"
@@ -1429,6 +1435,8 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
     # onde termina a CHAMADA de abertura (resumo + CTA): é aí que a vinheta entra, não no segundo 0
     abertura_s = dur_mp4(pecas[0]) if pecas else 0.0
     for i, x in enumerate(sel):
+        # o capítulo começa na FALA que apresenta a notícia (é ali que o assunto começa), não no trecho
+        marcas.append((onde_estou(), x.get("manchete") or ""))
         if i in fala_antes:
             add_fala(fala_antes[i])
         p = tmp / f"p{len(pecas):03d}.mp4"
@@ -1480,7 +1488,7 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lista), "-c", "copy", str(bruto)], check=True)
     subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(bruto), "-c:v", "copy", "-af", "loudnorm=I=-14:TP=-1", "-c:a", "aac", "-b:a", "192k",
                     "-movflags", "+faststart", str(saida)], check=True)
-    return saida, abertura_s
+    return saida, abertura_s, marcas
 
 
 # ------------------------------------------------------------------ 5. thumb
@@ -2176,21 +2184,53 @@ def main():
     tmp.mkdir()
     pronto = pasta / "prontos" / f"{dt.datetime.now():%Y-%m-%d_%H%M} - {slug(rot['titulo'], 50)}"
     pronto.mkdir(parents=True, exist_ok=True)
-    video, abertura_s = monta(sel, rot, cfg, pasta, tmp, pronto / "video.mp4")
+    video, abertura_s, marcas = monta(sel, rot, cfg, pasta, tmp, pronto / "video.mp4")
+    antes_da_vinheta = dur_mp4(video)
     try:   # vinheta do canal DEPOIS da chamada de abertura (no segundo 0 ela quebrava a retenção)
         import vinheta as VIN
 
         video = VIN.abre(video, cfg.get("vinheta_canal", "noticias"), cfg.get("nome_canal", ""), cfg, log=log, em=abertura_s)
     except Exception as e:
         log(f"vinheta: não entrou ({str(e)[:120]})")
+    # a vinheta entrou NO MEIO (depois da chamada) e empurrou tudo que vem depois: os capítulos têm que
+    # andar junto, senão cada um cai no fim da notícia anterior
+    caps, bloco_caps = [], ""
+    if cfg.get("capitulos", True):
+        try:
+            sys.path.insert(0, str(TOOLS / "yt"))
+            import capitulos as CAP
+
+            dur_final = dur_mp4(video)
+            marcas = CAP.desloca(marcas, abertura_s, max(0.0, dur_final - (antes_da_vinheta or dur_final)))
+            caps = CAP.de_marcas(marcas, dur_final, cfg.get("capitulo_abertura") or "Os destaques de hoje")
+            # os capítulos vão ALTO na descrição: o YouTube só lê como capítulo a lista que começa em 0:00
+            bloco_caps = f"\n\nCapítulos:\n{CAP.texto(caps)}" if caps else ""
+            log(f"capítulos: {len(caps)}" if caps else "capítulos: não deu 3 válidos (o YouTube exige 3, "
+                                                       "com 10 s cada) — o vídeo sai sem a barrinha")
+        except Exception as e:  # noqa: BLE001
+            log(f"capítulos: não saíram ({str(e)[:120]})")
     th = thumb(video, rot, {**cfg, "_pasta": str(pasta)}, pronto, sel)
     creditos = sorted({origem(x) + (f" — youtube.com/{x['canal']}" if x.get("canal") else "") for x in sel})
     tags = [t.strip("#") for t in rot.get("tags", [])][:15]
     hashtags = " ".join("#" + re.sub(r"\W", "", t) for t in tags[:3])
-    descricao = (f"{rot.get('descricao', '')}\n\n{hashtags}\n\nCréditos das imagens:\n"
+    descricao = (f"{rot.get('descricao', '')}{bloco_caps}\n\n{hashtags}\n\nCréditos das imagens:\n"
                  + "\n".join(f"• {c}" for c in creditos) + "\n\nNarração com voz gerada por inteligência artificial."
                  + (f"\n\n{cfg['assinatura']}" if cfg.get("assinatura") else ""))
     (pronto / "post.txt").write_text(f"{rot['titulo']}\n\n{descricao}\n\nTags: {', '.join(tags)}\n", encoding="utf-8")
+    # TÍTULO + THUMB conferidos com as regras MEDIDAS do nicho (30/out). Isto AVISA, nunca barra: título
+    # fraco ainda é melhor que vídeo não postado — mas aparecendo no registro, ele vê e corrige a próxima.
+    lint = None
+    try:
+        sys.path.insert(0, str(TOOLS / "yt"))
+        import titulo as TIT
+
+        lint = TIT.confere(rot["titulo"], rot.get("thumb_texto", ""), cfg.get("preset", "galo"),
+                           dur_mp4(video) / 60 if video else None)
+        log(f"título: nota {lint['nota']}/100" + (f" · alavanca medida {lint['alavanca']:.2f}x" if lint["alavanca"] != 1 else ""))
+        for p in sorted(lint["problemas"], key=lambda x: -x["peso"])[:4]:
+            log(f"   ✗ {p['diz']}")
+    except Exception as e:  # noqa: BLE001
+        log(f"título: não consegui conferir ({str(e)[:100]})")
     # Shorts: as melhores notícias (pautas primeiro), cada uma com a sua fala antes
     falas = le_json(tmp / "falas.json", [])
     fala_antes = {f["antes"]: f for f in falas if "antes" in f}
@@ -2210,7 +2250,7 @@ def main():
     comentario = ("📺 Créditos — trechos de TV/rádio/canais usados neste vídeo (comentados pelo canal):\n"
                   + "\n".join(f"• {c}" for c in creditos) + "\n\nTodos os direitos dos trechos são dos seus donos. Narração com voz gerada por IA.")
     post = {"titulo": rot["titulo"], "descricao": descricao, "tags": tags, "video": "video.mp4", "thumb": th.name if th else "",
-            "comentario": comentario,
+            "comentario": comentario, "capitulos": caps, "lint_titulo": lint,
             "shorts": shorts, "status": "aguardando", "criado": dt.datetime.now().isoformat(timespec="seconds"),
             "trechos": [{"fonte": x["fonte"], "manchete": x["manchete"], "pauta": x.get("pauta", "")} for x in sel]}
     comum.grava(pronto / "post.json", post)

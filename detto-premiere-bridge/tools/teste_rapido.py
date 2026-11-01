@@ -96,8 +96,10 @@ def confere_contrato():
 def importa_tudo():
     problemas, ok, pulados = [], 0, 0
     pastas = [PONTE / "tools"]
+    # tools\yt\skills\ é código de TERCEIROS (youtube-agent-skill, MIT) guardado como está e não usado
+    # pelo sistema — não é o nosso contrato e não pode reprovar o nosso teste
     arquivos = sorted(f for p in pastas for f in p.rglob("*.py")
-                      if "__pycache__" not in f.parts and f.name != "teste_rapido.py")
+                      if "__pycache__" not in f.parts and f.name != "teste_rapido.py" and "skills" not in f.parts)
     # cada pasta de ferramenta entra no caminho, porque os arquivos se importam pelo nome curto
     for d in {f.parent for f in arquivos} | {PONTE / "tools"}:
         sys.path.insert(0, str(d))
@@ -142,6 +144,8 @@ def confere_nomes():
     api.checkRecursive([str(PONTE / "tools")], reporter.Reporter(saida, erros))
     graves = []
     for l in saida.getvalue().splitlines():
+        if f"yt{os.sep}skills{os.sep}" in l or "yt/skills/" in l:
+            continue   # código de terceiros guardado como está (ver importa_tudo)
         # só o que QUEBRA de verdade; "importado e não usado" e companhia não param uma rodada
         if "undefined name" in l or "repeated with different values" in l or "syntax" in l.lower():
             graves.append(l.replace(str(PONTE) + os.sep, "").replace(str(PONTE) + "/", ""))

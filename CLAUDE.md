@@ -455,6 +455,45 @@ do próprio canal (então não é "canal grande rende mais"; é o que aquele ví
 → aplicado: `duracao_alvo_min` 13 (era 10), `regra_titulo` sem "vazamento" e sem "...", e `regra_nota` própria
   (novidade concreta vale nota; especulação e recap caem). Neste nicho quem decide é a THUMB e sair TODO DIA.
 
+## YOUTUBE: CAPÍTULOS, RETENÇÃO E CONFERÊNCIA DE TÍTULO (01/nov) — `tools\yt\`, guia `tools\yt\LEIA-ME.txt`
+
+Veio do `youtube-agent-skill` (github.com/Jakeschincariol/youtube-agent-skill, MIT) que ele mandou. As 11
+habilidades dele são **prompts de conversa**, não código que roda no canal.py — copiar as 11 não muda vídeo
+nenhum. E os 6 .py de lá são **só em inglês** (`title.py` procura "amazing/insane", `hookscore.py` procura
+"you/lose/waste"): no título em português dariam nota baixa para TODO vídeo e não veriam "ABSURDO"/"INÉDITO".
+Então: as habilidades ficam guardadas em `tools\yt\skills\` (como estão, com a LICENSE; `teste_rapido.py` e o
+pyflakes IGNORAM essa pasta — é código de terceiros, não pode reprovar o nosso teste), e os TRÊS que valiam
+foram reescritos em pt-BR e LIGADOS no sistema:
+- CAPÍTULOS (`tools\yt\capitulos.py`, ligado no canal.py): a barrinha por assunto. O `monta` agora junta
+  `marcas` — as peças são emendadas em ORDEM com `-c copy`, então somar a duração das anteriores dá o segundo
+  EXATO de cada notícia (conferido: erro de 0,02 s em 30 s) — e a MANCHETE já é o título do capítulo. `monta`
+  devolve `(video, abertura_s, marcas)`. A vinheta entra NO MEIO e empurra tudo depois dela, então `desloca`
+  soma a duração dela nas marcas seguintes (sem isso cada capítulo cairia no fim da notícia anterior).
+  Regras do YouTube conferidas em vez de supostas (3 capítulos, o 1º em 0:00, 10 s cada): não dando, sai SEM
+  capítulos e o registro diz — bloco inválido o YouTube ignora em SILÊNCIO, o que é pior. Manchete em CAIXA
+  ALTA é rebaixada sem estragar sigla ("GLOBO ESPORTE MG" → "Globo Esporte MG", não "Globo esporte mg").
+  `"capitulos": false` desliga; `"capitulo_abertura"` muda o nome do primeiro. `de_transcricao` é o caminho
+  para vídeo gravado por ele (acha a virada pela pausa + troca de vocabulário).
+- RETENÇÃO (`tools\yt\retencao.py`, na mão) — **era o buraco do sistema**: ele media os CONCORRENTES e nunca
+  os próprios vídeos. Lê o CSV do Studio (Analytics → Engajamento → Retenção do público) e separa GANCHO
+  (primeiros 30 s → conserta a 1ª frase) · PAREDÕES (queda seca → CORTA aquele trecho) · ESCORREGA (sangria do
+  meio → é RITMO, encurta). Com `--capitulos post.json` ou `--words words.json` ele diz O QUE ESTAVA SENDO
+  DITO em cada queda. Dois detalhes que só aparecem testando: (1) num vídeo de até ~100 s o eixo em SEGUNDOS é
+  idêntico ao eixo em %, e confundir isso jogava o paredão do Short dentro da janela do gancho e o fazia
+  DESAPARECER — a `--duracao` decide; (2) paredão é queda fora do normal DAQUELE vídeo (2,5x a queda típica),
+  não acima de um número fixo, senão o escorrega de um vídeo ruim enche o relatório e esconde o paredão de
+  verdade. Com o Studio mandando ~100 pontos do vídeo inteiro, 30 s de um vídeo longo são 3 ou 4 pontos: aí ele
+  NÃO dá veredito de gancho e manda olhar "Os primeiros 30 segundos" no Studio.
+- TÍTULO + THUMB (`tools\yt\titulo.py`, roda no fim de cada vídeo do canal e escreve a nota no registro; AVISA,
+  nunca barra): o par título+thumb é UMA coisa — o erro mais comum é a thumb repetir palavra do título e gastar
+  metade da área de clique. Vagas em PORTUGUÊS (absurdo, inacreditável, urgente, polêmica...). As regras de
+  nicho são as MEDIDAS de 30/out: Galo +1,36x jornalista famoso, +1,22x reforço, +1,18x programa, −0,89x
+  arbitragem; GTA −0,90x "vazou" e −0,90x terminar com "...". Dois acertos que vieram do teste: o título dele é
+  em CAIXA ALTA de propósito (reclamar disso em todo vídeo é ruído — só caixa alta MISTURADA é spam) e, em
+  título todo em caixa alta, inicial maiúscula não indica nome próprio (saía "cita nome próprio: ESPORTE, MG:,
+  DIRETORES"), então os nomes vêm dos que o NICHO conhece. Nota não chega a 100 com reclamação em aberto.
+  `post.json` guarda `capitulos` e `lint_titulo`.
+
 ## CANAL DE GTA 6 (29/out) — o mesmo canal.py, outro assunto
 
 `python tools\canal\canal.py --pasta E:\DETTO\canal_gta6 --preset gta6` (painel aba CANAIS: card **GTA 6**).
