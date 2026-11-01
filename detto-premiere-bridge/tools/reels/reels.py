@@ -1707,7 +1707,7 @@ def agendar(hora, base, quantos):
 TRAVA = None
 
 
-def trava_rodada(base, nome=".reels_rodando"):
+def trava_rodada(base, nome=".reels_rodando", so_testa=False):
     """só UM por vez: o painel e a tarefa do Windows rodando juntos faziam o mesmo trabalho 2 vezes. A trava é do
     sistema: some sozinha quando o processo acaba (até se ele travar/fechar).
 
@@ -1726,6 +1726,11 @@ def trava_rodada(base, nome=".reels_rodando"):
     except OSError:
         f.close()
         return None
+    # `so_testa` = só queria saber se está livre (é o painel conferindo). NÃO escreve e NÃO trunca: escrever
+    # punha o pid de QUEM SÓ TESTOU no arquivo e truncar APAGAVA o pid do dono de verdade — o registro ficava
+    # dizendo "outro canal.py está com a trava ()" e ninguém sabia quem era (01/nov).
+    if so_testa:
+        return f
     try:   # deixa escrito quem pegou (a trava do sistema é no 1º byte; escrevo depois dele)
         f.seek(1)
         f.truncate(1)

@@ -223,8 +223,22 @@ def destrava(c):
     from reels import dono_da_trava
 
     quem, pid = dono_da_trava(pasta(c), ".canal_rodando")
+    if pid and not vivo(pid):
+        return {"ok": True, "msg": f"o processo {pid} já tinha morrido — a trava está livre"}
     if not quem:
-        return {"ok": True, "msg": "não tinha trava presa"}
+        # sem pid anotado: se ninguém está com ela, o arquivo é só sobra — apago para o aviso parar
+        try:
+            from reels import trava_rodada
+
+            t = trava_rodada(pasta(c), ".canal_rodando", so_testa=True)
+            if t:
+                t.close()
+                (pasta(c) / ".canal_rodando").unlink(missing_ok=True)
+                return {"ok": True, "msg": "não tinha ninguém com a trava; apaguei o arquivo que ficou para trás"}
+        except Exception:  # noqa: BLE001
+            pass
+        return {"ok": False, "erro": "a trava está presa por um processo que não anotou o pid. Feche o python.exe "
+                                     "no Gerenciador de Tarefas e rode de novo."}
     if pid and pid != os.getpid():
         try:
             if os.name == "nt":
@@ -238,21 +252,55 @@ def destrava(c):
     return {"ok": False, "erro": f"a trava é de um processo sem PID anotado ({quem}); feche o python na mão"}
 
 
+def vivo(pid):
+    """esse processo ainda existe? (sem matar nada e sem precisar do psutil)"""
+    if not pid or pid == os.getpid():
+        return False
+    try:
+        if os.name == "nt":
+            import ctypes
+
+            h = ctypes.windll.kernel32.OpenProcess(0x1000, False, int(pid))   # PROCESS_QUERY_LIMITED_INFORMATION
+            if not h:
+                return False
+            saiu = ctypes.c_ulong(0)
+            ctypes.windll.kernel32.GetExitCodeProcess(h, ctypes.byref(saiu))
+            ctypes.windll.kernel32.CloseHandle(h)
+            return saiu.value == 259   # STILL_ACTIVE
+        os.kill(int(pid), 0)
+        return True
+    except (OSError, ValueError, AttributeError):
+        return False
+
+
 def travado(c):
-    """quem está com a trava do canal, se houver (para o painel avisar)"""
+    """quem está com a trava do canal, se houver (para o painel avisar).
+
+    NÃO TESTA PEGANDO A TRAVA (01/nov). Antes testava: o painel chamava `trava_rodada` a cada carregamento de
+    tela, e isso (1) ESCREVIA o pid do painel dentro do arquivo, mentindo sobre quem é o dono, (2) TRUNCAVA o
+    arquivo, apagando o pid do dono de verdade — e era por isso que o registro dizia "outro canal.py está com a
+    trava ()", sem pid nenhum — e (3) disputava a trava com o canal.py no exato segundo em que ele começava,
+    matando a rodada na largada. O canal de notícias ficou das 18h16 às 20h46 sem rodar por causa disso.
+    Agora eu só LEIO o pid anotado e pergunto se aquele processo está vivo.
+    """
     f = pasta(c) / ".canal_rodando"
     if not f.exists():
         return ""
     try:
         sys.path.insert(0, str(TOOLS / "reels"))
-        from reels import dono_da_trava, trava_rodada
+        from reels import dono_da_trava
 
-        t = trava_rodada(pasta(c), ".canal_rodando")   # consegui pegar? então está livre
+        quem, pid = dono_da_trava(pasta(c), ".canal_rodando")
+        if pid:
+            return quem if vivo(pid) else ""      # pid morto = trava velha, o arquivo só ficou para trás
+        # sem pid anotado: só então eu testo pegando — e devolvo na hora, sem escrever nada
+        from reels import trava_rodada
+
+        t = trava_rodada(pasta(c), ".canal_rodando", so_testa=True)
         if t:
             t.close()
             return ""
-        quem, _ = dono_da_trava(pasta(c), ".canal_rodando")
-        return quem
+        return "um processo sem pid anotado"
     except Exception:  # noqa: BLE001
         return ""
 
@@ -499,7 +547,12 @@ def laco(log=print, edicao_ocupada=lambda: False):
                     try:
                         roda_agora(cc, forcar=pedido.get("forcar", True), teste=pedido.get("teste", False), da_fila=True)
                     except Exception as e:  # noqa: BLE001
+                        # NÃO PERDE O PEDIDO (01/nov): com a trava presa isto falhava, o pedido sumia da fila e o
+                        # card voltava a dizer "Rodar agora" como se nada tivesse acontecido. Volta para o fim.
                         log(f"canal {CANAIS[cc]['nome']}: não consegui começar o que estava na fila ({str(e)[:200]})")
+                        with TRAVA:
+                            if not na_espera(cc):
+                                ESPERA.append(pedido)
                     time.sleep(1)
                     continue
             # 4) hora de rodar algum canal ligado?
@@ -517,7 +570,11 @@ def laco(log=print, edicao_ocupada=lambda: False):
                     except ValueError:
                         ult = dt.datetime(2000, 1, 1)
                     if (agora - ult).total_seconds() >= info["intervalo_min"] * 60:
-                        roda_agora(c, forcar=False)
+                        try:
+                            roda_agora(c, forcar=False)
+                        except Exception as e:  # noqa: BLE001
+                            # erro de UM canal não é "erro no laço": o laço tem que seguir para os outros
+                            log(f"canal {CANAIS[c]['nome']}: não começou ({str(e)[:200]})")
                         break
         except Exception as e:
             log(f"canais: erro no laço ({e})")

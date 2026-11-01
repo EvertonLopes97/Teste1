@@ -797,7 +797,7 @@ def falas_do_trecho(x, passo=7.0):
     return "\n".join(out)[:3500]
 
 
-def roteiro(sel, cfg):
+def roteiro(sel, cfg, titulos_antes=()):
     lista = "\n".join(f"{i + 1}. [ORIGEM: {origem(x)}]"
                       + (f" [NÃO É DO GALO — {x['campeonato']}, a volta pelo mundo no fim do vídeo]" if x.get("campeonato") else "")
                       + (" [ESTE ASSUNTO JÁ SAIU NUM VÍDEO SEU HOJE: trate como notícia secundária, com um ângulo "
@@ -823,6 +823,17 @@ def roteiro(sel, cfg):
                              if falta > 0 else "\n- O JOGO JÁ LANÇOU: fale no passado e foque em gameplay e análise.")
         except ValueError:
             pass
+    # OS TÍTULOS QUE JÁ SAÍRAM (01/nov): no canal de GTA 6 cinco vídeos seguidos vieram com "210 GB", "mapa" e
+    # "south park" no título. A IA não tinha como saber — ela só via os trechos de HOJE e, com razão, titulava no
+    # fato mais forte, que é o mesmo da véspera. Agora ela recebe a lista e a PROIBIÇÃO explícita.
+    proibido_repetir = ""
+    if titulos_antes:
+        proibido_repetir = ("\nTÍTULOS QUE JÁ SAÍRAM NESTE CANAL NOS ÚLTIMOS DIAS (do mais novo para o mais velho):\n"
+                            + "\n".join(f"- {t}" for t in list(titulos_antes)[:8])
+                            + "\nO título de HOJE **NÃO PODE** ser sobre o mesmo fato desses, nem repetir o número/nome que "
+                              "era o gancho deles. Se o fato principal de hoje JÁ FOI título antes, titule no ÂNGULO NOVO "
+                              "(o que mudou, quem falou agora, o detalhe que ainda não tinha saído) e, não havendo ângulo "
+                              "novo, titule na SEGUNDA notícia mais forte. A thumb_texto segue a mesma regra.")
     regra_titulo = cfg.get("regra_titulo") or (
         'O TÍTULO e a THUMB saem SEMPRE da notícia do GALO mais forte (nunca de um trecho marcado como "a volta pelo '
         'mundo" nem de um que já saiu hoje). Se houver trechos de campeonato, a fala antes do primeiro deles avisa que '
@@ -858,6 +869,7 @@ combina, nunca nos primeiros 10 s nem nos últimos 10 s do trecho.
 {longos}
 
 {regra_titulo}
+{proibido_repetir}
 {regras_extra}
 
 Uma fala antes de CADA trecho (antes_do = 1, 2, 3...). CADA fala DIZ DE ONDE VEM o trecho seguinte, pelo nome do programa/emissora
@@ -1852,6 +1864,9 @@ GTA6 = {
     "mesclar_assunto": True,   # GTA 6 é UM assunto só: sem isso a rodada ficaria sem material
     # num canal de assunto único TUDO parece repetido: o limite do Galo (0,35) barraria todas as notícias
     "parecido_max": 0.8,
+    # ENTRAR no vídeo é frouxo (0,8, senão um canal de assunto único fica sem material); ser a NOTÍCIA
+    # PRINCIPAL/título é apertado — foi o que deixou 5 vídeos seguidos com "210 GB" e "mapa" no título
+    "titulo_parecido_max": 0.4,
     "mesclar_nota_min": 5,
     "mesclar_novidade_min": 0.2,
     "max_repetidas": 3,
@@ -2006,8 +2021,8 @@ def main():
         quem, pid = dono_da_trava(pasta, ".canal_rodando")
         # ANTES esta mensagem não dizia nada e o painel mostrava "rodada terminou (ok)": um canal.py que travou e
         # ficou vivo (aconteceu: preso desde 20/10) matava TODAS as rodadas seguintes em silêncio.
-        log(f"NÃO RODEI: outro canal.py está com a trava ({quem}). Se ele estiver travado há horas, "
-            f"encerre no painel (botão Destravar) ou feche o processo {pid or 'python'} e rode de novo.")
+        log(f"NÃO RODEI: outro canal.py está com a trava ({quem or 'sem pid anotado'}). Se ele estiver travado há "
+            f"horas, encerre no painel (botão Destravar) ou feche o processo {pid or 'python.exe'} e rode de novo.")
         return
     hist = le_json(pasta / "historico.json", {"vistos": {}, "trechos": [], "postados": []})
     hoje = dt.date.today().isoformat()
@@ -2141,6 +2156,29 @@ def main():
         por_video[x["video"]] = por_video.get(x["video"], 0) + 1
         sel.append(x)
         tot += x["fim"] - x["ini"]
+    # QUEM PODE SER A NOTÍCIA PRINCIPAL (01/nov) — era isso que fazia o canal de GTA 6 sair com quase o MESMO
+    # TÍTULO cinco vídeos seguidos ("210 GB", "mapa", "south park"). Um único `parecido_max` decidia DUAS coisas
+    # diferentes, e no GTA ele é 0,8 de propósito (frouxo, senão um canal de assunto único fica sem material):
+    # então a notícia de ontem voltava, vinha com a nota mais alta, caía em PRIMEIRO e virava o título de novo.
+    # Agora são dois limites: ENTRAR no vídeo continua frouxo; ser a PRIMEIRA (o título) é apertado.
+    lim_t = float(cfg.get("titulo_parecido_max", min(0.5, lim_p)))
+    titulos_antes = [u["titulo"] for u in sorted(hist.get("titulos", []), key=lambda u: u.get("quando", ""), reverse=True)][:8]
+    textos_dos_titulos = [u.get("texto") or u.get("titulo", "") for u in
+                          sorted(hist.get("titulos", []), key=lambda u: u.get("quando", ""), reverse=True)][:8]
+    if sel and textos_dos_titulos:
+        def ja_foi_titulo(x):
+            tx = x.get("texto") or x.get("manchete", "")
+            return max((parecido(tx, t) for t in textos_dos_titulos), default=0.0)
+
+        novo = next((i for i, x in enumerate(sel) if ja_foi_titulo(x) < lim_t), None)
+        if novo is None:
+            log(f"   ATENÇÃO: todas as {len(sel)} notícias de hoje já foram título nos últimos dias — o roteiro vai "
+                "receber a ordem de titular no ÂNGULO NOVO (veja os títulos anteriores no prompt)")
+        elif novo > 0:
+            x = sel.pop(novo)
+            log(f"   a notícia mais forte de hoje JÁ FOI título antes ({ja_foi_titulo(sel[0]):.2f} de semelhança): "
+                f"quem vai em PRIMEIRO é \"{x.get('manchete', '')[:60]}\"")
+            sel.insert(0, x)
     # o assunto que já saiu hoje só volta se VOCÊ ligou a mesclagem no painel E a notícia trouxe FATO NOVO
     if adiadas and not cfg.get("mesclar_assunto"):
         log(f"   {len(adiadas)} trecho(s) do assunto que já saiu hoje ficaram de fora "
@@ -2178,7 +2216,7 @@ def main():
             return
         log(f"AVISO: só tem ~{total_estimado() / 60:.1f} min de notícia nova (menos de {cfg['duracao_alvo_min']}); monto assim porque você mandou")
     log(f"\nmontando: {len(sel)} trechos, {tot / 60:.1f} min de imprensa (~{total_estimado() / 60:.1f} min de vídeo)")
-    rot = roteiro(sel, cfg)
+    rot = roteiro(sel, cfg, titulos_antes)
     tmp = pasta / "tmp"
     shutil.rmtree(tmp, ignore_errors=True)
     tmp.mkdir()
@@ -2244,6 +2282,11 @@ def main():
     for x in sel:
         x["usado"] = True
     # lembra o que foi postado (3 dias) para a mesma notícia não voltar por outro canal
+    # guarda o TÍTULO de hoje (7 dias): é o que impede o próximo vídeo de sair com o mesmo gancho
+    hist["titulos"] = ([u for u in hist.get("titulos", [])
+                        if (dt.date.today() - dt.date.fromisoformat((u.get("quando") or hoje)[:10])).days <= 7]
+                       + [{"quando": dt.datetime.now().isoformat(timespec="minutes"), "titulo": rot["titulo"],
+                           "texto": (sel[0].get("texto") or sel[0].get("manchete", ""))[:1500] if sel else rot["titulo"]}])[-20:]
     hist["ja_postado"] = [u for u in hist.get("ja_postado", []) if (dt.date.today() - dt.date.fromisoformat(u["data"])).days <= 3] + \
         [{"data": hoje, "texto": (x.get("texto") or x.get("manchete", ""))[:1500]} for x in sel]
     # crédito também num COMENTÁRIO no vídeo (o sistema comenta logo depois de postar)

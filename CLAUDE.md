@@ -70,6 +70,18 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
   termina — a fila na mão passa na frente do automático. O card mostra "Nº na fila de espera" + **Sair da fila**
   (`canal_sair_da_fila`), o botão devolve a frase ("GTA 6 está trabalhando agora. Notícias entrou na fila…") e
   `estado()` manda `na_espera`, `montando` e `espera`. Edição rodando também enfileira (`EDICAO_OCUPADA`).
+- A TRAVA FANTASMA QUE MATOU O CANAL DE NOTÍCIAS (01/nov, 18h16→20h46 sem rodar): o registro repetia
+  "NÃO RODEI: outro canal.py está com a trava **()**" — sem pid — a cada 10 min. A culpa era do PAINEL: o
+  `travado()` testava a trava **PEGANDO** ela a cada carregamento de tela, e o `trava_rodada` escreve e
+  TRUNCA o arquivo ao pegar. Resultado: (1) o pid do painel entrava no arquivo, mentindo sobre o dono, (2) o
+  `f.truncate(1)` APAGAVA o pid do dono de verdade — daí o `()` — e (3) o teste disputava a trava com o
+  canal.py no segundo exato em que ele começava, matando a rodada na largada. Agora `travado()` NÃO pega: lê
+  o pid anotado e pergunta se aquele processo está VIVO (`vivo()`, OpenProcess+GetExitCodeProcess no Windows,
+  `os.kill(pid, 0)` no resto) — pid morto = trava velha = livre. Sem pid anotado, aí sim testa, com
+  `trava_rodada(..., so_testa=True)`, que **não escreve e não trunca**. `destrava` ficou completo: pid morto
+  avisa que já estava livre, e sem ninguém com a trava ele APAGA o arquivo que ficou para trás.
+  Junto: o pedido na FILA não se perde mais quando a largada falha (voltava a dizer "Rodar agora" como se
+  nada tivesse acontecido) e erro de UM canal não vira "erro no laço" — o laço segue para os outros.
 - DOIS ALARMES FALSOS DO DOUTOR (01/nov): ele dizia "TRAVA PRESENTE" em TODO canal que já rodou um dia — o
   `.canal_rodando` é criado uma vez e FICA ali; só olhar se o arquivo existe não diz nada. Agora ele tenta
   PEGAR a trava, igual à seção TRAVAS (que dizia "livre" dois palmos acima, contradizendo a outra). E o VLOGS
@@ -549,6 +561,20 @@ config da pasta (`"preset"`), e canal que não é `galo` NÃO recebe as migraç�
   `termos_nao` tira GTA 5/RP/Online. O Galo continua pelo times.json.
 - ASSUNTO ÚNICO: `parecido_max` 0,8 (no Galo é 0,35 — num canal que só fala de GTA 6 TUDO pareceria repetido e a
   rodada ficaria sem material), `mesclar_assunto` ligado, `max_repetidas` 3.
+- CINCO VÍDEOS COM QUASE O MESMO TÍTULO (01/nov): "210 GB", "mapa" e "south park" voltaram em todos
+  ("GTA 6 VAI OCUPAR 210 GB", "NOVA GAMEPLAY... + 210 GB", "MAPA DO GTA 6 = ... / SOUTH PARK",
+  "GTA 6 COM 210 GB E MAPA GIGANTE, GAMEPLAY EM SOUTH PARK", "VAZOU! GTA 6 PODE TER 210 GB E MAPA DUAS VEZES
+  MAIOR"). Duas causas, as duas consertadas:
+  **1** um ÚNICO `parecido_max` decidia DUAS coisas diferentes. No GTA ele é 0,8 DE PROPÓSITO (frouxo, senão o
+  canal fica sem material) — então a notícia da véspera voltava, vinha com a nota mais alta, caía em PRIMEIRO
+  e virava o título outra vez. Agora existe `titulo_parecido_max` (gta6 0,4; nos outros `min(0,5, parecido_max)`):
+  ENTRAR no vídeo segue frouxo, ser a PRIMEIRA notícia (a que vira título) é apertado — a comparação é com o
+  TEXTO das notícias que já foram título (`hist["titulos"]`, 7 dias), e quem já foi título é empurrado para
+  trás na ordem. Medido nos títulos reais dele: o repetido dá 0,50 (barrado) e as notícias novas dão 0,00.
+  **2** a IA NÃO SABIA o que já tinha saído — ela só via os trechos de hoje e, com razão, titulava no fato mais
+  forte, que era o mesmo de ontem. Agora o prompt recebe os 8 últimos títulos do canal e a proibição explícita:
+  o título de hoje não pode ser sobre o mesmo fato nem repetir o número/nome que era o gancho deles; sendo o
+  mesmo fato, titula no ÂNGULO NOVO, e sem ângulo novo vai para a SEGUNDA notícia mais forte (a thumb também).
 - CONTAGEM REGRESSIVA de verdade: `"lancamento": "2026-11-19"` no config → o prompt recebe "HOJE FALTAM N DIAS"
   calculado na hora (19/11/2026, pré-download 12/11, PS5 e Xbox Series; PC sem data; R$ 449,90 / R$ 549,90;
   Lucia Caminos e Jason Duval em Leonida/Vice City). **Proibido inventar**: vazamento é chamado de vazamento.
