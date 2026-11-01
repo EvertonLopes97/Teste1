@@ -236,8 +236,9 @@ def canais():
     """por que o canal não rodou sozinho: está LIGADO? quando foi a última? parou por quê? falta máscara/voz?"""
     titulo("CANAIS AUTOMÁTICOS (notícias, GTA 6, vlogs)")
     r = raiz()
-    for pasta, nome, intervalo in ((r / "canal_galo", "NOTÍCIAS (Galo)", 120), (r / "canal_gta6", "GTA 6", 180),
-                                   (r / "canal_vlogs", "VLOGS", 10)):
+    # o vlog NÃO usa máscara nem voz clonada (o áudio é o das gravações dele): cobrar isso dele era alarme falso
+    for pasta, nome, intervalo, com_voz in ((r / "canal_galo", "NOTÍCIAS (Galo)", 120, True), (r / "canal_gta6", "GTA 6", 180, True),
+                                            (r / "canal_vlogs", "VLOGS", 10, False)):
         if not pasta.exists():
             diz(f"{nome}: a pasta {pasta} nem existe (nunca rodou)")
             continue
@@ -263,16 +264,27 @@ def canais():
             diz("   última rodada: NUNCA")
         if el.get("erro"):
             diz(f"   NÃO RODOU da última vez ({el.get('erro_em', '')}): {el['erro']}")
-        if (pasta / ".canal_rodando").exists():
-            diz("   TRAVA PRESENTE (.canal_rodando) — se nada estiver rodando, use Destravar no painel")
-        ms = sorted(x.name for x in (pasta / "mascara").glob("*") if x.is_file()) if (pasta / "mascara").exists() else []
-        vz = (pasta / "voz" / "minha_voz.wav").exists()
-        if not ms:
-            diz("   SEM MÁSCARA: suba 6 a 10 gravações em Meu Drive\\DETTO\\canal_noticias\\mascara (veja VOZ-E-GESTO.md)")
-        if not vz:
-            diz("   SEM VOZ DE REFERÊNCIA: suba 30-60 s da sua voz em Meu Drive\\DETTO\\canal_noticias\\voz")
-        if ms and vz:
-            diz(f"   máscara: {len(ms)} gravação(ões) · voz de referência: ok")
+        # O ARQUIVO EXISTIR NÃO É TRAVA PRESA (01/11): ele é criado uma vez e FICA ali para sempre. Antes esta
+        # linha dizia "TRAVA PRESENTE" em todo canal que já rodou um dia — enquanto a seção TRAVAS, dois palmos
+        # acima, dizia "livre, ninguém usando". Agora pergunto a mesma coisa que ela: dá para pegar a trava?
+        tv = pasta / ".canal_rodando"
+        if tv.exists() and _trava_presa(tv):
+            dentro = ""
+            try:
+                dentro = tv.read_text(encoding="utf-8", errors="replace").replace("\x00", "").strip()[:80]
+            except OSError:
+                pass
+            diz(f"   UMA RODADA ESTÁ TRABALHANDO AGORA{' (' + dentro + ')' if dentro else ''} — se durar horas, é a VOZ "
+                "moendo no Chatterbox; abra o VoiceStudio ou use Encerrar a rodada no painel")
+        if com_voz:
+            ms = sorted(x.name for x in (pasta / "mascara").glob("*") if x.is_file()) if (pasta / "mascara").exists() else []
+            vz = (pasta / "voz" / "minha_voz.wav").exists()
+            if not ms:
+                diz("   SEM MÁSCARA: suba 6 a 10 gravações em Meu Drive\\DETTO\\canal_noticias\\mascara (veja VOZ-E-GESTO.md)")
+            if not vz:
+                diz("   SEM VOZ DE REFERÊNCIA: suba 30-60 s da sua voz em Meu Drive\\DETTO\\canal_noticias\\voz")
+            if ms and vz:
+                diz(f"   máscara: {len(ms)} gravação(ões) · voz de referência: ok")
         pr = pasta / "prontos"
         if pr.exists():
             esperando = [d for d in sorted(pr.iterdir()) if (d / "post.json").exists()]

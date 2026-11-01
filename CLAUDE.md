@@ -64,6 +64,17 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
   lê o MOTIVO no registro (`_por_que_parou`: a linha com "NÃO RODEI"/"SEM VOZ"/Traceback), devolve esse motivo
   como erro do botão, guarda em `painel_canal.json` (`erro`/`erro_em`, que o card mostra) e marca o `ultimo`
   para TENTAR DE NOVO EM ~10 min em vez de 2 h.
+- FILA DE ESPERA DOS CANAIS (01/nov, pedido dele): cabe UMA montagem por vez (voz + render comem o PC), mas
+  clicar "Rodar agora" com outra rodando **não fazia nada** — `roda_agora` só devolvia erro e o clique parecia
+  não ter pegado. Agora o canal entra na `ESPERA` (`_enfileira`) e o laço o começa SOZINHO quando o atual
+  termina — a fila na mão passa na frente do automático. O card mostra "Nº na fila de espera" + **Sair da fila**
+  (`canal_sair_da_fila`), o botão devolve a frase ("GTA 6 está trabalhando agora. Notícias entrou na fila…") e
+  `estado()` manda `na_espera`, `montando` e `espera`. Edição rodando também enfileira (`EDICAO_OCUPADA`).
+- DOIS ALARMES FALSOS DO DOUTOR (01/nov): ele dizia "TRAVA PRESENTE" em TODO canal que já rodou um dia — o
+  `.canal_rodando` é criado uma vez e FICA ali; só olhar se o arquivo existe não diz nada. Agora ele tenta
+  PEGAR a trava, igual à seção TRAVAS (que dizia "livre" dois palmos acima, contradizendo a outra). E o VLOGS
+  não cobra mais máscara/voz clonada — o vlog usa o áudio das gravações dele.
+- Rótulos do card de GTA 6 no painel: dizia "monta os vlogs novos" e "Ajustes do canal de notícias".
 - `doutor.py` ganhou a seção **CANAIS AUTOMÁTICOS**: por canal, se está LIGADO, quando foi a última rodada
   (avisando quando passou do dobro do intervalo), o MOTIVO da última falha, se a trava está presente e se a
   máscara/voz chegaram do Drive. É a resposta direta para "por que não rodou sozinho".

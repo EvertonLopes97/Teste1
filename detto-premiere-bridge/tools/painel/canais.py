@@ -42,8 +42,13 @@ CANAIS = {
 }
 PESADO = {"id": None, "p": None, "o_que": ""}  # montagem (uma por vez)
 POSTANDO = {"p": None, "fila": [], "o_que": ""}  # envios para o YouTube (um por vez, leves)
+# FILA DE ESPERA das montagens (01/11, pedido dele): só cabe UMA montagem por vez (voz + render comem o PC
+# inteiro), mas clicar "Rodar agora" com outra rodando NÃO faz mais nada — o canal entra aqui e começa sozinho
+# assim que o anterior termina. Antes o botão só devolvia um erro e parecia que o clique não tinha pegado.
+ESPERA = []   # [{"c": "noticias", "forcar": True, "teste": False, "pedido": "2026-11-01T14:10"}]
 TRAVA = threading.Lock()
 LOG = print
+EDICAO_OCUPADA = lambda: False   # noqa: E731  (o painel põe a função de verdade no laco)
 
 
 def pasta(c):
@@ -145,7 +150,7 @@ def estado():
              "prontos": prs, "esperando": sum(1 for x in prs if x["status"] == "aguardando"),
              "log": _tail(p / "canal.log"), "shorts": cf.get("shorts", 2), "privacidade": cf.get("privacidade", "public"),
              "mesclar_assunto": bool(cf.get("mesclar_assunto", False)), "travado": bool(tv_), "travado_quem": tv_,
-             "erro": el.get("erro", ""), "erro_em": el.get("erro_em", ""),
+             "erro": el.get("erro", ""), "erro_em": el.get("erro_em", ""), "na_espera": na_espera(c),
              "campeonatos_ligado": bool(cf.get("campeonatos_ligado", True))}
         if CANAIS[c]["script"].name == "canal.py":   # notícias e GTA 6 (mesmo motor: pautas, voz, máscara)
             pf = p / "pautas.txt"
@@ -191,6 +196,8 @@ def estado():
     out["segredo"] = bool(segredo())
     out["pasta_youtube"] = str(_raiz() / "youtube")
     out["fila_postar"] = len(POSTANDO["fila"])
+    out["montando"] = CANAIS[PESADO["id"]]["nome"] if (PESADO["id"] and ocupado()) else ""
+    out["espera"] = [CANAIS[x["c"]]["nome"] + (" (teste)" if x.get("teste") else "") for x in ESPERA]
     return out
 
 
@@ -256,6 +263,11 @@ def acao(nome, d):
         raise ValueError("canal?")
     if nome == "canal_destravar":
         return destrava(c)
+    if nome == "canal_sair_da_fila":
+        with TRAVA:
+            antes = len(ESPERA)
+            ESPERA[:] = [x for x in ESPERA if x["c"] != c]
+        return {"ok": True, "msg": f"{CANAIS[c]['nome']} saiu da fila de espera" if len(ESPERA) < antes else "não estava na fila"}
     if nome == "canal_cfg":
         if "ligado" in d:
             grava_estado(c, ligado=bool(d["ligado"]))
@@ -380,11 +392,44 @@ def _por_que_parou(c, n=25):
     return linhas[-1][:300] if linhas else "sem nada no registro"
 
 
-def roda_agora(c, forcar=True, teste=False):
-    """teste = monta com voz de computador (sem a sua voz clonada), não posta — para ver a edição"""
+def na_espera(c):
+    """este canal já está na fila de espera? (devolve a posição, 1 = o próximo)"""
+    for i, x in enumerate(ESPERA):
+        if x["c"] == c:
+            return i + 1
+    return 0
+
+
+def _enfileira(c, forcar, teste, quem_roda):
+    """põe na fila em vez de recusar o clique (o laço começa assim que o pesado atual terminar)"""
     with TRAVA:
+        ja = na_espera(c)
+        if ja:
+            return {"ok": True, "fila": ja, "msg": f"{CANAIS[c]['nome']} já estava na fila de espera ({ja}º)"}
+        ESPERA.append({"c": c, "forcar": forcar, "teste": teste, "pedido": dt.datetime.now().isoformat(timespec="minutes")})
+        pos = len(ESPERA)
+    LOG(f"canal {CANAIS[c]['nome']}: na FILA DE ESPERA ({pos}º) — {quem_roda} está trabalhando agora")
+    return {"ok": True, "fila": pos, "msg": f"{quem_roda} está trabalhando agora. {CANAIS[c]['nome']} entrou na fila "
+                                            f"de espera ({pos}º) e começa sozinho quando terminar."}
+
+
+def roda_agora(c, forcar=True, teste=False, da_fila=False):
+    """teste = monta com voz de computador (sem a sua voz clonada), não posta — para ver a edição
+
+    Trabalho pesado é UM por vez. Pedido com outro rodando NÃO é recusado: entra na `ESPERA` e o laço o
+    começa assim que o atual terminar (01/11, pedido dele).
+    """
+    if not da_fila:
         if ocupado():
-            raise ValueError(f"já tem um canal montando agora ({CANAIS[PESADO['id']]['nome']})")
+            return _enfileira(c, forcar, teste, CANAIS[PESADO["id"]]["nome"] if PESADO["id"] else "outro canal")
+        try:
+            if EDICAO_OCUPADA():
+                return _enfileira(c, forcar, teste, "uma edição")
+        except Exception:  # noqa: BLE001
+            pass
+    with TRAVA:
+        if ocupado():   # alguém pegou a vaga entre as duas conferências
+            return _enfileira(c, forcar, teste, CANAIS[PESADO["id"]]["nome"] if PESADO["id"] else "outro canal")
         preso = travado(c)
         if preso:   # outra rodada está com a trava: o filho morreria em 1 s e o botão pareceria não fazer nada
             raise ValueError(f"outra rodada deste canal está com a trava ({preso}). Use o botão Destravar.")
@@ -408,14 +453,17 @@ def roda_agora(c, forcar=True, teste=False):
         LOG(f"canal {CANAIS[c]['nome']}: NÃO RODOU — {motivo}")
         raise ValueError(f"a rodada parou na largada: {motivo}")
     grava_estado(c, ultimo=dt.datetime.now().isoformat(timespec="minutes"), erro="")
+    with TRAVA:   # começou de verdade: sai da fila de espera
+        ESPERA[:] = [x for x in ESPERA if x["c"] != c]
     LOG(f"canal {CANAIS[c]['nome']}: rodada começou")
-    return {"ok": True}
+    return {"ok": True, "msg": f"{CANAIS[c]['nome']}: a rodada começou — acompanhe no registro"}
 
 
 def laco(log=print, edicao_ocupada=lambda: False):
     """roda os canais ligados na hora certa e posta os aprovados"""
-    global LOG
+    global LOG, EDICAO_OCUPADA
     LOG = log
+    EDICAO_OCUPADA = edicao_ocupada   # o roda_agora também precisa saber, para enfileirar em vez de recusar
     # aprovados que ficaram na fila quando o painel fechou
     for c in CANAIS:
         try:
@@ -441,7 +489,20 @@ def laco(log=print, edicao_ocupada=lambda: False):
                 c = PESADO["id"]
                 log(f"canal {CANAIS[c]['nome']}: rodada terminou ({'ok' if p.returncode == 0 else 'com erro'})")
                 PESADO.update(id=None, p=None, o_que="")
-            # 3) hora de rodar algum canal ligado?
+            # 3) a FILA DE ESPERA vem primeiro: o que VOCÊ pediu na mão passa na frente do automático
+            if not ocupado() and not edicao_ocupada() and ESPERA:
+                with TRAVA:
+                    pedido = ESPERA.pop(0) if ESPERA else None
+                if pedido:
+                    cc = pedido["c"]
+                    log(f"canal {CANAIS[cc]['nome']}: a vez dele chegou (estava na fila de espera)")
+                    try:
+                        roda_agora(cc, forcar=pedido.get("forcar", True), teste=pedido.get("teste", False), da_fila=True)
+                    except Exception as e:  # noqa: BLE001
+                        log(f"canal {CANAIS[cc]['nome']}: não consegui começar o que estava na fila ({str(e)[:200]})")
+                    time.sleep(1)
+                    continue
+            # 4) hora de rodar algum canal ligado?
             if not ocupado() and not edicao_ocupada():
                 agora = dt.datetime.now()
                 for c, info in CANAIS.items():
