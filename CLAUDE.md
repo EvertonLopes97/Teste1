@@ -602,6 +602,43 @@ config da pasta (`"preset"`), e canal que não é `galo` NÃO recebe as migraç�
 - CANAIS-FONTE (29/out, pedido dele): @SaninPlay, @GameplayRJ, @RockstarGames (oficial), @BRKsEDU, @Voxel,
   @TecMundo, @IGNBrasil. Canal que não existir/404 é pulado e a busca por data cobre o resto.
 
+## GAMEPLAY NARRADA (01/nov) — `tools\gameplay\`, guia `tools\gameplay\LEIA-ME.txt`
+
+`python tools\gameplay\gameplay.py --pasta "E:\DETTO\gameplay\<nome>" --jogo "Project Zomboid" --titulo "<a premissa>"`
+Gravação bruta → vídeo de 15-20 min com a VOZ DELE narrando em 1ª pessoa + reações + Shorts. Ele pediu
+"igual The Gus/Blake Games"; medi os dois nomes e nenhum era (o @thegusr é em inglês, o @BlakeGames tem 105
+views) — mas Project Zomboid está na lista dele, então o @thegusr ERA a referência.
+MEDIDO (últimos 25 vídeos): **@thegusr 15-25 min = 1,30x** (8-15 min 0,83x) · **@Felps 15-25 min = 1,33x**.
+O melhor de cada um vende uma PREMISSA, não um resumo ("I played Project Zomboid in third person!!" 5,6x;
+"10 ANOS BEBENDO PETRÓLEO" 3,9x) e o PIOR do @thegusr é o único fora do formato (0,1x) — sair do formato mata.
+→ `duracao_alvo_min` 17 e o prompt exige premissa COM NÚMERO: no teste, sem o número a nota do título caía
+de 67 para 23 (o `yt\titulo.py` pegou sozinho).
+- **O QUE NÃO EXISTIA: `momentos.py`.** Numa gravação de 2 h não há roteiro nem marcação. Três sinais, e
+  nenhum com número fixo — vale o que sai do normal DAQUELE vídeo (a mesma lição dos paredões do
+  `retencao.py`): VOLUME (tiro/grito/morte) · MOVIMENTO (correria/luta) · **A FALA DELE** (se comentou
+  jogando, a PALAVRA dita é o momento: "morri", "consegui" — `GRITOS`/`AUGE`, pesa mais que os outros dois).
+  Cada momento pega ~4 s ANTES do pico (a subida é o que prende; cortar no pico entrega o resultado sem a
+  tensão) e 3,5 s depois. Conferido numa gravação sintética com ação nos segundos 40, 95 e 150: achou os
+  três (35,7s / 91,0s / 145,7s), zero falso positivo, e ignorou fala comum ("de novo") marcando só a reação.
+- O resto REUSA o que já existe: `vlog.energia` (movimento/volume), faster-whisper, `canal\voz.py`
+  (VoiceStudio → Fish → neural, com o clima mandando na emoção), vinheta depois da chamada, `thumb\viral.py`
+  estilo gameplay, `yt\capitulos.py`, `yt\titulo.py` e `vertical916.py` nos Shorts.
+- O Gemini olha UM quadro de cada momento e diz o que aconteceu (`rotula`), para a narração falar do que
+  está na tela. **Proibido inventar** está no prompt e funciona: no teste com barras de cor, a IA narrou que
+  a gravação tinha quebrado em vez de inventar zumbi.
+- TRÊS ERROS QUE SÓ O TESTE PEGOU: (1) `filtro_complexo` recebe o CAMINHO de um arquivo, não o texto do
+  filtro — passar o texto matava TODA peça em "Failed to set value ... filter_complex_script"; (2) `crop`
+  **não aceita `enable`** ("Timeline not supported"), então o punch-in é `scale` com `eval=frame` numa
+  expressão de t + crop fixo (`zoompan` é proibido: ~57 s por cena); (3) `drawtext` NÃO quebra linha — uma
+  narração de 40 palavras saía numa linha só, metade fora da tela; `quebra()` corta em 42 colunas e a altura
+  segue o número de linhas (contar `chr(10)`, não `chr(92)+"n"`, senão a última linha some embaixo).
+  E o NVENC agora é testado codificando 1 quadro de verdade: listar em `-encoders` não prova nada e o render
+  morria com "Cannot load libcuda.so.1" no meio.
+- `--so-momentos` lista o que escolheu e PARA (confira antes de gastar voz e render); `--sem-voz` escreve o
+  roteiro e para. `job\momentos.json` é editável na mão.
+- Rodou de ponta a ponta aqui com gravação SINTÉTICA. Com gameplay de verdade ainda não — está dito no
+  LEIA-ME e foi dito a ele.
+
 ## TIKTOK SHOP — vídeos de produto automáticos (26/out)
 
 `python tools\shop\shop.py` (painel: aba **TikTok Shop**; guia `tools\shop\LEIA-ME.txt`; pasta `E:\DETTO\shop`).
