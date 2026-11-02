@@ -70,6 +70,24 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
   termina — a fila na mão passa na frente do automático. O card mostra "Nº na fila de espera" + **Sair da fila**
   (`canal_sair_da_fila`), o botão devolve a frase ("GTA 6 está trabalhando agora. Notícias entrou na fila…") e
   `estado()` manda `na_espera`, `montando` e `espera`. Edição rodando também enfileira (`EDICAO_OCUPADA`).
+- **O QUE REALMENTE TRAVOU TUDO (01/nov): O DOWNLOAD DE UMA TRANSMISSÃO AO VIVO.** O registro das 18:16 para
+  em `baixando: 🔴 Grêmio x Atlético-MG - Copa do Brasil` e nunca mais sai de lá. O `ytdlp()` rodava
+  `subprocess.run` **SEM timeout**, e um live NÃO TEM FIM: a rodada ficou presa para sempre, segurando a trava,
+  e todas as seguintes morreram com "outro canal.py está com a trava". Três consertos:
+  **1** `ytdlp(..., timeout=600)` e `baixa(..., timeout=1200)` — passando disso, o yt-dlp é encerrado e o
+  registro diz "passou de Ns e foi encerrado (transmissão ao vivo ou vídeo gigante?)". Nenhuma rodada pode mais
+  ficar presa para sempre.
+  **2** `--match-filter "!is_live"` no download: ao vivo nem começa a baixar.
+  **3** `"fora_sinais"` (🔴, pré-jogo, pós-jogo, "assista agora") conferido SEM limite de palavra — o `fora`
+  usa `\b...\b` e um emoji nunca casaria com isso, e era por isso que "🔴 Grêmio x Atlético-MG" passava: o
+  título não tem as palavras "ao vivo" nem "live". `_tipo == "live"` também barra.
+- **DESTRAVAR AGORA SEMPRE RESOLVE (01/nov, pedido dele: "era só clicar e fazer, quero que seja assim")**: com
+  a trava presa e SEM pid anotado, o botão dizia "não tinha trava presa" e o canal ficava morto até ele caçar o
+  processo no Gerenciador de Tarefas. Agora `destrava` vai em ordem: pid morto → apaga a trava; pid vivo →
+  encerra; **sem pid → `_processos_do_canal` acha o python.exe que está rodando o `canal.py` daquela pasta
+  (Win32_Process/CommandLine; a pasta na linha é o casamento certo, mas sem ela um canal.py ainda é candidato) e
+  encerra**; ninguém com ela → apaga o arquivo. E o **Rodar agora se destrava SOZINHO** quando a trava está
+  quebrada (sem pid) e segue para a rodada — com pid VIVO ele respeita a rodada em andamento e avisa.
 - A TRAVA FANTASMA QUE MATOU O CANAL DE NOTÍCIAS (01/nov, 18h16→20h46 sem rodar): o registro repetia
   "NÃO RODEI: outro canal.py está com a trava **()**" — sem pid — a cada 10 min. A culpa era do PAINEL: o
   `travado()` testava a trava **PEGANDO** ela a cada carregamento de tela, e o `trava_rodada` escreve e

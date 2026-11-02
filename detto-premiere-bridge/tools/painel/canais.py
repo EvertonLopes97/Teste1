@@ -217,39 +217,87 @@ def arquivo(c, pid, nome):
     return f
 
 
-def destrava(c):
-    """encerra o processo que está com a trava deste canal (um canal.py travado prende TODAS as rodadas seguintes)"""
-    sys.path.insert(0, str(TOOLS / "reels"))
-    from reels import dono_da_trava
+def _mata(pid):
+    try:
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/PID", str(pid), "/F", "/T"], capture_output=True, timeout=20)
+        else:
+            os.kill(int(pid), 9)
+        return True
+    except Exception:  # noqa: BLE001
+        return False
 
+
+def _processos_do_canal(c):
+    """os python.exe que estão rodando o canal.py DESTA pasta (quando o pid não ficou anotado na trava).
+
+    Sem isto, uma trava sem pid era um beco sem saída: o botão Destravar dizia "não tinha trava presa" e o
+    canal ficava morto até ele achar o processo no Gerenciador de Tarefas (01/nov).
+    """
+    alvo = str(pasta(c)).lower()
+    script = CANAIS[c]["script"].name.lower()
+    desta, quaisquer = [], []
+    linhas = []
+    try:
+        if os.name == "nt":
+            r = subprocess.run(["powershell", "-NoProfile", "-Command",
+                                "Get-CimInstance Win32_Process -Filter \"Name like 'python%'\" | "
+                                "Select-Object ProcessId,CommandLine | ConvertTo-Json -Compress"],
+                               capture_output=True, text=True, timeout=30)
+            dados = json.loads(r.stdout or "[]")
+            if isinstance(dados, dict):
+                dados = [dados]
+            linhas = [(int(p.get("ProcessId") or 0), (p.get("CommandLine") or "").lower()) for p in dados]
+        else:
+            r = subprocess.run(["ps", "-eo", "pid=,args="], capture_output=True, text=True, timeout=20)
+            for l in (r.stdout or "").splitlines():
+                pid_, _, args = l.strip().partition(" ")
+                if pid_.isdigit():
+                    linhas.append((int(pid_), args.lower()))
+    except Exception:  # noqa: BLE001
+        return []
+    for p, linha in linhas:
+        if p in (0, os.getpid()) or script not in linha:
+            continue
+        # a pasta na linha de comando é o casamento CERTO; sem ela, ainda é um canal.py candidato (a trava sem
+        # pid só acontece quando algo já deu errado, e deixar o canal morto é pior)
+        (desta if alvo in linha else quaisquer).append(p)
+    return desta or quaisquer
+
+
+def destrava(c):
+    """DESTRAVAR SEMPRE RESOLVE (01/nov). Antes, trava sem pid anotado = beco sem saída: o botão dizia "não tinha
+    trava presa" e o canal continuava morto. Agora, em ordem: pid morto → livre; pid vivo → encerra; sem pid →
+    procura o python.exe que está rodando o canal.py DESTA pasta e encerra; nada rodando → apaga o arquivo."""
+    sys.path.insert(0, str(TOOLS / "reels"))
+    from reels import dono_da_trava, trava_rodada
+
+    f = pasta(c) / ".canal_rodando"
     quem, pid = dono_da_trava(pasta(c), ".canal_rodando")
     if pid and not vivo(pid):
-        return {"ok": True, "msg": f"o processo {pid} já tinha morrido — a trava está livre"}
-    if not quem:
-        # sem pid anotado: se ninguém está com ela, o arquivo é só sobra — apago para o aviso parar
-        try:
-            from reels import trava_rodada
-
-            t = trava_rodada(pasta(c), ".canal_rodando", so_testa=True)
-            if t:
-                t.close()
-                (pasta(c) / ".canal_rodando").unlink(missing_ok=True)
-                return {"ok": True, "msg": "não tinha ninguém com a trava; apaguei o arquivo que ficou para trás"}
-        except Exception:  # noqa: BLE001
-            pass
-        return {"ok": False, "erro": "a trava está presa por um processo que não anotou o pid. Feche o python.exe "
-                                     "no Gerenciador de Tarefas e rode de novo."}
-    if pid and pid != os.getpid():
-        try:
-            if os.name == "nt":
-                subprocess.run(["taskkill", "/PID", str(pid), "/F", "/T"], capture_output=True, timeout=20)
-            else:
-                os.kill(pid, 9)
+        f.unlink(missing_ok=True)
+        return {"ok": True, "msg": f"o processo {pid} já tinha morrido — destravei"}
+    if pid:
+        if _mata(pid):
             LOG(f"canal {CANAIS[c]['nome']}: encerrei o processo {pid} que estava com a trava ({quem})")
-            return {"ok": True, "msg": f"encerrei o processo {pid}"}
-        except Exception as e:  # noqa: BLE001
-            return {"ok": False, "erro": f"não consegui encerrar o {pid}: {str(e)[:120]}"}
-    return {"ok": False, "erro": f"a trava é de um processo sem PID anotado ({quem}); feche o python na mão"}
+            return {"ok": True, "msg": f"encerrei o processo {pid}. Clique em Rodar agora."}
+        return {"ok": False, "erro": f"não consegui encerrar o processo {pid}"}
+    # SEM PID ANOTADO: ninguém está com ela, ou é um processo que não anotou
+    t = trava_rodada(pasta(c), ".canal_rodando", so_testa=True)
+    if t:
+        t.close()
+        f.unlink(missing_ok=True)
+        return {"ok": True, "msg": "não tinha ninguém trabalhando; apaguei a trava que ficou para trás. "
+                                   "Clique em Rodar agora."}
+    mortos = [p for p in _processos_do_canal(c) if _mata(p)]
+    if mortos:
+        time.sleep(1.5)
+        f.unlink(missing_ok=True)
+        LOG(f"canal {CANAIS[c]['nome']}: encerrei {len(mortos)} processo(s) do canal.py ({', '.join(map(str, mortos))})")
+        return {"ok": True, "msg": f"encerrei {len(mortos)} processo(s) que estavam rodando este canal. "
+                                   "Clique em Rodar agora."}
+    return {"ok": False, "erro": "a trava está presa e eu não achei o processo. Feche TODOS os python.exe no "
+                                 "Gerenciador de Tarefas (Ctrl+Shift+Esc), reabra o painel e rode de novo."}
 
 
 def vivo(pid):
@@ -479,8 +527,17 @@ def roda_agora(c, forcar=True, teste=False, da_fila=False):
         if ocupado():   # alguém pegou a vaga entre as duas conferências
             return _enfileira(c, forcar, teste, CANAIS[PESADO["id"]]["nome"] if PESADO["id"] else "outro canal")
         preso = travado(c)
+        if preso and "sem pid" in preso:
+            # TRAVA QUEBRADA (sem pid anotado) = beco sem saída. Antes o botão recusava e o canal ficava morto
+            # até ele caçar o processo no Gerenciador de Tarefas. Agora eu destravo SOZINHO e sigo: é "clicar e
+            # fazer", que é o que ele pediu. Só faço isso quando NÃO há pid — com pid vivo eu respeito a rodada.
+            LOG(f"canal {CANAIS[c]['nome']}: a trava estava quebrada (sem pid); destravando sozinho")
+            r = destrava(c)
+            if not r.get("ok"):
+                raise ValueError(r.get("erro") or "não consegui destravar")
+            preso = travado(c)
         if preso:   # outra rodada está com a trava: o filho morreria em 1 s e o botão pareceria não fazer nada
-            raise ValueError(f"outra rodada deste canal está com a trava ({preso}). Use o botão Destravar.")
+            raise ValueError(f"a rodada {preso} está trabalhando agora. Espere ela acabar ou use Encerrar a rodada.")
         de_noticias = CANAIS[c]["script"].name == "canal.py"   # noticias e GTA 6 usam o mesmo script
         args = ["--forcar"] if (forcar and de_noticias) else []
         if teste:

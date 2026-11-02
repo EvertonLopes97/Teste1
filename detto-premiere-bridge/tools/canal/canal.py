@@ -84,7 +84,11 @@ CONFIG_PADRAO = {
     "busca_qualquer_canal": True,
     "outras_fontes": ["itatiaia", "globo esporte", "ge globo", "sportv", "band", "cnn", "os donos da bola", "tnt sports",
                       "super fc", "o tempo", "hoje em dia", "rádio 98", "estado de minas", "premiere", "cazé"],
+    # 🔴 é a marca de TRANSMISSÃO AO VIVO (e o que travou o canal em 01/nov: "🔴 Grêmio x Atlético-MG" entrou
+    # porque não tinha as palavras "ao vivo" nem "live" no título). `fora_sinais` é conferido como SINAL, sem
+    # limite de palavra — 🔴 não é palavra e o `\b` do `fora` nunca casaria com ele.
     "fora": ["react", "reage", "reagindo", "reacao", "reacoes", "ao vivo", "live", "jogo completo", "gameplay", "fifa", "efootball"],
+    "fora_sinais": ["🔴", "🟢 ao vivo", "assista agora", "pre-jogo", "pré-jogo", "pos-jogo", "pós-jogo"],
     "max_horas": 48,  # notícias de hoje e de ontem que ainda não postamos
     "max_videos_rodada": 8,  # quantos vídeos novos baixa/transcreve por rodada (os melhores primeiro; o resto na próxima)
     "trecho_min_s": 15,
@@ -280,6 +284,10 @@ def coleta(cfg, hist):
             return
         if any(re.search(rf"\b{re.escape(norm(x))}\b", norm(v["titulo"])) for x in cfg.get("fora", [])):
             return  # react / ao vivo / jogo: não é notícia de imprensa
+        if any(s and s.lower() in (v["titulo"] or "").lower() for s in cfg.get("fora_sinais", [])):
+            return  # 🔴 e companhia: transmissão ao vivo (o download de um live não terminaria nunca)
+        if (v.get("_tipo") or "") == "live":
+            return
         novos.append({"id": v["id"], "url": f"https://www.youtube.com/watch?v={v['id']}", "titulo": v["titulo"],
                       "fonte": f.get("nome") or v.get("canal_nome") or f.get("canal", ""), "canal": f.get("canal", ""),
                       "dur": dur_s or 0, "publicado": v["quando"].isoformat(timespec="minutes"), "max_trechos": f.get("max_trechos"),

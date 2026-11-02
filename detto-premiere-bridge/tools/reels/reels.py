@@ -184,7 +184,10 @@ def cor_sdr(f):
 
 
 # ------------------------------------------------------------------ baixar (yt-dlp: YouTube, TikTok, Instagram)
-def ytdlp(args, cookies=None):
+def ytdlp(args, cookies=None, timeout=600):
+    """O TIMEOUT NÃO É ENFEITE (01/nov): sem ele, baixar uma TRANSMISSÃO AO VIVO não termina NUNCA. Foi isso que
+    travou o canal de notícias das 18h16 às 21h — a rodada ficou presa em "baixando: 🔴 Grêmio x Atlético-MG",
+    segurou a trava, e TODAS as rodadas seguintes morreram dizendo "outro canal.py está com a trava"."""
     base = [sys.executable, "-m", "yt_dlp", "--no-warnings", "--no-playlist"]
     if shutil.which("node"):
         base += ["--js-runtimes", "node"]
@@ -192,10 +195,18 @@ def ytdlp(args, cookies=None):
         base += ["--cookies", str(cookies)]  # cookies.txt exportado do navegador
     elif cookies:
         base += ["--cookies-from-browser", cookies]
-    r = subprocess.run(base + args, capture_output=True, text=True, encoding="utf-8", errors="replace")
+
+    def roda(cmd):
+        try:
+            return subprocess.run(cmd, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
+        except subprocess.TimeoutExpired:
+            return subprocess.CompletedProcess(cmd, 1, "", f"yt-dlp passou de {timeout}s e foi encerrado "
+                                                           "(transmissão ao vivo ou vídeo gigante?)")
+
+    r = roda(base + args)
     if r.returncode != 0 and "no such option" in (r.stderr or "").lower() and "js-runtimes" in (r.stderr or ""):
         base = [x for x in base if x not in ("--js-runtimes", "node")]
-        r = subprocess.run(base + args, capture_output=True, text=True, encoding="utf-8", errors="replace")
+        r = roda(base + args)
     return r
 
 
@@ -223,17 +234,18 @@ def atualiza_ytdlp():
         pass
 
 
-def baixa(url, pasta, cookies=None, txt=None):
+def baixa(url, pasta, cookies=None, txt=None, timeout=1200):
     """baixa o vídeo + info (título, descrição, tags). Devolve (mp4, info) ou (None, erro)."""
     pasta.mkdir(parents=True, exist_ok=True)
     # a MAIOR resolução (até 1920 de altura), qualquer codec; junta em mp4
-    args = ["-f", "bv*+ba/b", "-S", "res:1920,fps", "--merge-output-format", "mp4",
+    # `!is_live`: AO VIVO não baixa. Um live não tem fim — o download rodaria para sempre (01/nov).
+    args = ["-f", "bv*+ba/b", "-S", "res:1920,fps", "--merge-output-format", "mp4", "--match-filter", "!is_live",
             "--write-info-json", "-o", str(pasta / "%(extractor_key)s_%(id)s.%(ext)s"), "--print", "after_move:filepath", url]
     erro = ""
     # sem login → cookies.txt da pasta (extensão "Get cookies.txt LOCALLY") → navegadores (Firefox funciona melhor;
     # Chrome/Edge novos às vezes não deixam ler)
     for k, ck in enumerate([cookies] if cookies else [None] + ([str(txt)] if txt and Path(txt).exists() else []) + ["firefox", "chrome", "edge"]):
-        r = ytdlp(args, ck)
+        r = ytdlp(args, ck, timeout=timeout)
         caminho = (r.stdout or "").strip().splitlines()[-1:] or [""]
         f = Path(caminho[0]) if caminho[0] else None
         if f and f.exists() and f.stat().st_size > 50_000:
