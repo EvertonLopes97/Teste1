@@ -383,13 +383,16 @@ def pega_cookies(atualizar=False):
     alvo = TOOLS / "postar" / "cookies_youtube.py"
     if not alvo.exists():
         raise ValueError("não achei o cookies_youtube.py (rode o ATUALIZAR.ps1)")
-    args = [py(), str(alvo)] + (["--atualizar"] if atualizar else ["--minutos", "8"])
+    # `py()` devolve (executável, extras) — passar a TUPLA inteira para o Popen estourava
+    # "expected str, bytes or os.PathLike object, not tuple" (05/nov, erro meu)
+    exe, extra = py()
+    args = [exe, str(alvo)] + (["--atualizar"] if atualizar else ["--minutos", "8"])
     reg = _raiz() / "postar" / "cookies.log"
     reg.parent.mkdir(parents=True, exist_ok=True)
     with reg.open("a", encoding="utf-8") as f:
         f.write(f"\n===== {dt.datetime.now():%d/%m %H:%M} {'atualizar' if atualizar else 'entrar'} =====\n")
         f.flush()
-        subprocess.Popen(args, cwd=str(PONTE), stdout=f, stderr=subprocess.STDOUT)
+        subprocess.Popen(args, cwd=str(PONTE), stdout=f, stderr=subprocess.STDOUT, **extra)
     if atualizar:
         return {"ok": True, "msg": "Atualizando os cookies do perfil salvo — confira em alguns segundos."}
     return {"ok": True, "msg": "Abri uma janela do navegador: ENTRE NA SUA CONTA DO GOOGLE. "
