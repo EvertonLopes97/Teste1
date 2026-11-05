@@ -14,3 +14,14 @@ tools/motion/modelos/selfie_multiclass_256x256.tflite
 tools/motion/modelos/*.baixando
 tools/motion/modelos/face_landmarker.task
 test/visual/novo_*.png
+
+# NUNCA versionar uma pasta com nome de caminho do Windows (05/nov): rodando os testes no Linux, o
+# `E:\DETTO` do código vira uma pasta LITERAL "E:" dentro do repositório. O `git add -A` levou junto e o
+# `git pull` no PC dele morreu com "invalid path" — ":" não é caractere válido em nome de arquivo no
+# Windows, então o repositório ficou IMPOSSÍVEL de atualizar lá.
+E:/
+E:\
+**/perfil_youtube/
+**/perfil_instagram/
+**/perfil_tiktok/
+cookies.txt

@@ -95,7 +95,17 @@ def norm(t):
 
 
 def raiz_midia():
-    return Path(os.environ.get("DETTO_MIDIA") or "E:/DETTO")
+    """a pasta da mídia dele. FORA DO WINDOWS o "E:/DETTO" vira uma pasta LITERAL chamada "E:" dentro de
+    onde o programa estiver rodando — e foi assim que um teste meu criou `detto-premiere-bridge/E:/DETTO/...`
+    dentro do repositório, que entrou no commit e QUEBROU o `git pull` no PC dele ("invalid path", porque
+    ":" não vale em nome de arquivo no Windows). Então aqui fora isso cai no /tmp."""
+    d = os.environ.get("DETTO_MIDIA")
+    if d:
+        return Path(d)
+    if os.name == "nt":
+        return Path("E:/DETTO")
+    import tempfile
+    return Path(tempfile.gettempdir()) / "DETTO"
 
 
 def le_json(p, padrao):

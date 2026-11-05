@@ -61,6 +61,20 @@ if ($LASTEXITCODE -ne 0) {
   if ($moveu) { git pull }
 }
 if ($LASTEXITCODE -ne 0) {
+  # CAMINHO INVALIDO NO WINDOWS (05/nov): um commit trouxe por engano uma pasta chamada "E:" (o ":" nao
+  # vale em nome de arquivo aqui), e o pull morreu com "invalid path" em TODA tentativa — o repositorio
+  # ficava impossivel de atualizar e nada que eu consertasse chegava no PC dele. Nesse caso o conserto e
+  # ir direto para a versao nova do servidor: ela ja nao tem esses arquivos.
+  $saida = (git pull 2>&1 | Out-String)
+  if ($saida -match "invalid path") {
+    Write-Host "   o codigo tinha um arquivo com nome invalido no Windows; indo direto para a versao nova" -ForegroundColor Yellow
+    $ramo = (git rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>$null)
+    if (-not $ramo) { $ramo = "origin/claude/upbeat-sagan-y007mb" }
+    git fetch --all --prune
+    git reset --hard $ramo
+  }
+}
+if ($LASTEXITCODE -ne 0) {
   Write-Host ""
   Write-Host "O git pull NAO funcionou. Copie o erro acima e me mande." -ForegroundColor Red
   Read-Host "Enter para fechar"

@@ -104,6 +104,17 @@ function grava(saida, texto, dominio) {
   fs.writeFileSync(saida, texto.trimEnd().split("\n").concat(antigas).join("\n") + "\n", "utf8");
 }
 
+/**
+ * A raiz da midia. FORA DO WINDOWS o "E:/DETTO" vira uma pasta LITERAL "E:" onde o programa rodar — foi
+ * assim que um teste criou `detto-premiere-bridge/E:/DETTO/...` dentro do repositorio, que entrou no
+ * commit e quebrou o `git pull` no Windows ("invalid path": ":" nao vale em nome de arquivo).
+ */
+function raizMidia() {
+  if (process.env.DETTO_MIDIA) return process.env.DETTO_MIDIA;
+  if (process.platform === "win32") return "E:/DETTO";
+  return path.join(require("os").tmpdir(), "DETTO");
+}
+
 function arg(nome, padrao) {
   const i = process.argv.indexOf("--" + nome);
   return i > 0 && process.argv[i + 1] ? process.argv[i + 1] : padrao;
@@ -120,8 +131,8 @@ async function main() {
   const minutos = Number(arg("minutos", "8")) || 8;
   const dominio = arg("dominio", "youtube.com");
   const url = arg("url", "https://www.youtube.com/");
-  const saida = arg("saida", path.join(process.env.DETTO_MIDIA || "E:/DETTO", "cookies.txt"));
-  const perfil = arg("perfil", path.join(process.env.DETTO_MIDIA || "E:/DETTO", "postar", "perfil_youtube"));
+  const saida = arg("saida", path.join(raizMidia(), "cookies.txt"));
+  const perfil = arg("perfil", path.join(raizMidia(), "postar", "perfil_youtube"));
 
   const { chromium } = loadPlaywright();
   fs.mkdirSync(perfil, { recursive: true });
