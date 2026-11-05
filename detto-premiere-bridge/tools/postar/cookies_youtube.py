@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import datetime as dt
 import os
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -130,11 +131,40 @@ def tem_login(cookies, site):
     return any(p in nomes for p in SITES[site]["prova"])
 
 
+def _pelo_node(site, minutos, atualizar, saida):
+    """O CAMINHO QUE DE FATO FUNCIONA NO PC DELE (05/nov).
+
+    A primeira versão disto só tentava o Playwright do PYTHON — que o PC dele não tem. O que o projeto
+    instala e usa (cartelas, thumbs, vinheta) é o do NODE. Resultado: o programa morria na primeira linha
+    e a janela nunca abria. Então o Node é tentado SEMPRE, antes de desistir."""
+    import shutil as _sh
+
+    js = Path(__file__).with_suffix(".js")
+    if not js.exists() or not _sh.which("node"):
+        return None
+    s = SITES[site]
+    args = ["node", str(js), "--saida", str(saida or (raiz_midia() / "cookies.txt")),
+            "--perfil", str(raiz_midia() / "postar" / f"perfil_{site}"),
+            "--dominio", s["dominio"], "--url", s["url"], "--minutos", str(minutos)]
+    if atualizar:
+        args.append("--atualizar")
+    log("usando o Chromium do Node (o mesmo das cartelas e das thumbs)")
+    try:
+        return subprocess.run(args, cwd=str(Path(__file__).resolve().parent.parent.parent)).returncode
+    except OSError as e:   # noqa: BLE001
+        log(f"não consegui rodar o node ({str(e)[:90]})")
+        return None
+
+
 def pega(site="youtube", minutos=5, atualizar=False, saida=None, headless=False):
     sp = _playwright()
     if not sp:
-        log("ERRO: o Playwright não está instalado. Rode:  python -m pip install playwright  "
-            "e depois:  python -m playwright install chromium")
+        r = _pelo_node(site, minutos, atualizar, saida)
+        if r is not None:
+            return r
+        log("ERRO: não achei o Playwright nem no Python nem no Node.")
+        log("      Na pasta detto-premiere-bridge rode:  npm install playwright")
+        log("      e depois:  npx playwright install chromium")
         return 1
     s = SITES[site]
     perfil = raiz_midia() / "postar" / f"perfil_{site}"

@@ -395,11 +395,31 @@ def pega_cookies(atualizar=False):
     with reg.open("a", encoding="utf-8") as f:
         f.write(f"\n===== {dt.datetime.now():%d/%m %H:%M} {'atualizar' if atualizar else 'entrar'} =====\n")
         f.flush()
-        subprocess.Popen(args, cwd=str(PONTE), stdout=f, stderr=subprocess.STDOUT, **extra)
-    if atualizar:
-        return {"ok": True, "msg": "Atualizando os cookies do perfil salvo — confira em alguns segundos."}
-    return {"ok": True, "msg": "Abri uma janela do navegador: ENTRE NA SUA CONTA DO GOOGLE. "
-                               "Eu fecho sozinho quando detectar o login e salvo o cookies.txt."}
+        p = subprocess.Popen(args, cwd=str(PONTE), stdout=f, stderr=subprocess.STDOUT, **extra)
+    # NÃO DIGO QUE ABRIU SEM SABER SE ABRIU (05/nov) — é o mesmo erro do "Rodar agora" de 01/nov: o botão
+    # anunciava "abri uma janela" e nada acontecia, porque o programa morria na primeira linha (faltava o
+    # Playwright). Espero, confiro se o processo está VIVO e, se morreu, leio o motivo no registro.
+    time.sleep(6 if atualizar else 9)
+    if p.poll() is not None:
+        motivo = ""
+        try:
+            linhas = [l.strip() for l in reg.read_text(encoding="utf-8", errors="replace").splitlines() if l.strip()]
+            motivo = next((l for l in reversed(linhas) if "ERRO" in l or "nao achei" in l or "não achei" in l),
+                          linhas[-1] if linhas else "")
+        except OSError:
+            pass
+        raise ValueError(motivo[:300] or "o programa dos cookies fechou na hora; veja postar\\cookies.log")
+    try:
+        texto = reg.read_text(encoding="utf-8", errors="replace")
+        if "JANELA ABERTA" in texto.rsplit("=====", 1)[-1]:
+            if atualizar:
+                return {"ok": True, "msg": "Reexportando os cookies do perfil salvo — confira em alguns segundos."}
+            return {"ok": True, "msg": "A JANELA ABRIU: entre na sua conta do Google nela. "
+                                       "Eu fecho sozinho quando detectar o login e salvo o cookies.txt."}
+    except OSError:
+        pass
+    return {"ok": True, "msg": "Comecei a abrir o navegador — se a janela não aparecer em alguns segundos, "
+                               "veja o motivo em postar\\cookies.log."}
 
 
 def acao(nome, d):
