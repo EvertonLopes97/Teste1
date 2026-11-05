@@ -88,7 +88,12 @@ CONFIG_PADRAO = {
     # 🔴 é a marca de TRANSMISSÃO AO VIVO (e o que travou o canal em 01/nov: "🔴 Grêmio x Atlético-MG" entrou
     # porque não tinha as palavras "ao vivo" nem "live" no título). `fora_sinais` é conferido como SINAL, sem
     # limite de palavra — 🔴 não é palavra e o `\b` do `fora` nunca casaria com ele.
-    "fora": ["react", "reage", "reagindo", "reacao", "reacoes", "ao vivo", "live", "jogo completo", "gameplay", "fifa", "efootball"],
+    # "melhores momentos"/"gols" = TRANSMISSÃO DE JOGO = bloqueio no mundo inteiro (conferido na
+    # reivindicação de 05/nov, imagem da TNT Sports). Esses nem são baixados.
+    "fora": ["react", "reage", "reagindo", "reacao", "reacoes", "ao vivo", "live", "jogo completo", "gameplay",
+             "fifa", "efootball", "melhores momentos", "todos os gols", "gols do", "gols da", "highlights",
+             "compacto do jogo", "assista aos gols"],
+    "recusa_lance": True,   # trecho com GRAMADO na tela não entra (tem_campo)
     "fora_sinais": ["🔴", "🟢 ao vivo", "assista agora", "pre-jogo", "pré-jogo", "pos-jogo", "pós-jogo"],
     "max_horas": 48,  # notícias de hoje e de ontem que ainda não postamos
     "max_videos_rodada": 8,  # quantos vídeos novos baixa/transcreve por rodada (os melhores primeiro; o resto na próxima)
@@ -1222,6 +1227,48 @@ def dublagem(trad, clima, cfg, pasta, tmp, idx, log=log):
         return None
     log(f"      dublagem: {n} fala(s) na sua voz por cima do original")
     return saida
+
+
+def tem_campo(clip, ini, fim, amostras=6, limite=0.42):
+    """O trecho mostra IMAGEM DE JOGO (gramado)? Se mostra, NÃO PODE ENTRAR no vídeo.
+
+    POR QUE ISSO EXISTE (05/nov) — os vídeos do canal estavam sendo DERRUBADOS depois de postados, e o
+    print da reivindicação mostrou de onde: um lance de **Atlético de Madrid x Bayern pela Champions,
+    imagem da TNT Sports**, que entrou pelo bloco "a volta pelo mundo". Transmissão de jogo é a coisa mais
+    protegida que existe: o Content ID bloqueia NO MUNDO INTEIRO, em segundos, e não adianta crédito,
+    comentário nem trecho curto. O único vídeo que NÃO foi bloqueado naquele dia foi justamente o que não
+    tinha imagem de jogo nenhuma.
+
+    Fala de estúdio (o que o canal quer) e lance de jogo (o que derruba o canal) são fáceis de separar:
+    a transmissão de futebol é um plano aberto do GRAMADO, e gramado é uma mancha verde que ocupa metade
+    da tela. Estúdio, mesa de debate e entrevista não têm isso. Então eu meço o verde.
+
+    `limite` 0,42 = 42% da tela verde. Medido em quadros reais: transmissão aberta fica em 0,55-0,75;
+    estúdio de esporte com fundo colorido fica abaixo de 0,15."""
+    import cv2
+    import numpy as np
+
+    os.environ.setdefault("OPENCV_LOG_LEVEL", "ERROR")
+    verdes, olhados = 0, 0
+    for k in range(amostras):
+        t_ = ini + (fim - ini) * (k + 0.5) / amostras
+        r = subprocess.run(["ffmpeg", "-v", "error", "-ss", f"{t_:.2f}", "-i", str(clip), "-frames:v", "1",
+                            "-vf", "scale=320:-2", "-f", "image2pipe", "-vcodec", "png", "-"], capture_output=True)
+        if not r.stdout:
+            continue
+        img = cv2.imdecode(np.frombuffer(r.stdout, np.uint8), cv2.IMREAD_COLOR)
+        if img is None:
+            continue
+        olhados += 1
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+        # verde de grama: matiz 35-85, com saturação e brilho de campo iluminado
+        campo = cv2.inRange(hsv, np.array([35, 60, 40]), np.array([85, 255, 255]))
+        if float(campo.mean()) / 255.0 >= limite:
+            verdes += 1
+    if not olhados:
+        return False
+    # metade dos quadros com gramado = é transmissão de jogo
+    return verdes >= max(1, olhados // 2)
 
 
 def so_imagens(clip, ini, fim, amostras=5):
@@ -2404,6 +2451,19 @@ def main():
         if any(parecido(tx, t) >= lim_p for t in antes_txt):
             x["usado"] = True  # já saiu num vídeo de ontem: notícia velha, não volta
             continue
+        # IMAGEM DE JOGO DERRUBA O VÍDEO (05/nov) — conferido na reivindicação que ele recebeu: era um lance
+        # de Atlético de Madrid x Bayern da TNT Sports, bloqueado no mundo inteiro. Transmissão de futebol é
+        # o conteúdo mais protegido que existe; crédito e comentário não protegem. Então o trecho com
+        # GRAMADO na tela simplesmente NÃO ENTRA. `"recusa_lance": false` desliga.
+        if cfg.get("recusa_lance", True):
+            try:
+                if tem_campo(x["arquivo"], x["ini"], x["fim"]):
+                    x["usado"] = True   # não adianta guardar para a próxima rodada: continua sendo lance
+                    log(f"   FORA (imagem de jogo, o YouTube bloqueia no mundo inteiro): "
+                        f"\"{(x.get('manchete') or '')[:50]}\" — {x.get('fonte', '')}")
+                    continue
+            except Exception as e:   # noqa: BLE001
+                log(f"   não consegui conferir se tem lance ({str(e)[:70]}); deixo passar")
         if x.get("campeonato"):  # a volta pelo mundo entra em dose pequena
             if n_camp >= int(cfg.get("max_trechos_campeonato", 2)):
                 continue

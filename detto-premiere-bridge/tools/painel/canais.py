@@ -133,7 +133,10 @@ def _pronto_info(c, pr, d):
             "video": vid.name if vid.exists() else "", "thumb": d.get("thumb") if d.get("thumb") and (pr / d["thumb"]).exists() else "",
             "shorts": [s["arquivo"] for s in d.get("shorts", []) if (pr / s["arquivo"]).exists()],
             "criado": (d.get("criado") or "")[:16].replace("T", " "), "descricao": d.get("descricao", ""), "tags": d.get("tags", []),
-            "trechos": d.get("trechos", [])}
+            "trechos": d.get("trechos", []),
+            # como o vídeo está NO YOUTUBE depois de postado (bloqueio por direito autoral, duplicado...)
+            "yt_bloqueado": bool(d.get("yt_bloqueado")), "yt_motivo": d.get("yt_motivo", ""),
+            "yt_conferido_em": (d.get("yt_conferido_em") or "")[:16].replace("T", " ")}
 
 
 def cookies_info():
@@ -626,8 +629,24 @@ def laco(log=print, edicao_ocupada=lambda: False):
         except Exception:
             pass
     ultimo_cookie = [0.0]
+    ultimo_bloqueio = [0.0]
     while True:
         try:
+            # O VÍDEO FOI AO AR OU FOI DERRUBADO? (05/nov) — ele descobriu na mão que os vídeos estavam
+            # sendo bloqueados depois de postados. A reclamação chega HORAS depois, então eu pergunto ao
+            # YouTube de meia em meia hora, só sobre os vídeos dos últimos 3 dias.
+            if (time.time() - ultimo_bloqueio[0]) > 1800:
+                ultimo_bloqueio[0] = time.time()
+                for c_ in CANAIS:
+                    if CANAIS[c_]["script"].name not in ("canal.py", "canal_vlog.py"):
+                        continue
+                    try:
+                        if not (pasta(c_) / "token.json").exists():
+                            continue
+                        for b in comum.confere_postados(pasta(c_), log=log) or []:
+                            log(f"canal {CANAIS[c_]['nome']}: ⛔ {b['titulo'][:50]} — {b['motivo']}")
+                    except Exception as e:   # noqa: BLE001
+                        log(f"conferir bloqueios ({c_}): {str(e)[:100]}")
             # 0) COOKIE DO YOUTUBE: reexporta do perfil salvo 1x por dia, sem janela e sem pedir nada. É o que
             # faz o download continuar funcionando sem ele lembrar de nada (05/nov).
             try:

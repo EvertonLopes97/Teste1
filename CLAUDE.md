@@ -5,6 +5,29 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
 
 ## QUANDO O SISTEMA PARA (29/out) — rede de proteção
 
+- **O QUE ESTAVA DERRUBANDO OS VÍDEOS DEPOIS DE POSTADOS (05/nov) — IMAGEM DE JOGO.** Os vídeos do canal
+  de notícias eram bloqueados DEPOIS da postagem, e o único que escapou foi justamente o que não tinha
+  imagem de imprensa nenhuma. O print da reivindicação fechou o diagnóstico: era um lance de **Atlético de
+  Madrid x Bayern pela Champions, imagem da TNT Sports**, que entrou pelo bloco "a volta pelo mundo".
+  Transmissão de futebol é o conteúdo mais protegido que existe — o Content ID bloqueia NO MUNDO INTEIRO,
+  em segundos, e crédito, comentário e trecho curto não protegem nada. Três consertos:
+  **1 `tem_campo()`** — fala de estúdio e lance de jogo são fáceis de separar: a transmissão é um plano
+  aberto do GRAMADO, uma mancha verde que ocupa metade da tela. Eu meço o verde em 6 quadros (HSV 35-85) e
+  o trecho com gramado em metade deles NÃO ENTRA no vídeo. Medido: transmissão 0,76 · estúdio 0,00 ·
+  estúdio com telão verde atrás 0,14 — o limite de 0,42 fica no meio, com folga. `"recusa_lance": false`
+  desliga. O trecho recusado é marcado como usado: guardar para a próxima rodada não adianta, continua
+  sendo lance.
+  **2 o título que anuncia lance nem é baixado**: "melhores momentos", "todos os gols", "gols do/da",
+  "highlights", "compacto do jogo", "assista aos gols" entraram no `fora`.
+  **3 SABER DO BLOQUEIO SEM OLHAR NA MÃO** (`comum.confere_postados` + `youtube_up.situacao`): o painel
+  pergunta ao YouTube, de meia em meia hora, como estão os vídeos dos últimos 3 dias.
+  `status.rejectionReason` diz se foi `copyright`/`claim` (reclamação) ou `duplicate` (o mesmo vídeo já
+  estava no canal) — os DOIS casos aconteceram com ele no mesmo dia — e `regionRestriction.blocked` pega a
+  reclamação parcial (no ar lá fora, bloqueado no Brasil, que dá no mesmo). O card mostra "⛔ O YouTube
+  DERRUBOU este vídeo" com o motivo e as FONTES daquele vídeo, e o `historico.json` conta quantas vezes
+  cada fonte derrubou (`bloqueios`): depois de alguns, dá para ver qual canal-fonte sempre derruba e tirar
+  da lista. Medir em vez de adivinhar, como o resto do sistema.
+
 - **POR QUE O GALO BAIXAVA E O GTA NÃO (05/nov) — a mesma máquina, o mesmo yt-dlp.** A diferença estava no
   config: as fontes do Galo têm `"id"` do canal, então a hora vem do FEED (uma requisição HTTP simples, sem
   yt-dlp nenhum). As do GTA 6 não tinham ID — então TODA rodada fazia uma extração PESADA do yt-dlp em 7

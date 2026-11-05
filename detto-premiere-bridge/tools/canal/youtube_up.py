@@ -119,3 +119,48 @@ def comenta(pasta, video_id, texto):
     r = yt.commentThreads().insert(part="snippet", body={"snippet": {"videoId": video_id, "topLevelComment": {
         "snippet": {"textOriginal": texto[:9500]}}}}).execute()
     return r.get("id")
+
+
+# o que o YouTube responde em `status.rejectionReason`, em português e com o que fazer
+MOTIVOS = {
+    "copyright": "RECLAMAÇÃO DE DIREITO AUTORAL — o dono das imagens reclamou do trecho de imprensa",
+    "claim": "RECLAMAÇÃO DE DIREITO AUTORAL (Content ID) no trecho de imprensa",
+    "duplicate": "VÍDEO DUPLICADO — este mesmo vídeo já estava no canal",
+    "trademark": "marca registrada",
+    "inappropriate": "conteúdo considerado impróprio",
+    "legal": "motivo legal",
+    "length": "vídeo longo demais para a conta",
+    "uploaderAccountSuspended": "a conta do canal está suspensa",
+    "uploaderAccountClosed": "a conta do canal foi encerrada",
+    "termsOfUse": "termos de uso",
+}
+
+
+def situacao(pasta, video_id):
+    """COMO ESTÁ O VÍDEO DEPOIS DE POSTADO — é a resposta para "foi bloqueado e eu não sabia" (05/nov).
+
+    Devolve {'estado', 'motivo', 'privacidade', 'bloqueado', 'embutivel', 'paises_bloqueados'}.
+    `status.rejectionReason` é o campo que diz se foi direito autoral ou vídeo DUPLICADO — os dois casos que
+    aconteceram com ele no mesmo dia. `contentDetails.regionRestriction.blocked` diz em que países caiu
+    quando é uma reclamação parcial (o vídeo fica no ar, mas não no Brasil, o que dá no mesmo)."""
+    from googleapiclient.discovery import build
+
+    yt = build("youtube", "v3", credentials=credenciais(pasta), cache_discovery=False)
+    r = yt.videos().list(part="status,contentDetails,processingDetails", id=video_id).execute()
+    itens = r.get("items") or []
+    if not itens:
+        # vídeo que some da listagem foi APAGADO ou derrubado pelo YouTube
+        return {"estado": "sumiu", "motivo": "o vídeo não existe mais no canal (apagado ou derrubado)",
+                "bloqueado": True, "privacidade": "", "paises_bloqueados": []}
+    st = (itens[0].get("status") or {})
+    cd = (itens[0].get("contentDetails") or {})
+    bloq = ((cd.get("regionRestriction") or {}).get("blocked") or [])
+    razao = st.get("rejectionReason") or ""
+    estado = st.get("uploadStatus") or ""
+    motivo = MOTIVOS.get(razao, razao)
+    # o vídeo pode estar "processed" e mesmo assim bloqueado no Brasil por reclamação parcial
+    if not motivo and "BR" in bloq:
+        motivo = "BLOQUEADO NO BRASIL por reclamação de direito autoral (o vídeo está no ar em outros países)"
+    return {"estado": estado, "motivo": motivo, "privacidade": st.get("privacyStatus") or "",
+            "embutivel": st.get("embeddable"), "paises_bloqueados": bloq,
+            "bloqueado": bool(razao) or estado in ("rejected", "failed") or "BR" in bloq}

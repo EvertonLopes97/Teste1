@@ -90,3 +90,75 @@ def publica(pasta, pronto, cfg, log=print, sintetico=True, categoria="17"):
         raise
     grava(pronto / "post.json", post)
     return post
+
+
+def confere_postados(pasta, cfg=None, horas=72, log=print):
+    """O VÍDEO FOI AO AR OU FOI BLOQUEADO? (05/nov)
+
+    Ele descobriu na mão que os vídeos estavam sendo DERRUBADOS depois de postados — e que o único que
+    escapou foi justamente o que não tinha imagem de imprensa nenhuma. Isso é direito autoral, e o sistema
+    não fazia a menor ideia: para ele, "postado" era o fim da história.
+
+    Agora, depois de postar, eu pergunto ao YouTube como o vídeo está. A API responde em
+    `status.rejectionReason` se foi `copyright`/`claim` (reclamação) ou `duplicate` (o mesmo vídeo já
+    estava no canal) — os dois casos que aconteceram com ele no mesmo dia.
+
+    E mais importante que avisar: eu ANOTO DE QUAIS FONTES era aquele vídeo. Depois de alguns bloqueios dá
+    para ver qual canal-fonte sempre derruba o vídeo, e aí é só tirar da lista. Isso é medir em vez de
+    adivinhar — do mesmo jeito que o resto do sistema."""
+    import datetime as dt
+
+    import youtube_up
+
+    pasta = Path(pasta)
+    hist = le(pasta / "historico.json", {}) or {}
+    bloqueios = hist.setdefault("bloqueios", {})   # fonte -> quantas vezes derrubou
+    limite = dt.datetime.now() - dt.timedelta(hours=horas)
+    mudou, achados = False, []
+    for pr, post in prontos(pasta):
+        if post.get("status") != "postado" or not post.get("youtube"):
+            continue
+        if post.get("yt_conferido_em"):
+            # já conferido: só reconfere o que ainda é recente (a reclamação chega HORAS depois)
+            try:
+                if dt.datetime.fromisoformat(post["yt_conferido_em"]) > dt.datetime.now() - dt.timedelta(hours=6):
+                    continue
+            except ValueError:
+                pass
+        try:
+            # o canal.py grava "criado"; o publica() grava "postado_em"
+            quando = dt.datetime.fromisoformat(post.get("postado_em") or post.get("criado") or "")
+            if quando < limite:
+                continue       # vídeo velho: a janela de reclamação já passou, não gasto cota
+        except (ValueError, TypeError):
+            pass
+        vid = post["youtube"].rsplit("/", 1)[-1]
+        try:
+            s = youtube_up.situacao(pasta, vid)
+        except Exception as e:   # noqa: BLE001
+            log(f"   não consegui conferir {vid}: {str(e)[:110]}")
+            continue
+        post["yt_estado"] = s["estado"]
+        post["yt_motivo"] = s["motivo"]
+        post["yt_bloqueado"] = s["bloqueado"]
+        post["yt_conferido_em"] = dt.datetime.now().isoformat(timespec="minutes")
+        grava(pr / "post.json", post)
+        mudou = True
+        if s["bloqueado"]:
+            fontes = sorted({t.get("fonte", "") for t in (post.get("trechos") or []) if t.get("fonte")})
+            for f in fontes:
+                bloqueios[f] = int(bloqueios.get(f, 0)) + 1
+            achados.append({"titulo": post.get("titulo", ""), "link": post["youtube"],
+                            "motivo": s["motivo"] or s["estado"], "fontes": fontes})
+            log(f"⛔ BLOQUEADO: {post.get('titulo', '')[:60]} — {s['motivo'] or s['estado']}"
+                + (f" · imagens de: {', '.join(fontes)}" if fontes else ""))
+    if mudou:
+        hist["bloqueios"] = bloqueios
+        grava(pasta / "historico.json", hist)
+    if bloqueios:
+        pior = sorted(bloqueios.items(), key=lambda x: -x[1])[:3]
+        if any(n >= 2 for _, n in pior):
+            log("   fontes que mais derrubam o vídeo: "
+                + ", ".join(f"{f} ({n}x)" for f, n in pior if n >= 2)
+                + " — pense em tirar da lista de fontes")
+    return achados

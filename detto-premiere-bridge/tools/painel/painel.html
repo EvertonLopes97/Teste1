@@ -520,7 +520,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-11-05a";
+const VERSAO_TELA = "2026-11-05b";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -1099,6 +1099,9 @@ function cardCanal(c, x){
     return `<div class="pr"><div class="t">${p.thumb ? `<img src="${q(p.thumb)}" alt="">` : ""}<div style="flex:1;min-width:0"><b>${esc(p.titulo)}</b><div class="info" style="margin:2px 0">${esc(p.criado)} ${p.shorts.length ? "· " + p.shorts.length + " shorts" : ""}</div></div>
       <span class="st ${esc(p.status)}">${esc(ST_CAN[p.status] || p.status)}</span></div>
       ${p.erro ? `<div class="info erro">⚠ ${esc(p.erro)}</div>` : ""}
+      ${p.yt_bloqueado ? `<div class="info erro">⛔ <b>O YouTube DERRUBOU este vídeo.</b> ${esc(p.yt_motivo)}
+        ${p.trechos && p.trechos.length ? `<br><small>Imagens de: ${esc(p.trechos.map(t => t.fonte).filter(Boolean).join(", "))}</small>` : ""}</div>`
+        : p.yt_conferido_em && p.youtube ? `<div class="info" style="opacity:.6">✓ no ar (conferido ${esc(p.yt_conferido_em)})</div>` : ""}
       <div class="linha" style="margin-top:0">
         ${p.video ? `<button class="mini" onclick="canVer('${c}',${i},'${esc(p.video)}')">▶ Vídeo</button>` : ""}
         ${p.shorts.map((sv, si) => `<button class="mini" onclick="canVer('${c}',${i},'${esc(sv)}')">▶ Short ${si + 1}</button>`).join("")}
