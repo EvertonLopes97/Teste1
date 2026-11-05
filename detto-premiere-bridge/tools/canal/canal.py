@@ -34,6 +34,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 AQUI = Path(__file__).resolve().parent
@@ -146,7 +147,45 @@ CONFIG_PADRAO = {
 
 
 def log(m):
-    print(m, flush=True)
+    # A HORA em cada linha (02/nov): o registro parou às 10:15 e só às 14:03 ele viu que a rodada estava
+    # pendurada há 4 h. Sem a hora escrita, "parado" e "demorando" são a mesma coisa no registro.
+    print(f"{dt.datetime.now():%H:%M} {m}", flush=True)
+
+
+def relogio_da_rodada(minutos):
+    """A RODADA TEM HORA PARA ACABAR (02/nov).
+
+    Uma montagem ficou presa das 09:22 às 14:03 segurando a trava: nenhuma rodada seguinte rodou e ele passou
+    o dia sem postar. É a mesma lição do download de transmissão ao vivo (01/nov): nada neste sistema pode
+    rodar sem prazo. Passado o prazo o processo morre — e a trava, que é do sistema operacional, se solta
+    sozinha com ele."""
+    import threading
+
+    def bate():
+        log(f"NÃO TERMINEI: a rodada passou de {minutos:.0f} min e foi encerrada para não travar o canal. "
+            "A última linha acima diz em que peça ela estava.")
+        try:
+            sys.stdout.flush()
+        except Exception:   # noqa: BLE001
+            pass
+        os._exit(3)
+
+    t = threading.Timer(max(10.0, float(minutos)) * 60, bate)
+    t.daemon = True
+    t.start()
+    return t
+
+
+def ff(args, limite=900, nome=""):
+    """o ffmpeg com HORA MARCADA: uma peça travada não segura mais a rodada inteira"""
+    try:
+        return subprocess.run(args, timeout=limite)
+    except subprocess.TimeoutExpired:
+        log(f"   ERRO: {nome or 'o ffmpeg'} passou de {limite}s e foi encerrado (peça pesada demais?)")
+        return subprocess.CompletedProcess(args, 1)
+    except OSError as e:   # noqa: BLE001
+        log(f"   ERRO: não consegui rodar o ffmpeg ({str(e)[:90]})")
+        return subprocess.CompletedProcess(args, 1)
 
 
 def apelidos(cfg):
@@ -224,15 +263,29 @@ def videos_ytdlp(canal, quantos=12):
     return out
 
 
-def ultimos(cid, canal="", quantos=12):
-    """os últimos vídeos com a hora: o feed primeiro (leve) e, se ele falhar, o yt-dlp"""
+def ultimos(cid, canal="", quantos=12, desde=None):
+    """os últimos vídeos com a hora: o feed primeiro (leve) e, se ele falhar, o yt-dlp.
+
+    FEED VELHO É PIOR QUE FEED MORTO (05/nov): os 7 canais do GTA diziam "nada novo" na mesma rodada em que a
+    busca por data achava 4 vídeos de hoje — inclusive do @SaninPlay, que está na lista. O motivo: o feed do
+    YouTube RESPONDE, mas com uma lista atrasada. Como o código só caía no yt-dlp quando o feed vinha VAZIO, a
+    lista velha era aceita e o vídeo de hoje nunca aparecia. Agora, se o feed não traz nada depois de `desde`,
+    eu confirmo no yt-dlp (que é autoritativo) antes de desistir — custa uma chamada exatamente no caso em que
+    eu ia desistir de graça."""
     v = rss(cid) if cid else []
-    if v:
+    if v and (desde is None or any(x["quando"] >= desde for x in v)):
         return v
-    v = videos_ytdlp(canal, quantos)
-    if v:
-        log(f"   {canal or cid}: o feed não respondeu; peguei a hora pelo yt-dlp ({len(v)} vídeos)")
-    return v
+    nova = videos_ytdlp(canal, quantos)
+    if nova and v:
+        tinha = {x["id"] for x in v}
+        extras = [x for x in nova if x["id"] not in tinha and (desde is None or x["quando"] >= desde)]
+        if extras:
+            log(f"   {canal or cid}: o feed estava ATRASADO; o yt-dlp achou {len(extras)} vídeo(s) que faltavam")
+            return nova
+        return v
+    if nova:
+        log(f"   {canal or cid}: o feed não respondeu; peguei a hora pelo yt-dlp ({len(nova)} vídeos)")
+    return nova or v
 
 
 def dur_mp4(f):
@@ -296,9 +349,18 @@ def coleta(cfg, hist):
     for f in cfg["fontes"]:
         # sem o ID do canal não é problema: o `ultimos` pega pelo @ direto (o feed precisava do ID, o yt-dlp não)
         cid = f.get("id") or ids.get(f["canal"])
-        lista = [v for v in ultimos(cid, f.get("canal", "")) if v["quando"] >= limite]
+        todos = ultimos(cid, f.get("canal", ""), desde=limite)
+        lista = [v for v in todos if v["quando"] >= limite]
         if not lista:
-            log(f"   {f.get('nome') or f.get('canal')}: nada novo (ou o canal não respondeu)")
+            # DUAS coisas MUITO diferentes diziam a mesma frase (05/nov): um canal que não respondeu (@ errado,
+            # 404, bloqueio) e um canal que de fato não postou nada. Agora o registro diz qual é — foi assim que
+            # apareceu que o @Voxel estava escrito errado e que o feed vinha atrasado.
+            nome = f.get("nome") or f.get("canal")
+            if not todos:
+                log(f"   {nome}: o canal NÃO RESPONDEU (confira o @ '{f.get('canal')}' — 404, bloqueio ou nome mudado)")
+            else:
+                novo = max(v["quando"] for v in todos)
+                log(f"   {nome}: nada novo (o último é de {novo:%d/%m %H:%M}, fora da janela de {cfg['max_horas']}h)")
             continue
         # quando a lista vem do yt-dlp ela JÁ traz duração e tipo; aí não preciso de uma varredura extra
         durs = {v["id"]: (v["_dur"], v["_tipo"]) for v in lista if v.get("_dur")} or (duracoes(f["canal"]) if f.get("canal") else {})
@@ -1199,8 +1261,39 @@ def cobre(w, h):
     return f"scale={w}:{h}:force_original_aspect_ratio=increase,crop={w}:{h}"
 
 
+_ENC = None
+
+
 def enc():
-    return ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", "-r", str(FPS), "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2"]
+    """O ENCODER: a PLACA DE VÍDEO quando ela realmente funciona, senão a CPU.
+
+    POR QUE ISSO IMPORTA (02/nov): o canal montava TUDO no libx264 — 20 min de 1080p com desfoque e três
+    sobreposições, na CPU de um notebook, com a RTX 3050 parada do lado. Uma rodada levava HORAS e ele passou
+    um dia sem postar. O NVENC faz a mesma peça em uma fração do tempo e não disputa a CPU com a voz.
+
+    Testar com `-encoders` NÃO prova nada (a placa pode estar sem driver e o render morre no meio com
+    "Cannot load libcuda.so.1" — já aconteceu na gameplay): eu CODIFICO 1 quadro de verdade, uma vez por
+    rodada, e guardo a resposta. `DETTO_SEM_NVENC=1` força a CPU."""
+    global _ENC
+    if _ENC is None:
+        _ENC = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]
+        if os.environ.get("DETTO_SEM_NVENC") == "1":
+            log("   render na CPU (DETTO_SEM_NVENC=1)")
+        else:
+            try:
+                r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi",
+                                    "-i", "color=c=black:s=256x256:d=0.1", "-c:v", "h264_nvenc",
+                                    "-f", "null", "-"], capture_output=True, timeout=120)
+                if r.returncode == 0:
+                    # cq 23 ≈ crf 20 do x264 no olho, e o arquivo sai parecido
+                    _ENC = ["-c:v", "h264_nvenc", "-preset", "p4", "-rc", "vbr", "-cq", "23", "-b:v", "0"]
+                    log("   render na PLACA DE VÍDEO (NVENC)")
+                else:
+                    log("   render na CPU (a placa recusou o NVENC)")
+            except (OSError, subprocess.SubprocessError):
+                log("   render na CPU (não consegui testar a placa)")
+    # as peças são emendadas com `-c copy`, então TODAS precisam sair do mesmo encoder e com o mesmo fps
+    return [*_ENC, "-pix_fmt", "yuv420p", "-r", str(FPS), "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2"]
 
 
 def traduz_frases(frases, de_idioma, log=log):
@@ -1317,7 +1410,8 @@ def peca_trecho(base, clip, ini, fim, masc, faixa, saida, legenda=None, cheia=Fa
         af = ["-map", f"1:a:{ac}", "-af", "loudnorm=I=-16:TP=-1.5,aresample=48000"]
     else:
         af = []
-    r = subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", f, "-map", "[vo]", *af, "-t", f"{d:.2f}", *enc(), str(saida)])
+    r = ff(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", f, "-map", "[vo]", *af, "-t", f"{d:.2f}", *enc(), str(saida)],
+           limite=int(max(600, d * 12)), nome="a peça do trecho")
     return r.returncode == 0
 
 
@@ -1363,7 +1457,8 @@ def peca_fala(base, wav, masc, texto, pasta, idx, saida, logo):
         f += f"[{ult}][{4 + k}:v]overlay=0:0:enable='between(t,{a:.2f},{b:.2f})'[c{k}];"
         ult = f"c{k}"
     f += f"[{ult}]fps={FPS},format=yuv420p[vo];[1:a]atempo=1.05,loudnorm=I=-16:TP=-1.5,aresample=48000,apad=pad_dur=0.2[ao]"
-    r = subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", f, "-map", "[vo]", "-map", "[ao]", "-t", f"{da / 1.05 + 0.2:.2f}", *enc(), str(saida)])
+    r = ff(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", f, "-map", "[vo]", "-map", "[ao]", "-t", f"{da / 1.05 + 0.2:.2f}", *enc(), str(saida)],
+           limite=int(max(600, da * 12)), nome="a peça da sua fala")
     return r.returncode == 0
 
 
@@ -1443,13 +1538,19 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
     # sei o segundo EXATO em que cada notícia começa no vídeo final — e a manchete dela já é o título.
     marcas = []
 
+    medidas = {}
+
     def onde_estou():
-        return sum(dur_mp4(p) for p in pecas)
+        # a duração de cada peça é medida UMA vez: isto era chamado por notícia e remedia TODAS as peças
+        # anteriores (uns 300 ffprobe num vídeo de 20 min)
+        return sum(medidas.setdefault(p, dur_mp4(p)) for p in pecas)
 
     def add_fala(f):
         p = tmp / f"p{len(pecas):03d}.mp4"
+        t0 = time.time()
         if peca_fala(base, f["arquivo"], mascara_de(f["clima"], pasta), f["texto"], tmp, len(pecas), p, logo):
             pecas.append(p)
+            log(f"      peça {len(pecas)} (sua fala) pronta em {time.time() - t0:.0f}s")
 
     add_fala(falas[0])
     # onde termina a CHAMADA de abertura (resumo + CTA): é aí que a vinheta entra, não no segundo 0
@@ -1495,9 +1596,13 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
                 aqui = [{**f, "ini": f["ini"] - (a0 - x["ini"]), "fim": f["fim"] - (a0 - x["ini"])}
                         for f in trad if f["fim"] > (a0 - x["ini"]) and f["ini"] < (b0 - x["ini"])]
                 dub = dublagem(aqui, x.get("clima"), cfg, pasta, tmp / "dub", f"{i}_{n}", log=log)
+            t0 = time.time()
             if peca_trecho(base, x["arquivo"], a0, b0, masc, fx, p, leg, cheia=cheia, dub=dub,
                            dub_vol=float(cfg.get("volume_original_dublado", 0.16))):
                 pecas.append(p)
+                log(f"      peça {len(pecas)} ({b0 - a0:.0f}s de imprensa) pronta em {time.time() - t0:.0f}s")
+            else:
+                log(f"      peça {len(pecas) + 1} NÃO saiu ({b0 - a0:.0f}s de imprensa)")
             if n < len(coms):
                 log(f"      comentário seu no meio: {coms[n]['texto'][:60]}")
                 add_fala(coms[n])
@@ -1505,9 +1610,17 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
     lista = tmp / "pecas.txt"
     lista.write_text("".join(f"file '{p.as_posix()}'\n" for p in pecas), encoding="utf-8")
     bruto = tmp / "bruto.mp4"
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lista), "-c", "copy", str(bruto)], check=True)
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(bruto), "-c:v", "copy", "-af", "loudnorm=I=-14:TP=-1", "-c:a", "aac", "-b:a", "192k",
-                    "-movflags", "+faststart", str(saida)], check=True)
+    log(f"   emendando as {len(pecas)} peças...")
+    t0 = time.time()
+    if ff(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lista), "-c", "copy", str(bruto)],
+          limite=1800, nome="a emenda das peças").returncode != 0:
+        raise RuntimeError("não consegui emendar as peças (veja o erro do ffmpeg acima)")
+    log(f"   nivelando o som ({time.time() - t0:.0f}s na emenda)...")
+    if ff(["ffmpeg", "-v", "error", "-y", "-i", str(bruto), "-c:v", "copy", "-af", "loudnorm=I=-14:TP=-1",
+           "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(saida)],
+          limite=1800, nome="o nivelamento do som").returncode != 0:
+        raise RuntimeError("não consegui nivelar o som do vídeo")
+    log(f"   vídeo montado: {dur_mp4(saida) / 60:.1f} min")
     return saida, abertura_s, marcas
 
 
@@ -1706,7 +1819,8 @@ def short(cfg, pasta, fala, trecho, tmp, idx, saida):
     ac = audio_bom(clip)
     af = ["-map", f"0:a:{ac}", "-af", "loudnorm=I=-16:TP=-1.5,aresample=48000"] if ac is not None else []
     p = tmp / f"sv_{idx}_b.mp4"
-    r = subprocess.run(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", f, "-map", "[vo]", *af, "-t", f"{fim - ini:.2f}", *enc(), str(p)])
+    r = ff(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", f, "-map", "[vo]", *af, "-t", f"{fim - ini:.2f}", *enc(), str(p)],
+           limite=int(max(600, (fim - ini) * 12)), nome="a peça do short")
     if r.returncode == 0:
         pecas.append(p)
     if not pecas:
@@ -1851,7 +1965,8 @@ GTA6 = {
         {"canal": "@GameplayRJ", "nome": "GameplayRJ", "filtro": "titulo"},
         {"canal": "@RockstarGames", "nome": "Rockstar Games", "filtro": "tudo", "prioridade": 1},
         {"canal": "@BRKsEDU", "nome": "BRKsEDU", "filtro": "titulo", "prioridade": 3},
-        {"canal": "@Voxel", "nome": "Voxel", "filtro": "titulo", "prioridade": 3},
+        # @Voxel não existe ("This channel does not have a videos tab"): o canal é @VOXELOFICIAL (conferido 05/nov)
+        {"canal": "@VOXELOFICIAL", "nome": "Voxel", "filtro": "titulo", "prioridade": 3},
         {"canal": "@TecMundo", "nome": "TecMundo", "filtro": "titulo", "prioridade": 3},
         {"canal": "@IGNBrasil", "nome": "IGN Brasil", "filtro": "titulo", "prioridade": 3},
     ],
@@ -2032,6 +2147,11 @@ def main():
         log(f"NÃO RODEI: outro canal.py está com a trava ({quem or 'sem pid anotado'}). Se ele estiver travado há "
             f"horas, encerre no painel (botão Destravar) ou feche o processo {pid or 'python.exe'} e rode de novo.")
         return
+    # a rodada tem HORA PARA ACABAR: passando disso ela morre e solta a trava (02/nov, 4 h presa e nenhum
+    # vídeo no dia). `"max_minutos_rodada": 0` no config desliga.
+    _lim = float(cfg.get("max_minutos_rodada", 110) or 0)
+    if _lim > 0:
+        relogio_da_rodada(_lim)
     hist = le_json(pasta / "historico.json", {"vistos": {}, "trechos": [], "postados": []})
     hoje = dt.date.today().isoformat()
 
@@ -2054,12 +2174,14 @@ def main():
         pautas(pasta, cfg, hist)
     except Exception as e:
         log(f"pautas: {e}")
+    nao_baixou = []
     for v in novos:
         if not v.get("arquivo"):
             log(f"\nbaixando: {v['titulo']} ({v['fonte']})")
             arq, info = baixa(v["url"], pasta / "fontes")
             if not arq:
                 log(f"   não baixou: {info}")
+                nao_baixou.append(str(info))
                 continue
             v["arquivo"] = str(arq)
             v["descricao"] = (info or {}).get("description") or ""
@@ -2126,6 +2248,19 @@ def main():
             log("postou há pouco; espera o intervalo")
             return
     if not recentes:
+        # POR QUE não há trecho (05/nov): "sem trechos para montar" era a última linha de uma rodada em que
+        # NENHUM dos 4 vídeos tinha baixado — o painel mostrava "(ok)" e ele não sabia que o problema era o
+        # YouTube pedindo login. Agora a rodada termina dizendo o MOTIVO, que é o que o painel exibe.
+        if nao_baixou and len(nao_baixou) >= max(1, len(novos)):
+            from reels import precisa_login
+            quanto = len(nao_baixou)
+            if any(precisa_login(m) for m in nao_baixou):
+                log(f"NÃO RODEI: o YouTube pediu login/robô em TODOS os {quanto} vídeos, então não baixou nada. "
+                    "Exporte um cookies.txt (extensão \"Get cookies.txt LOCALLY\" no navegador logado no YouTube) "
+                    "e salve em E:\\DETTO\\cookies.txt — ou instale o Firefox e faça login no YouTube nele uma vez.")
+            else:
+                log(f"NÃO RODEI: nenhum dos {quanto} vídeos baixou. Último motivo: {nao_baixou[-1][:160]}")
+            return
         log("sem trechos para montar")
         return
     # os melhores (nota) até o tamanho do vídeo, sem repetir muito a mesma fonte seguida

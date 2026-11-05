@@ -24,8 +24,12 @@ function chromiumPath() {
   try {
     const dir = fs.readdirSync(base).find((d) => /^chromium-\d+$/.test(d));
     if (dir) {
-      const exe = path.join(base, dir, "chrome-linux", "chrome");
-      if (fs.existsSync(exe)) return exe;
+      // a pasta muda de nome entre as versões do Playwright ("chrome-linux" e "chrome-linux64"); achando só
+      // uma delas, o teste visual caía no headless-shell padrão, que nem está instalado
+      for (const sub of ["chrome-linux", "chrome-linux64"]) {
+        const exe = path.join(base, dir, sub, "chrome");
+        if (fs.existsSync(exe)) return exe;
+      }
     }
   } catch (_) {
     /* usa o padrão do Playwright */

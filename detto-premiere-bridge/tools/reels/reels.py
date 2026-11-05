@@ -234,6 +234,44 @@ def atualiza_ytdlp():
         pass
 
 
+def cookie_quebrado(msg):
+    """o navegador não DEIXOU LER os cookies — não é o motivo do download ter falhado.
+
+    No PC dele (05/nov) TODO download terminava em `Failed to decrypt with DPAPI`: o Chrome novo guarda os
+    cookies com criptografia ligada à conta do Windows (App-Bound Encryption) e o yt-dlp não consegue abrir.
+    Como esse era o ÚLTIMO degrau da cascata, era a mensagem que sobrava no registro — e o motivo de verdade,
+    da primeira tentativa (sem cookies), era jogado fora."""
+    m = (msg or "").lower()
+    return any(s in m for s in ("dpapi", "could not find", "could not copy", "unsupported platform",
+                                "no such table", "cookies database", "app-bound", "permission denied"))
+
+
+def precisa_login(msg):
+    """o YouTube/Instagram pedindo prova de que não é robô — ESSE sim se resolve com cookies"""
+    m = (msg or "").lower()
+    return any(s in m for s in ("sign in to confirm", "confirm you", "not a bot", "login required",
+                                "requested content is not available", "age-restricted", "private video",
+                                "rate-limited", "429"))
+
+
+def cookies_do_pc(pasta=None):
+    """o cookies.txt exportado na mão (extensão "Get cookies.txt LOCALLY"), nos lugares onde ele pode estar.
+
+    É a ÚNICA saída quando o Chrome não deixa ler os cookies: o arquivo não depende do DPAPI."""
+    alvos = []
+    if pasta:
+        alvos += [Path(pasta) / "cookies.txt", Path(pasta).parent / "cookies.txt"]
+    raiz = os.environ.get("DETTO_MIDIA") or "E:/DETTO"
+    alvos += [Path(raiz) / "cookies.txt", Path(raiz) / "postar" / "cookies.txt", Path(raiz) / "reels" / "cookies.txt"]
+    for a in alvos:
+        try:
+            if a.is_file() and a.stat().st_size > 100:
+                return str(a)
+        except OSError:
+            continue
+    return None
+
+
 def baixa(url, pasta, cookies=None, txt=None, timeout=1200):
     """baixa o vídeo + info (título, descrição, tags). Devolve (mp4, info) ou (None, erro)."""
     pasta.mkdir(parents=True, exist_ok=True)
@@ -241,19 +279,43 @@ def baixa(url, pasta, cookies=None, txt=None, timeout=1200):
     # `!is_live`: AO VIVO não baixa. Um live não tem fim — o download rodaria para sempre (01/nov).
     args = ["-f", "bv*+ba/b", "-S", "res:1920,fps", "--merge-output-format", "mp4", "--match-filter", "!is_live",
             "--write-info-json", "-o", str(pasta / "%(extractor_key)s_%(id)s.%(ext)s"), "--print", "after_move:filepath", url]
-    erro = ""
-    # sem login → cookies.txt da pasta (extensão "Get cookies.txt LOCALLY") → navegadores (Firefox funciona melhor;
-    # Chrome/Edge novos às vezes não deixam ler)
-    for k, ck in enumerate([cookies] if cookies else [None] + ([str(txt)] if txt and Path(txt).exists() else []) + ["firefox", "chrome", "edge"]):
-        r = ytdlp(args, ck, timeout=timeout)
+    # sem login → cookies.txt (dado, ou achado no PC) → navegadores (Firefox funciona melhor; Chrome/Edge novos
+    # não deixam ler por causa do DPAPI)
+    arq_txt = str(txt) if txt and Path(txt).exists() else cookies_do_pc(pasta)
+    # CLIENTE DA TV (05/nov): quando o YouTube barra o download ("Sign in to confirm you're not a bot"), pedir o
+    # vídeo como se fosse a TV ou o Safari costuma passar SEM cookie nenhum — e é o degrau que funciona no PC
+    # dele, onde o Chrome não deixa ler os cookies (DPAPI). Vem ANTES dos navegadores de propósito.
+    tv = ["--extractor-args", "youtube:player_client=tv,web_safari,mweb"]
+    degraus = ([(cookies, [])] if cookies else
+               [(None, [])] + [(None, tv)] + ([(arq_txt, [])] if arq_txt else [])
+               + [("firefox", []), ("chrome", []), ("edge", [])])
+    real, quebrados, visto = "", [], set()
+    for k, (ck, extra) in enumerate(degraus):
+        r = ytdlp(extra + args, ck, timeout=timeout)
         caminho = (r.stdout or "").strip().splitlines()[-1:] or [""]
         f = Path(caminho[0]) if caminho[0] else None
         if f and f.exists() and f.stat().st_size > 50_000:
             info = le_json(f.with_suffix(".info.json"), {})
             return f, info
-        erro = ((r.stderr or "").strip().splitlines() or [""])[-1][:200]
+        msg = ((r.stderr or "").strip().splitlines() or [""])[-1][:200]
+        quem = ("cliente da TV" if extra else "sem cookies") if ck is None else \
+               ("cookies.txt" if ck == arq_txt else str(ck))
+        if cookie_quebrado(msg):
+            # esse degrau nem chegou a tentar baixar: anota e segue
+            if quem not in visto:
+                quebrados.append(quem)
+                visto.add(quem)
+        elif msg and not real:
+            real = msg        # o PRIMEIRO erro de verdade é o que explica a falha
         if k == 0:
             atualiza_ytdlp()
+    # a mensagem final diz o motivo REAL, e só depois fala dos cookies que não deu para ler
+    erro = real or "o yt-dlp não baixou e não disse por quê"
+    if quebrados:
+        erro += f" · [não consegui ler os cookies de: {', '.join(quebrados)}]"
+    if precisa_login(real) and not arq_txt:
+        erro += (" · ESSE erro se resolve com cookies: exporte um cookies.txt (extensão \"Get cookies.txt LOCALLY\" "
+                 "no navegador logado no YouTube) e salve em E:\\DETTO\\cookies.txt")
     return None, erro
 
 
