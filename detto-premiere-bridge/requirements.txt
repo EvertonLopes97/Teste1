@@ -16,3 +16,8 @@ google-auth-oauthlib
 edge-tts>=7.0.0   # voz neural pt-BR de graça (degrau antes do Chatterbox)
 pyflakes          # o teste_rapido.py usa para achar nome que não existe DENTRO de uma função
                   # (um `cheia` inexistente derrubou o canal depois de 24 min de transcrição)
+
+# catcher de virais (tools\viral): os dois são OPCIONAIS — sem eles o programa roda pelos caminhos
+# de reserva (XML na mão em vez do feedparser; sem aviso no celular em vez do requests)
+feedparser
+requests

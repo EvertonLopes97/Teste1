@@ -5,6 +5,38 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
 
 ## QUANDO O SISTEMA PARA (29/out) — rede de proteção
 
+- **O DPAPI QUE ESCONDIA O MOTIVO DE VERDADE (05/nov) — era isso que impedia o vídeo do dia.** Todo
+  download terminava em `ERROR: Failed to decrypt with DPAPI` e a rodada acabava em "sem trechos para
+  montar". O DPAPI não era o motivo: `baixa()` tenta 4 degraus (sem cookies → firefox → chrome → edge) e
+  guardava só o ÚLTIMO erro — o do Edge, que é o DPAPI do Chrome novo (App-Bound Encryption, o yt-dlp não
+  abre). O erro da PRIMEIRA tentativa, o que explicava tudo, era jogado fora. Conferido aqui rodando o
+  yt-dlp: o motivo real é **"Sign in to confirm you're not a bot"** — e ESSE se resolve com cookies.
+  Consertos: `cookie_quebrado()` separa "não consegui LER os cookies" de "o download falhou" e a mensagem
+  final diz o motivo REAL, listando os cookies ilegíveis só no fim; `cookies_do_pc()` acha sozinho um
+  `cookies.txt` (pasta do canal, `E:\DETTO`, postar, reels); degrau novo **cliente da TV**
+  (`player_client=tv,web_safari,mweb`) ANTES dos navegadores, que passa sem cookie e não depende do DPAPI;
+  e a rodada em que NENHUM vídeo baixou termina com "NÃO RODEI: o YouTube pediu login em TODOS os N
+  vídeos" + como resolver, em vez de "(ok)" no painel.
+  **O que resolve de vez no PC dele: Firefox instalado e logado no YouTube** (não usa DPAPI, não vence);
+  ou a extensão "Get cookies.txt LOCALLY" → `E:\DETTO\cookies.txt`.
+- OS 7 CANAIS-FONTE DIZENDO "nada novo" (05/nov) na MESMA rodada em que a busca por data achava 4 vídeos
+  de hoje — inclusive do @SaninPlay, que está na lista. Duas causas: **1** o feed do YouTube RESPONDE, mas
+  com lista ATRASADA, e o código só caía no yt-dlp quando o feed vinha VAZIO — então a lista velha era
+  aceita e o vídeo de hoje nunca aparecia (`ultimos(..., desde=)` agora confirma no yt-dlp quando o feed
+  não traz nada depois da janela: custa uma chamada exatamente no caso em que eu ia desistir de graça).
+  **2** `@Voxel` NÃO EXISTE ("This channel does not have a videos tab"); o canal é **@VOXELOFICIAL**.
+  E o registro passou a separar "o canal NÃO RESPONDEU (confira o @)" de "nada novo (o último é de ...)",
+  que eram a mesma frase e por isso ninguém viu o @ errado.
+- RODADA LENTA E RODADA PRESA (02/nov; 4 h parada, nenhum vídeo no dia): **1** `enc()` nunca usava NVENC —
+  20 min de 1080p com desfoque e 3 sobreposições na CPU do notebook, com a RTX 3050 parada do lado. Agora
+  ele CODIFICA 1 quadro de teste de verdade (listar em `-encoders` não prova nada: o render morria com
+  "Cannot load libcuda.so.1" no meio) e usa a placa quando ela responde; `DETTO_SEM_NVENC=1` força a CPU.
+  **2** `log()` escreve a HORA em cada linha e cada peça diz quanto levou — o silêncio das 10:15 às 14:03
+  era justamente o render das peças, que não registrava NADA, e por isso "parado" e "demorando" eram a
+  mesma coisa no registro. **3** `ff()` põe hora marcada em cada peça, na emenda e no nivelamento, e
+  `relogio_da_rodada` encerra a rodada passados 110 min (`"max_minutos_rodada"`), soltando a trava — a
+  mesma lição do download de live: nada neste sistema roda sem prazo. **4** `onde_estou` media TODAS as
+  peças anteriores a cada notícia (~300 ffprobe num vídeo de 20 min); agora mede cada uma uma vez.
 - FEED DO YOUTUBE MORREU (29/out) — era por isso que o canal não criava NADA: o `feeds/videos.xml` passou a
   devolver 404/500 até para ID CERTO de canal, e sem a HORA do vídeo a rodada descartava tudo e terminava
   "0 vídeo(s) de hoje". Agora `ultimos(id, @canal)` tenta o feed e, falhando, pega pelo **yt-dlp**
@@ -639,6 +671,47 @@ de 67 para 23 (o `yt\titulo.py` pegou sozinho).
 - Rodou de ponta a ponta aqui com gravação SINTÉTICA. Com gameplay de verdade ainda não — está dito no
   LEIA-ME e foi dito a ele.
 
+## CATCHER DE VIRAIS URGENTES (05/nov) — `tools\viral\`, guia `tools\viral\LEIA-ME.txt`
+
+`python tools\viral\viral.py [--termo "X"] [--vigiar 20] [--sem-baixar]`, pasta `E:\DETTO\viral`.
+Notícia quente nos portais → vídeo curto EXPLODINDO sobre ela → baixa em `videos_para_react\` → avisa no
+celular (Telegram/Discord). O vídeo baixado já serve de `"original"` do `react.py`, e o assunto vai para
+`pautas_virais.txt`, que o canal de notícias lê como pauta — o mesmo viral vira react E vídeo de notícia.
+
+- A REGRA DE OURO são TRÊS variáveis cruzadas, não as views: **tempo** (1 h é a janela nobre, 24 h o
+  limite) × **velocidade** (views por MINUTO de vida, o `fator`) × **tamanho do perfil** (menos de 20 mil
+  seguidores — senão o vídeo viralizou pelo tamanho do canal e não há onda para pegar). Conferido com
+  números: 15.000 views em 29 min num perfil de 8 mil = 517 views/min = 🚨 FAÇA AGORA; o MESMO vídeo num
+  canal de 2 milhões é recusado; 15.000 views com 3 dias é recusado; 15.200 em 20 h dá 13 views/min e é
+  recusado (precisaria de 360).
+- QUATRO COISAS QUE SÓ O TESTE CONTRA OS PORTAIS DE VERDADE MOSTROU:
+  **1** `ytsearchdate:` do yt-dlp NÃO EXISTE MAIS (2026.10.26 responde "Unsupported url scheme"). A busca
+  é pela URL de resultados com o `sp=` do próprio YouTube ("última hora + curto"), que ainda traz duração
+  e views na listagem, de graça.
+  **2** a HORA exata de cada vídeo é uma consulta por candidato — e é exatamente a consulta que o YouTube
+  barra sem cookies, então TODO candidato era recusado por "não descobri a hora do post". Mas a janela da
+  busca JÁ diz a idade: uso o PIOR CASO dela (1 h) e, aí, a exigência fica a base — punir duas vezes a
+  mesma incerteza não deixava nada passar. O registro marca esses com "no máximo ~".
+  **3** o filtro ANTIGIGANTES tratava "não sei os inscritos" como ZERO, ou seja, um canal de 2 milhões
+  PASSAVA pelo filtro feito para barrá-lo. Agora os inscritos são consultados só nos FINALISTAS (poucos,
+  já aprovados em views e idade) e quem fica sem o número entra MARCADO ("NÃO conferi o tamanho do
+  perfil"), nunca como pequeno.
+  **4** `_assunto` pegava as 3 primeiras maiúsculas soltas e saía "Saiba Saiba quem" e "Réver Réver
+  manifesta" — busca que não acha nada. Nome próprio é uma SEQUÊNCIA de maiúsculas; e há uma lista
+  `ABRE_MANCHETE` (saiba, veja, após, confira...) de palavras que só estão em maiúscula por abrir a
+  manchete. O selo do começo ("URGENTE:") também sai, senão o termo de busca era literalmente "URGENTE".
+- `_relevante` existe porque o programa BAIXA sozinho: buscar "Réver" trouxe "Rêver de laver du linge" em
+  francês. Ou o título tem o termo INTEIRO, ou tem o termo e mais uma palavra forte da manchete. A
+  comparação é pelo COMEÇO da palavra (5 letras), senão "Paraguay President Resigns" não casava com
+  "Presidente do Paraguai renuncia" — e é justamente o vídeo gringo que ele quer reagir.
+- FEEDS conferidos um por um contando os `<item>` (endereço de feed morre calado): G1, GE, GE/Atlético-MG,
+  **admin**.cnnbrasil.com.br/feed/ (o `www` redireciona e o `/esportes/feed/` dá 404), UOL notícias e UOL
+  esporte. Lance e R7 não devolvem item nenhum e por isso ficaram fora.
+- TikTok e Instagram ESTRUTURAIS e DESLIGADOS (`"playwright": true` liga): as duas mudam o HTML toda
+  semana, então a leitura é pelo JSON que a página embute, não por seletor de CSS. `feedparser` e
+  `requests` são OPCIONAIS (sem eles: XML na mão e aviso só no registro).
+- Lista `PROIBIDO` (criança, crime sexual, suicídio, feminicídio): assunto que ele nunca traz.
+
 ## TIKTOK SHOP — vídeos de produto automáticos (26/out)
 
 `python tools\shop\shop.py` (painel: aba **TikTok Shop**; guia `tools\shop\LEIA-ME.txt`; pasta `E:\DETTO\shop`).
@@ -687,6 +760,14 @@ Produto → reels 9:16 pronto, e cada pronto já entra na fila de postagem (`"po
   todas as cenas parecia vídeo travado.
 - VOZ: `voicestudio_pronto` (aberto **E** com alguma voz cadastrada) no lugar do `voicestudio_ligado` no shop, nas
   histórias e no `voz.py`. Sem voz nenhuma o VoiceStudio SORTEIA uma (saía voz de mulher) — agora cai no Fish.
+- **MANDAR SÓ O SHOP PARA O SÓCIO (05/nov, pedido dele):** `python tools\shop\empacotar.py` monta
+  `DETTO-SHOP.zip` (0,2 MB) com INSTALAR.bat, RODAR.bat e LEIA-ME — sem canais, sem painel, sem token nem
+  conta de ninguém. Ele SEGUE OS IMPORTS a partir do shop.py em vez de uma lista na mão (que envelheceria
+  calada no dia em que o shop passar a importar outra coisa) e **se testa**: roda `import shop` DENTRO do
+  pacote e se faltar um arquivo o empacotamento falha AQUI, não no PC do sócio. O pacote já vem com
+  `"postar": []` de propósito — o shop.py importa o `postar.py` para pôr na fila, e lá isso prenderia o
+  vídeo numa fila que ninguém esvazia. Os dois podem rodar ao mesmo tempo, cada um com a sua pasta
+  `shop\` e o seu histórico, dividindo os links.
 
 ## HISTÓRIAS EM SÉRIE — reels em que o público escolhe a continuação (22/out)
 

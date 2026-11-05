@@ -1,0 +1,102 @@
+CATCHER DE VIRAIS URGENTES — acha a notícia quente, acha o vídeo explodindo, baixa e te avisa
+==============================================================================================
+
+    python tools\viral\viral.py                        uma rodada (automático, pelos portais)
+    python tools\viral\viral.py --vigiar 20            fica em laço, uma rodada a cada 20 min
+    python tools\viral\viral.py --termo "Cristiano Ronaldo"     busca NA MÃO, você manda o termo
+    python tools\viral\viral.py --sem-baixar           só avisa, não gasta disco
+
+Pasta: `E:\DETTO\viral` (muda com --pasta)
+    videos_para_react\     o que foi aprovado e baixado, pronto para você reagir
+    pautas_virais.txt      os assuntos quentes, que o canal de notícias lê como pauta
+    config.json            os cortes (abaixo)
+    historico.json         o que já foi pego (não repete)
+
+
+A REGRA DE OURO — por que não basta "15 mil views"
+---------------------------------------------------
+Um vídeo com 15 mil views pode ser velho e morto. 15 mil em 29 MINUTOS é foguete subindo. E se o perfil
+tem 2 milhões de inscritos, as 15 mil views são só o tamanho dele — não há onda para pegar.
+
+Então ele cruza TRÊS coisas, e só aprova quem passa nas três:
+
+  1 TEMPO       postado há pouco (1 h é a janela nobre; até 24 h ainda entra, exigindo muito mais tração)
+  2 VELOCIDADE  views por MINUTO de vida (`fator`). 60/min = onda; 300/min = 🚨 FAÇA AGORA
+  3 TAMANHO     o perfil tem de ter MENOS de 20 mil seguidores (filtro antigigantes)
+
+Conferido com números de verdade:
+    15.000 views em 29 min, perfil de 8 mil     →  517 views/min  →  🚨 FAÇA AGORA
+    o MESMO vídeo num canal de 2 milhões        →  recusado (viralizou pelo tamanho dele)
+    15.000 views, mas com 3 dias                →  recusado (velho)
+    15.200 views em 20 h                        →  13 views/min, recusado (precisa de 360)
+
+
+OS CORTES (`config.json` na pasta)
+-----------------------------------
+  min_views            15000   views mínimas para contar
+  janela_min              60   a janela nobre, em minutos
+  janela_folgada_min    1440   o limite de vez (24 h)
+  max_seguidores       20000   o filtro antigigantes
+  urgencia_minima         60   views/min para ser considerado onda
+  urgencia_faz_agora     300   views/min que já é "FAÇA AGORA"
+  quantos_termos           3   assuntos por rodada
+  por_termo               12   vídeos conferidos por assunto
+  baixar                true   baixar sozinho
+  so_do_nicho          false   true = só notícia que fala de futebol/Galo/GTA/games
+  nicho                        as palavras do seu nicho
+  playwright           false   true = tenta TikTok e Instagram pelo navegador (ver abaixo)
+  telegram_chat           ""   o seu chat do Telegram
+  discord_webhook         ""   ou o webhook do Discord
+
+
+O AVISO NO CELULAR
+-------------------
+Telegram: crie um bot no @BotFather, pegue o token e rode
+    setx TELEGRAM_TOKEN "o-token-do-bot"
+Depois mande qualquer mensagem para o seu bot e ponha o seu chat em `config.json`
+(`"telegram_chat": "123456789"`). Nunca cole token aqui no chat.
+
+Discord: Editar canal → Integrações → Webhooks → Novo webhook → copiar o endereço →
+`"discord_webhook": "https://discord.com/api/webhooks/..."`.
+
+Sem nenhum dos dois configurado o aviso fica só no registro — nada quebra.
+
+
+COMO ISSO SE LIGA AO RESTO DO SISTEMA
+--------------------------------------
+  videos_para_react\<arquivo>.mp4   →  é o `"original"` do `tools\react\react.py`.
+                                       Grave a sua reação e aponte o react.json para ele.
+  pautas_virais.txt                 →  o MESMO assunto viral vira notícia na sua voz no canal.
+                                       (é o elo que você pediu: reagir E gerar o vídeo da notícia)
+
+Cada mp4 baixado vem com um .txt ao lado dizendo a notícia, o perfil, as views e a velocidade — para
+você decidir em 5 segundos se vale a reação.
+
+
+YOUTUBE, TIKTOK E INSTAGRAM
+----------------------------
+YOUTUBE funciona sem chave nenhuma: ele usa a busca do próprio site com o filtro "última hora + vídeo
+curto" (o `sp=` da busca). Com `YOUTUBE_API_KEY` no PC ele usa a API oficial, que é mais precisa nos
+inscritos — mas não é obrigatório.
+
+  OBS. técnica: o `ytsearchdate:` do yt-dlp NÃO EXISTE MAIS (a versão 2026.10.26 responde "Unsupported
+  url scheme"). Por isso a busca é pela URL de resultados com `sp=`, que ainda traz duração e views na
+  listagem — e é de graça.
+
+TIKTOK e INSTAGRAM estão ESTRUTURAIS e DESLIGADOS (`"playwright": true` liga). As duas redes mudam o
+HTML toda semana e bloqueiam robô: a leitura é feita pelo JSON que a própria página carrega, não por
+seletor de CSS, que é o que quebra primeiro. Precisa de:
+    pip install playwright && playwright install chromium
+e, para o Instagram, um `cookies.txt` (o mesmo `E:\DETTO\cookies.txt` do resto do sistema).
+Com isso desligado o programa trabalha só com o YouTube, que é de onde vem a maior parte dos Shorts.
+
+
+O QUE ELE NÃO FAZ (honestamente)
+---------------------------------
+- Não mede TikTok e Instagram de forma confiável hoje (ver acima). O YouTube sim.
+- Quando a busca não entrega os inscritos do canal, ele consulta o vídeo para pegar — e se nem assim
+  vier, o vídeo entra MARCADO com "NÃO conferi o tamanho do perfil", nunca como se fosse pequeno.
+  Essa consulta é a que o YouTube barra sem cookies: com o Firefox logado (ou o cookies.txt) ela
+  funciona e o filtro antigigantes fica exato.
+- Não decide se o assunto é de bom gosto. Há uma lista `PROIBIDO` (criança, crime sexual, suicídio,
+  feminicídio) que ele nunca traz, mas o resto é o seu bom senso.
