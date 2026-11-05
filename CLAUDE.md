@@ -631,8 +631,22 @@ config da pasta (`"preset"`), e canal que não é `galo` NÃO recebe as migraç�
 - Canais-fonte: ele põe os que acompanha no config (`fontes`); sem nenhum, a BUSCA POR DATA já traz o que saiu hoje.
   Pauta de um vídeo específico: cole o link no campo **Pautas** do card (funciona igual ao canal de notícias).
 - `vinheta.py` ganhou o preset `gta6` (cara de gameplay: lima e roxo, sub "TUDO SOBRE O GTA 6").
-- CANAIS-FONTE (29/out, pedido dele): @SaninPlay, @GameplayRJ, @RockstarGames (oficial), @BRKsEDU, @Voxel,
-  @TecMundo, @IGNBrasil. Canal que não existir/404 é pulado e a busca por data cobre o resto.
+- CANAIS-FONTE (29/out, pedido dele): @SaninPlay, @GameplayRJ, @RockstarGames (oficial), @BRKsEDU,
+  **@VOXELOFICIAL** (o @Voxel estava errado e nunca respondeu — conferido 05/nov), @TecMundo, @IGNBrasil.
+  Canal que não existir/404 é pulado e a busca por data cobre o resto.
+- **NOTÍCIA DE OUTROS GAMES (05/nov, pedido dele)**: o canal descartava "ZELDA OCARINA OF TIME REMAKE" do
+  BRKsEDU e o remake da IGN porque os `termos` só aceitam palavras de GTA — justamente a notícia de games
+  que ele quer dar. Em vez de inventar mecanismo, reusei o da "VOLTA PELO MUNDO" do Galo, que já existe e
+  está testado: `campeonatos_ligado: true` + `"campeonatos"` com DOIS blocos de games (lançamentos/trailers/
+  remakes e consoles/PC), que entram no FIM do vídeo (`max_trechos_campeonato` 2) e simplesmente NÃO
+  EXISTEM no dia em que não há notícia. A redação do bloco saiu do código e virou config
+  (`bloco_extra_nome` "o resto dos games", `bloco_extra_aviso`), porque estava presa a "a volta pelo mundo"
+  do Galo. A `regra_titulo` do preset proíbe titular nesse bloco: título e thumb saem SEMPRE do GTA 6.
+- **MIGRAÇÃO POR PRESET (05/nov)**: o config do GTA 6 já existia no PC dele e `prepara()` só migrava o
+  preset `galo` — então NADA que eu mudasse no preset gta6 chegava lá (o @Voxel errado ficaria errado para
+  sempre). Agora cada preset tem o seu `fontes_versao` (gta6 = 3) e traz as chaves novas quando ele sobe,
+  **preservando o que é dele** (nome_canal, auto_postar, voz_ref — conferido rodando a migração sobre uma
+  cópia do config antigo).
 
 ## GAMEPLAY NARRADA (01/nov) — `tools\gameplay\`, guia `tools\gameplay\LEIA-ME.txt`
 

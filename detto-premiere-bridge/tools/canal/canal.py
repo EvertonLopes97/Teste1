@@ -868,8 +868,12 @@ def falas_do_trecho(x, passo=7.0):
 
 
 def roteiro(sel, cfg, titulos_antes=()):
+    # o nome do BLOCO SECUNDÁRIO vem do canal: no Galo é "a volta pelo mundo" (os outros campeonatos), no
+    # canal de games é "o resto dos games" (05/nov). O mecanismo é o mesmo; só a redação muda.
+    bloco = cfg.get("bloco_extra_nome") or "a volta pelo mundo"
+    fora_do_tema = (cfg.get("bloco_extra_aviso") or "NÃO É DO GALO")
     lista = "\n".join(f"{i + 1}. [ORIGEM: {origem(x)}]"
-                      + (f" [NÃO É DO GALO — {x['campeonato']}, a volta pelo mundo no fim do vídeo]" if x.get("campeonato") else "")
+                      + (f" [{fora_do_tema} — {x['campeonato']}, {bloco} no fim do vídeo]" if x.get("campeonato") else "")
                       + (" [ESTE ASSUNTO JÁ SAIU NUM VÍDEO SEU HOJE: trate como notícia secundária, com um ângulo "
                          "novo, e NUNCA como a manchete]" if x.get("repetida") else "")
                       + (f" [TRECHO EM {x['idioma'].upper()} — vai LEGENDADO em português; avise na sua fala que é "
@@ -1938,7 +1942,8 @@ GTA6 = {
                      "no título (1,00x), parênteses (1,00x). DUAS coisas pioram: \"VAZOU/VAZAMENTO\" no título (0,90x) e "
                      "terminar com \"...\" (0,90x). Então: diga o FATO NOVO em palavras concretas e diretas, sem "
                      "reticências e sem a palavra vazamento no título (no corpo do vídeo, vazamento continua sendo "
-                     "chamado de vazamento). O que decide neste nicho é a THUMB e sair TODO DIA, não o título."),
+                     "chamado de vazamento). O que decide neste nicho é a THUMB e sair TODO DIA, não o título.\n"
+                     "O TÍTULO E A THUMB SAEM SEMPRE DO GTA 6, nunca de um trecho marcado como \"o resto dos games\" — esse bloco é o fim do vídeo. A fala antes do primeiro trecho dele avisa que agora é o resto dos games (\"e pra fechar, o que mais rolou nos games hoje\") e o fechamento volta a ser sobre o GTA 6."),
     # no GTA a alavanca não é o ângulo (como no Galo) e sim ser NOVO e CONCRETO — medido: título quase não muda nada
     "regra_nota": ("A NOTA é o quanto aquilo é NOVIDADE DE VERDADE e CONCRETA sobre o GTA 6: imagem ou gameplay "
                    "oficial nova, data, preço, tamanho do jogo, mecânica mostrada, declaração da Rockstar = nota alta. "
@@ -1970,7 +1975,7 @@ GTA6 = {
         {"canal": "@TecMundo", "nome": "TecMundo", "filtro": "titulo", "prioridade": 3},
         {"canal": "@IGNBrasil", "nome": "IGN Brasil", "filtro": "titulo", "prioridade": 3},
     ],
-    "fontes_versao": 2,
+    "fontes_versao": 3,   # 05/nov: @VOXELOFICIAL (o @Voxel não existe) + bloco de outros games
     "busca": ["gta 6 notícias", "gta 6 gameplay", "gta 6 trailer análise", "gta 6 novidades hoje",
               "grand theft auto 6 notícia", "gta 6 vazamento"],
     "busca_qualquer_canal": True,
@@ -1983,7 +1988,26 @@ GTA6 = {
     "duracao_alvo_min": 13,   # MEDIDO: 12-18 min rende 1,30x no nicho de GTA 6; 8-12 min rende 0,90x
     "comentario_min_s": 40,
     "buscar_original": False,  # aqui não existe "canal que junta": o vídeo achado já é a fonte
-    "campeonatos_ligado": False,
+    # NOTÍCIA DE OUTROS GAMES (05/nov, pedido dele) — o mesmo mecanismo da "volta pelo mundo" do Galo, que
+    # já existia e está testado: um BLOCO SECUNDÁRIO no fim do vídeo, com busca própria, que simplesmente
+    # NÃO EXISTE no dia em que não há notícia (nada é forçado).
+    # Era preciso: o canal descartava "ZELDA OCARINA OF TIME REMAKE" do BRKsEDU e o remake da IGN, porque
+    # os `termos` só aceitam palavras de GTA — justamente a notícia de games que ele quer dar.
+    "campeonatos_ligado": True,
+    "bloco_extra_nome": "o resto dos games",
+    "bloco_extra_aviso": "NÃO É DO GTA 6",
+    "max_trechos_campeonato": 2,
+    "max_videos_campeonato": 2,
+    "campeonatos": [
+        {"nome": "lançamentos e novidades dos games",
+         "termos": ["gameplay", "trailer", "review", "análise", "lançamento", "remake", "remaster", "dlc",
+                    "atualização", "update", "beta", "anúncio"],
+         "busca": ["notícias de games hoje", "lançamento de jogo trailer hoje", "gameplay novidade jogo hoje"]},
+        {"nome": "o que saiu nos consoles e na PC gaming",
+         "termos": ["playstation", "ps5", "xbox", "game pass", "nintendo", "switch", "steam", "epic games",
+                    "pc gamer", "placa de vídeo"],
+         "busca": ["playstation xbox notícia hoje", "nintendo switch notícia hoje", "steam notícia jogo hoje"]},
+    ],
     "mesclar_assunto": True,   # GTA 6 é UM assunto só: sem isso a rodada ficaria sem material
     # num canal de assunto único TUDO parece repetido: o limite do Galo (0,35) barraria todas as notícias
     "parecido_max": 0.8,
@@ -2031,6 +2055,18 @@ def prepara(pasta, preset=""):
         log(f"config do canal \"{seu.get('nome_canal')}\" gravado em {cfg_f}")
     cfg = dict(base)
     if nome_preset != "galo":      # canal que não é o do Galo não recebe as migrações das fontes do Galo
+        # MAS PRECISA DAS SUAS PRÓPRIAS (05/nov): o config do GTA 6 já existe no PC dele, então nada que eu
+        # mude no preset chegava lá — o @Voxel errado ficaria errado para sempre e o bloco de outros games
+        # nunca apareceria. Cada preset tem o seu `fontes_versao` e traz as chaves novas quando ele sobe.
+        if base is not CONFIG_PADRAO and seu.get("fontes_versao", 1) < base.get("fontes_versao", 1):
+            for k_ in ("fontes", "fontes_versao", "busca", "fora", "campeonatos", "campeonatos_ligado",
+                       "max_trechos_campeonato", "max_videos_campeonato", "bloco_extra_nome",
+                       "bloco_extra_aviso", "regra_titulo", "termos", "termos_nao"):
+                if k_ in base:
+                    seu[k_] = base[k_]
+            grava_json(cfg_f, seu)
+            log(f"config: atualizei as fontes do preset {nome_preset} (canal certo do Voxel + bloco de "
+                f"notícias de outros games no fim do vídeo)")
         cfg.update(seu)
         leia_ = pasta / "LEIA-ME.txt"
         if not leia_.exists():
