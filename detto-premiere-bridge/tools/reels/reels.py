@@ -36,6 +36,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tempfile
 import time
 import unicodedata
 from pathlib import Path
@@ -286,9 +287,23 @@ def baixa(url, pasta, cookies=None, txt=None, timeout=1200):
     # vídeo como se fosse a TV ou o Safari costuma passar SEM cookie nenhum — e é o degrau que funciona no PC
     # dele, onde o Chrome não deixa ler os cookies (DPAPI). Vem ANTES dos navegadores de propósito.
     tv = ["--extractor-args", "youtube:player_client=tv,web_safari,mweb"]
+    # Chrome/Edge NÃO entram no Windows: o cookie deles é cifrado com a conta do Windows e o yt-dlp nunca lê
+    # (DPAPI) — eram degraus que só enchiam o registro. Firefox lê.
+    nav = [("firefox", [])] + ([] if os.name == "nt" else [("chrome", []), ("edge", [])])
     degraus = ([(cookies, [])] if cookies else
-               [(None, [])] + [(None, tv)] + ([(arq_txt, [])] if arq_txt else [])
-               + [("firefox", []), ("chrome", []), ("edge", [])])
+               ([(arq_txt, [])] if arq_txt else []) + [(None, [])] + [(None, tv)] + nav)
+    # FREIO (05/nov): sem cookie nenhum, o YouTube responde "not a bot" e cada tentativa nova PIORA o bloqueio do
+    # IP (era o que derrubava até o canal de notícias). Barrado há pouco = nem encosto no YouTube de novo.
+    if not cookies and not arq_txt:
+        try:
+            _f = Path(tempfile.gettempdir()) / "detto_yt_barrado.txt"
+            _idade = time.time() - float(_f.read_text()) if _f.exists() else 1e9
+        except (OSError, ValueError):
+            _idade = 1e9
+        if _idade < 20 * 60:
+            return None, (f"Sign in to confirm you're not a bot (o YouTube barrou há {int(_idade // 60)} min; "
+                          "não vou insistir para não piorar) · ESSE erro se resolve com cookies: use o botão "
+                          "\"Entrar no YouTube agora\" do painel (aba CANAIS) ou instale o Firefox e entre no YouTube nele")
     real, quebrados, visto = "", [], set()
     for k, (ck, extra) in enumerate(degraus):
         r = ytdlp(extra + args, ck, timeout=timeout)
@@ -313,6 +328,11 @@ def baixa(url, pasta, cookies=None, txt=None, timeout=1200):
     erro = real or "o yt-dlp não baixou e não disse por quê"
     if quebrados:
         erro += f" · [não consegui ler os cookies de: {', '.join(quebrados)}]"
+    if precisa_login(real) and not arq_txt and not cookies:
+        try:
+            (Path(tempfile.gettempdir()) / "detto_yt_barrado.txt").write_text(str(time.time()))
+        except OSError:
+            pass
     if precisa_login(real) and not arq_txt:
         erro += (" · ESSE erro se resolve com cookies: exporte um cookies.txt (extensão \"Get cookies.txt LOCALLY\" "
                  "no navegador logado no YouTube) e salve em E:\\DETTO\\cookies.txt")

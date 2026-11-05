@@ -376,7 +376,16 @@ def coleta(cfg, hist):
         durm = (dur_s or 0) / 60
         if dur_s and (durm > f.get("max_min", cfg["max_min_fonte"]) or durm < 0.5):
             return
-        if f.get("filtro", "titulo") == "titulo" and not fala_do_time(f"{v['titulo']} {v.get('descricao', '')}", aps, nao):
+        if f.get("filtro", "titulo") == "gta":
+            # canal que fala de GTA o tempo todo (GameplayRJ, SaninPlay): "NOVAS IMAGENS DE GTA" não traz o "6"
+            # no título e o filtro de termos recusava (05/nov). Aqui basta a palavra GTA e não ser GTA 5/RP/Online.
+            _t, _td = f" {norm(v['titulo'])} ", f" {norm(v['titulo'])} {norm(v.get('descricao', ''))} "
+            if not (re.search(r"\bgta\b|grand theft auto", _td)) or any(f" {x} " in _t for x in nao):
+                log(f"   {f.get('nome')}: fora do assunto: {(v['titulo'] or '')[:70]}")
+                return
+        elif f.get("filtro", "titulo") == "titulo" and not fala_do_time(f"{v['titulo']} {v.get('descricao', '')}", aps, nao):
+            if cfg.get("time") == "GTA":
+                log(f"   {f.get('nome')}: fora do assunto: {(v['titulo'] or '')[:70]}")
             return
         if any(re.search(rf"\b{re.escape(norm(x))}\b", norm(v["titulo"])) for x in cfg.get("fora", [])):
             return  # react / ao vivo / jogo: não é notícia de imprensa
@@ -2085,8 +2094,8 @@ GTA6 = {
     # responder "not a bot" até no download. Os 7 ids abaixo foram conferidos um por um em 05/11, e cada
     # feed devolveu 15 vídeos.
     "fontes": [
-        {"canal": "@SaninPlay", "id": "UCiQotbmKsXF1n3xp3MYvoiw", "nome": "Sanin Play", "filtro": "titulo"},
-        {"canal": "@GameplayRJ", "id": "UCJAbkIY17zAmCTNQHH0bQoQ", "nome": "GameplayRJ", "filtro": "titulo"},
+        {"canal": "@SaninPlay", "id": "UCiQotbmKsXF1n3xp3MYvoiw", "nome": "Sanin Play", "filtro": "gta"},
+        {"canal": "@GameplayRJ", "id": "UCJAbkIY17zAmCTNQHH0bQoQ", "nome": "GameplayRJ", "filtro": "gta"},
         {"canal": "@RockstarGames", "id": "UC6VcWc1rAoWdBCM0JxrRQ3A", "nome": "Rockstar Games",
          "filtro": "tudo", "prioridade": 1},
         {"canal": "@BRKsEDU", "id": "UCWKtHaeXVzUscYGcm0hEunw", "nome": "BRKsEDU", "filtro": "titulo", "prioridade": 3},
@@ -2095,7 +2104,7 @@ GTA6 = {
         {"canal": "@TecMundo", "id": "UCdmGjywrxeOPfC7vDllmSgQ", "nome": "TecMundo", "filtro": "titulo", "prioridade": 3},
         {"canal": "@IGNBrasil", "id": "UCfg4PAgKIurlvYJRhhukv_g", "nome": "IGN Brasil", "filtro": "titulo", "prioridade": 3},
     ],
-    "fontes_versao": 4,   # 05/nov: ids dos canais (feed em vez de yt-dlp) + bloco de outros games
+    "fontes_versao": 5,   # 05/nov: filtro "gta" nos 2 canais de GTA; ids dos canais (feed em vez de yt-dlp) + bloco de outros games
     "busca": ["gta 6 notícias", "gta 6 gameplay", "gta 6 trailer análise", "gta 6 novidades hoje",
               "grand theft auto 6 notícia", "gta 6 vazamento"],
     "busca_qualquer_canal": True,
@@ -2344,6 +2353,11 @@ def main():
             if not arq:
                 log(f"   não baixou: {info}")
                 nao_baixou.append(str(info))
+                from reels import precisa_login as _pl
+                if len(nao_baixou) >= 2 and all(_pl(m) for m in nao_baixou):
+                    # cada tentativa a mais só piora o bloqueio do IP; não adianta insistir sem cookie
+                    log("   o YouTube barrou 2 vezes seguidas: PARO de tentar os outros vídeos para não piorar o bloqueio")
+                    break
                 continue
             v["arquivo"] = str(arq)
             v["descricao"] = (info or {}).get("description") or ""

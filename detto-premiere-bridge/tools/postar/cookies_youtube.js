@@ -126,28 +126,16 @@ function hora() {
 }
 const log = (m) => console.log(`${hora()} ${m}`);
 
-async function main() {
-  const atualizar = process.argv.includes("--atualizar");
-  const minutos = Number(arg("minutos", "8")) || 8;
-  const dominio = arg("dominio", "youtube.com");
-  const url = arg("url", "https://www.youtube.com/");
-  const saida = arg("saida", path.join(raizMidia(), "cookies.txt"));
-  const perfil = arg("perfil", path.join(raizMidia(), "postar", "perfil_youtube"));
-
+async function comPlaywright({ atualizar, minutos, dominio, url, saida, perfil }) {
   const { chromium } = loadPlaywright();
-  fs.mkdirSync(perfil, { recursive: true });
-  const primeira = fs.readdirSync(perfil).length === 0;
-  if (atualizar && primeira) {
-    log("ERRO: ainda nao existe perfil salvo. Rode SEM --atualizar uma vez, para entrar na conta.");
-    process.exit(1);
-  }
 
   const ctx = await chromium.launchPersistentContext(perfil, {
     headless: !!atualizar,
     executablePath: chromiumPath(),
     locale: "pt-BR",
     viewport: { width: 1180, height: 860 },
-    args: ["--no-first-run", "--no-default-browser-check"],
+    ignoreDefaultArgs: ["--enable-automation"],
+    args: ["--no-first-run", "--no-default-browser-check", "--disable-blink-features=AutomationControlled"],
   });
   log("JANELA ABERTA" + (atualizar ? " (sem mostrar, so reexportando)" : ""));
   try {
@@ -199,6 +187,135 @@ async function main() {
       /* já fechou */
     }
   }
+}
+
+
+function chromeDoPc() {
+  if (process.env.DETTO_CHROME) return process.env.DETTO_CHROME;
+  const L = process.env.LOCALAPPDATA || "", P = process.env.ProgramFiles || "C:\\Program Files",
+    P86 = process.env["ProgramFiles(x86)"] || "C:\\Program Files (x86)";
+  const cand = [
+    path.join(P, "Google", "Chrome", "Application", "chrome.exe"),
+    path.join(P86, "Google", "Chrome", "Application", "chrome.exe"),
+    path.join(L, "Google", "Chrome", "Application", "chrome.exe"),
+    path.join(P86, "Microsoft", "Edge", "Application", "msedge.exe"),
+    path.join(P, "Microsoft", "Edge", "Application", "msedge.exe"),
+    "/usr/bin/google-chrome",
+  ];
+  return cand.find((c) => c && fs.existsSync(c));
+}
+
+async function esperaPorta(porta, ms) {
+  const http = require("http");
+  const fim = Date.now() + ms;
+  while (Date.now() < fim) {
+    const ok = await new Promise((res) => {
+      const r = http.get(`http://127.0.0.1:${porta}/json/version`, (x) => { x.resume(); res(x.statusCode === 200); });
+      r.on("error", () => res(false));
+      r.setTimeout(1500, () => { r.destroy(); res(false); });
+    });
+    if (ok) return true;
+    await new Promise((r) => setTimeout(r, 500));
+  }
+  return false;
+}
+
+/** lê os cookies do Chrome REAL por uma conexão rápida (abre, lê, desconecta — o Chrome continua aberto) */
+async function leCookies(chromium, porta) {
+  const br = await chromium.connectOverCDP(`http://127.0.0.1:${porta}`);
+  try {
+    const c = br.contexts()[0];
+    return c ? await c.cookies() : [];
+  } finally {
+    try { await br.close(); } catch (_) { /* desconecta */ }
+  }
+}
+
+/**
+ * POR QUE O CHROME DE VERDADE (05/nov): o Chromium do Playwright abriu e o Google respondeu "Não foi possível
+ * fazer o login — esse navegador ou app pode não ser seguro". Ele reconhece navegador dirigido por automação
+ * (bandeira de automação + navigator.webdriver). A saída é abrir o Chrome/Edge INSTALADO como um programa
+ * qualquer — sem nenhuma bandeira de automação — e só LER os cookies por fora, pela porta de depuração.
+ */
+async function comChrome(exe, { atualizar, minutos, dominio, url, saida, perfil }) {
+  const { spawn, spawnSync } = require("child_process");
+  const { chromium } = loadPlaywright();
+  const porta = 9333 + Math.floor(Math.random() * 400);
+  const args = [`--user-data-dir=${perfil}`, `--remote-debugging-port=${porta}`, "--no-first-run",
+    "--no-default-browser-check", "--lang=pt-BR"];
+  if (atualizar) args.push("--headless=new");
+  if (process.platform !== "win32" && process.env.DETTO_SEM_SANDBOX) args.push("--no-sandbox");
+  args.push(url);
+  const filho = spawn(exe, args, { stdio: "ignore", detached: false });
+  const fecha = () => {
+    try {
+      if (process.platform === "win32") spawnSync("taskkill", ["/PID", String(filho.pid), "/T", "/F"]);
+      else filho.kill("SIGKILL");
+    } catch (_) { /* já fechou */ }
+  };
+  try {
+    if (!(await esperaPorta(porta, 25000))) {
+      log("o navegador abriu mas não respondeu na porta de leitura. Feche TODAS as janelas do Chrome/Edge e tente de novo.");
+      return 1;
+    }
+    log("JANELA ABERTA (" + path.basename(exe) + ")" + (atualizar ? " sem mostrar, só reexportando" : ""));
+    if (atualizar) {
+      await new Promise((r) => setTimeout(r, 3500));
+      const cks = await leCookies(chromium, porta);
+      if (!temLogin(cks)) {
+        log("o perfil salvo NAO esta mais logado. Rode sem --atualizar e entre de novo.");
+        return 1;
+      }
+      const { texto, n } = netscape(cks, dominio);
+      grava(saida, texto, dominio);
+      log(`${n} cookie(s) atualizados em ${saida}`);
+      return 0;
+    }
+    log("==================================================================");
+    log("  ENTRE NA SUA CONTA DO GOOGLE na janela que abriu.");
+    log("  Voce faz isso UMA VEZ. Depois o painel atualiza sozinho.");
+    log(`  Eu fecho a janela sozinho quando detectar o login (ate ${minutos} min).`);
+    log("==================================================================");
+    const fim = Date.now() + minutos * 60000;
+    while (Date.now() < fim) {
+      let cks = [];
+      try { cks = await leCookies(chromium, porta); } catch (_) { /* janela fechada pelo usuário */ }
+      if (temLogin(cks)) {
+        log("login detectado - esperando 4 s para pegar todos os cookies...");
+        await new Promise((r) => setTimeout(r, 4000));
+        const { texto, n } = netscape(await leCookies(chromium, porta), dominio);
+        grava(saida, texto, dominio);
+        log(`PRONTO: ${n} cookie(s) salvos em ${saida}`);
+        return 0;
+      }
+      await new Promise((r) => setTimeout(r, 3000));
+    }
+    log(`passou de ${minutos} min e eu nao vi o login. Nada foi salvo - rode de novo.`);
+    return 1;
+  } finally {
+    fecha();
+  }
+}
+
+async function main() {
+  const atualizar = process.argv.includes("--atualizar");
+  const minutos = Number(arg("minutos", "8")) || 8;
+  const dominio = arg("dominio", "youtube.com");
+  const url = arg("url", "https://www.youtube.com/");
+  const saida = arg("saida", path.join(raizMidia(), "cookies.txt"));
+  const perfil = arg("perfil", path.join(raizMidia(), "postar", "perfil_youtube"));
+  fs.mkdirSync(perfil, { recursive: true });
+  const primeira = fs.readdirSync(perfil).length === 0;
+  if (atualizar && primeira) {
+    log("ERRO: ainda nao existe perfil salvo. Rode SEM --atualizar uma vez, para entrar na conta.");
+    process.exit(1);
+  }
+  const exe = chromeDoPc();
+  if (exe) {
+    process.exit(await comChrome(exe, { atualizar, minutos, dominio, url, saida, perfil }));
+  }
+  log("não achei o Chrome nem o Edge instalados; uso o Chromium do Playwright (o Google pode recusar o login).");
+  await comPlaywright({ atualizar, minutos, dominio, url, saida, perfil });
 }
 
 main().catch((e) => {
