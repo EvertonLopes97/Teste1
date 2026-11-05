@@ -136,6 +136,26 @@ def _pronto_info(c, pr, d):
             "trechos": d.get("trechos", [])}
 
 
+def cookies_info():
+    """o cookies.txt do YouTube: existe? de quando é? ainda tem o login dentro?
+
+    É a resposta para "por que o canal não baixa": sem este arquivo o YouTube responde "Sign in to confirm
+    you're not a bot" e NENHUM vídeo é baixado (05/nov)."""
+    f = _raiz() / "cookies.txt"
+    perfil = _raiz() / "postar" / "perfil_youtube"
+    try:
+        if not f.is_file() or f.stat().st_size < 100:
+            return {"existe": False, "perfil": perfil.is_dir() and any(perfil.iterdir())}
+        txt = f.read_text(encoding="utf-8", errors="replace")
+        dias = (time.time() - f.stat().st_mtime) / 86400
+        logado = any(p in txt for p in ("SAPISID", "LOGIN_INFO"))
+        return {"existe": True, "dias": round(dias, 1), "logado": logado,
+                "quantos": sum(1 for l in txt.splitlines() if l.strip() and not l.startswith("#")),
+                "perfil": perfil.is_dir() and any(perfil.iterdir())}
+    except OSError:
+        return {"existe": False, "perfil": False}
+
+
 def estado():
     out = {}
     for c in CANAIS:
@@ -194,6 +214,7 @@ def estado():
                      duracao=cf.get("duracao", 10))
         out[c] = x
     out["segredo"] = bool(segredo())
+    out["cookies"] = cookies_info()
     out["pasta_youtube"] = str(_raiz() / "youtube")
     out["fila_postar"] = len(POSTANDO["fila"])
     out["montando"] = CANAIS[PESADO["id"]]["nome"] if (PESADO["id"] and ocupado()) else ""
@@ -353,10 +374,34 @@ def travado(c):
         return ""
 
 
+def pega_cookies(atualizar=False):
+    """ENTRAR NO YOUTUBE DE UMA VEZ (05/nov, pedido dele: "quero um botão").
+
+    `atualizar=False` abre uma JANELA do nosso Chromium para ele entrar na conta uma vez; depois disso o
+    `atualizar=True` reexporta do perfil salvo sem janela e sem login. Roda em segundo plano: a janela fica
+    aberta esperando ele, então o painel não pode ficar travado junto."""
+    alvo = TOOLS / "postar" / "cookies_youtube.py"
+    if not alvo.exists():
+        raise ValueError("não achei o cookies_youtube.py (rode o ATUALIZAR.ps1)")
+    args = [py(), str(alvo)] + (["--atualizar"] if atualizar else ["--minutos", "8"])
+    reg = _raiz() / "postar" / "cookies.log"
+    reg.parent.mkdir(parents=True, exist_ok=True)
+    with reg.open("a", encoding="utf-8") as f:
+        f.write(f"\n===== {dt.datetime.now():%d/%m %H:%M} {'atualizar' if atualizar else 'entrar'} =====\n")
+        f.flush()
+        subprocess.Popen(args, cwd=str(PONTE), stdout=f, stderr=subprocess.STDOUT)
+    if atualizar:
+        return {"ok": True, "msg": "Atualizando os cookies do perfil salvo — confira em alguns segundos."}
+    return {"ok": True, "msg": "Abri uma janela do navegador: ENTRE NA SUA CONTA DO GOOGLE. "
+                               "Eu fecho sozinho quando detectar o login e salvo o cookies.txt."}
+
+
 def acao(nome, d):
     c = d.get("c")
-    if c not in CANAIS and nome not in ("canal_segredo",):
+    if c not in CANAIS and nome not in ("canal_segredo", "canal_cookies"):
         raise ValueError("canal?")
+    if nome == "canal_cookies":
+        return pega_cookies(bool(d.get("atualizar")))
     if nome == "canal_destravar":
         return destrava(c)
     if nome == "canal_sair_da_fila":
@@ -577,8 +622,20 @@ def laco(log=print, edicao_ocupada=lambda: False):
                     POSTANDO["fila"].append((c, str(pr)))
         except Exception:
             pass
+    ultimo_cookie = [0.0]
     while True:
         try:
+            # 0) COOKIE DO YOUTUBE: reexporta do perfil salvo 1x por dia, sem janela e sem pedir nada. É o que
+            # faz o download continuar funcionando sem ele lembrar de nada (05/nov).
+            try:
+                ck = cookies_info()
+                if ck.get("perfil") and (time.time() - ultimo_cookie[0]) > 20 * 3600 and \
+                        (not ck.get("existe") or not ck.get("logado") or ck.get("dias", 0) > 1):
+                    ultimo_cookie[0] = time.time()
+                    log("cookies do YouTube: reexportando do perfil salvo")
+                    pega_cookies(atualizar=True)
+            except Exception as e:   # noqa: BLE001
+                log(f"cookies do YouTube: {str(e)[:90]}")
             # 1) postar (leve; pode junto com montagem)
             pp = POSTANDO["p"]
             if pp is not None and pp.poll() is not None:

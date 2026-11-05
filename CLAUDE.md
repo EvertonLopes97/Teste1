@@ -5,6 +5,34 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
 
 ## QUANDO O SISTEMA PARA (29/out) — rede de proteção
 
+- **POR QUE O GALO BAIXAVA E O GTA NÃO (05/nov) — a mesma máquina, o mesmo yt-dlp.** A diferença estava no
+  config: as fontes do Galo têm `"id"` do canal, então a hora vem do FEED (uma requisição HTTP simples, sem
+  yt-dlp nenhum). As do GTA 6 não tinham ID — então TODA rodada fazia uma extração PESADA do yt-dlp em 7
+  canais, e com ele clicando "Rodar agora" de 10 em 10 min isso vira centenas de chamadas por hora. O
+  YouTube então responde "Sign in to confirm you're not a bot" e aí NEM os canais respondem NEM o download
+  funciona: **o canal estava envenenando o próprio IP**. Era por isso que os 7 diziam "o canal NÃO
+  RESPONDEU" e nenhum dos 3 vídeos baixava. Consertos: os 7 IDs entraram no preset (conferidos um por um
+  em 05/11; cada feed devolveu 15 vídeos), `acha_channel_id()` descobre o ID de qualquer canal novo com UMA
+  requisição leve e passa a usar o feed, e `ultimos()` só cai no yt-dlp pesado como último recurso.
+- **VÍDEO SÓ COM A ABERTURA E O FECHAMENTO (05/nov)**: o canal de notícias entregou um vídeo sem notícia
+  nenhuma no meio. `monta()` sempre põe a 1ª e a última fala, e o laço do meio é sobre `sel` — com `sel`
+  vazio sobram as duas falas. A única guarda que existia era a de DURAÇÃO, e o `--forcar` (que é o que o
+  botão "Rodar agora" manda) passava direto por ela. Agora há um PISO que o `--forcar` não fura:
+  `min_trechos_video` (1) e `min_imprensa_s` (45) — sem isso a rodada termina com "NÃO RODEI" dizendo se
+  foi porque os vídeos não baixaram ou porque não havia notícia. `--forcar` serve para não esperar mais
+  material, não para montar sem material nenhum.
+- **BOTÃO DO LOGIN DO YOUTUBE (05/nov, pedido dele: "quero um botão")** — `tools\postar\cookies_youtube.py`
+  + painel, aba CANAIS, no topo. O Chrome novo guarda os cookies com a criptografia da conta do Windows
+  (App-Bound Encryption) e o yt-dlp não lê (`Failed to decrypt with DPAPI`); a extensão funciona mas é ele
+  quem exporta na mão e o arquivo vence. Aqui o navegador é NOSSO (o Chromium que já vem com o Playwright),
+  com PERFIL PERMANENTE em `<DETTO>\postar\perfil_youtube`: ele entra na conta UMA VEZ na janela que abre,
+  e daí em diante o painel reexporta sozinho (`--atualizar`, 1x por dia, sem janela e sem login). O arquivo
+  sai em `<DETTO>\cookies.txt`, que é onde o `cookies_do_pc()` procura. Dois detalhes que decidem se o
+  arquivo é aceito ou ignorado em silêncio: o separador é TAB, e cookie de SESSÃO com `expires=0` é
+  DESCARTADO por quem lê — e o de sessão é justamente o que prova o login, então ele ganha validade de 1
+  ano. Conferido: o `YoutubeDLCookieJar` do próprio yt-dlp leu os 4 cookies do arquivo gerado, e as linhas
+  de outro domínio (Instagram) que já estavam lá foram preservadas.
+
 - **O DPAPI QUE ESCONDIA O MOTIVO DE VERDADE (05/nov) — era isso que impedia o vídeo do dia.** Todo
   download terminava em `ERROR: Failed to decrypt with DPAPI` e a rodada acabava em "sem trechos para
   montar". O DPAPI não era o motivo: `baixa()` tenta 4 degraus (sem cookies → firefox → chrome → edge) e
@@ -642,11 +670,46 @@ config da pasta (`"preset"`), e canal que não é `galo` NÃO recebe as migraç�
   EXISTEM no dia em que não há notícia. A redação do bloco saiu do código e virou config
   (`bloco_extra_nome` "o resto dos games", `bloco_extra_aviso`), porque estava presa a "a volta pelo mundo"
   do Galo. A `regra_titulo` do preset proíbe titular nesse bloco: título e thumb saem SEMPRE do GTA 6.
+- **IMAGEM DO JOGO ATRÁS DA SUA FALA (05/nov, `apoio_na_fala`)** — era o buraco visual do canal de games:
+  durante a NARRAÇÃO a janela grande mostrava só a máscara dele, então o espectador passava minutos sem ver
+  jogo nenhum. Agora `peca_fala(..., apoio=(arquivo, segundo))` põe o trecho da PRÓPRIA notícia que a fala
+  está apresentando na janela (mudo, em loop se for curto) e a máscara vai para o canto — ele diz "a
+  Rockstar liberou novas imagens" e as imagens estão na tela. Não custa download nenhum: o arquivo já está
+  baixado. Ligado só no preset de games, para não mexer no visual do Galo. Conferido renderizando a peça e
+  olhando o quadro.
 - **MIGRAÇÃO POR PRESET (05/nov)**: o config do GTA 6 já existia no PC dele e `prepara()` só migrava o
   preset `galo` — então NADA que eu mudasse no preset gta6 chegava lá (o @Voxel errado ficaria errado para
   sempre). Agora cada preset tem o seu `fontes_versao` (gta6 = 3) e traz as chaves novas quando ele sobe,
   **preservando o que é dele** (nome_canal, auto_postar, voz_ref — conferido rodando a migração sobre uma
   cópia do config antigo).
+
+## OS 3 CANAIS QUE ELE MANDOU DE REFERÊNCIA — medido (05/nov)
+
+Ele mandou 3 links dizendo que o canal de GTA tem de ter vídeo "como estes". O YouTube não me deixa abrir
+vídeo sem cookie, mas o **oembed** dá título e canal sem login, e a listagem do canal dá views e duração —
+então dá para medir, que é o que vale. São eles:
+- **"REVELADO O PRÉ LOAD DO GTA 6 !!!"** — @gigatongames (2,87 mi inscritos, 128 mil views medianos)
+- **"O mundo não está preparado para o GTA 6"** — @Dulebio (**1,87 mil** inscritos, 7,5 mil medianos)
+- **"FALTAM 20 DIAS! CRIE SEU CANAL DE GTA 6"** — @nerdsdenegocios (4,36 mi, 257 mil medianos)
+
+**A DURAÇÃO É A ÚNICA COISA EM QUE OS TRÊS CONCORDAM, e concordam muito:** 12-18 min ganha em TODOS
+(Gigaton 1,29x · Dulebio **2,73x** · Nerds 2,23x) e 8-12 min PERDE em todos (0,87x · —— · 0,59x). Junta com
+a medição de 30/out no nicho de GTA (12-18 min = 1,30x): são 5 canais apontando para a mesma faixa.
+→ `duracao_alvo_min` 13 → **14** (cai no meio da faixa mesmo depois da vinheta).
+
+**O DULEBIO É O ACHADO**: 1,87 mil inscritos e o melhor vídeo dele fez **21,6x** a mediana do canal — é
+exatamente o vídeo que o Everton mandou, 14 min. É o único dos três do TAMANHO dele, então é o único cujos
+números valem para o canal dele:
+- NÚMERO no título: **2,00x** · terminar com "!!": **0,05x** (no Gigaton, que é gigante, "!!" dá 1,09x — o
+  tamanho do canal inverte o sinal, e por isso vale o dado do canal pequeno)
+→ a `regra_titulo` do preset gta6 passou a pedir número concreto e proibir terminar em "!!".
+
+O @nerdsdenegocios NÃO é modelo de formato: é um canal de NEGÓCIOS onde título com "GTA 6" rende **0,35x**
+(pergunta no título rende 1,84x). O vídeo dele é um conselho sobre como montar o canal, não uma prova de
+que o formato funciona — tratar como opinião, não como medição.
+
+**O QUE A MEDIÇÃO NÃO DIZ** (e eu não vou fingir que diz): como esses vídeos são EDITADOS por dentro. Para
+isso eu precisaria assistir, e sem cookie eu não abro vídeo nenhum. Depois do botão do login, eu consigo.
 
 ## GAMEPLAY NARRADA (01/nov) — `tools\gameplay\`, guia `tools\gameplay\LEIA-ME.txt`
 

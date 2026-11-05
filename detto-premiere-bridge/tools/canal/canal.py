@@ -263,6 +263,36 @@ def videos_ytdlp(canal, quantos=12):
     return out
 
 
+_IDS = {}
+
+
+def acha_channel_id(canal):
+    """o ID (UC...) do canal, com UMA requisição leve. É a chave para usar o FEED em vez do yt-dlp.
+
+    POR QUE ISSO EXISTE (05/nov) — era a diferença entre o canal do Galo funcionar e o do GTA 6 morrer:
+    as fontes do Galo têm `"id"` no config, então a hora vem do FEED (uma requisição HTTP simples, sem
+    yt-dlp nenhum). As do GTA não tinham ID, então TODA rodada fazia uma extração pesada do yt-dlp em 7
+    canais — e, com o painel repetindo a rodada a cada 10 min por causa da falha, isso vira centenas de
+    chamadas por hora. O YouTube então passa a responder "Sign in to confirm you're not a bot", e aí NEM
+    os canais respondem NEM o download funciona. O canal estava envenenando o próprio IP.
+
+    Com o ID em mãos o caminho fica igual ao do Galo: feed, barato, sem yt-dlp."""
+    if not canal:
+        return ""
+    if canal in _IDS:
+        return _IDS[canal]
+    r = ytdlp(["--flat-playlist", "-J", "--playlist-end", "1", f"https://www.youtube.com/{canal}"], timeout=120)
+    cid = ""
+    try:
+        d = json.loads(r.stdout or "{}")
+        if isinstance(d, dict):
+            cid = d.get("channel_id") or ((d.get("entries") or [{}]) or [{}])[0].get("channel_id") or ""
+    except (ValueError, AttributeError, IndexError):
+        cid = ""
+    _IDS[canal] = cid
+    return cid
+
+
 def ultimos(cid, canal="", quantos=12, desde=None):
     """os últimos vídeos com a hora: o feed primeiro (leve) e, se ele falhar, o yt-dlp.
 
@@ -273,6 +303,14 @@ def ultimos(cid, canal="", quantos=12, desde=None):
     eu confirmo no yt-dlp (que é autoritativo) antes de desistir — custa uma chamada exatamente no caso em que
     eu ia desistir de graça."""
     v = rss(cid) if cid else []
+    # SEM ID no config, descubro o ID (1 requisição leve) e uso o FEED — em vez de uma extração pesada do
+    # yt-dlp a cada rodada, que é o que marcava o IP e derrubava os downloads do canal de GTA (05/nov).
+    if not v and not cid and canal:
+        achado = acha_channel_id(canal)
+        if achado:
+            v = rss(achado)
+            if v:
+                log(f"   {canal}: achei o id do canal ({achado}) e peguei a hora pelo feed")
     if v and (desde is None or any(x["quando"] >= desde for x in v)):
         return v
     nova = videos_ytdlp(canal, quantos)
@@ -1440,25 +1478,45 @@ def legendas(texto, dur_audio, pasta, idx):
     return out
 
 
-def peca_fala(base, wav, masc, texto, pasta, idx, saida, logo):
-    """você falando (narração clonada): sua gravação de máscara GRANDE na janela, legenda na faixa"""
+def peca_fala(base, wav, masc, texto, pasta, idx, saida, logo, apoio=None):
+    """você falando (narração clonada): sua gravação de máscara GRANDE na janela, legenda na faixa.
+
+    `apoio`: (arquivo, segundo) para mostrar IMAGEM DO JOGO na janela grande enquanto você fala, com a sua
+    máscara no canto. É o que faltava num canal de games (05/nov, pedido dele: "deve mostrar imagens/vídeos
+    do GTA"): durante a narração a janela mostrava SÓ a sua cara, e o espectador ficava minutos sem ver jogo
+    nenhum. O trecho usado é o da PRÓPRIA notícia que a fala está apresentando — já está baixado, não custa
+    nada e cai certo: você diz "a Rockstar liberou novas imagens" e as imagens estão na tela."""
     da = dur(wav) + 0.25
     x, y, w, h = JANELA
     cx, cy, cw, ch = CANTO
     legs = legendas(texto, da - 0.25, pasta, idx)
     ins = ["-loop", "1", "-i", str(base), "-i", str(wav)]
-    if masc:
+    if apoio and Path(apoio[0]).exists():
+        # a imagem do jogo ocupa a janela (MUDA, em loop se o pedaço for curto); você vai para o canto
+        ins += ["-stream_loop", "-1", "-ss", f"{float(apoio[1]):.2f}", "-i", str(apoio[0])]
+        f = f"[2:v]{cor_sdr(apoio[0])}{cobre(w, h)},setsar=1[ap];[0:v][ap]overlay={x}:{y}[b0];"
+        if masc:
+            ins += ["-stream_loop", "-1", "-i", str(masc)]
+            f += f"[3:v]{cor_sdr(masc)}{cobre(cw, ch)},setsar=1[m];[b0][m]overlay={cx}:{cy}[b1];"
+        else:
+            ins += ["-loop", "1", "-i", str(logo)]
+            f += f"[3:v]{cobre(cw, ch)}[lg];[b0][lg]overlay={cx}:{cy}[b1];"
+        ult = "b1"
+        proxima = 4
+    elif masc:
         ins += ["-stream_loop", "-1", "-i", str(masc)]
         f = f"[2:v]{cor_sdr(masc)}{cobre(w, h)},setsar=1[m];[0:v][m]overlay={x}:{y}[b0];"
     else:
         ins += ["-f", "lavfi", "-i", f"color=c=0x111111:s={w}x{h}:r={FPS}"]
         f = f"[0:v][2:v]overlay={x}:{y}[b0];"
-    ins += ["-loop", "1", "-i", str(logo)]
-    f += f"[3:v]{cobre(cw, ch)}[lg];[b0][lg]overlay={cx}:{cy}[b1];"
-    ult = "b1"
+    if not (apoio and Path(apoio[0]).exists()):
+        ins += ["-loop", "1", "-i", str(logo)]
+        f += f"[3:v]{cobre(cw, ch)}[lg];[b0][lg]overlay={cx}:{cy}[b1];"
+        ult = "b1"
+        proxima = 4
     for k, (png, a, b) in enumerate(legs):
         ins += ["-loop", "1", "-i", str(png)]
-        f += f"[{ult}][{4 + k}:v]overlay=0:0:enable='between(t,{a:.2f},{b:.2f})'[c{k}];"
+        f += f"[{ult}][{proxima + k}:v]overlay=0:0:enable='between(t,{a:.2f},{b:.2f})'[c{k}];"
         ult = f"c{k}"
     f += f"[{ult}]fps={FPS},format=yuv420p[vo];[1:a]atempo=1.05,loudnorm=I=-16:TP=-1.5,aresample=48000,apad=pad_dur=0.2[ao]"
     r = ff(["ffmpeg", "-v", "error", "-y", *ins, "-filter_complex", f, "-map", "[vo]", "-map", "[ao]", "-t", f"{da / 1.05 + 0.2:.2f}", *enc(), str(saida)],
@@ -1549,21 +1607,28 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
         # anteriores (uns 300 ffprobe num vídeo de 20 min)
         return sum(medidas.setdefault(p, dur_mp4(p)) for p in pecas)
 
-    def add_fala(f):
+    # IMAGEM DO JOGO ATRÁS DA SUA FALA (05/nov): a fala que apresenta a notícia i mostra o trecho DELA na
+    # janela, em vez de só a sua cara. Ligado por canal (`apoio_na_fala`), para não mudar o visual do Galo.
+    quer_apoio = bool(cfg.get("apoio_na_fala"))
+
+    def add_fala(f, apoio=None):
         p = tmp / f"p{len(pecas):03d}.mp4"
         t0 = time.time()
-        if peca_fala(base, f["arquivo"], mascara_de(f["clima"], pasta), f["texto"], tmp, len(pecas), p, logo):
+        if peca_fala(base, f["arquivo"], mascara_de(f["clima"], pasta), f["texto"], tmp, len(pecas), p, logo,
+                     apoio=apoio if quer_apoio else None):
             pecas.append(p)
-            log(f"      peça {len(pecas)} (sua fala) pronta em {time.time() - t0:.0f}s")
+            log(f"      peça {len(pecas)} (sua fala{' + imagem do jogo' if (apoio and quer_apoio) else ''}) "
+                f"pronta em {time.time() - t0:.0f}s")
 
-    add_fala(falas[0])
+    add_fala(falas[0], apoio=(sel[0]["arquivo"], sel[0]["ini"]) if sel else None)
     # onde termina a CHAMADA de abertura (resumo + CTA): é aí que a vinheta entra, não no segundo 0
     abertura_s = dur_mp4(pecas[0]) if pecas else 0.0
     for i, x in enumerate(sel):
         # o capítulo começa na FALA que apresenta a notícia (é ali que o assunto começa), não no trecho
         marcas.append((onde_estou(), x.get("manchete") or ""))
         if i in fala_antes:
-            add_fala(fala_antes[i])
+            # o apoio é o trecho desta notícia, que é justamente a que a fala está apresentando
+            add_fala(fala_antes[i], apoio=(x["arquivo"], x["ini"]))
         p = tmp / f"p{len(pecas):03d}.mp4"
         fx = faixa_png(x["manchete"], f"Imagens: {origem(x)}", tmp / f"faixa_{i}.png", cfg["cor"])
         log(f"   trecho {i + 1}/{len(sel)}: {x['manchete']} ({x['fim'] - x['ini']:.0f}s, {x['fonte']})")
@@ -1943,6 +2008,8 @@ GTA6 = {
                      "terminar com \"...\" (0,90x). Então: diga o FATO NOVO em palavras concretas e diretas, sem "
                      "reticências e sem a palavra vazamento no título (no corpo do vídeo, vazamento continua sendo "
                      "chamado de vazamento). O que decide neste nicho é a THUMB e sair TODO DIA, não o título.\n"
+                     # medido em 05/11 nos canais que ELE mandou de referência
+                     "MEDIDO nos canais de referência dele (05/11): num canal PEQUENO, NÚMERO no título rende 2,00x (Dulebio, 1,8 mil inscritos) e terminar com \"!!\" rende 0,05x — ou seja, ponha o número concreto (GB, dias, quantidade) e NUNCA termine em \"!!\". Num canal grande isso se inverte, mas o seu é pequeno.\n"
                      "O TÍTULO E A THUMB SAEM SEMPRE DO GTA 6, nunca de um trecho marcado como \"o resto dos games\" — esse bloco é o fim do vídeo. A fala antes do primeiro trecho dele avisa que agora é o resto dos games (\"e pra fechar, o que mais rolou nos games hoje\") e o fechamento volta a ser sobre o GTA 6."),
     # no GTA a alavanca não é o ângulo (como no Galo) e sim ser NOVO e CONCRETO — medido: título quase não muda nada
     "regra_nota": ("A NOTA é o quanto aquilo é NOVIDADE DE VERDADE e CONCRETA sobre o GTA 6: imagem ou gameplay "
@@ -1965,17 +2032,23 @@ GTA6 = {
     "time": "GTA",
     # os canais que ELE acompanha (29/out, pedido dele). Canal que não existir/404 é pulado sozinho, e a BUSCA
     # POR DATA continua trazendo o resto — então acrescentar canal aqui nunca derruba a rodada.
+    # O "id" NÃO É ENFEITE (05/nov): com ele a hora vem do FEED (uma requisição HTTP simples). Sem ele, toda
+    # rodada fazia uma extração PESADA do yt-dlp em 7 canais — e era por isso que o canal de GTA 6 morria
+    # enquanto o do Galo (que tem os ids) funcionava: o GTA marcava o próprio IP e o YouTube passava a
+    # responder "not a bot" até no download. Os 7 ids abaixo foram conferidos um por um em 05/11, e cada
+    # feed devolveu 15 vídeos.
     "fontes": [
-        {"canal": "@SaninPlay", "nome": "Sanin Play", "filtro": "titulo"},
-        {"canal": "@GameplayRJ", "nome": "GameplayRJ", "filtro": "titulo"},
-        {"canal": "@RockstarGames", "nome": "Rockstar Games", "filtro": "tudo", "prioridade": 1},
-        {"canal": "@BRKsEDU", "nome": "BRKsEDU", "filtro": "titulo", "prioridade": 3},
+        {"canal": "@SaninPlay", "id": "UCiQotbmKsXF1n3xp3MYvoiw", "nome": "Sanin Play", "filtro": "titulo"},
+        {"canal": "@GameplayRJ", "id": "UCJAbkIY17zAmCTNQHH0bQoQ", "nome": "GameplayRJ", "filtro": "titulo"},
+        {"canal": "@RockstarGames", "id": "UC6VcWc1rAoWdBCM0JxrRQ3A", "nome": "Rockstar Games",
+         "filtro": "tudo", "prioridade": 1},
+        {"canal": "@BRKsEDU", "id": "UCWKtHaeXVzUscYGcm0hEunw", "nome": "BRKsEDU", "filtro": "titulo", "prioridade": 3},
         # @Voxel não existe ("This channel does not have a videos tab"): o canal é @VOXELOFICIAL (conferido 05/nov)
-        {"canal": "@VOXELOFICIAL", "nome": "Voxel", "filtro": "titulo", "prioridade": 3},
-        {"canal": "@TecMundo", "nome": "TecMundo", "filtro": "titulo", "prioridade": 3},
-        {"canal": "@IGNBrasil", "nome": "IGN Brasil", "filtro": "titulo", "prioridade": 3},
+        {"canal": "@VOXELOFICIAL", "id": "UCupqHNRTEHjNtq9X8djWyaQ", "nome": "Voxel", "filtro": "titulo", "prioridade": 3},
+        {"canal": "@TecMundo", "id": "UCdmGjywrxeOPfC7vDllmSgQ", "nome": "TecMundo", "filtro": "titulo", "prioridade": 3},
+        {"canal": "@IGNBrasil", "id": "UCfg4PAgKIurlvYJRhhukv_g", "nome": "IGN Brasil", "filtro": "titulo", "prioridade": 3},
     ],
-    "fontes_versao": 3,   # 05/nov: @VOXELOFICIAL (o @Voxel não existe) + bloco de outros games
+    "fontes_versao": 4,   # 05/nov: ids dos canais (feed em vez de yt-dlp) + bloco de outros games
     "busca": ["gta 6 notícias", "gta 6 gameplay", "gta 6 trailer análise", "gta 6 novidades hoje",
               "grand theft auto 6 notícia", "gta 6 vazamento"],
     "busca_qualquer_canal": True,
@@ -1985,7 +2058,10 @@ GTA6 = {
     "trecho_min_s": 15,
     "trecho_max_s": 120,      # pedaço de gameplay/notícia; o comentário dele entra entre os trechos
     "max_trechos_video": 3,
-    "duracao_alvo_min": 13,   # MEDIDO: 12-18 min rende 1,30x no nicho de GTA 6; 8-12 min rende 0,90x
+    # MEDIDO em 3 nichos e 5 canais: 12-18 min ganha em TODOS (GTA 1,30x · Gigaton Games 1,29x ·
+    # Dulebio 2,73x · Nerds de Negócios 2,23x) e 8-12 min PERDE em todos. 14 cai no meio da faixa
+    # mesmo depois da vinheta.
+    "duracao_alvo_min": 14,
     "comentario_min_s": 40,
     "buscar_original": False,  # aqui não existe "canal que junta": o vídeo achado já é a fonte
     # NOTÍCIA DE OUTROS GAMES (05/nov, pedido dele) — o mesmo mecanismo da "volta pelo mundo" do Galo, que
@@ -2023,6 +2099,9 @@ GTA6 = {
     # VELOCIDADE: a legenda do YouTube evita transcrever vídeo de 10-25 min (era isso que fazia a rodada demorar)
     "dublar": True,                  # trecho gringo sai com a SUA voz traduzindo por cima (+ a legenda)
     "tela_cheia_sem_rosto": True,    # gameplay/imagem sem ninguém falando ocupa a tela inteira
+    # MEDIDO em 3 canais que ele mandou (05/nov): num canal de games o espectador tem de ver JOGO na tela.
+    # Durante a narração a janela mostrava só a máscara dele — minutos sem jogo nenhum.
+    "apoio_na_fala": True,
     "legenda_antes_de_transcrever": True,
     "legenda_langs": "pt.*,pt,en.*,en",
     "max_videos_rodada": 4,   # com 13 min de alvo não precisa de 8 vídeos por rodada; o resto fica para a próxima
@@ -2389,6 +2468,21 @@ def main():
         log(f"   {n_rep} assunto que já saiu hoje volta como notícia secundária (o foco é outro)")
     if n_camp:
         log(f"   {n_camp} trecho(s) de campeonato: " + ", ".join(sorted({x["campeonato"] for x in sel if x.get("campeonato")})))
+    # PISO QUE O --forcar NÃO FURA (05/nov): hoje saiu um vídeo do canal de notícias com SÓ A ABERTURA E O
+    # FECHAMENTO. O motivo: `monta()` sempre põe a 1ª e a última fala, e o laço do meio é sobre `sel` — com
+    # `sel` vazio sobram as duas falas e nada no meio. O `--forcar` (que é o que o botão "Rodar agora" manda)
+    # passava direto pela única guarda que existia, que era a de DURAÇÃO. Vídeo sem notícia não é vídeo:
+    # `--forcar` serve para não esperar mais material, não para montar sem material nenhum.
+    minimo = max(1, int(cfg.get("min_trechos_video", 1)))
+    if len(sel) < minimo:
+        log(f"NÃO RODEI: {len(sel)} trecho(s) de imprensa — um vídeo só com a abertura e o fechamento não serve. "
+            + ("Os vídeos de hoje não baixaram (veja acima o motivo)." if nao_baixou
+               else "Não achei notícia nova sobre o assunto do canal hoje."))
+        return
+    if tot < float(cfg.get("min_imprensa_s", 45)):
+        log(f"NÃO RODEI: só {tot:.0f}s de imprensa no total — isso não dá um vídeo, dá uma chamada. "
+            "Espero a próxima rodada.")
+        return
     if total_estimado() < alvo:
         if not a.forcar:
             log(f"ainda não dá {cfg['duracao_alvo_min']} min (tem ~{total_estimado() / 60:.1f} min de notícia nova); espera a próxima rodada")

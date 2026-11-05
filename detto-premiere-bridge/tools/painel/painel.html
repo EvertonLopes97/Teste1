@@ -330,6 +330,7 @@ section.aba.on{display:block}
 
   <section class="aba" id="aba-canais">
   <h2>Canais automáticos do YouTube</h2>
+  <div id="canCookies"></div>
   <div id="canSetup"></div>
   <div class="duas" id="canCards"></div>
   </section>
@@ -411,8 +412,11 @@ function localStorageGet(k){ try { return localStorage.getItem(k) } catch(e){ re
 function localStorageSet(k,v){ try { localStorage.setItem(k,v) } catch(e){} }
 
 function toast(m, erro){
-  const t = $("#toast"); t.textContent = m; t.className = erro ? "erro" : ""; t.style.display = "block";
-  clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", erro ? 6000 : 2500);
+  // `erro` pode ser um NÚMERO: aí é só quanto tempo o aviso fica na tela (o recado do login do YouTube
+  // precisa de mais tempo para ele ler antes de ir para a janela do navegador).
+  const tempo = typeof erro === "number" ? erro : (erro ? 6000 : 2500);
+  const t = $("#toast"); t.textContent = m; t.className = (erro === true) ? "erro" : ""; t.style.display = "block";
+  clearTimeout(toast.t); toast.t = setTimeout(() => t.style.display = "none", tempo);
 }
 async function api(acao, dados){
   const r = await fetch("/api/" + acao, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(dados || {})});
@@ -516,7 +520,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-11-01c";
+const VERSAO_TELA = "2026-11-05a";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -1026,6 +1030,21 @@ function canais(){
       <li>Mande o arquivo aqui: <input type="file" id="canSeg" accept=".json,application/json" style="width:auto"></li>
     </ol></div>`;
   const s = $("#canSeg"); if(s) s.onchange = async () => { const t = await s.files[0].text(); await api("canal_segredo", {texto: t}); toast("Credencial salva"); carrega(true); };
+  // O LOGIN DO YOUTUBE PARA BAIXAR (05/nov): sem o cookies.txt o YouTube responde "Sign in to confirm
+  // you're not a bot" e NENHUM vídeo é baixado — foi o que parou o canal de GTA 6 por um dia.
+  const ck = E.canais.cookies || {}, cbox = $("#canCookies");
+  if(cbox){
+    cbox.innerHTML = ck.existe && ck.logado
+      ? `<div class="info" style="border-left:3px solid #2e7d32">🍪 <b>Login do YouTube para baixar: OK</b> — ${ck.quantos} cookie(s), de ${ck.dias < 1 ? "hoje" : ck.dias.toFixed(0) + " dia(s) atrás"}.
+         <button class="mini" onclick="canCookies(true)">↻ Atualizar agora</button>
+         <button class="mini" onclick="canCookies(false)">Entrar em outra conta</button></div>`
+      : `<div class="aviso">🍪 <b>O YouTube está pedindo login para baixar os vídeos${ck.existe ? " (o cookies.txt que existe não tem o login dentro)" : ""}.</b>
+         Sem isso o canal coleta as notícias mas NÃO baixa nada — é o "Sign in to confirm you're not a bot" no registro.
+         <div style="margin-top:8px"><button class="mini pri" onclick="canCookies(false)">🔑 Entrar no YouTube agora</button>
+         ${ck.perfil ? `<button class="mini" onclick="canCookies(true)">↻ Tentar reexportar do perfil salvo</button>` : ""}</div>
+         <small style="display:block;margin-top:6px;opacity:.75">Abre uma janela do navegador. Você entra na sua conta do Google UMA VEZ e eu guardo —
+         depois disso eu atualizo sozinho. (Não é o Chrome: é o navegador do próprio sistema, com perfil separado.)</small></div>`;
+  }
   const box = $("#canCards"), k = JSON.stringify(C);
   if(box.dataset.k === k) return; box.dataset.k = k;
   const abertos = {}; box.querySelectorAll("details[data-d]").forEach(d => abertos[d.dataset.d] = d.open);
@@ -1102,6 +1121,8 @@ function cardCanal(c, x){
     ${c === "noticias" ? `
     <div class="chave"><span><b>Mesclar assunto do dia</b><small>${x.mesclar_assunto ? "Um assunto que já saiu hoje pode voltar como notícia secundária — só com FATO NOVO (nota alta e informação que não estava no vídeo anterior). Nunca vira título nem thumb." : "Desligado: o que já saiu hoje fica de fora do próximo vídeo"}</small></span>${sw(c, "mesclar_assunto", x.mesclar_assunto)}</div>
     <div class="chave"><span><b>A volta pelo mundo</b><small>${x.campeonatos_ligado ? "Em dia de Libertadores, Champions, Copa do Brasil ou rodada, entram 2 trechos no fim do vídeo" : "Desligado: só notícia do Galo"}</small></span>${sw(c, "campeonatos_ligado", x.campeonatos_ligado)}</div>` : ""}
+    ${c === "gta6" ? `
+    <div class="chave"><span><b>Notícias de outros games no fim</b><small>${x.campeonatos_ligado ? "Zelda, PlayStation, Nintendo, Steam… entram como 2 trechos NO FIM do vídeo. O título e a thumb continuam sendo sempre do GTA 6. Dia sem notícia de games = o bloco simplesmente não existe." : "Desligado: só GTA 6"}</small></span>${sw(c, "campeonatos_ligado", x.campeonatos_ligado)}</div>` : ""}
     ${esp}
     <h2 style="margin:16px 0 8px">Vídeos ${x.esperando ? `<span class="st aguardando">${x.esperando} esperando você</span>` : ""}</h2>
     <div class="fila">${prs || `<div class="vazio">Nenhum vídeo montado ainda.</div>`}</div>
@@ -1110,6 +1131,7 @@ function cardCanal(c, x){
 }
 async function canCfg(c, d){ await api("canal_cfg", {c, ...d}); toast("Salvo"); editando = false; carrega(true); }
 async function canRodar(c){ const r = await api("canal_rodar", {c}); toast(r.msg || "Começou — acompanhe no registro"); carrega(true); }
+async function canCookies(atualizar){ const r = await api("canal_cookies", {atualizar: !!atualizar}); toast(r.msg || "Pedido enviado", 9000); setTimeout(() => carrega(true), atualizar ? 9000 : 25000); }
 async function canTeste(c){ const r = await api("canal_teste", {c}); toast(r.msg || "Teste começou (voz de computador, não posta) — o vídeo aparece em Esperando você"); carrega(true); }
 async function canParar(c){ if(!confirm("Parar a montagem?")) return; await api("canal_parar", {c}); carrega(true); }
 async function canAbrir(c, qual){ await api("canal_abrir", {c, qual}); toast("Abri a pasta no PC"); }
