@@ -79,7 +79,13 @@ CONFIG_PADRAO = {
         {"canal": "@canalgalonoticiou", "nome": "Canal Galo Noticiou", "filtro": "titulo", "prioridade": 3, "juntador": True},
         {"canal": "@EUSOUGALO", "nome": "Eu Sou Galo", "filtro": "titulo", "prioridade": 3, "juntador": True},
     ],
-    "fontes_versao": 5,
+    "fontes_versao": 6,
+    # A LEGENDA DO YOUTUBE ANTES DO WHISPER (06/nov) — o maior gargalo que sobrou na rodada do Galo:
+    # transcrever 8 vídeos de 10 a 25 min levava a rodada inteira. O caminho já existia e estava ligado
+    # só no GTA. A proteção é a mesma: legenda com menos de 60 palavras ou que cubra menos de 50% do
+    # vídeo é RECUSADA e o whisper entra — legenda picada não serve para cortar trecho no fim da frase.
+    "legenda_antes_de_transcrever": True,
+    "legenda_langs": "pt.*,pt",
     # "qualquer coisa que for notícia": busca do YouTube por data — qualquer canal, se o título fala do Galo (prioridade 4)
     "busca": ["notícias do galo hoje", "atlético mineiro notícias", "galo atlético mg", "corte atlético mineiro programa"],
     "busca_qualquer_canal": True,
@@ -2327,7 +2333,8 @@ def prepara(pasta, preset=""):
         # 20/out: imprensa (Jogo Aberto, Alterosa, ESPN, TNT), TV Galo às vezes, canais de notícias do Galo e busca;
         # notícia INTEIRA; hoje e ontem; sem repetir notícia
         for k_ in ("fontes", "fontes_versao", "busca", "busca_qualquer_canal", "outras_fontes", "fora", "max_horas", "max_videos_rodada",
-                   "trecho_min_s", "trecho_max_s", "max_trechos_video", "parecido_max"):
+                   "trecho_min_s", "trecho_max_s", "max_trechos_video", "parecido_max",
+                   "legenda_antes_de_transcrever", "legenda_langs"):
             seu[k_] = CONFIG_PADRAO[k_]
         if seu.get("duracao_alvo_min", 12) < 16:
             seu["duracao_alvo_min"] = CONFIG_PADRAO["duracao_alvo_min"]

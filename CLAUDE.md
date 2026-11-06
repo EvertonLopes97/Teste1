@@ -16,6 +16,11 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
   ser consultadas **4 ao mesmo tempo** (ThreadPoolExecutor): é espera de rede, não trabalho do PC, então
   a rodada passa a levar o tempo do canal mais lento, não a soma de todos. Cada canal registra
   "N na lista, abri M (Xs)" — é por aí que se vê qual está lento.
+- **O OUTRO GARGALO, NO GALO: A TRANSCRIÇÃO.** `legenda_antes_de_transcrever` existia e estava ligado só
+  no GTA — o Galo transcrevia no whisper os 8 vídeos de 10 a 25 min de toda rodada. Agora o
+  CONFIG_PADRAO tem a chave (`legenda_langs` "pt.*,pt") e `fontes_versao` 6 leva isso ao config que já
+  está no PC dele. A proteção é a mesma de sempre: legenda com menos de 60 palavras, ou que cubra menos
+  de 50% do vídeo, é RECUSADA e o whisper entra — legenda picada não serve para cortar no fim da frase.
 - **O GAMEPLAYRJ NÃO ERA ACHADO porque a lista rápida não traz DESCRIÇÃO.** O filtro `gta` exigia a
   palavra "GTA" no título+descrição; num canal que só fala disso, "ROCKSTAR MOSTROU LUCIA E JASON" é o
   vídeo do dia e não tem a palavra em lugar nenhum. Entraram os SINAIS: `rockstar`, `vice city`,
