@@ -1003,7 +1003,9 @@ def main():
                 p = produto_da_pasta(item)
             else:
                 p = item
+            t_ini = time.time()
             video, txt = faz_video(p, base, cfg, a.modo, log)
+            log(f"   ⏱ vídeo {feitos + 1} pronto em {(time.time() - t_ini) / 60:.1f} min")
         except Exception as e:
             log(f"   NÃO FIZ: {str(e)[:300]}")
             if tipo == "link":

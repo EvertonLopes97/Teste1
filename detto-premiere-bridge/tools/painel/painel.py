@@ -35,6 +35,7 @@ import edicao as EDI  # noqa: E402
 import canais as CAN  # noqa: E402
 import historias_painel as HIS  # noqa: E402
 import shop_painel as SHP  # noqa: E402
+import auto as AUTO  # noqa: E402
 import narrado_painel as NAR  # noqa: E402
 import studio_painel as STU  # noqa: E402
 
@@ -294,7 +295,7 @@ SUBIU_EM = time.time()
 # Versão do PYTHON que está rodando. O painel.html é lido do disco a cada acesso, então depois de um `git pull` o
 # navegador recebe a tela NOVA enquanto o Python continua o VELHO (foi o que aconteceu: a aba Histórias apareceu
 # vazia e o Instagram continuou no caminho antigo). A tela compara esta versão com a dela e avisa.
-PAINEL_VERSAO = "2026-11-06d"
+PAINEL_VERSAO = "2026-11-06e"
 
 
 def codigo_novo():
@@ -1365,8 +1366,12 @@ def main():
     threading.Thread(target=EDI.laco, kwargs={"log": P.log, "ao_terminar": edicao_pronta}, daemon=True).start()
     threading.Thread(target=HIS.laco, kwargs={"log": P.log, "ocupado": lambda: CAN.ocupado() or bool(EDI.PROC["p"] and EDI.PROC["p"].poll() is None)},
                      daemon=True).start()
-    threading.Thread(target=CAN.laco, kwargs={"log": P.log, "edicao_ocupada": lambda: bool(EDI.PROC["p"] and EDI.PROC["p"].poll() is None)},
+    threading.Thread(target=CAN.laco, kwargs={"log": P.log, "edicao_ocupada": lambda: bool(EDI.PROC["p"] and EDI.PROC["p"].poll() is None) or SHP.rodando()},
                      daemon=True).start()
+    threading.Thread(target=AUTO.laco, kwargs={
+        "CAN": CAN, "SHP": SHP, "EDI": EDI, "versao": PAINEL_VERSAO, "drive_raiz": EDI.drive_raiz,
+        "detto": lambda: CAN._raiz(), "cfg_painel": lambda: (P.le_json(BASE / "config.json", {}).get("painel") or {}),
+        "reinicia": lambda: os._exit(7), "log": P.log}, daemon=True).start()
     print(f"PAINEL DETTO no ar:\n  no PC:      http://localhost:{PORTA}\n"
           f"  no celular: http://{ip_local()}:{PORTA}  (mesmo Wi-Fi; crie o PIN no painel)\n"
           f"  pastas: {BASE}  |  {REELS}\nFeche esta janela para desligar.")

@@ -161,6 +161,45 @@ def log(m):
     # A HORA em cada linha (02/nov): o registro parou às 10:15 e só às 14:03 ele viu que a rodada estava
     # pendurada há 4 h. Sem a hora escrita, "parado" e "demorando" são a mesma coisa no registro.
     print(f"{dt.datetime.now():%H:%M} {m}", flush=True)
+    _etapa(m)
+
+
+# TEMPO POR ETAPA (06/nov): a rodada do GTA levou 78+ min e ninguém sabia ONDE. Cada linha do registro que abre
+# uma etapa conhecida fecha a anterior; no fim sai "TEMPOS: baixando 31 min · montando 12 min ..." (uma linha).
+_ETAPAS = (("coleta", r"^\s*coleta|na lista, abri|descartados"), ("baixando", r"^\s*baixando"),
+           ("transcrevendo", r"^\s*transcrevendo|legenda do youtube"), ("trechos", r"trecho|acha_trechos"),
+           ("roteiro", r"roteiro|título|titulo"), ("voz", r"\bvoz\b|falando|fala \d"),
+           ("montando", r"monta|render|peça|peca|emenda|vinheta|nivel"), ("thumb", r"thumb"),
+           ("enviando", r"enviando|publica|subindo|upload"))
+_T = {"nome": "inicio", "t0": None, "soma": {}}
+
+
+def _etapa(m):
+    import re as _re
+    import time as _t
+
+    agora = _t.monotonic()
+    if _T["t0"] is None:
+        _T["t0"] = agora
+        import atexit
+
+        atexit.register(lambda: print(f"{dt.datetime.now():%H:%M} TEMPOS: " + _resumo_tempos(), flush=True))
+    baixa = str(m).lower()
+    for nome, rx in _ETAPAS:
+        if _re.search(rx, baixa):
+            if nome != _T["nome"]:
+                _T["soma"][_T["nome"]] = _T["soma"].get(_T["nome"], 0) + (agora - _T["t0"])
+                _T["nome"], _T["t0"] = nome, agora
+            break
+
+
+def _resumo_tempos():
+    import time as _t
+
+    soma = dict(_T["soma"])
+    if _T["t0"] is not None:
+        soma[_T["nome"]] = soma.get(_T["nome"], 0) + (_t.monotonic() - _T["t0"])
+    return " · ".join(f"{k} {v / 60:.0f} min" for k, v in sorted(soma.items(), key=lambda kv: -kv[1]) if v >= 30) or "(tudo < 30 s)"
 
 
 def relogio_da_rodada(minutos):

@@ -5,6 +5,24 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
 
 ## 06/nov — A RODADA LENTA, OS FORMATOS, O SHOP COM VÍDEO E O "REAGIR"
 
+- **AUTOMÁTICO DO PAINEL (06/nov, "quero que faça isso automático")** — `tools\painel\auto.py`, uma thread do
+  painel (`painel.json` > `"painel"`: `auto_atualizar` true, `alerta_rodada_min` 60, `shop_auto` true,
+  `shop_meta_dia` 30). **1 RELATÓRIO**: a cada 5 min grava `status.json`/`status.txt` em `<Meu Drive>\DETTO\status`
+  (commit, canais: rodando há N min/último problema do log/últimas linhas, fila, disco, yt-dlp, cookies, Shop
+  prontos hoje) — é o que a tarefa agendada do Claude lê. **2 ALERTAS** (Telegram/Discord via `viral.avisa`,
+  1x por janela): rodada > 60 min, "NÃO RODEI"/Traceback/SEM VOZ novo, disco < 8 GB, atualização feita/revertida.
+  **3 ATUALIZA SOZINHO** a cada 30 min: `git fetch`; atrasado + NADA rodando (canal, fila, Shop, edição, postagem)
+  + sem arquivo alterado à mão → `pull --ff-only` → `teste_rapido.py` → reprovou = `reset --hard` na versão de
+  antes + aviso; passou = `.ultima_boa` + `os._exit(7)` (o painel reabre pelo atalho do Windows). **4 TEMPO POR
+  ETAPA** no canal.py (`_etapa`): no fim de toda rodada o canal.log tem a linha `TEMPOS: baixando 31 min · …`
+  — é por ela que se acha o gargalo da rodada de 78 min do GTA. **5 SHOP 30/DIA**: `shop_meta` (a cada 2 min,
+  PC livre): faltando vídeo, completa o `produtos.txt` com `tools\shop\viral_shop.py` (YouTube Shorts de
+  achadinho por categoria, acima da mediana de views, 1 categoria de cada vez) e roda `shop.py --so-links`
+  em lotes de 3; cada vídeo registra `⏱ vídeo N pronto em X min`. Canal em fila espera o Shop (e vice-versa).
+  **6 SERVIDOR**: `tools\viral\servidor.py` (+ `detto-viral.service`) roda viral.py a cada 20 min e viral_shop a
+  cada 6 h num Linux, sem painel. NÃO conferido aqui: YouTube real, TikTok (o TikTok não deixa robô listar —
+  "viral" do Shop é o do YouTube Shorts); postar no TikTok em modo "studio" continua MANUAL (gargalo dos 30/dia).
+
 - **"0 VÍDEO(S) DE HOJE" COM VÍDEO DE GTA EM TODO CANAL (06/nov, 09:13 e 09:59): A COLETA QUEIMAVA OS VÍDEOS.**
   `coleta()` gravava `hist["vistos"]` ANTES do download. Rodada com download barrado pelo YouTube (o
   cookie/robô da noite) = os vídeos marcados como vistos para sempre; toda rodada seguinte via a lista

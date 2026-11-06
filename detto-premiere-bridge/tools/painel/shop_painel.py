@@ -5,7 +5,6 @@ busca por categoria. Um vídeo por vez (o shop.py tem a própria trava).
 """
 
 import datetime as dt
-import json
 import os
 import subprocess
 import sys
