@@ -221,24 +221,32 @@ def shop_meta(CAN, SHP, EDI, cp, log=print):
     if meta <= 0 or not tudo_parado(CAN, SHP, EDI):
         return
     base = SHP.pasta()
+    try:
+        if not SHP.estado().get("auto", True):    # botão do painel (aba Shop): desligado = só faz o que ele mandar
+            return
+    except Exception:   # noqa: BLE001
+        pass
     dia = dt.date.today().isoformat()
     feitos = len(list((base / "prontos" / dia).glob("*.mp4"))) if (base / "prontos" / dia).is_dir() else 0
     if feitos >= meta:
         return
-    links = [l for l in (base / "produtos.txt").read_text(encoding="utf-8").splitlines() if l.strip().startswith("http")]
-    if len(links) < 5:
-        log(f"auto: lista do Shop com {len(links)} produto(s) — buscando virais")
+    nf = base / "produtos_nomes.txt"
+
+    def nomes():
+        return [l for l in nf.read_text(encoding="utf-8").splitlines() if l.strip()] if nf.exists() else []
+
+    if len(nomes()) < 3:
+        log(f"auto: lista de nomes do Shop com {len(nomes())} — buscando virais")
         try:
             subprocess.run([sys.executable, str(TOOLS / "shop" / "viral_shop.py"), "--pasta", str(base), "--quantos", "40"],
                            capture_output=True, text=True, timeout=900, cwd=str(PONTE))
         except Exception as e:   # noqa: BLE001
             log(f"auto: viral_shop falhou ({str(e)[:100]})")
             return
-        links = [l for l in (base / "produtos.txt").read_text(encoding="utf-8").splitlines() if l.strip().startswith("http")]
-    if not links:
-        avisa_1x("shop-sem-produto", f"🛒 Shop: {feitos}/{meta} hoje e não achei produto novo. Cole links em produtos.txt.", log, 240)
+    if not nomes():
+        avisa_1x("shop-sem-produto", f"🛒 Shop: {feitos}/{meta} hoje e não achei produto novo.", log, 240)
         return
-    r = SHP.acao("shop_fazer", {"so_links": True, "quantos": min(3, meta - feitos)})
+    r = SHP.acao("shop_fazer", {"nomes_lista": True, "quantos": min(2, meta - feitos)})
     log(f"auto: Shop {feitos}/{meta} hoje → lote de até 3 ({'ok' if r.get('ok') else r.get('erro')})")
 
 

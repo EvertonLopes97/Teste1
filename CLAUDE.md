@@ -5,6 +5,22 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
 
 ## 06/nov — A RODADA LENTA, OS FORMATOS, O SHOP COM VÍDEO E O "REAGIR"
 
+- **SHOP: PRODUTO PELO NOME, SÓ IMAGEM DO PRODUTO CERTO, CORTES RÁPIDOS, BOTÕES (06/nov, "aleatórios, imagens nada
+  a ver, não compassado")** — **1 RELEVÂNCIA**: `clipes_web.titulo_do_produto`: o título do vídeo-fonte tem de citar o
+  produto (nome de 1–2 palavras: todas, a marca tem de aparecer; 3+: dois terços) — "Avanuv fone bluetooth" e
+  "melhor travesseiro 2026" não servem para "Travesseiro Avanuv". Sem vídeo do produto certo = cai nas fotos, e sem
+  foto NÃO entrega (não inventa imagem). **2 PELO MENOS 3 VÍDEOS** de origem (`min_videos`, no máx. ~4 clipes por
+  vídeo), clipes de 2,6 s sem rosto, intercalados A,B,C,A… **3 COMPASSO**: `base_visual` quebra cada cena em cortes de
+  ~2,4 s de clipes diferentes, punch-in 1,14x nos ímpares e cor mais viva (`eq`), em vez de 1 clipe em loop.
+  **4 `--nome "Travesseiro Avanuv"`** (painel: "2. Produto pelo NOME" → ▶ Montar). **5 BOTÕES** na aba Shop:
+  *Criação automática* (`"auto"`, desliga o `shop_meta` do auto.py), *Legenda* (`"legenda"`) e *Narração*
+  (`"narracao"`; desligadas = vídeo só com imagem/cartelas/música para ele narrar). `--sem-narracao`/`--sem-legenda`
+  na linha de comando. **6 AUTOMÁTICO** agora usa NOMES, não links: `viral_shop.py` lista Shorts de achadinho,
+  a IA tira o NOME do produto de cada título (só produto físico específico) → `produtos_nomes.txt`, e o painel roda
+  `shop.py --nomes-lista` — antes o link do short virava o vídeo (com gente e de outro criador). PAINEL_VERSAO/
+  VERSAO_TELA 2026-11-06f. NÃO conferido aqui: YouTube real (montei com clipes sintéticos: 9 s de cena viraram os
+  cortes certos, 1080x1920, cartela por cima); o filtro de título foi testado com 4 títulos.
+
 - **AUTOMÁTICO DO PAINEL (06/nov, "quero que faça isso automático")** — `tools\painel\auto.py`, uma thread do
   painel (`painel.json` > `"painel"`: `auto_atualizar` true, `alerta_rodada_min` 60, `shop_auto` true,
   `shop_meta_dia` 30). **1 RELATÓRIO**: a cada 5 min grava `status.json`/`status.txt` em `<Meu Drive>\DETTO\status`

@@ -65,6 +65,23 @@ def escolhe(itens, ja):
     return sorted(bons, key=lambda b: b["views"], reverse=True)
 
 
+def nomes_de_produto(bons, log=print):
+    """títulos → NOME do produto (a IA tira o que não é produto; sem IA, o título limpo com 2+ palavras)"""
+    try:
+        from reels import gemini_json
+        lista = "\n".join(f"{i + 1}. {b['titulo']}" for i, b in enumerate(bons))
+        g = gemini_json([{"text": "Cada linha é o título de um vídeo de achadinho/TikTok Shop. Devolva JSON "
+                          '{"produtos":[{"n":1,"nome":"Nome do produto com a marca se houver (2 a 5 palavras)"}]} '
+                          "SÓ para os títulos que falam de UM produto físico específico à venda; ignore o resto. "
+                          "NÃO invente marca nem modelo que não esteja no título.\n" + lista}], essencial=False)
+        out = {int(x["n"]) - 1: str(x["nome"]).strip() for x in (g or {}).get("produtos", []) if x.get("nome")}
+        if out:
+            return out
+    except Exception as e:   # noqa: BLE001
+        log(f"   sem IA para os nomes ({str(e)[:80]})")
+    return {i: b["nome"] for i, b in enumerate(bons) if len(b["nome"].split()) >= 2}
+
+
 def main():
     import shop as S
 
@@ -103,11 +120,18 @@ def main():
     with open(base / "virais_shop.txt", "a", encoding="utf-8") as g:
         for b in mix:
             g.write(f"{hoje}\t{b['views']}\t{b['categoria']}\t{b['link']}\t{b['titulo']}\n")
+    nomes = nomes_de_produto(mix, S.log) if mix else {}
+    if not a.sem_por and nomes:
+        ja_n = {x.strip().lower() for x in (base / "produtos_nomes.txt").read_text(encoding="utf-8").splitlines()} \
+            if (base / "produtos_nomes.txt").exists() else set()
+        feitos_n = {k.lower() for k in (hist.get("nomes") or {})}
+        with open(base / "produtos_nomes.txt", "a", encoding="utf-8") as g:
+            for nm in nomes.values():
+                if nm.lower() not in ja_n | feitos_n:
+                    g.write(nm + "\n")
+                    ja_n.add(nm.lower())
     if not a.sem_por and mix:
-        with open(f, "a", encoding="utf-8") as g:
-            for b in mix:
-                g.write(f"{b['link']} | {b['nome']}\n")
-        with open(vistos, "a", encoding="utf-8") as g:
+        with open(vistos, "a", encoding="utf-8") as g:   # (o produtos.txt NÃO recebe mais o link do short: ele tinha gente e era de outro criador)
             g.write("\n".join(b["id"] for b in mix) + "\n")
     S.log(f"viral_shop: {len(mix)} produto(s) novo(s) {'listado(s)' if a.sem_por else 'no produtos.txt'}")
     for b in mix[:10]:

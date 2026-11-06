@@ -119,9 +119,11 @@ CFG_PADRAO = {
     "sfx": 0.3,
     # 06/nov: vídeos do produto baixados da internet (sem a cara de ninguém) em vez de foto parada
     "clipes_internet": True,
-    "clipes_quantos": 6,
+    "clipes_quantos": 10,
     "fotos_internet": True,
     "narracao": True,
+    "legenda": True,     # 06/nov: liga/desliga a legenda (desligando a narração a legenda some junto)
+    "auto": True,        # 06/nov: botão do painel — o painel cria vídeos de Shop sozinho (30/dia)
 }
 
 
@@ -619,9 +621,13 @@ def fotos_da_internet(produto, base, quantas=4, log=log):
     return achadas
 
 
+CONT_CLIPE = [0]
+
+
 def base_visual(rot, produto, modo, tmp, log=log, cauda=2.2):
     """monta a BASE (só imagem, sem texto): cada cena vira um pedaço 9:16 e tudo é emendado"""
     partes, t_video = [], 0.0
+    CONT_CLIPE[0] = 0
     fonte_video = produto.get("eu") if modo == "eu" else produto.get("video")
     dur_fonte = dur(fonte_video) if fonte_video else 0.0
     for i, c in enumerate(rot["cenas"]):
@@ -632,11 +638,30 @@ def base_visual(rot, produto, modo, tmp, log=log, cauda=2.2):
             roda(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", f"color=c=0x10121a:s={W}x{H}:r={FPS}",
                   "-t", f"{seg:.3f}", "-c:v", "libx264", "-crf", "20", "-preset", "veryfast", "-y", str(saida)], "fundo")
         elif tipo == "clipe":
-            # clipe de ~4 s numa cena de 6 s: roda em loop em vez de congelar no fim
-            roda(["ffmpeg", "-v", "error", "-stream_loop", "-1", "-i", str(arq), "-t", f"{seg:.3f}", "-an",
-                  "-vf", f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={FPS}",
-                  "-c:v", "libx264", "-crf", "20", "-preset", "veryfast", "-pix_fmt", "yuv420p",
-                  "-y", str(saida)], "clipe")
+            # CORTES RÁPIDOS (06/nov: "não está compassado"): a cena vira vários cortes de ~2,4 s, cada um de um
+            # clipe diferente (A,B,C,A...), com punch-in nos cortes ímpares e cor mais viva. Um clipe só em loop
+            # numa cena de 6 s parecia vídeo travado.
+            clipes = produto.get("clipes") or [arq]
+            n = max(1, round(seg / 2.4))
+            sub, dsub = [], seg / n
+            for k in range(n):
+                f = tmp / f"cena{i:02d}_{k}.mp4"
+                c_arq = clipes[(CONT_CLIPE[0]) % len(clipes)]
+                CONT_CLIPE[0] += 1
+                zoom = 1.0 if k % 2 == 0 else 1.14
+                vf = (f"scale={int(W * zoom)}:{int(H * zoom)}:force_original_aspect_ratio=increase,"
+                      f"crop={W}:{H},eq=saturation=1.15:contrast=1.06,fps={FPS}")
+                roda(["ffmpeg", "-v", "error", "-stream_loop", "-1", "-i", str(c_arq), "-t", f"{dsub:.3f}", "-an",
+                      "-vf", vf, "-c:v", "libx264", "-crf", "20", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+                      "-y", str(f)], "clipe")
+                sub.append(f)
+            if len(sub) == 1:
+                sub[0].replace(saida)
+            else:
+                lst = tmp / f"cena{i:02d}.txt"
+                lst.write_text("".join(f"file '{q.as_posix()}'\n" for q in sub), encoding="utf-8")
+                roda(["ffmpeg", "-v", "error", "-f", "concat", "-safe", "0", "-i", str(lst), "-c", "copy",
+                      "-y", str(saida)], "cortes")
         elif tipo == "foto":
             _ken_burns(arq, saida, seg, c.get("movimento") or "zoom")
         else:
@@ -805,7 +830,7 @@ def faz_video(produto, base, cfg, modo="", log=log):
         try:
             from clipes_web import clipes_do_produto
             produto["clipes"] = clipes_do_produto(produto.get("nome") or nome, tmp / "clipes_web",
-                                                  quantos=int(cfg.get("clipes_quantos", 6)), log=log)
+                                                  quantos=int(cfg.get("clipes_quantos", 10)), log=log, min_videos=3)
         except Exception as e:
             log(f"   clipes da internet: não deu ({str(e)[:140]})")
             produto["clipes"] = []
@@ -845,7 +870,7 @@ def faz_video(produto, base, cfg, modo="", log=log):
     else:
         legendas_off = False
     cenas = encaixa(rot, words, total)
-    legendas = [] if legendas_off else blocos_legenda(words, total)
+    legendas = [] if (legendas_off or not cfg.get("legenda", True)) else blocos_legenda(words, total)
     log(f"   {total:.0f}s de fala, {len(legendas)} legendas")
 
     vis = base_visual(rot, produto, modo, tmp, log)
@@ -915,6 +940,14 @@ def _tira_link(base, url, ok, motivo=""):
             g.write(f"{dt.datetime.now():%d/%m %H:%M}\t{url}\t{motivo or 'veja o registro'}\n")
 
 
+def _tira_nome(base, nome):
+    """o nome sai da lista (feito ou impossível — não tenta de novo em loop)"""
+    f = base / "produtos_nomes.txt"
+    if f.exists():
+        ls = [l for l in f.read_text(encoding="utf-8").splitlines() if l.strip() and l.strip() != nome]
+        f.write_text("\n".join(ls) + ("\n" if ls else ""), encoding="utf-8")
+
+
 def pastas_pendentes(base, hist):
     """pastas de produto que ainda não viraram vídeo (produtos\\<nome>\\)"""
     out = []
@@ -955,6 +988,10 @@ def main():
     ap.add_argument("--link", help="um link de produto/vídeo (faz só esse)")
     ap.add_argument("--produto", help="uma pasta de produto (o que você tem em casa)")
     ap.add_argument("--achar", help="categoria: ele procura o que está vendendo")
+    ap.add_argument("--nome", help="NOME do produto (ex.: \"Travesseiro Avanuv\"): acha 3+ vídeos dele, tira as pessoas e monta um novo")
+    ap.add_argument("--nomes-lista", action="store_true", help="os nomes de produtos_nomes.txt (o viral_shop.py enche)")
+    ap.add_argument("--sem-narracao", action="store_true", help="só imagem, cartelas e música (você narra por cima)")
+    ap.add_argument("--sem-legenda", action="store_true")
     ap.add_argument("--so-links", action="store_true", help="só os links do produtos.txt (o painel usa)")
     ap.add_argument("--modo", choices=["ia", "eu", "vendedor"], help="o que entra na imagem")
     ap.add_argument("--cookies", help="chrome, edge ou firefox (TikTok/Instagram pedindo login)")
@@ -970,7 +1007,21 @@ def main():
     hist = le_json(base / "historico.json", {"pastas": {}, "links": {}}) or {"pastas": {}, "links": {}}
     fila, feitos = [], 0
 
-    if a.link:
+    if a.sem_narracao:
+        cfg["narracao"] = False
+    if a.sem_legenda:
+        cfg["legenda"] = False
+    if a.nome:
+        cfg["clipes_internet"] = True    # é o ponto do modo: vídeos do produto, sem as pessoas
+        fila.append(("pronto", {"nome": a.nome.strip(), "preco": "", "sobre": "", "link": "", "video": None,
+                                "fotos": [], "origem": "nome", "modo": "ia"}))
+    elif a.nomes_lista:
+        cfg["clipes_internet"] = True
+        nf = base / "produtos_nomes.txt"
+        nomes = [l.strip() for l in nf.read_text(encoding="utf-8").splitlines() if l.strip()] if nf.exists() else []
+        for nm in nomes[: max(1, a.quantos) * 3]:
+            fila.append(("nome", nm))
+    elif a.link:
         fila.append(("link", a.link))
     elif a.produto:
         fila.append(("pasta", Path(a.produto)))
@@ -1001,6 +1052,9 @@ def main():
                 p = produto_de_link(item, base, a.cookies)
             elif tipo == "pasta":
                 p = produto_da_pasta(item)
+            elif tipo == "nome":
+                p = {"nome": item, "preco": "", "sobre": "", "link": "", "video": None, "fotos": [],
+                     "origem": "nome", "modo": "ia"}
             else:
                 p = item
             t_ini = time.time()
@@ -1008,7 +1062,11 @@ def main():
             log(f"   ⏱ vídeo {feitos + 1} pronto em {(time.time() - t_ini) / 60:.1f} min")
         except Exception as e:
             log(f"   NÃO FIZ: {str(e)[:300]}")
-            if tipo == "link":
+            if tipo == "nome":
+                _tira_nome(base, item)
+                with open(base / "produtos_falhos.txt", "a", encoding="utf-8") as g:
+                    g.write(f"{dt.datetime.now():%d/%m %H:%M}\t{item}\t{str(e)[:200]}\n")
+            elif tipo == "link":
                 _tira_link(base, item, ok=False, motivo=str(e)[:200])
             else:  # pasta/achado: o motivo também aparece no painel ("Produtos que NÃO viraram vídeo")
                 nome_item = Path(item).name if tipo == "pasta" else str(item.get("nome") or "produto")
@@ -1017,7 +1075,10 @@ def main():
             continue
         if not a.nao_postar:
             para_fila(cfg, video, txt, log)
-        if tipo == "link":
+        if tipo == "nome":
+            _tira_nome(base, item)
+            hist.setdefault("nomes", {})[item] = {"dia": dt.date.today().isoformat(), "arquivo": video.name}
+        elif tipo == "link":
             _tira_link(base, item, ok=True)
             hist.setdefault("links", {})[item] = {"dia": dt.date.today().isoformat(), "arquivo": video.name}
         elif tipo == "pasta":

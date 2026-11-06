@@ -532,7 +532,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-11-06e";
+const VERSAO_TELA = "2026-11-06f";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -931,6 +931,14 @@ function shop(){
         </div>
       </div>
       <div style="flex:1;min-width:280px">
+        <b>2. Produto pelo NOME</b>
+        <small style="display:block;opacity:.7;margin:4px 0 6px">Ex.: <b>Travesseiro Avanuv</b>. Acho pelo menos 3 vídeos desse produto, tiro as pessoas e monto um vídeo novo, em cortes rápidos. Sem vídeo do produto certo ele NÃO faz (não inventa imagem).</small>
+        <div class="linha">
+          <input type="text" id="shopNome" placeholder="nome do produto" style="flex:1">
+          <button class="mini" onclick="api('shop_fazer',{nome:$('#shopNome').value}).then(()=>carrega(true))" ${S.rodando?"disabled":""}>▶ Montar</button>
+        </div>
+      </div>
+      <div style="flex:1;min-width:280px">
         <b>3. Achar o que está vendendo</b>
         <small style="display:block;opacity:.7;margin:4px 0 6px">Ele procura os vídeos de Shop que mais bombaram na categoria e a IA diz qual é o produto.</small>
         <div class="linha">
@@ -964,6 +972,8 @@ function shop(){
       <a class="mini" href="/shop_arquivo?nome=${encodeURIComponent(v.nome)}&dia=${esc(v.dia)}&baixar=1">Baixar</a></span>
     </div>`).join("") : `<div class="info">Nada hoje ainda. Cada vídeo pronto já entra na fila de postagem.</div>`}
     <div class="chave"><span><b>Buscar vídeos do produto na internet</b><small>${S.clipes_internet ? "Baixa review/unboxing do produto, corta em pedaços e DESCARTA os que mostram a cara de alguém — o vídeo sai com o produto em uso, não com foto parada" : "Desligado: só as fotos"}</small></span><label class="sw"><input type="checkbox" ${S.clipes_internet ? "checked" : ""} onchange="api('shop_cfg',{clipes_internet:this.checked}).then(()=>{toast('salvo');carrega(true)})"><span></span></label></div>
+    <div class="chave"><span><b>Criação automática de vídeos de Shop</b><small>${S.auto ? "LIGADA: o painel acha produtos virais e faz os vídeos sozinho (meta de 30 por dia, um lote de cada vez)" : "DESLIGADA: só faz o que você mandar"}</small></span><label class="sw"><input type="checkbox" ${S.auto ? "checked" : ""} onchange="api('shop_cfg',{auto:this.checked}).then(()=>{toast(this.checked?'ligada':'desligada');carrega(true)})"><span></span></label></div>
+    <div class="chave"><span><b>Legenda na tela</b><small>${S.legenda ? "Palavras da narração em blocos de 3" : "Desligada: sem legenda"}</small></span><label class="sw"><input type="checkbox" ${S.legenda ? "checked" : ""} onchange="api('shop_cfg',{legenda:this.checked}).then(()=>{toast('salvo');carrega(true)})"><span></span></label></div>
     <div class="chave"><span><b>Narração</b><small>${S.narracao ? "A IA escreve e a sua voz narra" : "Desligado: vídeo sem narração, só imagens, cartelas e música"}</small></span><label class="sw"><input type="checkbox" ${S.narracao ? "checked" : ""} onchange="api('shop_cfg',{narracao:this.checked}).then(()=>{toast('salvo');carrega(true)})"><span></span></label></div>
     <div class="linha" style="margin-top:10px">
       <label>Clipes por vídeo</label><input type="number" id="shopClipes" value="${S.clipes_quantos}" min="2" max="12" style="width:70px" onchange="api('shop_cfg',{clipes_quantos:+this.value}).then(()=>toast('salvo'))">

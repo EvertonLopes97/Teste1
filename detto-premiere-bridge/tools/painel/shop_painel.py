@@ -85,6 +85,8 @@ def estado():
         "clipes_quantos": int(cfg.get("clipes_quantos", 6)),
         "fotos_internet": bool(cfg.get("fotos_internet", True)),
         "narracao": bool(cfg.get("narracao", True)),
+        "legenda": bool(cfg.get("legenda", True)),
+        "auto": bool(cfg.get("auto", True)),
     }
 
 
@@ -126,7 +128,11 @@ def acao(nome, d):
         return {"ok": True, "n": len(junto) - len(tinha)}  # o que REALMENTE entrou (link repetido não conta)
     if nome == "shop_fazer":
         args = ["--quantos", int(d.get("quantos") or 1)]
-        if d.get("link"):
+        if str(d.get("nome") or "").strip():
+            args = ["--nome", str(d["nome"]).strip()]
+        elif d.get("nomes_lista"):
+            args += ["--nomes-lista"]
+        elif d.get("link"):
             args = ["--link", str(d["link"]).strip()]
         elif d.get("produto"):
             args = ["--produto", str(base / "produtos" / str(d["produto"]))]
@@ -138,7 +144,7 @@ def acao(nome, d):
             args += ["--modo", d["modo"]]
         if d.get("nao_postar"):
             args += ["--nao-postar"]
-        return _roda(args, d.get("link") or d.get("produto") or d.get("categoria") or "a lista")
+        return _roda(args, d.get("nome") or d.get("link") or d.get("produto") or d.get("categoria") or "a lista")
     if nome == "shop_parar":
         if rodando():
             PROC["p"].terminate()
@@ -154,7 +160,7 @@ def acao(nome, d):
         for k in ("modo", "duracao", "cta", "arroba", "musica"):
             if k in d:
                 cfg[k] = d[k]
-        for k in ("clipes_internet", "fotos_internet", "narracao"):
+        for k in ("clipes_internet", "fotos_internet", "narracao", "legenda", "auto"):
             if k in d:
                 cfg[k] = bool(d[k])
         if "clipes_quantos" in d:

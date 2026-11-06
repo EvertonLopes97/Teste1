@@ -50,9 +50,33 @@ def _ytdlp(args, timeout=600):
         return subprocess.run(["yt-dlp", *args], capture_output=True, text=True, timeout=timeout)
 
 
+PALAVRAS_FRACAS = {"para", "com", "sem", "de", "da", "do", "das", "dos", "the", "and", "kit", "novo", "nova"}
+
+
+def _sem_acento(t):
+    import unicodedata
+    return "".join(c for c in unicodedata.normalize("NFD", t.lower()) if unicodedata.category(c) != "Mn")
+
+
+def tokens_do_nome(nome):
+    return [w for w in re.split(r"\W+", _sem_acento(nome)) if len(w) > 2 and w not in PALAVRAS_FRACAS][:5]
+
+
+def titulo_do_produto(titulo, nome):
+    """o título fala DESTE produto? (06/nov: os clipes vinham de vídeo de outra coisa — 'imagens nada a ver').
+    Nome de 1-2 palavras: todas no título (a marca tem de aparecer); 3 ou mais: dois terços."""
+    toks = tokens_do_nome(nome)
+    if not toks:
+        return True
+    t = _sem_acento(titulo)
+    achou = [w for w in toks if w in t]
+    precisa = len(toks) if len(toks) <= 2 else -(-len(toks) * 2 // 3)   # 1-2 palavras: todas; 3+: dois terços
+    return len(achou) >= precisa
+
+
 def candidatos(nome, quantos=4, extra="review"):
     """vídeos do YouTube que mostram o produto, dos mais relevantes"""
-    busca = f"ytsearch{quantos * 3}:{nome} {extra}"
+    busca = f"ytsearch{quantos * 4}:{nome} {extra}"
     r = _ytdlp(["--flat-playlist", "--dump-json", busca], timeout=180)
     out = []
     for linha in (r.stdout or "").splitlines():
@@ -67,6 +91,8 @@ def candidatos(nome, quantos=4, extra="review"):
         if dur and not (MIN_DUR <= dur <= MAX_DUR):
             continue
         if any(x in tit for x in FORA):
+            continue
+        if not titulo_do_produto(v.get("title") or "", nome):
             continue
         out.append({"id": v["id"], "titulo": v.get("title") or "", "dur": dur,
                     "url": f"https://www.youtube.com/watch?v={v['id']}"})
@@ -160,8 +186,9 @@ def corta_sem_rosto(fonte, destino_dir, quantos=4, dur=4.0, prefixo="clipe", log
     return out
 
 
-def clipes_do_produto(nome, destino, quantos=6, dur=4.0, log=log, buscas=("review", "unboxing", "como usar"),
-                      sem_rosto=True, alt=1920, larg=1080):
+def clipes_do_produto(nome, destino, quantos=6, dur=2.6, log=log,
+                      buscas=("review", "unboxing", "como usar", "testei", "vale a pena", "tiktok shop"),
+                      sem_rosto=True, alt=1920, larg=1080, min_videos=3):
     """O CAMINHO INTEIRO: busca → baixa um pedaço → corta → descarta quem tem rosto → devolve os arquivos."""
     nome = (nome or "").strip()
     if not nome:
@@ -170,13 +197,14 @@ def clipes_do_produto(nome, destino, quantos=6, dur=4.0, log=log, buscas=("revie
     destino.mkdir(parents=True, exist_ok=True)
     tmp = destino / "_baixando"
     tmp.mkdir(exist_ok=True)
-    achados, vistos = [], set()
+    achados, vistos, fontes_ok = [], set(), 0
+    por_video = max(2, quantos // max(1, min_videos) + 1)   # nenhum vídeo sozinho enche o vídeo: pelo menos `min_videos` fontes
     try:
         for termo in buscas:
-            if len(achados) >= quantos:
+            if len(achados) >= quantos and fontes_ok >= min_videos:
                 break
             for c in candidatos(nome, quantos=2, extra=termo):
-                if len(achados) >= quantos or c["id"] in vistos:
+                if (len(achados) >= quantos and fontes_ok >= min_videos) or c["id"] in vistos:
                     continue
                 vistos.add(c["id"])
                 log(f"   baixando um pedaço de: {c['titulo'][:60]}")
@@ -185,16 +213,29 @@ def clipes_do_produto(nome, destino, quantos=6, dur=4.0, log=log, buscas=("revie
                 if not isinstance(r, Path):
                     log(f"   não baixou ({str(r)[:120]})")
                     continue
-                novos = corta_sem_rosto(bruto, destino, quantos=quantos - len(achados), dur=dur,
+                novos = corta_sem_rosto(bruto, destino, quantos=por_video, dur=dur,
                                         prefixo=f"web_{c['id'][:6]}", log=log, sem_rosto=sem_rosto,
                                         alt=alt, larg=larg)
                 achados += novos
-                log(f"   +{len(novos)} clipe(s) sem rosto (total {len(achados)})")
+                fontes_ok += 1 if novos else 0
+                log(f"   +{len(novos)} clipe(s) (total {len(achados)}, {fontes_ok} vídeo(s) de origem)")
                 bruto.unlink(missing_ok=True)
     finally:
         shutil.rmtree(tmp, ignore_errors=True)
     if not achados:
-        log("   não consegui nenhum clipe sem rosto; o vídeo vai com as fotos")
+        log("   não consegui nenhum clipe SEM rosto e DO produto; o vídeo vai com as fotos")
+    elif fontes_ok < min_videos:
+        log(f"   só achei {fontes_ok} vídeo(s) que mostram o produto (queria {min_videos})")
+    # intercala as fontes (A,B,C,A,B,C...) para o vídeo não ficar 5 cortes seguidos do mesmo review
+    por_fonte = {}
+    for a in achados:
+        por_fonte.setdefault(a.name.split("_")[1] if "_" in a.name else "x", []).append(a)
+    inter = []
+    while any(por_fonte.values()):
+        for k in list(por_fonte):
+            if por_fonte[k]:
+                inter.append(por_fonte[k].pop(0))
+    achados = inter[:max(quantos, 6)]
     return achados
 
 
