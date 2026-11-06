@@ -1,0 +1,35 @@
+VÍDEO NARRADO PARA REAGIR — o formato do @d.brenoofc
+=====================================================
+
+O QUE É: um vídeo 9:16 com a NOTÍCIA em cima (narrada na sua voz, com as fotos e clipes do que está
+sendo dito) e o espaço da SUA REAÇÃO embaixo. Você grava a reação depois, olhando o topo.mp4.
+
+COMO USAR
+  python tools\narrado\narrado.py --quente
+      pega a notícia mais quente dos portais (G1, GE, CNN, UOL — os mesmos do catcher de virais)
+
+  python tools\narrado\narrado.py --assunto "Rockstar divulgou novas imagens do GTA 6"
+      você manda o assunto
+
+  python tools\narrado\narrado.py --assunto "..." --reacao "C:\...\minha_reacao.mp4"
+      já encaixa a sua gravação embaixo
+
+  --segundos 40     tamanho alvo (padrão 40)
+  --sem-clipes      só fotos: muito mais rápido, não baixa vídeo nenhum
+
+O QUE SAI  (E:\DETTO\narrado\prontos\<data>\<assunto>\)
+  topo.mp4       1080x1200 — só o conteúdo. É este que você abre para gravar a reação olhando.
+  completo.mp4   1080x1920 — já montado: conteúdo em cima, sua reação (ou o espaço) embaixo.
+  post.txt       título, legenda e tags
+  roteiro.json   o roteiro, se quiser mexer
+
+COMO ELE DECIDE O QUE MOSTRAR
+Cada frase da narração tem o SEU próprio termo de busca — é isso que diferencia vídeo de notícia de
+slideshow. Frase que pede movimento vira clipe (baixado do YouTube, cortado e com os pedaços que
+mostram a cara de alguém DESCARTADOS pelo YuNet); o resto vira foto com zoom lento.
+
+A VOZ segue a mesma ordem do resto do sistema: VoiceStudio (a SUA voz clonada) → Fish → neural pt-BR.
+Abra o VoiceStudio antes de rodar se quiser a sua voz.
+
+PROIBIDO INVENTAR está no prompt: a IA só usa o que está no assunto. Se faltar informação, a narração
+fica mais curta — não preenche com chute.
