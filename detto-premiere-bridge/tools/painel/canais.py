@@ -174,7 +174,7 @@ def estado():
              "log": _tail(p / "canal.log"), "shorts": cf.get("shorts", 2), "privacidade": cf.get("privacidade", "public"),
              "mesclar_assunto": bool(cf.get("mesclar_assunto", False)), "travado": bool(tv_), "travado_quem": tv_,
              "erro": el.get("erro", ""), "erro_em": el.get("erro_em", ""), "na_espera": na_espera(c),
-             "campeonatos_ligado": bool(cf.get("campeonatos_ligado", True))}
+             "campeonatos_ligado": bool(cf.get("campeonatos_ligado", True)), "formato": cf.get("formato", "")}
         if CANAIS[c]["script"].name == "canal.py":   # notícias e GTA 6 (mesmo motor: pautas, voz, máscara)
             pf = p / "pautas.txt"
             x["pautas"] = [l.strip() for l in pf.read_text(encoding="utf-8").splitlines() if l.strip() and not l.startswith("#")] if pf.exists() else []
@@ -449,6 +449,8 @@ def acao(nome, d):
             for k in ("estilo", "nome_canal", "drive", "privacidade", "voicestudio", "voz_voicestudio"):
                 if k in d:
                     x[k] = str(d[k]).strip()
+            if d.get("formato") in ("auto", "noticias", "documentario", "cartoes"):
+                x["formato"] = d["formato"]
             if "sem_voicestudio" in d:
                 x["sem_voicestudio"] = bool(d["sem_voicestudio"])
             if "velocidade_voz" in d:

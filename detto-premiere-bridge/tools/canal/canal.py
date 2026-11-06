@@ -452,6 +452,8 @@ def coleta(cfg, hist):
             if not cid or cid in ja or not (imprensa or cfg.get("busca_qualquer_canal")):
                 continue
             if cid not in feeds:
+                if len(feeds) >= int(cfg.get("max_canais_busca", 5)):
+                    continue   # cada canal novo = listagem pesada no yt-dlp (o feed RSS morreu): limita por rodada
                 feeds[cid] = {x["id"]: x for x in ultimos(cid, v.get("uploader_id") or "")}
             if v.get("id") in feeds[cid]:
                 considera(feeds[cid][v["id"]], {"nome": nome, "canal": v.get("uploader_id") or "", "filtro": "titulo",
@@ -2136,8 +2138,10 @@ GTA6 = {
         {"canal": "@TecMundo", "id": "UCdmGjywrxeOPfC7vDllmSgQ", "nome": "TecMundo", "filtro": "titulo", "prioridade": 3},
         {"canal": "@IGNBrasil", "id": "UCfg4PAgKIurlvYJRhhukv_g", "nome": "IGN Brasil", "filtro": "titulo", "prioridade": 3},
     ],
-    "barra_capitulo": True,   # formato Dulebio (05/nov): "NOME > 03 / 07 > MANCHETE" no topo de cada notícia
-    "fontes_versao": 6,   # 05/nov: filtro "gta" nos 2 canais de GTA; ids; barra de capítulo dos canais (feed em vez de yt-dlp) + bloco de outros games
+    "formato": "auto",   # "auto" = rodízio (1 de cada por dia) ou noticias / documentario / cartoes
+    "formatos_ativos": ["noticias", "documentario", "cartoes"],
+    "max_canais_busca": 5,
+    "fontes_versao": 7,   # 05/nov: filtro "gta" nos 2 canais de GTA; ids; barra de capítulo dos canais (feed em vez de yt-dlp) + bloco de outros games
     "busca": ["gta 6 notícias", "gta 6 gameplay", "gta 6 trailer análise", "gta 6 novidades hoje",
               "grand theft auto 6 notícia", "gta 6 vazamento"],
     "busca_qualquer_canal": True,
@@ -2175,7 +2179,7 @@ GTA6 = {
     ],
     "mesclar_assunto": True,   # GTA 6 é UM assunto só: sem isso a rodada ficaria sem material
     # num canal de assunto único TUDO parece repetido: o limite do Galo (0,35) barraria todas as notícias
-    "parecido_max": 0.8,
+    "parecido_max": 0.6,
     # ENTRAR no vídeo é frouxo (0,8, senão um canal de assunto único fica sem material); ser a NOTÍCIA
     # PRINCIPAL/título é apertado — foi o que deixou 5 vídeos seguidos com "210 GB" e "mapa" no título
     "titulo_parecido_max": 0.4,
@@ -2209,6 +2213,33 @@ class SemVoz(Exception):
     """A voz boa não está disponível: a rodada para com o motivo, sem traceback e sem moer o Chatterbox a noite toda."""
 
 
+FORMATOS = {
+    "noticias": {"barra_capitulo": False},
+    # estilo Dulebio: barra de capítulo no topo, imagem oficial em tela cheia, trechos curtos e mais cortes
+    "documentario": {"barra_capitulo": True, "tela_cheia_sem_rosto": True, "trecho_max_s": 45, "max_trechos_video": 5},
+    # estilo Gigaton: ritmo calmo, trechos curtos de b-roll com a manchete em destaque
+    "cartoes": {"barra_capitulo": True, "tela_cheia_sem_rosto": True, "trecho_max_s": 25, "max_trechos_video": 6},
+}
+
+
+def escolhe_formato(pasta, cfg):
+    """`formato`: nome fixo, ou "auto" = rodízio: pelo menos um de CADA formato ativo por dia
+    (o primeiro ativo sem vídeo de hoje; todos feitos = o que está há mais tempo sem sair)."""
+    ativos = [f for f in (cfg.get("formatos_ativos") or list(FORMATOS)) if f in FORMATOS] or ["noticias"]
+    f = cfg.get("formato", "noticias")
+    if f != "auto":
+        return f if f in FORMATOS else "noticias"
+    import comum
+    hoje = dt.date.today().isoformat()
+    ult = {}
+    for _, d in comum.prontos(pasta):
+        ult.setdefault(d.get("formato") or "noticias", d.get("criado", ""))
+    for k in ativos:
+        if not str(ult.get(k, "")).startswith(hoje):
+            return k
+    return min(ativos, key=lambda k: ult.get(k, ""))
+
+
 def prepara(pasta, preset=""):
     for p in ("mascara", "voz", "fontes", "prontos"):
         (pasta / p).mkdir(parents=True, exist_ok=True)
@@ -2229,7 +2260,7 @@ def prepara(pasta, preset=""):
         if base is not CONFIG_PADRAO and seu.get("fontes_versao", 1) < base.get("fontes_versao", 1):
             for k_ in ("fontes", "fontes_versao", "busca", "fora", "campeonatos", "campeonatos_ligado",
                        "max_trechos_campeonato", "max_videos_campeonato", "bloco_extra_nome",
-                       "bloco_extra_aviso", "regra_titulo", "termos", "termos_nao", "barra_capitulo"):
+                       "bloco_extra_aviso", "regra_titulo", "termos", "termos_nao", "barra_capitulo", "formato", "formatos_ativos", "max_canais_busca", "parecido_max"):
                 if k_ in base:
                     seu[k_] = base[k_]
             grava_json(cfg_f, seu)
@@ -2292,6 +2323,10 @@ def main():
     a = ap.parse_args()
     pasta = Path(a.pasta)
     cfg = prepara(pasta, a.preset)
+    if cfg.get("formato") is not None or cfg.get("formatos_ativos"):
+        cfg["_formato"] = escolhe_formato(pasta, cfg)
+        cfg.update(FORMATOS[cfg["_formato"]])
+        log(f"formato desta rodada: {cfg['_formato']}")
     traz_do_drive(pasta, cfg)
     # SEM MATERIAL DE BASE A RODADA NÃO TEM COMO TERMINAR: a máscara (você na tela) e a voz de referência (a voz
     # clonada) são obrigatórias. Antes a rodada ia até o fim, gastava download/IA e acabava sem entregar nada —
@@ -2674,7 +2709,7 @@ def main():
                   + "\n".join(f"• {c}" for c in creditos) + "\n\nTodos os direitos dos trechos são dos seus donos. Narração com voz gerada por IA.")
     post = {"titulo": rot["titulo"], "descricao": descricao, "tags": tags, "video": "video.mp4", "thumb": th.name if th else "",
             "comentario": comentario, "capitulos": caps, "lint_titulo": lint,
-            "shorts": shorts, "status": "aguardando", "criado": dt.datetime.now().isoformat(timespec="seconds"),
+            "shorts": shorts, "formato": cfg.get("_formato", "noticias"), "status": "aguardando", "criado": dt.datetime.now().isoformat(timespec="seconds"),
             "trechos": [{"fonte": x["fonte"], "manchete": x["manchete"], "pauta": x.get("pauta", "")} for x in sel]}
     comum.grava(pronto / "post.json", post)
     reg = {"data": hoje, "quando": dt.datetime.now().isoformat(timespec="seconds"), "titulo": rot["titulo"], "pasta": str(pronto)}
