@@ -205,15 +205,23 @@ def narra_cenas(cenas, tmp, cfg, log=log):
 
 
 # ------------------------------------------------------------------ 4) A IMAGEM DO QUE ESTÁ SENDO DITO
-def midia_da_cena(c, pasta, i, usar_clipes=True, log=log):
+# baixar vídeo é o passo lento de todos (~1 min por cena). Num vídeo de 7 cenas isso seria a rodada
+# inteira esperando download. Dois ou três clipes já dão movimento ao vídeo; o resto é foto, que é
+# instantânea. MAX_CLIPES é o teto por vídeo.
+MAX_CLIPES = 3
+
+
+def midia_da_cena(c, pasta, i, usar_clipes=True, log=log, feitos=None):
     """o visual DAQUELA frase: clipe sem rosto quando a cena pede movimento, senão foto"""
     busca = c["busca"]
-    if usar_clipes and c["tipo"] == "clipe":
+    if usar_clipes and c["tipo"] == "clipe" and (feitos is None or feitos["clipes"] < MAX_CLIPES):
         try:
             from clipes_web import clipes_do_produto
             fs = clipes_do_produto(busca, pasta / f"clipes{i:02d}", quantos=1,
                                    dur=max(2.5, min(6.0, c["dur"])), log=log, buscas=("",))
             if fs:
+                if feitos is not None:
+                    feitos["clipes"] += 1
                 return fs[0], "clipe"
         except Exception as e:
             log(f"   clipe de \"{busca}\": não deu ({str(e)[:90]})")
@@ -416,8 +424,9 @@ def faz(assunto, base, cfg, segundos=40, reacao="", usar_clipes=True, log=log):
     total = sum(c["dur"] for c in rot["cenas"])
     log(f"   narração: {total:.0f}s")
     midias = []
+    feitos = {"clipes": 0}
     for i, c in enumerate(rot["cenas"]):
-        arq, tipo = midia_da_cena(c, tmp, i, usar_clipes=usar_clipes, log=log)
+        arq, tipo = midia_da_cena(c, tmp, i, usar_clipes=usar_clipes, log=log, feitos=feitos)
         log(f"   cena {i + 1}: {'✔' if arq else '—'} {c['busca'][:42]} ({tipo or 'fundo'})")
         midias.append((arq, tipo))
     if not any(a for a, _ in midias):
