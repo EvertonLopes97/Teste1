@@ -155,6 +155,17 @@ def monta(saida: Path):
         d.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(o, d)
         copiados += 1
+    # O DETECTOR DE ROSTO (06/nov): o clipes_web.py descarta os pedaços de vídeo em que aparece gente,
+    # e para isso ele precisa do yunet.onnx — que mora na RAIZ do projeto, não em tools\, então não
+    # entra por import nenhum. Sem ele `tem_rosto` devolve False e o filtro passa a deixar TUDO passar,
+    # calado: o sócio receberia vídeos com a cara de estranhos. Por isso ele vem junto.
+    yunet = TOOLS.parent / "yunet.onnx"
+    if yunet.is_file():
+        shutil.copy2(yunet, pasta / "yunet.onnx")
+        copiados += 1
+    else:
+        print("  !! não achei o yunet.onnx: o filtro de rosto dos clipes NÃO vai funcionar lá")
+
     # as pastas de pacote precisam do __init__ para o `import historias.historias` funcionar
     for sub in {p.relative_to(TOOLS).parent for p in nossos if p.relative_to(TOOLS).parent != Path(".")}:
         ini = pasta / "tools" / sub / "__init__.py"
@@ -287,6 +298,19 @@ TRES MODOS (--modo, ou "modo" no produto.json)
   ia         fotos + voz da IA + texto e legenda      (o padrao)
   eu         a SUA gravacao manda, as fotos entram por cima
   vendedor   reaproveita o video do vendedor em 9:16
+
+VIDEO DO PRODUTO VINDO DA INTERNET (novo)
+------------------------------------------
+Quando o produto nao tem video seu, ele procura review/unboxing no YouTube, baixa um pedaco, corta em
+pedacos de ~4 s e JOGA FORA os que mostram a cara de alguem (o detector yunet.onnx vem no pacote).
+Assim o video sai com o produto SENDO USADO em vez de foto parada com zoom, que tem cara de anuncio
+velho. Sua gravacao, quando existe, sempre vem na frente disso.
+Desliga em shop\\config.json com  "clipes_internet": false
+
+SEM NARRACAO
+------------
+"narracao": false  no shop\\config.json faz o video so com imagem, cartelas e musica, para voce narrar
+por cima depois. O tempo das cenas passa a vir da "duracao" alvo.
 
 A VOZ
 -----
