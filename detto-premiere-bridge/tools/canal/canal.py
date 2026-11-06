@@ -413,6 +413,12 @@ def coleta(cfg, hist):
     ids = hist.setdefault("canais_id", {})
     novos, vistos_agora = [], set()
 
+    _motivos = {}
+
+    def _nao(f, motivo):
+        m = _motivos.setdefault(f.get("nome") or f.get("canal") or "?", {})
+        m[motivo] = m.get(motivo, 0) + 1
+
     def considera(v, f, dur_s, tipo="video"):
         if v["id"] in hist["vistos"] or v["id"] in vistos_agora or v["quando"] < limite:
             return
@@ -420,12 +426,12 @@ def coleta(cfg, hist):
         # Short não é notícia; live só depois de acabar e dentro do tamanho (o programa do dia da Alterosa é live
         # gravada — entra; jogo/treino ao vivo de horas fica fora pela duração)
         if tipo == "short" or (tipo == "live" and not dur_s):
-            return
+            return _nao(f, "short/live")
         if f.get("max_videos") and sum(1 for x in novos if x["fonte"] == f.get("nome")) >= f["max_videos"]:
-            return
+            return _nao(f, "teto do canal")
         durm = (dur_s or 0) / 60
         if dur_s and (durm > f.get("max_min", cfg["max_min_fonte"]) or durm < 0.5):
-            return
+            return _nao(f, f"duração {durm:.0f} min")
         if f.get("filtro", "titulo") == "gta":
             # canal que fala de GTA o tempo todo (GameplayRJ, SaninPlay): "NOVAS IMAGENS DE GTA" não traz o "6"
             # no título e o filtro de termos recusava (05/nov). Basta a palavra GTA e não ser GTA 5/RP/Online.
@@ -442,11 +448,11 @@ def coleta(cfg, hist):
                 log(f"   {f.get('nome')}: fora do assunto: {(v['titulo'] or '')[:70]}")
             return
         if any(re.search(rf"\b{re.escape(norm(x))}\b", norm(v["titulo"])) for x in cfg.get("fora", [])):
-            return  # react / ao vivo / jogo: não é notícia de imprensa
+            return _nao(f, "título de react/ao vivo")  # não é notícia de imprensa
         if any(s and s.lower() in (v["titulo"] or "").lower() for s in cfg.get("fora_sinais", [])):
-            return  # 🔴 e companhia: transmissão ao vivo (o download de um live não terminaria nunca)
+            return _nao(f, "transmissão ao vivo")  # o download de um live não terminaria nunca
         if (v.get("_tipo") or "") == "live":
-            return
+            return _nao(f, "live")
         novos.append({"id": v["id"], "url": f"https://www.youtube.com/watch?v={v['id']}", "titulo": v["titulo"],
                       "fonte": f.get("nome") or v.get("canal_nome") or f.get("canal", ""), "canal": f.get("canal", ""),
                       "dur": dur_s or 0, "publicado": v["quando"].isoformat(timespec="minutes"), "max_trechos": f.get("max_trechos"),
@@ -470,6 +476,11 @@ def coleta(cfg, hist):
     for _i, f in enumerate(cfg["fontes"]):
         todos = _listas.get(_i) or []
         lista = [v for v in todos if v["quando"] >= limite]
+        _antes = len(lista)
+        lista = [v for v in lista if v["id"] not in hist["vistos"]]     # o que já virou trecho não gasta chamada nenhuma
+        if _antes and not lista:
+            log(f"   {f.get('nome') or f.get('canal')}: {_antes} vídeo(s) na janela, todos JÁ VISTOS em rodadas anteriores")
+            continue
         if not lista:
             # DUAS coisas MUITO diferentes diziam a mesma frase (05/nov): um canal que não respondeu (@ errado,
             # 404, bloqueio) e um canal que de fato não postou nada. Agora o registro diz qual é — foi assim que
@@ -523,8 +534,12 @@ def coleta(cfg, hist):
     # Por rodada só os `max_videos_rodada` primeiros (baixar + transcrever pesa); os outros ficam para a próxima.
     novos.sort(key=lambda x: (x["prioridade"], "".join(chr(255 - ord(c)) for c in x["publicado"])))
     novos = novos[: int(cfg.get("max_videos_rodada", 8))]
-    for v in novos:
-        hist["vistos"][v["id"]] = dt.date.today().isoformat()
+    # NÃO MARCO COMO "VISTO" AQUI (06/nov). Era o motivo de "0 vídeo(s) de hoje" com vídeo de GTA saindo em
+    # todo canal: a coleta marcava os vídeos como vistos ANTES de baixar. Download barrado pelo YouTube (o
+    # cookie da noite) = o vídeo queimado para sempre, e toda rodada seguinte via a lista inteira "já vista".
+    # Agora quem marca é o laço de download, só depois de o vídeo ter sido de fato processado.
+    if _motivos:
+        log("   descartados: " + "; ".join(f"{n}: " + ", ".join(f"{k} {c}" for k, c in m.items()) for n, m in _motivos.items()))
     log(f"coleta: {len(novos)} vídeo(s) de hoje sobre o {cfg['time']}: " + "; ".join(f"{x['fonte']} {x['publicado'][11:]}" for x in novos[:8]))
     return novos
 
@@ -581,8 +596,6 @@ def coleta_campeonatos(cfg, hist, ja_vistos):
                 break
     novos.sort(key=lambda x: "".join(chr(255 - ord(c)) for c in x["publicado"]))
     novos = novos[: int(cfg.get("max_videos_campeonato", 3))]
-    for v in novos:
-        hist["vistos"][v["id"]] = dt.date.today().isoformat()
     if novos:
         log("campeonatos: " + "; ".join(f"{x['campeonato']} ({x['fonte']})" for x in novos))
     return novos
@@ -2198,13 +2211,18 @@ GTA6 = {
         {"canal": "@VOXELOFICIAL", "id": "UCupqHNRTEHjNtq9X8djWyaQ", "nome": "Voxel", "filtro": "titulo", "prioridade": 3},
         {"canal": "@TecMundo", "id": "UCdmGjywrxeOPfC7vDllmSgQ", "nome": "TecMundo", "filtro": "titulo", "prioridade": 3},
         {"canal": "@IGNBrasil", "id": "UCfg4PAgKIurlvYJRhhukv_g", "nome": "IGN Brasil", "filtro": "titulo", "prioridade": 3},
+        # CANAIS GRINGOS (06/nov, "sempre tem vídeo de GTA inclusive em canal gringo"): o id é descoberto na
+        # primeira rodada (acha_channel_id) e o trecho em inglês sai dublado/legendado em português.
+        {"canal": "@IGN", "nome": "IGN", "filtro": "gta", "prioridade": 3},
+        {"canal": "@GameSpot", "nome": "GameSpot", "filtro": "gta", "prioridade": 3},
     ],
     "formato": "auto",   # "auto" = rodízio (1 de cada por dia) ou noticias / documentario / cartoes
     "formatos_ativos": ["noticias", "documentario", "cartoes"],
     "max_canais_busca": 5,
-    "fontes_versao": 7,   # 05/nov: filtro "gta" nos 2 canais de GTA; ids; barra de capítulo dos canais (feed em vez de yt-dlp) + bloco de outros games
+    "fontes_versao": 8,   # 06/nov: canais e buscas em inglês; 05/nov: filtro "gta" nos 2 canais de GTA; ids; barra de capítulo dos canais (feed em vez de yt-dlp) + bloco de outros games
     "busca": ["gta 6 notícias", "gta 6 gameplay", "gta 6 trailer análise", "gta 6 novidades hoje",
-              "grand theft auto 6 notícia", "gta 6 vazamento"],
+              "grand theft auto 6 notícia", "gta 6 vazamento",
+              "gta 6 news today", "gta 6 trailer 3", "gta 6 gameplay leak", "gta 6 rockstar new screenshots"],
     "busca_qualquer_canal": True,
     "outras_fontes": [],
     "fora": ["ao vivo", "live", "podcast completo", "sorteio", "gta 5 rp", "gta rp", "roleplay"],
@@ -2457,6 +2475,19 @@ def main():
         relogio_da_rodada(_lim)
     hist = le_json(pasta / "historico.json", {"vistos": {}, "trechos": [], "postados": []})
     hoje = dt.date.today().isoformat()
+    # VÍDEOS QUEIMADOS (06/nov): até hoje a coleta marcava "visto" ANTES de baixar. Download barrado = vídeo
+    # perdido. Uma vez só, devolvo os vistos dos últimos 3 dias que NUNCA viraram trecho (sem trecho no
+    # histórico = nunca foram aproveitados) para a fila de coleta.
+    if not hist.get("vistos_v2"):
+        _com_trecho = {t.get("video") for t in hist.get("trechos", [])}
+        _corte = (dt.date.today() - dt.timedelta(days=3)).isoformat()
+        _devolvi = [i for i, d in hist.get("vistos", {}).items()
+                    if isinstance(d, str) and d >= _corte and i not in _com_trecho and not str(i).startswith("local_")]
+        for i in _devolvi:
+            hist["vistos"].pop(i, None)
+        hist["vistos_v2"] = hoje
+        if _devolvi:
+            log(f"   devolvi {len(_devolvi)} vídeo(s) que tinham sido marcados como vistos sem nunca virar trecho")
 
     # 1-2) coleta → baixa → transcreve → trechos
     def local(v):
@@ -2485,6 +2516,13 @@ def main():
             if not arq:
                 log(f"   não baixou: {info}")
                 nao_baixou.append(str(info))
+                # só desisto do vídeo na 3ª falha; antes disso ele volta na próxima rodada
+                _t = hist.setdefault("tentativas", {})
+                _t[v["id"]] = _t.get(v["id"], 0) + 1
+                if _t[v["id"]] >= 3:
+                    hist["vistos"][v["id"]] = hoje
+                    log("   3 falhas neste vídeo: deixo de tentar")
+                grava_json(pasta / "historico.json", hist)
                 from reels import precisa_login as _pl
                 if len(nao_baixou) >= 2 and all(_pl(m) for m in nao_baixou):
                     # cada tentativa a mais só piora o bloqueio do IP; não adianta insistir sem cookie
@@ -2501,6 +2539,8 @@ def main():
         if lin != "pt":
             log(f"   esse vídeo está em {lin.upper()}: vou traduzir e LEGENDAR o trecho em português")
         tr = acha_trechos(words, v, cfg, assunto=v.get("assunto"))
+        if v.get("id") and not str(v["id"]).startswith("local_"):
+            hist["vistos"][v["id"]] = hoje      # agora sim: foi baixado e lido
         do_que = v["campeonato"] if v.get("campeonato") else (cfg.get("assunto", "")[:40] or "o Galo")
         log(f"   {len(tr)} trecho(s) sobre {do_que}")
         dv = dur(v["arquivo"]) or 1e9

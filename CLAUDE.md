@@ -5,6 +5,18 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
 
 ## 06/nov — A RODADA LENTA, OS FORMATOS, O SHOP COM VÍDEO E O "REAGIR"
 
+- **"0 VÍDEO(S) DE HOJE" COM VÍDEO DE GTA EM TODO CANAL (06/nov, 09:13 e 09:59): A COLETA QUEIMAVA OS VÍDEOS.**
+  `coleta()` gravava `hist["vistos"]` ANTES do download. Rodada com download barrado pelo YouTube (o
+  cookie/robô da noite) = os vídeos marcados como vistos para sempre; toda rodada seguinte via a lista
+  inteira "já vista", descartava calada e terminava "coleta: 0". Agora: a coleta NÃO marca; o laço de
+  download marca só depois de baixar e ler (`acha_trechos`), falha de download conta em `hist["tentativas"]`
+  e só na 3ª o vídeo é abandonado; migração única (`vistos_v2`) devolve os vistos dos últimos 3 dias que
+  nunca viraram trecho. `considera` agora diz POR QUÊ descarta ("descartados: Sanin Play: duração 150 min 1"
+  — antes `max_min_fonte` 120 eliminava gameplay longo em silêncio) e vídeo já visto nem gasta a medição de
+  duração (3 chamadas por canal por rodada). Preset gta6 `fontes_versao` 8: IGN e GameSpot (gringos,
+  `filtro gta`) + 4 buscas em inglês. Conferido com lista falsa (visto pulado, 150 min recusado com motivo,
+  coleta sem marcar). NÃO conferido aqui: o YouTube real.
+
 - **REAGIR: O ASSUNTO TEM DE APARECER E O CORTE É O DO VÍDEO (06/nov, ele mandou topo.mp4/completo.mp4 do
   CR7 e disse "o cr7 não aparece sempre... cortes não corretos").** Quadro a quadro: 13 dos 30 primeiros
   pedaços eram UM programa de TV (duas pessoas + tarja e letreiro deles), o resto a final da Euro 2016 com
