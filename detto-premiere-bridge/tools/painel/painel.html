@@ -520,7 +520,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-11-05c";
+const VERSAO_TELA = "2026-11-06a";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -876,7 +876,10 @@ function shop(){
       <span><a class="mini" href="/shop_arquivo?nome=${encodeURIComponent(v.nome)}&dia=${esc(v.dia)}" target="_blank">Assistir</a>
       <a class="mini" href="/shop_arquivo?nome=${encodeURIComponent(v.nome)}&dia=${esc(v.dia)}&baixar=1">Baixar</a></span>
     </div>`).join("") : `<div class="info">Nada hoje ainda. Cada vídeo pronto já entra na fila de postagem.</div>`}
+    <div class="chave"><span><b>Buscar vídeos do produto na internet</b><small>${S.clipes_internet ? "Baixa review/unboxing do produto, corta em pedaços e DESCARTA os que mostram a cara de alguém — o vídeo sai com o produto em uso, não com foto parada" : "Desligado: só as fotos"}</small></span><label class="sw"><input type="checkbox" ${S.clipes_internet ? "checked" : ""} onchange="api('shop_cfg',{clipes_internet:this.checked}).then(()=>{toast('salvo');carrega(true)})"><span></span></label></div>
+    <div class="chave"><span><b>Narração</b><small>${S.narracao ? "A IA escreve e a sua voz narra" : "Desligado: vídeo sem narração, só imagens, cartelas e música"}</small></span><label class="sw"><input type="checkbox" ${S.narracao ? "checked" : ""} onchange="api('shop_cfg',{narracao:this.checked}).then(()=>{toast('salvo');carrega(true)})"><span></span></label></div>
     <div class="linha" style="margin-top:10px">
+      <label>Clipes por vídeo</label><input type="number" id="shopClipes" value="${S.clipes_quantos}" min="2" max="12" style="width:70px" onchange="api('shop_cfg',{clipes_quantos:+this.value}).then(()=>toast('salvo'))">
       <label>Duração alvo</label><input type="number" id="shopDur" value="${S.duracao}" min="15" max="90" style="width:80px">
       <label>CTA</label><input type="text" id="shopCta" value="${esc(S.cta)}" style="flex:1;min-width:160px">
       <button class="mini" onclick="api('shop_cfg',{duracao:+$('#shopDur').value,cta:$('#shopCta').value,modo:$('#shopModo').value}).then(()=>toast('salvo'))">Salvar</button>

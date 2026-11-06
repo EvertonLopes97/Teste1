@@ -117,6 +117,11 @@ CFG_PADRAO = {
     "velocidade_voz": 1.0,
     "instrucao_voz": "",
     "sfx": 0.3,
+    # 06/nov: vídeos do produto baixados da internet (sem a cara de ninguém) em vez de foto parada
+    "clipes_internet": True,
+    "clipes_quantos": 6,
+    "fotos_internet": True,
+    "narracao": True,
 }
 
 
@@ -569,8 +574,15 @@ def midia_da_cena(c, produto, modo, i=0):
         return produto["eu"], "video"
     if produto.get("video"):
         return produto["video"], "video"
+    # CLIPE DA INTERNET antes da foto parada (06/nov): foto com zoom tem cara de anúncio velho; o que
+    # vende é o produto SENDO USADO. Os clipes já vieram sem a cara de ninguém (clipes_web.py).
+    clipes = produto.get("clipes") or []
+    if clipes and (not fotos or i % 2 == 0 or len(fotos) < 2):
+        return clipes[i % len(clipes)], "clipe"
     if fotos:
         return fotos[i % len(fotos)], "foto"   # roda as fotos: a mesma em todas as cenas parecia vídeo travado
+    if clipes:
+        return clipes[i % len(clipes)], "clipe"
     return None, ""
 
 
@@ -619,6 +631,12 @@ def base_visual(rot, produto, modo, tmp, log=log, cauda=2.2):
         if arq is None:
             roda(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", f"color=c=0x10121a:s={W}x{H}:r={FPS}",
                   "-t", f"{seg:.3f}", "-c:v", "libx264", "-crf", "20", "-preset", "veryfast", "-y", str(saida)], "fundo")
+        elif tipo == "clipe":
+            # clipe de ~4 s numa cena de 6 s: roda em loop em vez de congelar no fim
+            roda(["ffmpeg", "-v", "error", "-stream_loop", "-1", "-i", str(arq), "-t", f"{seg:.3f}", "-an",
+                  "-vf", f"scale={W}:{H}:force_original_aspect_ratio=increase,crop={W}:{H},fps={FPS}",
+                  "-c:v", "libx264", "-crf", "20", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+                  "-y", str(saida)], "clipe")
         elif tipo == "foto":
             _ken_burns(arq, saida, seg, c.get("movimento") or "zoom")
         else:
@@ -781,10 +799,20 @@ def faz_video(produto, base, cfg, modo="", log=log):
 
     # A IMAGEM VEM ANTES DO ROTEIRO: sem material a IA escrevia um roteiro inventado ("minha cozinha vivia
     # uma bagunça") sobre um produto que ela não conhece — e o vídeo sairia com fundo preto.
-    if not produto.get("fotos") and not produto.get("video") and not produto.get("eu"):
+    # VÍDEOS DO PRODUTO NA INTERNET (06/nov, pedido dele): só quando ele não gravou nada — a gravação
+    # dele sempre vem na frente. Os clipes vêm SEM a cara de ninguém (ver clipes_web.py).
+    if cfg.get("clipes_internet", True) and not produto.get("eu") and not produto.get("video") and not produto.get("clipes"):
+        try:
+            from clipes_web import clipes_do_produto
+            produto["clipes"] = clipes_do_produto(produto.get("nome") or nome, tmp / "clipes_web",
+                                                  quantos=int(cfg.get("clipes_quantos", 6)), log=log)
+        except Exception as e:
+            log(f"   clipes da internet: não deu ({str(e)[:140]})")
+            produto["clipes"] = []
+    if not produto.get("fotos") and not produto.get("video") and not produto.get("eu") and not produto.get("clipes"):
         if cfg.get("fotos_internet", True):
             produto["fotos"] = fotos_da_internet(produto, base, log=log)
-        if not produto.get("fotos"):
+        if not produto.get("fotos") and not produto.get("clipes"):
             raise RuntimeError(
                 f'o produto "{produto.get("nome") or nome}" não tem NENHUMA imagem nem vídeo e eu não achei foto '
                 "dele na internet — o vídeo sairia com fundo preto. Ponha as fotos em "
@@ -794,7 +822,13 @@ def faz_video(produto, base, cfg, modo="", log=log):
     log(f"   roteiro: {len(rot['cenas'])} cenas — \"{rot.get('gancho', '')[:60]}\"")
 
     voz_f, words = None, []
-    if modo == "eu" and (produto.get("eu") or produto.get("video")):
+    if not cfg.get("narracao", True):
+        # SEM NARRAÇÃO (06/nov, pedido dele): vídeo só de imagem + cartelas + música, para ele postar
+        # e narrar por cima (ou deixar mudo mesmo). O tempo vem da duração alvo, repartida pelo
+        # tamanho do texto de cada cena — é o mesmo caminho que o `encaixa` usa quando não há transcrição.
+        total = max(12.0, float(cfg.get("duracao", 34)))
+        log(f"   sem narração: {total:.0f}s divididos entre as cenas")
+    elif modo == "eu" and (produto.get("eu") or produto.get("video")):
         fonte = produto.get("eu") or produto["video"]
         voz_f = None
         words = palavras(fonte, log)
@@ -806,8 +840,12 @@ def faz_video(produto, base, cfg, modo="", log=log):
         total = dur(voz_f)
     if total < 3:
         raise RuntimeError("a narração saiu vazia (a voz não gerou áudio)")
+    if not cfg.get("narracao", True):
+        words, legendas_off = [], True
+    else:
+        legendas_off = False
     cenas = encaixa(rot, words, total)
-    legendas = blocos_legenda(words, total)
+    legendas = [] if legendas_off else blocos_legenda(words, total)
     log(f"   {total:.0f}s de fala, {len(legendas)} legendas")
 
     vis = base_visual(rot, produto, modo, tmp, log)

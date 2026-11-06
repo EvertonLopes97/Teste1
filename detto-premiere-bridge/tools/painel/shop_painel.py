@@ -82,6 +82,10 @@ def estado():
         "modo": cfg.get("modo", "ia"), "duracao": cfg.get("duracao", 34),
         "categorias": cfg.get("categorias", []), "postar": cfg.get("postar", []),
         "cta": cfg.get("cta", ""), "arroba": cfg.get("arroba", ""),
+        "clipes_internet": bool(cfg.get("clipes_internet", True)),
+        "clipes_quantos": int(cfg.get("clipes_quantos", 6)),
+        "fotos_internet": bool(cfg.get("fotos_internet", True)),
+        "narracao": bool(cfg.get("narracao", True)),
     }
 
 
@@ -151,6 +155,11 @@ def acao(nome, d):
         for k in ("modo", "duracao", "cta", "arroba", "musica"):
             if k in d:
                 cfg[k] = d[k]
+        for k in ("clipes_internet", "fotos_internet", "narracao"):
+            if k in d:
+                cfg[k] = bool(d[k])
+        if "clipes_quantos" in d:
+            cfg["clipes_quantos"] = max(2, min(12, int(float(d["clipes_quantos"]))))
         if "categorias" in d:
             cfg["categorias"] = [c.strip() for c in str(d["categorias"]).split(",") if c.strip()]
         if "postar" in d:
