@@ -81,6 +81,10 @@ if ($LASTEXITCODE -ne 0) {
   exit 1
 }
 
+# yt-dlp + o componente que resolve o desafio do YouTube (sem ele: "Requested format is not available")
+Write-Host "   atualizando yt-dlp e yt-dlp-ejs..." -ForegroundColor DarkGray
+python -m pip install -q -U yt-dlp yt-dlp-ejs 2>&1 | Out-Null
+
 Write-Host ""
 Write-Host "=== 4/5  conferindo se o codigo novo esta sao ===" -ForegroundColor Cyan
 Set-Location $ponte

@@ -191,7 +191,11 @@ def ytdlp(args, cookies=None, timeout=600):
     segurou a trava, e TODAS as rodadas seguintes morreram dizendo "outro canal.py está com a trava"."""
     base = [sys.executable, "-m", "yt_dlp", "--no-warnings", "--no-playlist"]
     if shutil.which("node"):
-        base += ["--js-runtimes", "node"]
+        # O SOLVER DO DESAFIO "n" (05/nov, medido no PC dele): com o login funcionando, o yt-dlp respondia
+        # "n challenge solving failed ... Only images are available" -> "Requested format is not available".
+        # Faltava o componente yt-dlp-ejs; --remote-components ejs:github baixa o solver na hora se ele não
+        # estiver instalado (e `pip install yt-dlp-ejs` deixa permanente).
+        base += ["--js-runtimes", "node", "--remote-components", "ejs:github"]
     if cookies and Path(cookies).is_file():
         base += ["--cookies", str(cookies)]  # cookies.txt exportado do navegador
     elif cookies:
@@ -205,8 +209,9 @@ def ytdlp(args, cookies=None, timeout=600):
                                                            "(transmissão ao vivo ou vídeo gigante?)")
 
     r = roda(base + args)
-    if r.returncode != 0 and "no such option" in (r.stderr or "").lower() and "js-runtimes" in (r.stderr or ""):
-        base = [x for x in base if x not in ("--js-runtimes", "node")]
+    if r.returncode != 0 and "no such option" in (r.stderr or "").lower() and \
+            ("js-runtimes" in (r.stderr or "") or "remote-components" in (r.stderr or "")):
+        base = [x for x in base if x not in ("--js-runtimes", "node", "--remote-components", "ejs:github")]
         r = roda(base + args)
     return r
 

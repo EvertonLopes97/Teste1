@@ -7,6 +7,7 @@ mediapipe>=0.10.30   # abaixo disso ele usa MessageFactory.GetPrototype, que sai
                      # o PoseLandmarker/ImageSegmenter morre despejando o grafo inteiro na tela
 faster-whisper
 yt-dlp
+yt-dlp-ejs
 curl_cffi
 google-api-python-client
 google-auth-oauthlib
