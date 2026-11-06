@@ -183,6 +183,7 @@ section.aba.on{display:block}
     <button data-aba="canais">Canais<span class="bolha" id="bCan" style="display:none"></span></button>
     <button data-aba="historias">Histórias</button>
     <button data-aba="shop">TikTok Shop</button>
+    <button data-aba="reagir">Reagir</button>
     <button data-aba="config">Configurações</button>
   </nav>
 </header>
@@ -347,6 +348,11 @@ section.aba.on{display:block}
   <div class="duas" id="shopCards"></div>
   </section>
 
+  <section class="aba" id="aba-reagir">
+  <h2>Reagir <small style="opacity:.6;font-weight:400">— a notícia narrada em cima, a sua reação embaixo</small></h2>
+  <div id="reagirCards"></div>
+  </section>
+
   <section class="aba" id="aba-config">
   <h2>Configurações</h2>
   <div class="card">
@@ -471,7 +477,7 @@ function desenha(){
   // mantém aberto o que você abriu (o painel se redesenha a cada 8 s)
   const abertos = {}; document.querySelectorAll("details[data-d]").forEach(d => abertos[d.dataset.d] = d.open);
   const rolagem = [...document.querySelectorAll(".fila")].map(f => f.scrollTop);
-  avisos(); destinos(); contas(); reels(); configs(); edicao(); canais(); historias(); shop();
+  avisos(); destinos(); contas(); reels(); configs(); edicao(); canais(); historias(); shop(); reagir();
   document.querySelectorAll("details[data-d]").forEach(d => { if(d.dataset.d in abertos) d.open = abertos[d.dataset.d]; });
   document.querySelectorAll(".fila").forEach((f, i) => f.scrollTop = rolagem[i] || 0);
   const lg = $("#log"), fim = lg.scrollTop + lg.clientHeight >= lg.scrollHeight - 10;
@@ -823,6 +829,34 @@ $("#btReelsParar").onclick = async () => { await api("reels_parar"); carrega(tru
 
 
 /* ------------------------------------------------------------ TikTok Shop */
+function reagir(){
+  const N = E.narrado; if(!N) return;
+  const prontos = (N.prontos||[]).map(v => `<div class="l">
+    <span>${esc(v.titulo)}<small style="display:block;opacity:.6">${esc(v.dia)}</small></span>
+    <span>
+      ${v.topo ? `<a class="mini" href="/narrado_arquivo?dia=${encodeURIComponent(v.dia)}&job=${encodeURIComponent(v.job)}&nome=topo.mp4" target="_blank">Só o conteúdo</a>` : ""}
+      ${v.completo ? `<a class="mini" href="/narrado_arquivo?dia=${encodeURIComponent(v.dia)}&job=${encodeURIComponent(v.job)}&nome=completo.mp4" target="_blank">Completo</a>
+      <a class="mini" href="/narrado_arquivo?dia=${encodeURIComponent(v.dia)}&job=${encodeURIComponent(v.job)}&nome=completo.mp4&baixar=1">Baixar</a>` : ""}
+    </span></div>`).join("");
+  $("#reagirCards").innerHTML = `<div class="card" style="margin-bottom:14px">
+    <b>Fazer o vídeo</b>
+    <small style="display:block;opacity:.7;margin:4px 0 8px">A IA escreve a narração, a sua voz narra e cada frase ganha a foto ou o clipe <b>daquilo que ela cita</b>. Sai o <b>topo.mp4</b> (só o conteúdo, para você gravar a reação olhando) e o <b>completo.mp4</b> (1080x1920, com o espaço da sua reação embaixo).</small>
+    <div class="linha">
+      <input type="text" id="narrAssunto" placeholder="o assunto (vazio = pega a notícia mais quente dos portais)" style="flex:1;min-width:280px">
+      <label>Segundos</label><input type="number" id="narrSeg" value="40" min="15" max="90" style="width:76px">
+      <label title="Só fotos: muito mais rápido, não baixa vídeo nenhum"><input type="checkbox" id="narrSemClipes"> só fotos</label>
+      <button class="mini" onclick="api('narrado_fazer',{assunto:$('#narrAssunto').value,segundos:+$('#narrSeg').value,sem_clipes:$('#narrSemClipes').checked}).then(()=>carrega(true))" ${N.rodando?"disabled":""}>▶ Fazer</button>
+      ${N.rodando ? `<button class="mini" onclick="api('narrado_parar').then(()=>carrega(true))">Parar</button>` : ""}
+    </div>
+    <div class="linha" style="margin-top:6px">
+      <input type="text" id="narrReacao" placeholder="(opcional) caminho da sua gravação de reação, para já montar embaixo" style="flex:1;min-width:280px">
+      <button class="mini" onclick="api('narrado_fazer',{assunto:$('#narrAssunto').value,segundos:+$('#narrSeg').value,sem_clipes:$('#narrSemClipes').checked,reacao:$('#narrReacao').value}).then(()=>carrega(true))" ${N.rodando?"disabled":""}>▶ Fazer já com a reação</button>
+    </div>
+    ${N.rodando ? `<div class="info" style="margin-top:8px">Fazendo: <b>${esc(N.o_que)}</b></div>` : ""}
+    ${(N.log||[]).length ? `<pre class="log" style="margin-top:8px">${esc((N.log||[]).join("\n"))}</pre>` : ""}
+  </div>
+  <div class="card"><b>Prontos</b>${prontos || `<div class="info">Nada ainda. O <b>topo.mp4</b> é o que você abre para gravar a reação.</div>`}</div>`;
+}
 function shop(){
   const S = E.shop; if(!S) return;
   const modos = [["ia","Fotos/vídeos do produto + voz IA"],["eu","A minha gravação + fotos"],["vendedor","Reaproveitar o vídeo do vendedor"]];
