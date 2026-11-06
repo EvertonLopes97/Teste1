@@ -28,8 +28,20 @@ for p in (AQUI, AQUI / "canal", AQUI / "postar", AQUI / "reels", AQUI / "painel"
 LINHAS = []
 
 
+# O CONSOLE DO WINDOWS DERRUBAVA O DIAGNÓSTICO (06/nov): o cmd abre em cp1252 e a seta "←" não existe
+# nessa tabela — `print` levantava UnicodeEncodeError ('charmap' codec can't encode '\u2190') e o doutor
+# MORRIA no meio, justamente quando ele estava tentando descobrir por que o resto morreu.
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, OSError, ValueError):
+    pass
+
+
 def diz(s=""):
-    print(s, flush=True)
+    try:
+        print(s, flush=True)
+    except UnicodeEncodeError:      # console que não aceita nem com reconfigure
+        print(s.encode("ascii", "replace").decode("ascii"), flush=True)
     LINHAS.append(s)
 
 
@@ -153,7 +165,7 @@ def ia_de_texto(rapido=False):
         return
     for nome, fn in (("Gemini", lambda: RI.gemini(PERGUNTA)),
                      ("IAs grátis", lambda: RI.texto_gratis(PERGUNTA, log=lambda *_: None)),
-                     ("Claude da assinatura", lambda: RI.claude_cli(PERGUNTA, tempo=180, log=lambda *_: None))):
+                     ("Claude da assinatura", lambda: RI.claude_cli(PERGUNTA, tempo=60, log=lambda *_: None))):
         try:
             r = fn()
             r = (r if isinstance(r, str) else json.dumps(r, ensure_ascii=False))[:120].replace("\n", " ")

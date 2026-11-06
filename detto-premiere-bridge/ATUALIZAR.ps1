@@ -83,7 +83,16 @@ if ($LASTEXITCODE -ne 0) {
 
 # yt-dlp + o componente que resolve o desafio do YouTube (sem ele: "Requested format is not available")
 Write-Host "   atualizando yt-dlp e yt-dlp-ejs..." -ForegroundColor DarkGray
-python -m pip install -q -U yt-dlp yt-dlp-ejs 2>&1 | Out-Null
+# o `| Out-Null` ENGOLIA o erro (06/nov): sem internet ou com o pip quebrado a atualizacao "passava"
+# e so aparecia horas depois, como download falhando no canal. Agora a saida e guardada e mostrada.
+$pipOut = python -m pip install -q -U yt-dlp yt-dlp-ejs 2>&1
+if ($LASTEXITCODE -ne 0) {
+  Write-Host "   NAO consegui atualizar o yt-dlp (sigo mesmo assim; o download pode falhar):" -ForegroundColor Yellow
+  ($pipOut | Select-Object -Last 6) | ForEach-Object { Write-Host "     $_" -ForegroundColor DarkYellow }
+} else {
+  $v = (python -m pip show yt-dlp 2>$null | Select-String '^Version:') -replace 'Version:\s*', ''
+  if ($v) { Write-Host "   yt-dlp $v" -ForegroundColor DarkGray }
+}
 
 Write-Host ""
 Write-Host "=== 4/5  conferindo se o codigo novo esta sao ===" -ForegroundColor Cyan

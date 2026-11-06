@@ -3,6 +3,71 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 06/nov — A RODADA LENTA, OS FORMATOS, O SHOP COM VÍDEO E O "REAGIR"
+
+- **O QUE FAZIA A RODADA DO GTA LEVAR UMA ETERNIDADE: `-J` SEM `--flat-playlist`.** O `videos_ytdlp`
+  pedia a lista de cada canal com `-J`, e isso **ABRE OS 8 VÍDEOS INTEIROS**, um a um — 7 canais = 56
+  extrações completas por rodada, cada uma passando pelo desafio "n" do YouTube. A LISTA é de graça; o
+  caro é abrir vídeo. Agora são DUAS ETAPAS: `--flat-playlist --dump-json` traz id/título/duração numa
+  requisição leve, e só os vídeos que o canal **ainda não viu** (`pular=hist["vistos"]`, no máximo 3 por
+  canal) ganham a extração completa — **todos numa chamada só** do yt-dlp, porque o custo de abrir um
+  processo no Windows é alto. Num dia comum são 0 ou 1 vídeos novos por canal em vez de 8. Conferido com
+  uma saída falsa do yt-dlp: 2 chamadas por canal, 3 vídeos abertos em vez de 8. E as fontes passaram a
+  ser consultadas **4 ao mesmo tempo** (ThreadPoolExecutor): é espera de rede, não trabalho do PC, então
+  a rodada passa a levar o tempo do canal mais lento, não a soma de todos. Cada canal registra
+  "N na lista, abri M (Xs)" — é por aí que se vê qual está lento.
+- **O GAMEPLAYRJ NÃO ERA ACHADO porque a lista rápida não traz DESCRIÇÃO.** O filtro `gta` exigia a
+  palavra "GTA" no título+descrição; num canal que só fala disso, "ROCKSTAR MOSTROU LUCIA E JASON" é o
+  vídeo do dia e não tem a palavra em lugar nenhum. Entraram os SINAIS: `rockstar`, `vice city`,
+  `leonida`, `lucia caminos`, `jason duval`.
+- **TETO DE TEMPO NA BUSCA** (`max_min_busca`, 4 min) e `max_canais_busca` (5): cada canal novo achado
+  pela busca por data dispara uma listagem pesada. Passou do teto, segue com o que achou.
+- **ASSUNTO REPETIDO** (o South Park voltou dias depois): `dias_ja_postado` 7 no GTA (era 3 fixo no
+  código), `titulo_parecido_max` 0,4 → 0,3 e `parecido_max` 0,8 → 0,6.
+- **FORMATOS COM BOTÃO** (`FORMATOS` + `escolhe_formato` no canal.py; painel, card GTA 6): `noticias`
+  (o de sempre), `documentario` (estilo Dulebio: barra de capítulo, tela cheia sem máscara, até 5
+  trechos de 45 s) e `cartoes` (estilo Gigaton: até 6 trechos de 25 s). `"formato": "auto"` faz o
+  RODÍZIO — pelo menos um de cada por dia, olhando o `formato` gravado no `post.json` dos prontos de
+  hoje. Os cartões com número grande ("212GB") ainda NÃO existem: hoje o formato muda ritmo e tamanho
+  de trecho, e isso está dito a ele.
+- **SHOP COM VÍDEO DE VERDADE** (`tools\shop\clipes_web.py`, pedido dele): foto parada com zoom tem cara
+  de anúncio velho; o que vende é o produto SENDO USADO, e todo produto popular tem review no YouTube.
+  O módulo busca, baixa **só um pedaço do meio** (o começo é o apresentador falando), corta em pedaços
+  de ~4 s em 1080x1920 e **DESCARTA os que mostram rosto** (YuNet, o mesmo detector do canal) — rosto de
+  terceiro no anúncio dele é o que mais estragaria. Conferido: com a foto de teste do OpenCV (rosto
+  humano real) todos os pedaços foram descartados; com imagem sem gente, todos passaram. Ligado por
+  `"clipes_internet"` (painel: "Buscar vídeos do produto na internet"). A gravação DELE sempre vem na
+  frente. Junto: `"narracao": false` monta o vídeo **sem narração** (só imagem, cartelas e música), para
+  ele narrar por cima — aí o tempo das cenas vem da `duracao` alvo, repartido pelo texto de cada cena.
+- **NOVO `tools\narrado\` — "REAGIR"** (o formato do @d.brenoofc que ele mandou): assunto quente (os
+  feeds do viral.py) → a IA escreve a narração → a VOZ DELE narra → **cada frase ganha a foto ou o clipe
+  DAQUILO QUE ELA CITA** (é isso que separa vídeo de notícia de slideshow: cada cena traz o seu próprio
+  termo de busca) → sai `topo.mp4` (1080x1200, só o conteúdo, é o que ele abre para gravar a reação
+  olhando) e `completo.mp4` (1080x1920, com a reação embaixo ou o espaço marcado). A voz é gerada **uma
+  por cena**: a duração sai do próprio arquivo, então a imagem troca exatamente com a frase, sem whisper.
+  Painel: aba **Reagir**. Legenda em PIL e não `drawtext` — o drawtext não quebra linha (já tinha mordido
+  a gameplay narrada). O destaque amarelo compara **palavra inteira** com 4+ letras: por substring, o "A"
+  solto saía amarelo porque "a" está dentro de "gta 6".
+- **VIDEO STUDIO — o que o hardware deixa e o que não deixa.** O "JSON inválido" dos workflows era BOM:
+  `Set-Content -Encoding UTF8` do PowerShell põe 3 bytes invisíveis no começo e
+  `read_text(encoding="utf-8")` engasga neles. O painel passou a ler em `utf-8-sig`, avisa quando o JSON
+  é o da TELA do ComfyUI em vez do "Save (API Format)", e ganhou `/api/resultado?id=`. MEDIDO na 3050 de
+  4 GB: LTXV 2B, 49 frames, 8 passos = **6 s de geração e ~90 s por clipe** (o resto é recarregar 4,6 GB
+  de T5 a cada execução, porque 4 GB de VRAM não seguram tudo) — por isso o lote, que enfileira de uma
+  vez. **TEXTO→VÍDEO NÃO SERVE PARA PRODUTO**: o modelo INVENTA um produto parecido, com rótulo sem marca
+  e escrita errada, e isso não é ajuste — é o tamanho do modelo que cabe em 4 GB. O caminho certo é
+  **IMAGEM→VÍDEO** (`LTXVImgToVideo`): a foto REAL do produto é o primeiro quadro e o modelo só cria o
+  movimento, então a marca fica certa porque é a foto dele. O vídeo "Achado do GitHub #8" que ele mandou
+  sugere o "Open Higgsfield" como alternativa grátis ao Higgsfield — **ele não roda local**: é uma
+  interface que chama uma API paga, e o próprio narrador diz isso aos 58 s ("o estúdio é de graça, mas
+  cada geração você paga na chave da plataforma"). Dos 9 achados do vídeo, dois o sistema JÁ usa:
+  VoiceStudio (voz) e Whisper (transcrição).
+- `doutor.py` morria com `UnicodeEncodeError` ('charmap' não tem "←") no console do Windows — justamente
+  quando ele tentava descobrir por que o resto morreu. Agora reconfigura o stdout para UTF-8 e, se nem
+  assim der, troca os caracteres. A espera pelo Claude caiu de 180 s para 60 s. E o `ATUALIZAR.ps1`
+  parou de ENGOLIR o erro do pip (`| Out-Null`): sem internet a atualização "passava" e só aparecia
+  horas depois, como download falhando no canal.
+
 ## QUANDO O SISTEMA PARA (29/out) — rede de proteção
 
 - **O QUE ESTAVA DERRUBANDO OS VÍDEOS DEPOIS DE POSTADOS (05/nov) — IMAGEM DE JOGO.** Os vídeos do canal
