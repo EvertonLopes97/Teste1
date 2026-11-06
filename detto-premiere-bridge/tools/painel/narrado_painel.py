@@ -111,6 +111,16 @@ def acao(nome, d):
         if reacao and Path(reacao).exists():
             args += ["--reacao", reacao]
         return _roda(args, assunto or "notícia quente")
+    if nome == "narrado_montar":
+        # ele gravou a reação olhando o topo.mp4 e agora é só juntar (segundos, não minutos)
+        dia, job = Path(str(d.get("dia", ""))).name, Path(str(d.get("job", ""))).name
+        reacao = str(d.get("reacao", "")).strip().strip('"')
+        alvo = pasta() / "prontos" / dia / job
+        if not (alvo / "topo.mp4").exists():
+            return {"ok": False, "erro": "não achei o topo.mp4 desse vídeo"}
+        if not reacao or not Path(reacao).exists():
+            return {"ok": False, "erro": "não achei a gravação da reação nesse caminho"}
+        return _roda(["--montar", str(alvo), "--reacao", reacao], f"juntando a reação em {job}")
     if nome == "narrado_parar":
         if rodando():
             PROC["p"].terminate()

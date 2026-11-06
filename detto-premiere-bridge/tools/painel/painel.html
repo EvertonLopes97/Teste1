@@ -526,7 +526,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-11-06b";
+const VERSAO_TELA = "2026-11-06c";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -829,6 +829,12 @@ $("#btReelsParar").onclick = async () => { await api("reels_parar"); carrega(tru
 
 
 /* ------------------------------------------------------------ TikTok Shop */
+async function narrMontar(dia, job){
+  const r = prompt("Caminho da sua gravação de reação (o vídeo que você gravou olhando o topo.mp4):");
+  if(!r) return;
+  const x = await api("narrado_montar", {dia, job, reacao: r});
+  if(x && x.ok){ toast("juntando…"); carrega(true); } else { toast((x && x.erro) || "não deu"); }
+}
 function reagir(){
   const N = E.narrado; if(!N) return;
   const prontos = (N.prontos||[]).map(v => `<div class="l">
@@ -837,6 +843,7 @@ function reagir(){
       ${v.topo ? `<a class="mini" href="/narrado_arquivo?dia=${encodeURIComponent(v.dia)}&job=${encodeURIComponent(v.job)}&nome=topo.mp4" target="_blank">Só o conteúdo</a>` : ""}
       ${v.completo ? `<a class="mini" href="/narrado_arquivo?dia=${encodeURIComponent(v.dia)}&job=${encodeURIComponent(v.job)}&nome=completo.mp4" target="_blank">Completo</a>
       <a class="mini" href="/narrado_arquivo?dia=${encodeURIComponent(v.dia)}&job=${encodeURIComponent(v.job)}&nome=completo.mp4&baixar=1">Baixar</a>` : ""}
+      <button class="mini" onclick="narrMontar('${esc(v.dia)}','${esc(v.job)}')">+ minha reação</button>
     </span></div>`).join("");
   $("#reagirCards").innerHTML = `<div class="card" style="margin-bottom:14px">
     <b>Fazer o vídeo</b>

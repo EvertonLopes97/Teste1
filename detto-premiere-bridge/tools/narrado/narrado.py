@@ -456,8 +456,26 @@ def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log):
     return dia
 
 
+def monta_depois(pasta, reacao, log=log):
+    """ELE GRAVA A REAÇÃO DEPOIS, olhando o topo.mp4 — e aí só falta juntar.
+
+    Sem isto, pôr a reação no vídeo obrigava a refazer tudo (narração, download, render). Aqui é só
+    o empilhamento: segundos, não minutos.
+    """
+    pasta = Path(pasta)
+    topo = pasta / "topo.mp4"
+    if not topo.exists():
+        raise RuntimeError(f"não achei o topo.mp4 em {pasta}")
+    if not reacao or not Path(reacao).exists():
+        raise RuntimeError(f"não achei a gravação da reação: {reacao}")
+    monta_completo(topo, reacao, pasta / "completo.mp4", log)
+    log(f"PRONTO: {pasta / 'completo.mp4'}")
+    return pasta / "completo.mp4"
+
+
 def main():
     ap = argparse.ArgumentParser(description="vídeo narrado de notícia para você reagir por baixo")
+    ap.add_argument("--montar", default="", help="pasta de um pronto: só junta a sua reação ao topo.mp4 que já existe")
     ap.add_argument("--assunto", default="")
     ap.add_argument("--quente", action="store_true", help="pega a notícia mais quente dos portais")
     ap.add_argument("--segundos", type=int, default=60)
@@ -474,6 +492,9 @@ def main():
             cfg = json.loads(cfg_f.read_text(encoding="utf-8-sig"))
         except ValueError:
             cfg = {}
+    if a.montar:
+        monta_depois(a.montar, a.reacao)
+        return
     assunto = a.assunto or (assunto_quente() if a.quente else "")
     if not assunto:
         sys.exit("diga o assunto: --assunto \"...\"  (ou --quente para pegar dos portais)")
