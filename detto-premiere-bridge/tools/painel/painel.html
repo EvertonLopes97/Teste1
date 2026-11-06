@@ -184,6 +184,7 @@ section.aba.on{display:block}
     <button data-aba="historias">Histórias</button>
     <button data-aba="shop">TikTok Shop</button>
     <button data-aba="reagir">Reagir</button>
+    <button data-aba="clipes">Clipes de IA</button>
     <button data-aba="config">Configurações</button>
   </nav>
 </header>
@@ -353,6 +354,11 @@ section.aba.on{display:block}
   <div id="reagirCards"></div>
   </section>
 
+  <section class="aba" id="aba-clipes">
+  <h2>Clipes de IA <small style="opacity:.6;font-weight:400">— o Video Studio, aqui dentro</small></h2>
+  <div id="clipesCards"></div>
+  </section>
+
   <section class="aba" id="aba-config">
   <h2>Configurações</h2>
   <div class="card">
@@ -477,7 +483,7 @@ function desenha(){
   // mantém aberto o que você abriu (o painel se redesenha a cada 8 s)
   const abertos = {}; document.querySelectorAll("details[data-d]").forEach(d => abertos[d.dataset.d] = d.open);
   const rolagem = [...document.querySelectorAll(".fila")].map(f => f.scrollTop);
-  avisos(); destinos(); contas(); reels(); configs(); edicao(); canais(); historias(); shop(); reagir();
+  avisos(); destinos(); contas(); reels(); configs(); edicao(); canais(); historias(); shop(); reagir(); clipes();
   document.querySelectorAll("details[data-d]").forEach(d => { if(d.dataset.d in abertos) d.open = abertos[d.dataset.d]; });
   document.querySelectorAll(".fila").forEach((f, i) => f.scrollTop = rolagem[i] || 0);
   const lg = $("#log"), fim = lg.scrollTop + lg.clientHeight >= lg.scrollHeight - 10;
@@ -526,7 +532,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-11-06c";
+const VERSAO_TELA = "2026-11-06d";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -834,6 +840,47 @@ async function narrMontar(dia, job){
   if(!r) return;
   const x = await api("narrado_montar", {dia, job, reacao: r});
   if(x && x.ok){ toast("juntando…"); carrega(true); } else { toast((x && x.erro) || "não deu"); }
+}
+function clipes(){
+  const C = E.studio; if(!C) return;
+  const ligado = C.comfy;
+  const prontos = (C.prontos||[]).map(v => `<div class="l">
+    <span>${esc(v.nome)}<small style="display:block;opacity:.6">${esc(v.dia)}</small></span>
+    <span><a class="mini" href="/studio_arquivo?dia=${encodeURIComponent(v.dia)}&nome=${encodeURIComponent(v.nome)}" target="_blank">Ver</a>
+    <a class="mini" href="/studio_arquivo?dia=${encodeURIComponent(v.dia)}&nome=${encodeURIComponent(v.nome)}&baixar=1">Baixar</a></span></div>`).join("");
+
+  const cabeca = ligado
+    ? `<div class="info" style="border-left:3px solid #35c759">✅ <b>ComfyUI ligado.</b> Modelo: <code>${esc(C.ckpt||"?")}</code>${C.i2v?"":" · <b style='color:#e8a33d'>sem o nó de imagem→vídeo: atualize o ComfyUI</b>"}</div>`
+    : `<div class="info" style="border-left:3px solid #e05260">⛔ <b>O ComfyUI está desligado</b> — sem ele nada é gerado.<br>Abra o PowerShell e cole:<br>
+       <code style="display:block;margin:6px 0;padding:8px;background:#0b0d12;border-radius:6px">cd E:\DETTO_ECOSSISTEMA\ComfyUI<br>python main.py --lowvram --port 8188</code>
+       Espere aparecer <i>"To see the GUI go to..."</i> e <b>atualize esta página</b>. Deixe aquela janela aberta.</div>`;
+  const ram = C.ram ? `<div class="info" style="${C.ram<6?"border-left:3px solid #e05260":""}">Memória livre: <b>${C.ram} GB</b>${C.ram<6?" — <b>feche o Chrome</b>: só o codificador de texto pede ~5 GB e sem isso ele engasga.":""}</div>` : "";
+
+  $("#clipesCards").innerHTML = `${cabeca}${ram}
+  <div class="card" style="margin:14px 0">
+    <b>1 · A partir das SUAS fotos do produto</b>
+    <small style="display:block;opacity:.75;margin:4px 0 8px">É este que você usa para o TikTok Shop. A <b>sua foto vira o primeiro quadro</b> e a IA só cria o movimento — o produto que aparece é o seu, com a marca certa. Movimento lento de propósito: movimento largo derrete a escrita do rótulo.</small>
+    <div class="linha">
+      <input type="text" id="cliFotos" placeholder="cole aqui a pasta com as fotos, ex: C:\Users\guebe\Desktop\fotos do produto" style="flex:1;min-width:320px">
+      <label>Frames</label><input type="number" id="cliF1" value="49" min="25" max="121" step="24" style="width:70px" title="49 = ~2s, 73 = ~3s, 97 = ~4s">
+      <button class="mini" onclick="api('studio_fotos',{pasta:$('#cliFotos').value,frames:+$('#cliF1').value}).then(r=>{toast(r&&r.ok?'começou':(r&&r.erro)||'não deu');carrega(true)})" ${(!ligado||C.rodando)?"disabled":""}>▶ Gerar</button>
+    </div>
+  </div>
+  <div class="card" style="margin-bottom:14px">
+    <b>2 · A partir de texto</b>
+    <small style="display:block;opacity:.75;margin:4px 0 8px">Para <b>ambiente e cortes de apoio</b>. Atenção: aqui a IA <b>inventa</b> um produto parecido com a descrição — rótulo sem marca, escrita errada. Não é ajuste, é o tamanho do modelo que cabe em 4 GB de placa. <b>Não use para mostrar o seu produto.</b> Escreva em inglês, que o modelo entende muito melhor.</small>
+    <textarea id="cliPrompts" rows="4" style="width:100%" placeholder="um prompt por linha, em inglês:
+close-up of hands unboxing a small white gadget on a wooden table, soft window light, realistic product video
+top-down shot of a skincare bottle on a marble counter, bright clean light, realistic product video"></textarea>
+    <div class="linha" style="margin-top:6px">
+      <label>Frames</label><input type="number" id="cliF2" value="49" min="25" max="121" step="24" style="width:70px">
+      <button class="mini" onclick="api('studio_texto',{prompts:$('#cliPrompts').value,frames:+$('#cliF2').value}).then(r=>{toast(r&&r.ok?'começou':(r&&r.erro)||'não deu');carrega(true)})" ${(!ligado||C.rodando)?"disabled":""}>▶ Gerar</button>
+    </div>
+  </div>
+  ${C.rodando ? `<div class="card" style="margin-bottom:14px"><b>Fazendo agora:</b> ${esc(C.o_que)}
+    <small style="display:block;opacity:.7;margin-top:4px">O primeiro clipe demora ~3 min (carrega 4,6 GB de modelo); os seguintes ~1,5 min. Pode fechar esta aba, o trabalho continua.</small></div>` : ""}
+  ${(C.log||[]).length ? `<pre class="log">${esc((C.log||[]).join("\n"))}</pre>` : ""}
+  <div class="card"><b>Prontos</b><small style="display:block;opacity:.6;margin:2px 0 6px">${esc(C.pasta||"")}</small>${prontos || `<div class="info">Nada ainda.</div>`}</div>`;
 }
 function reagir(){
   const N = E.narrado; if(!N) return;

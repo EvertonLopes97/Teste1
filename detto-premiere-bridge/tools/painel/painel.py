@@ -36,6 +36,7 @@ import canais as CAN  # noqa: E402
 import historias_painel as HIS  # noqa: E402
 import shop_painel as SHP  # noqa: E402
 import narrado_painel as NAR  # noqa: E402
+import studio_painel as STU  # noqa: E402
 
 VIDEO_EXT = P.VIDEO_EXT
 REELS = None  # pasta dos reels (E:\DETTO\reels)
@@ -282,6 +283,7 @@ def estado_painel():
         "historias": HIS.estado(),
         "shop": SHP.estado(),
         "narrado": NAR.estado(),
+        "studio": STU.estado(),
         "claude": claude_estado(),
         "codigo_novo": codigo_novo(),
         "versao": PAINEL_VERSAO,
@@ -292,7 +294,7 @@ SUBIU_EM = time.time()
 # Versão do PYTHON que está rodando. O painel.html é lido do disco a cada acesso, então depois de um `git pull` o
 # navegador recebe a tela NOVA enquanto o Python continua o VELHO (foi o que aconteceu: a aba Histórias apareceu
 # vazia e o Instagram continuou no caminho antigo). A tela compara esta versão com a dela e avisa.
-PAINEL_VERSAO = "2026-11-06c"
+PAINEL_VERSAO = "2026-11-06d"
 
 
 def codigo_novo():
@@ -384,6 +386,8 @@ def acao(nome, d):
         return SHP.acao(nome, d)
     if nome.startswith("narrado_"):
         return NAR.acao(nome, d)
+    if nome.startswith("studio_"):
+        return STU.acao(nome, d)
     if nome == "reiniciar":
         # fecha o painel; quem abriu pelo atalho/tarefa do Windows sobe de novo sozinho
         P.log("painel: reiniciando para pegar o código novo")
@@ -1048,6 +1052,9 @@ class Painel(hserver.BaseHTTPRequestHandler):
             # /ed_arquivo, ou seja, assistir/baixar história, vídeo de Shop e saída de edição não abria
             if u.path == "/historia":
                 return self._manda(HIS.arquivo(q.get("s", ""), q.get("a") or q.get("nome", "episodio.mp4")),
+                                   baixar=q.get("baixar") == "1")
+            if u.path == "/studio_arquivo":
+                return self._manda(STU.arquivo(q.get("dia", ""), q.get("nome", "")),
                                    baixar=q.get("baixar") == "1")
             if u.path == "/narrado_arquivo":
                 return self._manda(NAR.arquivo(q.get("dia", ""), q.get("job", ""), q.get("nome", "topo.mp4")),
