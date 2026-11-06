@@ -1062,8 +1062,13 @@ def molde(cfg, saida):
     return saida
 
 
-def faixa_png(texto, sub, saida, cor):
-    """manchete na faixa de baixo + crédito da fonte (transparente, por cima do molde)"""
+def faixa_png(texto, sub, saida, cor, hud=None):
+    """manchete na faixa de baixo + crédito da fonte (transparente, por cima do molde).
+
+    `hud=(n, total, canal)` liga a BARRA DE CAPÍTULO do formato Dulebio (05/nov): no topo "NOME ▸ 03 / 07 ▸
+    MANCHETE", em cima de TODA notícia. Foi o traço que mais se repete no vídeo que fez 21,6x a mediana do canal
+    (@Dulebio, 1,87 mil inscritos): cada trecho com a barra do capítulo no alto e a fonte escrita embaixo —
+    parece documentário, não colagem, e diz ao espectador em que ponto do vídeo ele está."""
     from PIL import Image, ImageDraw
 
     img = Image.new("RGBA", (W, H), (0, 0, 0, 0))
@@ -1078,6 +1083,17 @@ def faixa_png(texto, sub, saida, cor):
     if sub:
         d.text((JANELA[0] + 16, JANELA[1] + JANELA[3] - 14), sub, font=fonte_pil(26, "Inter-Bold.otf"), fill=cor, anchor="lb",
                stroke_width=3, stroke_fill="#000000")
+    if hud:
+        n, total, canal = hud
+        barra = f"{canal}   \u00b7   {n:02d} / {total:02d}   \u00b7   {texto}"
+        t = 24
+        fb = fonte_pil(t, "Inter-Bold.otf")
+        while d.textlength(barra.upper(), font=fb) > W - 120 and t > 14:
+            t -= 2
+            fb = fonte_pil(t, "Inter-Bold.otf")
+        d.rectangle((0, 0, W, 78), fill=(0, 0, 0, 150))
+        d.text((40, 39), barra.upper(), font=fb, fill="#ffffff", anchor="lm")
+        d.rectangle((40, 74, 40 + int((W - 80) * n / max(total, 1)), 78), fill=cor)   # a barrinha de progresso
     img.save(saida)
     return saida
 
@@ -1701,7 +1717,8 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
             # o apoio é o trecho desta notícia, que é justamente a que a fala está apresentando
             add_fala(fala_antes[i], apoio=(x["arquivo"], x["ini"]))
         p = tmp / f"p{len(pecas):03d}.mp4"
-        fx = faixa_png(x["manchete"], f"Imagens: {origem(x)}", tmp / f"faixa_{i}.png", cfg["cor"])
+        fx = faixa_png(x["manchete"], f"Imagens: {origem(x)}", tmp / f"faixa_{i}.png", cfg["cor"],
+                       hud=(i + 1, len(sel), (cfg.get("nome_canal") or "DETTO").split()[0]) if cfg.get("barra_capitulo") else None)
         log(f"   trecho {i + 1}/{len(sel)}: {x['manchete']} ({x['fim'] - x['ini']:.0f}s, {x['fonte']})")
         cortes = sorted({round(c["em"], 2) for c in comenta.get(i, [])})
         partes = list(zip([x["ini"]] + cortes, cortes + [x["fim"]]))
@@ -2119,7 +2136,8 @@ GTA6 = {
         {"canal": "@TecMundo", "id": "UCdmGjywrxeOPfC7vDllmSgQ", "nome": "TecMundo", "filtro": "titulo", "prioridade": 3},
         {"canal": "@IGNBrasil", "id": "UCfg4PAgKIurlvYJRhhukv_g", "nome": "IGN Brasil", "filtro": "titulo", "prioridade": 3},
     ],
-    "fontes_versao": 5,   # 05/nov: filtro "gta" nos 2 canais de GTA; ids dos canais (feed em vez de yt-dlp) + bloco de outros games
+    "barra_capitulo": True,   # formato Dulebio (05/nov): "NOME > 03 / 07 > MANCHETE" no topo de cada notícia
+    "fontes_versao": 6,   # 05/nov: filtro "gta" nos 2 canais de GTA; ids; barra de capítulo dos canais (feed em vez de yt-dlp) + bloco de outros games
     "busca": ["gta 6 notícias", "gta 6 gameplay", "gta 6 trailer análise", "gta 6 novidades hoje",
               "grand theft auto 6 notícia", "gta 6 vazamento"],
     "busca_qualquer_canal": True,
@@ -2211,7 +2229,7 @@ def prepara(pasta, preset=""):
         if base is not CONFIG_PADRAO and seu.get("fontes_versao", 1) < base.get("fontes_versao", 1):
             for k_ in ("fontes", "fontes_versao", "busca", "fora", "campeonatos", "campeonatos_ligado",
                        "max_trechos_campeonato", "max_videos_campeonato", "bloco_extra_nome",
-                       "bloco_extra_aviso", "regra_titulo", "termos", "termos_nao"):
+                       "bloco_extra_aviso", "regra_titulo", "termos", "termos_nao", "barra_capitulo"):
                 if k_ in base:
                     seu[k_] = base[k_]
             grava_json(cfg_f, seu)
