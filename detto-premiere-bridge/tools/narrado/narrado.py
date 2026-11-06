@@ -129,11 +129,17 @@ COMO ESCREVER:
 - Termine com uma pergunta curta que peça comentário.
 - PROIBIDO INVENTAR: use só o que está no assunto. Sem número chutado, sem declaração inventada.
 
-Você também devolve "buscas": 4 a 6 termos para procurar VÍDEO sobre isso no YouTube — nomes próprios,
-clube, jogo, acontecimento. É o que vai aparecer na tela enquanto você narra. Concreto e visual.
+Você também devolve:
+- "sujeito": QUEM OU O QUE é a notícia, o nome completo mais usado ("Cristiano Ronaldo"). É quem tem de
+  aparecer na tela durante o vídeo todo. "sujeito_pessoa": true se for uma pessoa, false se for time/lugar/coisa.
+- "apelidos": outros nomes pelos quais ele é chamado nos títulos ("CR7", "CR 7").
+- "buscas": 4 a 6 termos para procurar VÍDEO no YouTube. TODA busca tem de conter o nome do sujeito e pedir
+  imagem DELE (jogadas, gols, melhores momentos, entrevista, despedida, homenagem) — nunca só o tema.
+  Ruim: "aposentadoria seleção". Bom: "Cristiano Ronaldo melhores momentos seleção portuguesa".
 
 Responda SÓ este JSON:
-{"titulo":"...","narracao":"o texto corrido inteiro","buscas":["...","..."],
+{"titulo":"...","narracao":"o texto corrido inteiro","sujeito":"...","sujeito_pessoa":true,"apelidos":["..."],
+ "buscas":["...","..."],
  "legenda":"legenda do post, 1 a 2 linhas","tags":["#tag1","#tag2","#tag3","#tag4","#tag5"]}"""
 
 
@@ -148,8 +154,17 @@ def roteiro(assunto, segundos, log=log):
     if len(texto.split()) < 20:
         raise RuntimeError("a IA não devolveu narração (sem GEMINI_API_KEY e sem IA grátis?)")
     buscas = [b for b in (d.get("buscas") or []) if str(b).strip()][:6] or [assunto]
+    sujeito = (d.get("sujeito") or "").strip() or " ".join(assunto.split()[:2])
+    # a busca SEM o nome do sujeito traz qualquer vídeo do tema (foi o que trouxe a Euro 2016 inteira)
+    primeiro = norm(sujeito).split()[0] if norm(sujeito) else ""
+    buscas = [b if primeiro and primeiro in norm(b) else f"{sujeito} {b}" for b in map(str, buscas)]
+    for extra in (f"{sujeito} melhores momentos", f"{sujeito} gols e jogadas", f"{sujeito} entrevista"):
+        if extra not in buscas:
+            buscas.append(extra)
     return {"titulo": (d.get("titulo") or assunto)[:120], "narracao": texto,
-            "buscas": [str(b)[:70] for b in buscas],
+            "sujeito": sujeito, "sujeito_pessoa": d.get("sujeito_pessoa", True) is not False,
+            "apelidos": [str(a) for a in (d.get("apelidos") or [])][:4],
+            "buscas": [str(b)[:80] for b in buscas],
             "legenda": d.get("legenda") or "", "tags": d.get("tags") or []}
 
 
@@ -212,28 +227,12 @@ def tempos_das_palavras(wav, texto, log=log):
 
 
 # ------------------------------------------------------------------ 4) OS CLIPES (o que aparece em cima)
-def pool_de_clipes(buscas, pasta, quantos, log=log):
-    """baixa um pedaço de 3 a 4 vídeos sobre o assunto e corta TUDO em pedaços de 2,2 s.
+def pool_de_clipes(rot, total, pasta, log=log):
+    """os planos certos, na ordem certa (a lógica toda está em pessoa.py)"""
+    from pessoa import pool
 
-    É assim que dá para ter 20 clipes sem baixar 20 vídeos: um vídeo de 75 s já rende 30 pedaços.
-    """
-    from clipes_web import clipes_do_produto
-
-    todos = []
-    por_busca = max(4, quantos // max(1, min(3, len(buscas))) + 2)
-    for b in buscas[:3]:
-        if len(todos) >= quantos:
-            break
-        log(f"   procurando vídeo de: {b}")
-        try:
-            fs = clipes_do_produto(b, pasta / slug(b, 20), quantos=por_busca, dur=POR_CLIPE,
-                                   log=log, buscas=("",), sem_rosto=False, alt=H_TOPO, larg=W)
-        except Exception as e:
-            log(f"   não deu ({str(e)[:110]})")
-            fs = []
-        todos += fs
-        log(f"   {len(todos)} clipe(s) no bolo")
-    return todos
+    return pool(rot["sujeito"], rot.get("apelidos", []), rot["buscas"], total, pasta, W, H_TOPO,
+                log=log, e_pessoa=rot.get("sujeito_pessoa", True))
 
 
 # ------------------------------------------------------------------ 5) A LEGENDA
@@ -319,30 +318,17 @@ def faixa_titulo(texto, saida, largura=W):
     return saida
 
 
-def esteira(clipes, total, tmp, log=log):
-    """a linha do tempo de cima: um clipe novo a cada 2,2 s, rodando o bolo quando ele acaba"""
-    if not clipes:
+def esteira(planos, total, tmp, log=log):
+    """a linha do tempo de cima: cada plano entra INTEIRO (já cortado na troca de câmera do vídeo-fonte)"""
+    if not planos:
         raise RuntimeError("não consegui nenhum clipe para pôr na tela")
-    n = max(1, int(total / POR_CLIPE + 0.999))
-    partes = []
-    for i in range(n):
-        seg = min(POR_CLIPE, total - i * POR_CLIPE)
-        if seg < 0.4:
-            break
-        src = clipes[i % len(clipes)]
-        p = tmp / f"e{i:03d}.mp4"
-        roda(["ffmpeg", "-v", "error", "-stream_loop", "-1", "-i", str(src), "-t", f"{seg:.3f}", "-an",
-              "-vf", f"scale={W}:{H_TOPO}:force_original_aspect_ratio=increase,crop={W}:{H_TOPO},fps={FPS}",
-              "-c:v", "libx264", "-crf", "20", "-preset", "veryfast", "-pix_fmt", "yuv420p",
-              "-y", str(p)], "clipe")
-        partes.append(p)
     lista = tmp / "esteira.txt"
-    lista.write_text("".join(f"file '{p.as_posix()}'\n" for p in partes), encoding="utf-8")
+    lista.write_text("".join(f"file '{Path(p['arq']).as_posix()}'\n" for p in planos), encoding="utf-8")
     saida = tmp / "esteira.mp4"
-    roda(["ffmpeg", "-v", "error", "-f", "concat", "-safe", "0", "-i", str(lista),
-          "-c:v", "libx264", "-crf", "19", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+    roda(["ffmpeg", "-v", "error", "-f", "concat", "-safe", "0", "-i", str(lista), "-t", f"{total:.3f}",
+          "-c:v", "libx264", "-crf", "19", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-r", str(FPS),
           "-y", str(saida)], "emenda")
-    log(f"   {len(partes)} clipe(s) na tela, um a cada {POR_CLIPE}s")
+    log(f"   {len(planos)} plano(s) na tela, em média {sum(p['dur'] for p in planos) / len(planos):.1f}s cada")
     return saida
 
 
@@ -427,8 +413,7 @@ def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log):
     palavras = tempos_das_palavras(wav, rot["narracao"], log)
     grupos = grupos_de_legenda(palavras)
 
-    precisa = int(total / POR_CLIPE) + 2
-    clipes = pool_de_clipes(rot["buscas"], tmp / "clipes", precisa, log) if usar_clipes else []
+    clipes = pool_de_clipes(rot, total, tmp / "clipes", log) if usar_clipes else []
     if not clipes:
         raise RuntimeError("não consegui vídeo nenhum sobre o assunto — sem isso o vídeo sairia com fundo liso. "
                            "Confira a internet e o cookies.txt do YouTube.")

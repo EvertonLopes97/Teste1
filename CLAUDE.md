@@ -5,6 +5,25 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
 
 ## 06/nov — A RODADA LENTA, OS FORMATOS, O SHOP COM VÍDEO E O "REAGIR"
 
+- **REAGIR: O ASSUNTO TEM DE APARECER E O CORTE É O DO VÍDEO (06/nov, ele mandou topo.mp4/completo.mp4 do
+  CR7 e disse "o cr7 não aparece sempre... cortes não corretos").** Quadro a quadro: 13 dos 30 primeiros
+  pedaços eram UM programa de TV (duas pessoas + tarja e letreiro deles), o resto a final da Euro 2016 com
+  o CR7 em 2 planos, e o corte era em blocos fixos de 2,2 s atravessando troca de câmera. Novo
+  `tools\narrado\pessoa.py`: **(1)** a IA devolve `sujeito`/`apelidos`/`sujeito_pessoa` e TODA busca leva o
+  nome dele (+ "melhores momentos/gols e jogadas/entrevista"); título do vídeo-fonte tem de citar o sujeito
+  e não pode ser react/podcast/debate/ao vivo/jogo completo. **(2)** reconhece o ROSTO: baixa até 4 fotos da
+  pessoa (`busca_imagem`, 1 rosto), SFace do OpenCV (`sface.onnx`, 37 MB, baixado 1x do Hugging Face para a
+  raiz; limiar de cosseno 0,363) e classifica cada plano em `sujeito` / `contexto` (jogo, torcida) / jogado
+  fora (tela preta, close de OUTRA pessoa, 2+ rostos grandes = podcast). Sem o modelo/sem fotos: avisa no
+  registro e filtra só por título e close. **(3)** o corte é nas TROCAS DE PLANO reais (`select=gt(scene,0.28)`):
+  cada clipe é UM plano inteiro (1,4–2,8 s), nunca atravessa duas câmeras; vídeo sem cortes cai em blocos
+  de 2,2 s. **(4)** no máximo 5 planos por vídeo-fonte, nunca 2 seguidos do mesmo vídeo, a linha do tempo
+  começa no sujeito e mantém ~2 de cada 3 planos com ele. Conferido com vídeo sintético (astronauta = sujeito,
+  Grace Hopper = outra pessoa, as duas juntas = podcast, campo, tela preta): cortes nos 8 limites certos e as
+  8 classificações certas. NÃO conferido aqui: a busca no YouTube real e a taxa de acerto do SFace com fotos
+  de futebol (o sandbox não abre o YouTube) — depende do primeiro vídeo dele; o registro mostra "N planos
+  bons (M com o assunto); descartei ..." por vídeo-fonte.
+
 - **O QUE FAZIA A RODADA DO GTA LEVAR UMA ETERNIDADE: `-J` SEM `--flat-playlist`.** O `videos_ytdlp`
   pedia a lista de cada canal com `-J`, e isso **ABRE OS 8 VÍDEOS INTEIROS**, um a um — 7 canais = 56
   extrações completas por rodada, cada uma passando pelo desafio "n" do YouTube. A LISTA é de graça; o
