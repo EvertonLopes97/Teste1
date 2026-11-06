@@ -190,6 +190,11 @@ def ytdlp(args, cookies=None, timeout=600):
     travou o canal de notícias das 18h16 às 21h — a rodada ficou presa em "baixando: 🔴 Grêmio x Atlético-MG",
     segurou a trava, e TODAS as rodadas seguintes morreram dizendo "outro canal.py está com a trava"."""
     base = [sys.executable, "-m", "yt_dlp", "--no-warnings", "--no-playlist"]
+    # LISTAGEM TAMBÉM COM LOGIN (05/nov): só o DOWNLOAD usava o cookies.txt. A listagem dos canais (`-J` em
+    # /@canal/videos) ia anônima, o YouTube respondia "not a bot", e a rodada terminava "coleta: 0 vídeo(s)" —
+    # mesmo com o login já feito. Sem cookies explícitos, uso o cookies.txt do PC (DETTO_SEM_COOKIES=1 desliga).
+    if cookies is None and not os.environ.get("DETTO_SEM_COOKIES"):
+        cookies = cookies_do_pc()
     if shutil.which("node"):
         # O SOLVER DO DESAFIO "n" (05/nov, medido no PC dele): com o login funcionando, o yt-dlp respondia
         # "n challenge solving failed ... Only images are available" -> "Requested format is not available".
