@@ -245,7 +245,17 @@ def videos_ytdlp(canal, quantos=12):
     tipo (live/short) e descrição."""
     if not canal:
         return []
-    r = ytdlp(["-J", "--playlist-end", str(quantos), f"https://www.youtube.com/{canal}/videos"])
+    # CACHE DE 25 MIN (05/nov): com o feed morto (404 em todos), cada rodada abria os 12 últimos vídeos de CADA
+    # canal um por um (`-J` sem flat = uma extração completa por vídeo) — ~100 chamadas ao YouTube por rodada,
+    # e rodada repetida a cada clique. Quem pede a lista de novo em menos de 25 min recebe a de antes.
+    import tempfile as _tf
+    _arq = Path(_tf.gettempdir()) / ("detto_lista_" + re.sub(r"\W+", "_", canal) + ".json")
+    try:
+        if _arq.exists() and time.time() - _arq.stat().st_mtime < 25 * 60:
+            return [{**e, "quando": dt.datetime.fromisoformat(e["quando"])} for e in json.loads(_arq.read_text("utf-8"))]
+    except (OSError, ValueError, KeyError):
+        pass
+    r = ytdlp(["-J", "--playlist-end", str(min(quantos, 8)), f"https://www.youtube.com/{canal}/videos"])
     try:
         d = json.loads(r.stdout or "{}")
     except ValueError:
@@ -265,6 +275,11 @@ def videos_ytdlp(canal, quantos=12):
                     "canal_nome": e.get("channel") or d.get("channel") or "",
                     "_dur": e.get("duration") or 0,
                     "_tipo": "live" if (e.get("live_status") or "") in ("is_live", "was_live", "post_live") else "video"})
+    if out:
+        try:
+            _arq.write_text(json.dumps([{**e, "quando": e["quando"].isoformat()} for e in out], ensure_ascii=False), "utf-8")
+        except OSError:
+            pass
     return out
 
 
