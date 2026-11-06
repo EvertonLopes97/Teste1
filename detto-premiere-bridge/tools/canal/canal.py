@@ -482,7 +482,12 @@ def coleta(cfg, hist):
                 log(f"   {nome}: nada novo (o último é de {novo:%d/%m %H:%M}, fora da janela de {cfg['max_horas']}h)")
             continue
         # quando a lista vem do yt-dlp ela JÁ traz duração e tipo; aí não preciso de uma varredura extra
-        durs = {v["id"]: (v["_dur"], v["_tipo"]) for v in lista if v.get("_dur")} or (duracoes(f["canal"]) if f.get("canal") else {})
+        durs = {v["id"]: (v["_dur"], v["_tipo"]) for v in lista if v.get("_dur")}
+        if not durs and f.get("canal"):
+            # o `duracoes` abre TRÊS abas do canal no yt-dlp (videos, shorts, streams). Só cai aqui quando a
+            # lista veio do FEED, que não traz duração — e aí é bom aparecer no registro, porque é caro.
+            log(f"   {f.get('nome') or f.get('canal')}: a lista não trouxe duração; vou medir (3 chamadas)")
+            durs = duracoes(f["canal"])
         for v in lista:
             d_, t_ = durs.get(v["id"], (0, "video"))
             considera(v, f, d_, t_)
