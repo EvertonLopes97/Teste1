@@ -5,6 +5,16 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
 
 ## 06/nov — A RODADA LENTA, OS FORMATOS, O SHOP COM VÍDEO E O "REAGIR"
 
+- **CAPAS: TESTE A/B SEM O ROSTO (06/nov, "vídeos do Galo pegam menos views com a minha foto")** — medi 228 vídeos do
+  nicho Galo (`tools\yt\analise_capas.py`, razão = views ÷ mediana do PRÓPRIO canal, vídeos < 7 dias fora): capa CLARA 1,05x
+  × escura 0,72x · número no título 1,15x · vermelho 1,12x · rosto enorme (≥5% da área) 0,90x · "VAZOU AGORA" repetido é o pior.
+  Quem vence usa rosto FAMOSO + escudo + gancho curto ("CONFIRMOU?") + seta. **NÃO medi** o efeito da cara DELE (sem acesso ao
+  analytics) nem TikTok/Shop (robô bloqueado; thumb do Shop não é pública). Por isso o canal.py agora RODIZIA 3 variantes
+  (`thumb_variante` no config: `auto`|`rosto`|`gancho`|`tema`): **rosto** = controle (MANCHETE com a sua foto),
+  **gancho** = quadro claro + manchete gigante + seta + escudo, SEM rosto, **tema** = igual, com a foto da pessoa do assunto
+  (`busca_imagem`, `thumb_destaque`; sem foto cai no gancho). A variante vai em `post.json` (`thumb_variante`).
+  Depois de 24 h+: `python tools\yt\capas_ab.py --pasta E:\DETTO\canal_galo` → views/hora por variante (mediana; avisa se <5 vídeos).
+
 - **SHOP: PRODUTO PELO NOME, SÓ IMAGEM DO PRODUTO CERTO, CORTES RÁPIDOS, BOTÕES (06/nov, "aleatórios, imagens nada
   a ver, não compassado")** — **1 RELEVÂNCIA**: `clipes_web.titulo_do_produto`: o título do vídeo-fonte tem de citar o
   produto (nome de 1–2 palavras: todas, a marca tem de aparecer; 3+: dois terços) — "Avanuv fone bluetooth" e

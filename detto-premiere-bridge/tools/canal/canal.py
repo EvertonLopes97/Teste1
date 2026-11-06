@@ -1897,6 +1897,34 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
 
 
 # ------------------------------------------------------------------ 5. thumb
+THUMB_VARIANTE = {"v": ""}  # a variante usada na última thumb (vai para o post.json)
+
+
+def escolhe_variante_thumb(cfg):
+    """teste A/B das capas: rosto (controle, com a sua foto) | gancho (manchete + quadro claro, sem rosto) | tema (foto da
+    pessoa do assunto, sem o seu rosto). 'auto' faz rodízio pela quantidade de prontos já feitos."""
+    v = str(cfg.get("thumb_variante", "auto")).lower()
+    if v in ("rosto", "gancho", "tema"):
+        return v
+    n = len(list((Path(cfg.get("_pasta", "")) / "prontos").glob("*/post.json"))) if cfg.get("_pasta") else 0
+    return ("gancho", "tema", "rosto")[n % 3]
+
+
+def foto_do_tema(rot, destino, log=print):
+    """foto de quem é o assunto (jornalista/jogador), 1 rosto, da internet — nunca o seu"""
+    nome = (rot.get("thumb_destaque") or "").strip()
+    if len(nome) < 3:
+        return None
+    try:
+        sys.path.insert(0, str(TOOLS))
+        import busca_imagem as BI
+        r = BI.buscar(nome, exige=[nome.split()[0]], rosto=True, destino=str(destino), log=log, prazo=40)
+        return r["file"] if r else None
+    except Exception as e:
+        log(f"   foto do tema falhou ({e})")
+        return None
+
+
 def thumb(video, rot, cfg, pasta_saida, sel=None):
     """thumb viral: VOCÊ (a melhor reação das suas gravações de máscara — surpreso/bravo/rindo primeiro) + UM QUADRO da
     notícia principal (o vídeo original da imprensa, no trecho usado) + o ASSUNTO (thumb_texto do roteiro) + escudo"""
@@ -1913,9 +1941,18 @@ def thumb(video, rot, cfg, pasta_saida, sel=None):
             Path(principal.get("arquivo", "")).exists() else (video, None)
         assunto = rot.get("titulo", "") + " — " + "; ".join(x.get("manchete", "") for x in (sel or [])[:4])
         esc = TOOLS / "banco" / "escudos" / f"{cfg['time']}.png"
+        var = escolhe_variante_thumb(cfg)
+        pessoa = None
+        if var == "tema":
+            (pasta / "thumbs").mkdir(parents=True, exist_ok=True)
+            pessoa = foto_do_tema(rot, pasta / "thumbs", log)
+            if not pessoa:
+                var = "gancho"
+        THUMB_VARIANTE["v"] = var
+        log(f"   thumb: variante {var}")
         feitas = thumb_viral(pasta / "thumbs", assunto, rot.get("thumb_texto", ""), rot.get("thumb_destaque", ""), None,
                              masc[:6], quadro, faixas, [esc] if esc.exists() else [],
-                             cfg.get("estilo_thumb", "noticia"), cfg.get("nome_canal", ""), log=log)
+                             cfg.get("estilo_thumb", "noticia"), cfg.get("nome_canal", ""), log=log, variante=var, pessoa=pessoa)
         if not feitas:
             return None
         shutil.copyfile(feitas[0], pasta / "thumb_1.jpg")
@@ -2851,7 +2888,7 @@ def main():
     # crédito também num COMENTÁRIO no vídeo (o sistema comenta logo depois de postar)
     comentario = ("📺 Créditos — trechos de TV/rádio/canais usados neste vídeo (comentados pelo canal):\n"
                   + "\n".join(f"• {c}" for c in creditos) + "\n\nTodos os direitos dos trechos são dos seus donos. Narração com voz gerada por IA.")
-    post = {"titulo": rot["titulo"], "descricao": descricao, "tags": tags, "video": "video.mp4", "thumb": th.name if th else "",
+    post = {"titulo": rot["titulo"], "descricao": descricao, "tags": tags, "video": "video.mp4", "thumb": th.name if th else "", "thumb_variante": THUMB_VARIANTE["v"],
             "comentario": comentario, "capitulos": caps, "lint_titulo": lint,
             "shorts": shorts, "formato": cfg.get("_formato", "noticias"), "status": "aguardando", "criado": dt.datetime.now().isoformat(timespec="seconds"),
             "trechos": [{"fonte": x["fonte"], "manchete": x["manchete"], "pauta": x.get("pauta", "")} for x in sel]}

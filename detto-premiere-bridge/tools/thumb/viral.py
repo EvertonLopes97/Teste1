@@ -282,7 +282,7 @@ def desenha_pil(spec, saida):
 
 
 def thumb_viral(saida, assunto="", texto="", destaque="", selo=None, rosto_de=(), quadro_de=None, faixas=None, extras=(),
-                estilo="futebol", marca="", n=3, log=log):
+                estilo="futebol", marca="", n=3, log=log, variante="rosto", pessoa=None):
     """faz as thumbs e devolve a lista de JPGs (a 1ª é a principal). Nunca levanta erro: no pior caso, 1 thumb simples."""
     out = Path(saida)
     out.mkdir(parents=True, exist_ok=True)
@@ -316,6 +316,8 @@ def thumb_viral(saida, assunto="", texto="", destaque="", selo=None, rosto_de=()
             log("thumb: sem rosto no vídeo — usei a sua foto padrão")
         else:
             log("thumb: sem rosto no vídeo e sem foto padrão (ponha uma foto sua em E:\\DETTO\\marca\\eu.jpg)")
+    if variante in ("gancho", "tema"):
+        voces = []  # sem o seu rosto: a capa é o assunto
     # 2) quadro do vídeo
     quadros = []
     fonte_q = Path(quadro_de) if quadro_de and Path(quadro_de).exists() else (vids[0] if vids else None)
@@ -333,6 +335,7 @@ def thumb_viral(saida, assunto="", texto="", destaque="", selo=None, rosto_de=()
         return []
     spec = {"texto": texto, "destaque": destaque, "selo": selo, "selo_cor": est["selo_cor"], "cor": est["cor"], "luz": est["luz"],
             "estilo": estilo, "marca": marca, "voces": voces, "quadros": quadros,
+            "variante": variante, "pessoa": (str(pessoa) if pessoa and Path(pessoa).exists() and variante == "tema" else ""),
             "extras": [str(e) for e in extras if e and Path(e).exists()][:2], "saida": str(out), "fontes": str(FONTES), "n": n}
     (out / "thumbs.json").write_text(json.dumps(spec, ensure_ascii=False, indent=1), encoding="utf-8")
     for k in range(n):

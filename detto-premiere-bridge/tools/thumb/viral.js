@@ -124,6 +124,18 @@ function versoes(s) {
      ${selo(`left:36px;bottom:${s.marca ? 120 : 40}px`)}
      ${voceHtml(v(0), "right:-24px", 540, "bottom:86px")}
      ${s.marca ? `<div class="faixa-canal"><span>${esc(s.marca)}</span></div>` : ""}`;
+  // GANCHO (sem o seu rosto): quadro CLARO e nítido, manchete gigante em cima, seta apontando o quadro, escudo grande.
+  // Medido nos concorrentes: capa clara rende 1,05x contra 0,72x da escura; rosto enorme 0,90x; gancho curto + seta ganha.
+  const pessoa = s.pessoa ? `<img class="voce" src="${url(s.pessoa)}" style="right:-10px;height:600px;bottom:86px">` : "";
+  s._gancho =
+    `<div class="bg nitido" style="background-image:url('${url(q(0))}');filter:brightness(1.05) saturate(1.3) contrast(1.1)"></div>
+     <div style="position:absolute;left:0;right:0;top:0;height:330px;background:linear-gradient(180deg,rgba(0,0,0,.8),rgba(0,0,0,0))"></div>
+     ${pessoa}
+     ${extra(0, "right:40px;top:40px;width:190px;height:190px")}
+     <div class="manchete" style="top:26px;left:36px;width:900px">${linhasManchete().replace(/data-w="610" data-h="190"/g, 'data-w="880" data-h="160"')}</div>
+     <div class="seta" style="left:330px;top:420px;width:260px;height:150px;transform:rotate(18deg)">${SETA("#FF2D2D")}</div>
+     ${selo(`left:36px;bottom:${s.marca ? 120 : 40}px`)}
+     ${s.marca ? `<div class="faixa-canal"><span>${esc(s.marca)}</span></div>` : ""}`;
   return [
     // 1 TV: o quadro numa tela inclinada à esquerda, você à direita, seta apontando a tela
     `<div class="bg borrado" style="background-image:url('${url(q(0))}')"></div>
@@ -159,6 +171,7 @@ function versoes(s) {
 /** a lista final: no canal de notícias a MANCHETE vai na frente (é a que sobe no YouTube) */
 function listaVersoes(s) {
   const vs = versoes(s);
+  if (s.variante === "gancho" || s.variante === "tema") return [s._gancho, s._manchete].filter(Boolean).slice(0, Math.max(1, s.n || 3));
   // manchete em 1º: é o layout que mais rende no canal de notícias E nas thumbs de GTA 6 que eu medi
   const out = ["noticia", "gta6"].includes(s.estilo) ? [s._manchete, ...vs] : vs;
   return out.filter(Boolean).slice(0, Math.max(1, s.n || 3));
