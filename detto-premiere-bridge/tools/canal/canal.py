@@ -238,13 +238,14 @@ def rss(canal_id):
     return out
 
 
-def videos_ytdlp(canal, quantos=12):
+def videos_ytdlp(canal, quantos=12, pular=(), max_abrir=3):
     """A HORA de cada vídeo pelo yt-dlp, quando o feed do YouTube não responde.
     Em 29/10 o `feeds/videos.xml` passou a devolver 404/500 até para ID CERTO de canal — e, sem a hora, a rodada
     descartava TODOS os vídeos e terminava "0 vídeo(s) de hoje". Isto custa ~2 s por canal e traz hora, duração,
     tipo (live/short) e descrição."""
     if not canal:
         return []
+    pular = set(pular or ())
     # CACHE DE 25 MIN (05/nov): com o feed morto (404 em todos), cada rodada abria os 12 últimos vídeos de CADA
     # canal um por um (`-J` sem flat = uma extração completa por vídeo) — ~100 chamadas ao YouTube por rodada,
     # e rodada repetida a cada clique. Quem pede a lista de novo em menos de 25 min recebe a de antes.
@@ -255,26 +256,54 @@ def videos_ytdlp(canal, quantos=12):
             return [{**e, "quando": dt.datetime.fromisoformat(e["quando"])} for e in json.loads(_arq.read_text("utf-8"))]
     except (OSError, ValueError, KeyError):
         pass
-    r = ytdlp(["-J", "--playlist-end", str(min(quantos, 8)), f"https://www.youtube.com/{canal}/videos"])
-    try:
-        d = json.loads(r.stdout or "{}")
-    except ValueError:
-        return []
-    if not isinstance(d, dict):   # canal que não abriu (404, só shorts, bloqueado) vem como null
-        return []
-    out = []
-    for e in d.get("entries") or []:
-        if not isinstance(e, dict):   # vídeo que o yt-dlp não conseguiu abrir vem como null na lista
+    # DUAS ETAPAS (05/nov) — era AQUI que a rodada do GTA levava "uma eternidade": `-J` SEM --flat-playlist
+    # ABRE os 8 vídeos INTEIROS de cada canal, um a um (7 canais = 56 extrações completas, cada uma com o
+    # desafio "n" do YouTube). A lista em si é de graça; o caro é abrir vídeo. Então:
+    #   1) --flat-playlist: a lista (id, título, duração) numa requisição leve;
+    #   2) só os vídeos que eu AINDA NÃO VI ganham a extração completa (a hora), e todos numa chamada só.
+    # Num dia comum são 0 ou 1 vídeos novos por canal, em vez de 8.
+    t0 = time.time()
+    r = ytdlp(["--flat-playlist", "--dump-json", "--playlist-end", str(min(quantos, 8)),
+               f"https://www.youtube.com/{canal}/videos"])
+    lista = []
+    for linha in (r.stdout or "").splitlines():
+        try:
+            e = json.loads(linha)
+        except ValueError:
             continue
+        if isinstance(e, dict) and e.get("id"):
+            lista.append(e)
+    if not lista:
+        return []
+
+    def _monta(e, ts, nome_canal=""):
+        return {"id": e["id"], "titulo": e.get("title") or "",
+                "quando": dt.datetime.fromtimestamp(int(ts)),
+                "descricao": e.get("description") or "",
+                "canal_nome": e.get("channel") or e.get("uploader") or nome_canal,
+                "_dur": e.get("duration") or 0,
+                "_tipo": "live" if (e.get("live_status") or "") in ("is_live", "was_live", "post_live") else "video"}
+
+    out, abrir = [], []
+    for e in lista:
         ts = e.get("timestamp") or e.get("release_timestamp")
-        if not e.get("id") or not ts:
-            continue
-        out.append({"id": e["id"], "titulo": e.get("title") or "",
-                    "quando": dt.datetime.fromtimestamp(int(ts)),
-                    "descricao": e.get("description") or "",
-                    "canal_nome": e.get("channel") or d.get("channel") or "",
-                    "_dur": e.get("duration") or 0,
-                    "_tipo": "live" if (e.get("live_status") or "") in ("is_live", "was_live", "post_live") else "video"})
+        if ts:
+            out.append(_monta(e, ts))        # a lista já trouxe a hora: não preciso abrir
+        elif e["id"] not in set(pular):
+            abrir.append(e)
+    abrir = abrir[: int(max_abrir)]
+    if abrir:
+        r2 = ytdlp(["--dump-json", "--no-playlist", "--skip-download",
+                    *[f"https://www.youtube.com/watch?v={e['id']}" for e in abrir]])
+        for linha in (r2.stdout or "").splitlines():
+            try:
+                e = json.loads(linha)
+            except ValueError:
+                continue
+            ts = isinstance(e, dict) and (e.get("timestamp") or e.get("release_timestamp"))
+            if ts:
+                out.append(_monta(e, ts))
+    log(f"   {canal}: {len(lista)} na lista, abri {len(abrir)} ({time.time() - t0:.0f}s)")
     if out:
         try:
             _arq.write_text(json.dumps([{**e, "quando": e["quando"].isoformat()} for e in out], ensure_ascii=False), "utf-8")
@@ -313,7 +342,7 @@ def acha_channel_id(canal):
     return cid
 
 
-def ultimos(cid, canal="", quantos=12, desde=None):
+def ultimos(cid, canal="", quantos=12, desde=None, pular=()):
     """os últimos vídeos com a hora: o feed primeiro (leve) e, se ele falhar, o yt-dlp.
 
     FEED VELHO É PIOR QUE FEED MORTO (05/nov): os 7 canais do GTA diziam "nada novo" na mesma rodada em que a
@@ -333,7 +362,7 @@ def ultimos(cid, canal="", quantos=12, desde=None):
                 log(f"   {canal}: achei o id do canal ({achado}) e peguei a hora pelo feed")
     if v and (desde is None or any(x["quando"] >= desde for x in v)):
         return v
-    nova = videos_ytdlp(canal, quantos)
+    nova = videos_ytdlp(canal, quantos, pular=pular)
     if nova and v:
         tinha = {x["id"] for x in v}
         extras = [x for x in nova if x["id"] not in tinha and (desde is None or x["quando"] >= desde)]
@@ -393,9 +422,13 @@ def coleta(cfg, hist):
             return
         if f.get("filtro", "titulo") == "gta":
             # canal que fala de GTA o tempo todo (GameplayRJ, SaninPlay): "NOVAS IMAGENS DE GTA" não traz o "6"
-            # no título e o filtro de termos recusava (05/nov). Aqui basta a palavra GTA e não ser GTA 5/RP/Online.
-            _t, _td = f" {norm(v['titulo'])} ", f" {norm(v['titulo'])} {norm(v.get('descricao', ''))} "
-            if not (re.search(r"\bgta\b|grand theft auto", _td)) or any(f" {x} " in _t for x in nao):
+            # no título e o filtro de termos recusava (05/nov). Basta a palavra GTA e não ser GTA 5/RP/Online.
+            # E a LISTA RÁPIDA não traz descrição (05/nov): num canal que só fala de GTA, "ROCKSTAR MOSTROU
+            # LUCIA E JASON" é o vídeo do dia e não tem a palavra GTA em lugar nenhum — por isso os SINAIS.
+            _t = f" {norm(v['titulo'])} "
+            _td = _t + f" {norm(v.get('descricao', ''))} "
+            _sinais = r"\bgta\b|grand theft auto|rockstar|vice city|leonida|lucia caminos|jason duval"
+            if not re.search(_sinais, _td) or any(f" {x} " in _t for x in nao):
                 log(f"   {f.get('nome')}: fora do assunto: {(v['titulo'] or '')[:70]}")
                 return
         elif f.get("filtro", "titulo") == "titulo" and not fala_do_time(f"{v['titulo']} {v.get('descricao', '')}", aps, nao):
@@ -413,10 +446,23 @@ def coleta(cfg, hist):
                       "dur": dur_s or 0, "publicado": v["quando"].isoformat(timespec="minutes"), "max_trechos": f.get("max_trechos"),
                       "prioridade": f.get("prioridade", 1), "juntador": bool(f.get("juntador"))})
 
-    for f in cfg["fontes"]:
-        # sem o ID do canal não é problema: o `ultimos` pega pelo @ direto (o feed precisava do ID, o yt-dlp não)
-        cid = f.get("id") or ids.get(f["canal"])
-        todos = ultimos(cid, f.get("canal", ""), desde=limite)
+    # OS CANAIS SÃO CONSULTADOS AO MESMO TEMPO (05/nov): eram 7 consultas EM FILA, cada uma esperando a
+    # anterior terminar — e é esperar a rede, não trabalhar, então quatro juntas não pesam no PC. A rodada do
+    # GTA passou de "uma eternidade" para o tempo do canal mais lento.
+    import concurrent.futures as _cf
+    _ja_visto = set(hist.get("vistos") or ())
+    _listas = {}
+    with _cf.ThreadPoolExecutor(max_workers=4) as _ex:
+        _pend = {_ex.submit(ultimos, f.get("id") or ids.get(f["canal"]), f.get("canal", ""), 12, limite,
+                            _ja_visto): i for i, f in enumerate(cfg["fontes"])}
+        for _fut in _cf.as_completed(_pend):
+            try:
+                _listas[_pend[_fut]] = _fut.result()
+            except Exception as _e:             # um canal fora do ar não derruba a rodada inteira
+                log(f"   fonte {cfg['fontes'][_pend[_fut]].get('nome')}: {_e}")
+                _listas[_pend[_fut]] = []
+    for _i, f in enumerate(cfg["fontes"]):
+        todos = _listas.get(_i) or []
         lista = [v for v in todos if v["quando"] >= limite]
         if not lista:
             # DUAS coisas MUITO diferentes diziam a mesma frase (05/nov): um canal que não respondeu (@ errado,
@@ -438,7 +484,11 @@ def coleta(cfg, hist):
     ok_nomes = [norm(x) for x in cfg.get("outras_fontes", [])]
     ja = {f.get("id") or ids.get(f["canal"]) for f in cfg["fontes"]}
     feeds = {}
+    _fim_busca = time.time() + 60 * float(cfg.get("max_min_busca", 4))
     for q in cfg.get("busca", []):
+        if time.time() > _fim_busca:
+            log(f"   busca: passei de {cfg.get('max_min_busca', 4)} min, sigo com o que já achei")
+            break
         import urllib.parse
         r = ytdlp(["--flat-playlist", "--dump-json", "--playlist-end", "15", "--extractor-args", "youtube:lang=pt",
                    "https://www.youtube.com/results?search_query=" + urllib.parse.quote(q) + "&sp=CAI%253D"])
@@ -2182,7 +2232,9 @@ GTA6 = {
     "parecido_max": 0.6,
     # ENTRAR no vídeo é frouxo (0,8, senão um canal de assunto único fica sem material); ser a NOTÍCIA
     # PRINCIPAL/título é apertado — foi o que deixou 5 vídeos seguidos com "210 GB" e "mapa" no título
-    "titulo_parecido_max": 0.4,
+    "titulo_parecido_max": 0.3,
+    "dias_ja_postado": 7,   # num canal de assunto único o mesmo fato volta a semana toda
+    "max_min_busca": 4,
     "mesclar_nota_min": 5,
     "mesclar_novidade_min": 0.2,
     "max_repetidas": 3,
@@ -2260,7 +2312,7 @@ def prepara(pasta, preset=""):
         if base is not CONFIG_PADRAO and seu.get("fontes_versao", 1) < base.get("fontes_versao", 1):
             for k_ in ("fontes", "fontes_versao", "busca", "fora", "campeonatos", "campeonatos_ligado",
                        "max_trechos_campeonato", "max_videos_campeonato", "bloco_extra_nome",
-                       "bloco_extra_aviso", "regra_titulo", "termos", "termos_nao", "barra_capitulo", "formato", "formatos_ativos", "max_canais_busca", "parecido_max"):
+                       "bloco_extra_aviso", "regra_titulo", "termos", "termos_nao", "barra_capitulo", "formato", "formatos_ativos", "max_canais_busca", "parecido_max", "titulo_parecido_max", "dias_ja_postado", "max_min_busca"):
                 if k_ in base:
                     seu[k_] = base[k_]
             grava_json(cfg_f, seu)
@@ -2702,7 +2754,8 @@ def main():
                         if (dt.date.today() - dt.date.fromisoformat((u.get("quando") or hoje)[:10])).days <= 7]
                        + [{"quando": dt.datetime.now().isoformat(timespec="minutes"), "titulo": rot["titulo"],
                            "texto": (sel[0].get("texto") or sel[0].get("manchete", ""))[:1500] if sel else rot["titulo"]}])[-20:]
-    hist["ja_postado"] = [u for u in hist.get("ja_postado", []) if (dt.date.today() - dt.date.fromisoformat(u["data"])).days <= 3] + \
+    _dias_jp = int(cfg.get("dias_ja_postado", 3))
+    hist["ja_postado"] = [u for u in hist.get("ja_postado", []) if (dt.date.today() - dt.date.fromisoformat(u["data"])).days <= _dias_jp] + \
         [{"data": hoje, "texto": (x.get("texto") or x.get("manchete", ""))[:1500]} for x in sel]
     # crédito também num COMENTÁRIO no vídeo (o sistema comenta logo depois de postar)
     comentario = ("📺 Créditos — trechos de TV/rádio/canais usados neste vídeo (comentados pelo canal):\n"
