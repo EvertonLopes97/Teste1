@@ -100,3 +100,15 @@ O QUE ELE NÃO FAZ (honestamente)
   funciona e o filtro antigigantes fica exato.
 - Não decide se o assunto é de bom gosto. Há uma lista `PROIBIDO` (criança, crime sexual, suicídio,
   feminicídio) que ele nunca traz, mas o resto é o seu bom senso.
+
+O QUE FAZER COM CADA VIRAL (06/nov) — `decide.py`
+--------------------------------------------------
+O catcher acha e baixa; o `decide.py` diz o que fazer com cada um e já leva para o lugar certo:
+  python tools\viral\decide.py              decide tudo que caiu na pasta e ainda não foi decidido
+  python tools\viral\decide.py --so-dizer   decide e escreve a decisão, mas não mexe em nada
+A IA olha 4 quadros + a fala e responde uma das três:
+  REAGIR → fica em videos_para_react\ (entrada do react.py)
+  COPIAR → o link vai para o links.txt dos reels (modo TROCA refaz com a cara dele)
+  NARRAR → o assunto vai para pautas_virais.txt (canal de notícias e tools\narrado)
+Assunto proibido (criança, crime sexual, suicídio, feminicídio, violência explícita) volta "nenhum".
+A decisão fica num `<video>.decisao.txt` ao lado, e o `decididos.json` impede decidir duas vezes.
