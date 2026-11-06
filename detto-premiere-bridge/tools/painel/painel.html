@@ -526,7 +526,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-11-06a";
+const VERSAO_TELA = "2026-11-06b";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -840,17 +840,16 @@ function reagir(){
     </span></div>`).join("");
   $("#reagirCards").innerHTML = `<div class="card" style="margin-bottom:14px">
     <b>Fazer o vídeo</b>
-    <small style="display:block;opacity:.7;margin:4px 0 8px">A IA escreve a narração, a sua voz narra e cada frase ganha a foto ou o clipe <b>daquilo que ela cita</b>. Sai o <b>topo.mp4</b> (só o conteúdo, para você gravar a reação olhando) e o <b>completo.mp4</b> (1080x1920, com o espaço da sua reação embaixo).</small>
+    <small style="display:block;opacity:.7;margin:4px 0 8px">No formato dos vídeos que você mandou, <b>medido neles</b>: clipe de vídeo novo a cada <b>2,2 s</b>, legenda de 1 a 3 palavras com a palavra-chave em amarelo, narração a 190 palavras/min e o corte a <b>70%</b> da altura. Sai o <b>topo.mp4</b> (só o conteúdo, para você gravar a reação olhando) e o <b>completo.mp4</b> (1080x1920, com a sua reação embaixo).</small>
     <div class="linha">
       <input type="text" id="narrAssunto" placeholder="o assunto (vazio = pega a notícia mais quente dos portais)" style="flex:1;min-width:280px">
-      <label>Segundos</label><input type="number" id="narrSeg" value="40" min="15" max="90" style="width:76px">
-      <label title="Só fotos: muito mais rápido, não baixa vídeo nenhum"><input type="checkbox" id="narrSemClipes"> só fotos</label>
-      <button class="mini" onclick="api('narrado_fazer',{assunto:$('#narrAssunto').value,segundos:+$('#narrSeg').value,sem_clipes:$('#narrSemClipes').checked}).then(()=>carrega(true))" ${N.rodando?"disabled":""}>▶ Fazer</button>
+      <label>Segundos</label><input type="number" id="narrSeg" value="60" min="20" max="90" style="width:76px">
+      <button class="mini" onclick="api('narrado_fazer',{assunto:$('#narrAssunto').value,segundos:+$('#narrSeg').value}).then(()=>carrega(true))" ${N.rodando?"disabled":""}>▶ Fazer</button>
       ${N.rodando ? `<button class="mini" onclick="api('narrado_parar').then(()=>carrega(true))">Parar</button>` : ""}
     </div>
     <div class="linha" style="margin-top:6px">
       <input type="text" id="narrReacao" placeholder="(opcional) caminho da sua gravação de reação, para já montar embaixo" style="flex:1;min-width:280px">
-      <button class="mini" onclick="api('narrado_fazer',{assunto:$('#narrAssunto').value,segundos:+$('#narrSeg').value,sem_clipes:$('#narrSemClipes').checked,reacao:$('#narrReacao').value}).then(()=>carrega(true))" ${N.rodando?"disabled":""}>▶ Fazer já com a reação</button>
+      <button class="mini" onclick="api('narrado_fazer',{assunto:$('#narrAssunto').value,segundos:+$('#narrSeg').value,reacao:$('#narrReacao').value}).then(()=>carrega(true))" ${N.rodando?"disabled":""}>▶ Fazer já com a reação</button>
     </div>
     ${N.rodando ? `<div class="info" style="margin-top:8px">Fazendo: <b>${esc(N.o_que)}</b></div>` : ""}
     ${(N.log||[]).length ? `<pre class="log" style="margin-top:8px">${esc((N.log||[]).join("\n"))}</pre>` : ""}

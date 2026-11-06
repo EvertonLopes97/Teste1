@@ -103,8 +103,8 @@ def acao(nome, d):
             args += ["--assunto", assunto]
         else:
             args += ["--quente"]
-        seg = int(float(d.get("segundos") or 40))
-        args += ["--segundos", str(max(15, min(90, seg)))]
+        seg = int(float(d.get("segundos") or 60))
+        args += ["--segundos", str(max(20, min(90, seg)))]
         if d.get("sem_clipes"):
             args += ["--sem-clipes"]
         reacao = str(d.get("reacao", "")).strip()

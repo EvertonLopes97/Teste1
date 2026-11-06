@@ -125,8 +125,13 @@ def dur_de(arquivo):
         return 0.0
 
 
-def corta_sem_rosto(fonte, destino_dir, quantos=4, dur=4.0, prefixo="clipe", log=log):
-    """parte o trecho baixado em pedaços de `dur` s e devolve só os que NÃO têm ninguém na tela"""
+def corta_sem_rosto(fonte, destino_dir, quantos=4, dur=4.0, prefixo="clipe", log=log, sem_rosto=True,
+                    alt=1920, larg=1080):
+    """parte o trecho baixado em pedaços de `dur` s.
+
+    `sem_rosto=True` (o Shop) devolve só os pedaços em que NÃO aparece ninguém — rosto de terceiro no
+    anúncio dele é o que mais estragaria. `sem_rosto=False` (o vídeo de notícia) devolve tudo: ali as
+    pessoas SÃO o conteúdo (o jogador, o técnico, a entrevista)."""
     total = dur_de(fonte)
     if total < dur:
         return []
@@ -134,7 +139,7 @@ def corta_sem_rosto(fonte, destino_dir, quantos=4, dur=4.0, prefixo="clipe", log
     out, t, n, descartados = [], 0.0, 0, 0
     while t + dur <= total and len(out) < quantos:
         meio = t + dur / 2
-        if tem_rosto(fonte, meio) or tem_rosto(fonte, t + dur * 0.15):
+        if sem_rosto and (tem_rosto(fonte, meio) or tem_rosto(fonte, t + dur * 0.15)):
             descartados += 1
             t += dur
             continue
@@ -142,7 +147,7 @@ def corta_sem_rosto(fonte, destino_dir, quantos=4, dur=4.0, prefixo="clipe", log
         alvo = destino_dir / f"{prefixo}_{n:02d}.mp4"
         r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{t:.2f}", "-i", str(fonte),
                             "-t", f"{dur:.2f}", "-an",
-                            "-vf", "scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920",
+                            "-vf", f"scale={larg}:{alt}:force_original_aspect_ratio=increase,crop={larg}:{alt}",
                             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", str(alvo)],
                            capture_output=True, text=True, timeout=300)
         if alvo.exists() and alvo.stat().st_size > 10_000:
@@ -155,7 +160,8 @@ def corta_sem_rosto(fonte, destino_dir, quantos=4, dur=4.0, prefixo="clipe", log
     return out
 
 
-def clipes_do_produto(nome, destino, quantos=6, dur=4.0, log=log, buscas=("review", "unboxing", "como usar")):
+def clipes_do_produto(nome, destino, quantos=6, dur=4.0, log=log, buscas=("review", "unboxing", "como usar"),
+                      sem_rosto=True, alt=1920, larg=1080):
     """O CAMINHO INTEIRO: busca → baixa um pedaço → corta → descarta quem tem rosto → devolve os arquivos."""
     nome = (nome or "").strip()
     if not nome:
@@ -180,7 +186,8 @@ def clipes_do_produto(nome, destino, quantos=6, dur=4.0, log=log, buscas=("revie
                     log(f"   não baixou ({str(r)[:120]})")
                     continue
                 novos = corta_sem_rosto(bruto, destino, quantos=quantos - len(achados), dur=dur,
-                                        prefixo=f"web_{c['id'][:6]}", log=log)
+                                        prefixo=f"web_{c['id'][:6]}", log=log, sem_rosto=sem_rosto,
+                                        alt=alt, larg=larg)
                 achados += novos
                 log(f"   +{len(novos)} clipe(s) sem rosto (total {len(achados)})")
                 bruto.unlink(missing_ok=True)

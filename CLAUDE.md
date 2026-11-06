@@ -44,15 +44,23 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
   `"clipes_internet"` (painel: "Buscar vídeos do produto na internet"). A gravação DELE sempre vem na
   frente. Junto: `"narracao": false` monta o vídeo **sem narração** (só imagem, cartelas e música), para
   ele narrar por cima — aí o tempo das cenas vem da `duracao` alvo, repartido pelo texto de cada cena.
-- **NOVO `tools\narrado\` — "REAGIR"** (o formato do @d.brenoofc que ele mandou): assunto quente (os
-  feeds do viral.py) → a IA escreve a narração → a VOZ DELE narra → **cada frase ganha a foto ou o clipe
-  DAQUILO QUE ELA CITA** (é isso que separa vídeo de notícia de slideshow: cada cena traz o seu próprio
-  termo de busca) → sai `topo.mp4` (1080x1200, só o conteúdo, é o que ele abre para gravar a reação
-  olhando) e `completo.mp4` (1080x1920, com a reação embaixo ou o espaço marcado). A voz é gerada **uma
-  por cena**: a duração sai do próprio arquivo, então a imagem troca exatamente com a frase, sem whisper.
-  Painel: aba **Reagir**. Legenda em PIL e não `drawtext` — o drawtext não quebra linha (já tinha mordido
-  a gameplay narrada). O destaque amarelo compara **palavra inteira** com 4+ letras: por substring, o "A"
-  solto saía amarelo porque "a" está dentro de "gta 6".
+- **NOVO `tools\narrado\` — "REAGIR"** (painel: aba **Reagir**): assunto quente (os feeds do viral.py) →
+  a IA escreve a narração → a VOZ DELE narra → **clipes de vídeo de verdade** na tela → `topo.mp4`
+  (1080x1344, é o que ele abre para gravar a reação olhando) e `completo.mp4` (1080x1920).
+  **TUDO MEDIDO NOS 3 VÍDEOS QUE ELE MANDOU**, não chutado: o corte entre conteúdo e reação fica em
+  68% / 72% / 68% da altura (**uso 70%**); o clipe de cima troca a cada **2,2 s** (30 cortes de cena em
+  67 s e 33 em 73 s, medidos com `select=gt(scene,0.30)` só na faixa de cima); a narração corre a
+  **192 palavras/min**; a legenda é de 1 a 3 palavras em caixa alta, contorno preto grosso, com a
+  palavra-chave em amarelo. A primeira versão (foto parada por frase) ESTAVA ERRADA e ele disse isso na
+  hora — o que prende no formato é o vídeo trocando rápido.
+  **COMO TER 25 CLIPES SEM BAIXAR 25 VÍDEOS**: baixa um pedaço de 3 vídeos sobre o assunto e corta cada
+  um em pedaços de 2,2 s (um vídeo de 75 s rende 30). Aqui os clipes MOSTRAM gente DE PROPÓSITO — o
+  jogador e o técnico são a notícia —, então `clipes_web.corta_sem_rosto` ganhou `sem_rosto=False`; no
+  Shop continua `True`, porque lá a cara de outra pessoa no anúncio é o que estragaria.
+  A legenda é sincronizada pela transcrição da própria narração e, se ela falhar, o tempo é repartido
+  pelo tamanho das palavras — nunca fica sem legenda. Legenda em PIL e não `drawtext` (que não quebra
+  linha nem pinta uma palavra de outra cor); passando de uma linha, ela QUEBRA em duas em vez de cortar
+  na borda. Todas as legendas entram num `filter_complex` só, num passe de vídeo.
 - **VIDEO STUDIO — o que o hardware deixa e o que não deixa.** O "JSON inválido" dos workflows era BOM:
   `Set-Content -Encoding UTF8` do PowerShell põe 3 bytes invisíveis no começo e
   `read_text(encoding="utf-8")` engasga neles. O painel passou a ler em `utf-8-sig`, avisa quando o JSON
