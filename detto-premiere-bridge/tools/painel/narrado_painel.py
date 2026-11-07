@@ -103,6 +103,10 @@ def acao(nome, d):
             args += ["--assunto", assunto]
         else:
             args += ["--quente"]
+        if d.get("tema") == "gta":
+            args += ["--tema", "gta", "--tela-cheia", "--fila"]
+            if d.get("fonte_canal"):
+                args += ["--fonte-canal", str(d["fonte_canal"])]
         seg = int(float(d.get("segundos") or 60))
         args += ["--segundos", str(max(20, min(90, seg)))]
         if d.get("sem_clipes"):

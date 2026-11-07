@@ -40,6 +40,19 @@ CANAIS = {
     "gta6": {"nome": "GTA 6", "script": TOOLS / "canal" / "canal.py", "pasta": None, "dir": "canal_gta6",
              "intervalo_min": 180, "janela": (8, 23), "preset": "gta6"},
 }
+def intervalo_min(c, info):
+    """MODO LANÇAMENTO (GTA 6 sai dia 19): de 18/11 por 7 dias o canal de GTA roda de hora em hora (era 3 h)"""
+    base = info["intervalo_min"]
+    if c == "gta6":
+        try:
+            ini = dt.date.fromisoformat(os.environ.get("DETTO_LANCAMENTO", "2026-11-18"))
+            if ini <= dt.date.today() <= ini + dt.timedelta(days=7):
+                return min(base, 60)
+        except ValueError:
+            pass
+    return base
+
+
 PESADO = {"id": None, "p": None, "o_que": ""}  # montagem (uma por vez)
 POSTANDO = {"p": None, "fila": [], "o_que": ""}  # envios para o YouTube (um por vez, leves)
 # FILA DE ESPERA das montagens (01/11, pedido dele): só cabe UMA montagem por vez (voz + render comem o PC
@@ -727,7 +740,7 @@ def laco(log=print, edicao_ocupada=lambda: False):
                         ult = dt.datetime.fromisoformat(el.get("ultimo") or "2000-01-01")
                     except ValueError:
                         ult = dt.datetime(2000, 1, 1)
-                    if (agora - ult).total_seconds() >= info["intervalo_min"] * 60:
+                    if (agora - ult).total_seconds() >= intervalo_min(c, info) * 60:
                         try:
                             roda_agora(c, forcar=False)
                         except Exception as e:  # noqa: BLE001

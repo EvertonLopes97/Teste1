@@ -5,6 +5,19 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
 
 ## 06/nov — A RODADA LENTA, OS FORMATOS, O SHOP COM VÍDEO E O "REAGIR"
 
+- **VOZ 1,25x, TRADUÇÃO SÓ EM LÍNGUA ESTRANGEIRA E MODO LANÇAMENTO (06/nov, 22:49)** — **1** `velocidade_voz` padrão 1,25
+  (config já existente: ajustar no painel, aba CANAIS, campo Velocidade; a velocidade agora entra na chave do cache da fala,
+  senão a voz antiga a 1,0 era reaproveitada). **2 BUG DA TRADUÇÃO EM VÍDEO PT**: `legenda_youtube` pegava a 1ª faixa
+  em ordem ALFABÉTICA — "en" (tradução automática do YouTube) vinha antes de "pt" e vídeo em português virava "EN", era
+  traduzido e dublado. Agora `_prio`: faixa original (`-orig`) → pt → traduzidas; cache renomeado `.leg2.json`. Dublagem
+  segue só para `idioma != pt`. **3 VOICESTUDIO COM LISTA VAZIA**: `voicestudio_pronto` não exige mais perfis listados
+  (tenta o nome "everton"/`DETTO_VS_VOZ`). **4 MODO LANÇAMENTO** (18/11 por 7 dias, `lancamento_inicio` no painel.json):
+  canal GTA roda de hora em hora (`canais.intervalo_min`) e `auto.reels_gta_meta` faz até 24 reels/dia (8–23 h, a cada
+  ~2,5 min checa; 45 s; `reels_gta_dia`/`reels_gta_seg`/`reels_gta_auto`) com `narrado.py --tema gta --tela-cheia --fila`:
+  assunto = a notícia mais nova já coletada pelo canal GTA (`historico.json`, `gta_usados.json`), voz dele, clipes do
+  YouTube, 1080x1920 sem espaço de reação, direto na fila de postagem. NÃO conferido aqui: YouTube real, voz real.
+  Cuidado: clipes de trailer/gameplay de terceiros podem levar Content ID — conferir os primeiros posts.
+
 - **CAPAS: TESTE A/B SEM O ROSTO (06/nov, "vídeos do Galo pegam menos views com a minha foto")** — medi 228 vídeos do
   nicho Galo (`tools\yt\analise_capas.py`, razão = views ÷ mediana do PRÓPRIO canal, vídeos < 7 dias fora): capa CLARA 1,05x
   × escura 0,72x · número no título 1,15x · vermelho 1,12x · rosto enorme (≥5% da área) 0,90x · "VAZOU AGORA" repetido é o pior.

@@ -582,7 +582,7 @@ def main():
     falta = []
     for f in falas:
         motor = "vs" if usa_vs else ("fish" if (os.environ.get("FISH_API_KEY") or a.fish_chave) else "cb2")
-        marca = f"{motor}:{a.voz_vs}" if motor == "vs" else motor
+        marca = f"{motor}:{a.voz_vs}:{a.velocidade_vs}" if motor == "vs" else f"{motor}:{a.velocidade_vs}"
         h = hashlib.sha1(f"{chave_ref}|{a.exagero}|{marca}|{f.get('clima', '')}|{f['texto']}".encode()).hexdigest()[:10]
         f["arquivo"] = str(out / f"{f['id']}_{h}.wav")
         if not Path(f["arquivo"]).exists():

@@ -144,7 +144,7 @@ CONFIG_PADRAO = {
     # VOZ: 1) VoiceStudio aberto no seu PC (open source, de graça) · 2) Fish Audio (FISH_API_KEY) · 3) Chatterbox
     "voicestudio": "",            # endereço; vazio = http://127.0.0.1:3900 (o padrão do VoiceStudio)
     "voz_voicestudio": "",        # nome ou id do perfil de voz clonada lá dentro; vazio = a voz padrão dele
-    "velocidade_voz": 1.0,
+    "velocidade_voz": 1.25,
     "instrucao_voz": "",          # como a voz deve falar; vazio = pt-BR claro, sem sotaque de Portugal
     "sem_voicestudio": False,
     "exagero_voz": 0.6,
@@ -847,13 +847,20 @@ def legenda_youtube(vid, pasta, langs="pt.*,pt"):
     """as palavras com tempo pela legenda do YouTube (automática serve) — sem baixar nem transcrever o vídeo.
     `langs` aceita outras línguas (o canal de GTA pega canal gringo: "pt.*,pt,en.*,en")."""
     pasta.mkdir(parents=True, exist_ok=True)
-    cache = pasta / f"{vid}.leg.json"
+    cache = pasta / f"{vid}.leg2.json"
     if cache.exists():
         return le_json(cache, [])
     ytdlp(["--skip-download", "--write-auto-subs", "--write-subs", "--sub-langs", langs, "--sub-format", "json3",
            "-o", str(pasta / f"{vid}.%(ext)s"), f"https://www.youtube.com/watch?v={vid}"])
     ws, lin = [], ""
-    for f in sorted(pasta.glob(f"{vid}*.json3")):
+    def _prio(f):
+        # a faixa ORIGINAL primeiro ("pt-orig"/"en-orig"); depois português; as TRADUZIDAS pelo YouTube por último.
+        # Antes valia a ordem alfabética: "en" vinha antes de "pt" e um vídeo em PORTUGUÊS entrava pela tradução em
+        # inglês — o canal achava que era gringo, traduzia e dublava.
+        l = f.name.split(".")[-2].lower() if f.name.count(".") >= 2 else ""
+        return (0 if "orig" in l else (1 if l.startswith("pt") else 2), f.name)
+
+    for f in sorted(pasta.glob(f"{vid}*.json3"), key=_prio):
         lin = (f.name.split(".")[-2] if f.name.count(".") >= 2 else "")[:2].lower()
         try:
             d = json.loads(f.read_text(encoding="utf-8"))
@@ -875,7 +882,7 @@ def legenda_youtube(vid, pasta, langs="pt.*,pt"):
             break
     grava_json(cache, ws)
     if ws and lin:
-        grava_json(pasta / f"{vid}.leg.idioma.json", {"idioma": lin})
+        grava_json(pasta / f"{vid}.leg2.idioma.json", {"idioma": lin})
     return ws
 
 
@@ -897,7 +904,7 @@ def palavras_rapidas(v, cfg, pasta, log=log):
     if len(ws) < 60 or cobre < 0.5:   # legenda picada/parcial não serve para cortar o trecho
         log(f"   legenda do YouTube só cobre {cobre * 100:.0f}% do vídeo: vou transcrever")
         return None, ""
-    idi = (le_json(pasta / "legendas" / f"{v['id']}.leg.idioma.json", {}) or {}).get("idioma") or "pt"
+    idi = (le_json(pasta / "legendas" / f"{v['id']}.leg2.idioma.json", {}) or {}).get("idioma") or "pt"
     log(f"   peguei a legenda do YouTube ({len(ws)} palavras, {idi.upper()}) — sem transcrever, muito mais rápido")
     return ws, idi
 

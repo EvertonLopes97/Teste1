@@ -250,9 +250,44 @@ def shop_meta(CAN, SHP, EDI, cp, log=print):
     log(f"auto: Shop {feitos}/{meta} hoje → lote de até 3 ({'ok' if r.get('ok') else r.get('erro')})")
 
 
+LANCAMENTO_PADRAO = "2026-11-18"   # GTA 6 sai dia 19; a partir do dia 18 às 8h o ritmo sobe
+
+
+def modo_lancamento(cp):
+    """True a partir da data de lançamento (cp["lancamento_inicio"], padrão 18/11/2026) e até 7 dias depois"""
+    try:
+        ini = dt.date.fromisoformat(str(cp.get("lancamento_inicio") or LANCAMENTO_PADRAO))
+    except ValueError:
+        return False
+    hoje = dt.date.today()
+    return ini <= hoje <= ini + dt.timedelta(days=7)
+
+
+def reels_gta_meta(CAN, SHP, EDI, cp, log=print):
+    """REELS DE GTA O DIA TODO (pedido dele): no modo lançamento, das 8h às 23h, um reel a cada ~40 min com o assunto
+    mais novo que o canal de GTA já coletou, na voz dele, 1080x1920, direto na fila de postagem."""
+    if not modo_lancamento(cp) or not cp.get("reels_gta_auto", True):
+        return
+    meta = int(cp.get("reels_gta_dia", 24))
+    agora = dt.datetime.now()
+    if meta <= 0 or not (8 <= agora.hour <= 23) or not tudo_parado(CAN, SHP, EDI):
+        return
+    import narrado_painel as NAR
+    if NAR.rodando():
+        return
+    base = NAR.pasta()
+    dia = base / "prontos" / dt.date.today().isoformat()
+    feitos = len([p for p in dia.iterdir() if p.is_dir() and (p / "completo.mp4").exists()]) if dia.is_dir() else 0
+    if feitos >= meta:
+        return
+    pasta_gta = CAN.pasta("gta6")
+    r = NAR.acao("narrado_fazer", {"tema": "gta", "fonte_canal": str(pasta_gta), "segundos": int(cp.get("reels_gta_seg", 45))})
+    log(f"auto: reel GTA {feitos}/{meta} hoje ({'ok' if r.get('ok') else r.get('erro')})")
+
+
 def laco(CAN, SHP, EDI, versao, drive_raiz, detto, cfg_painel, reinicia, log=print):
     """roda para sempre na thread do painel; qualquer erro só vai para o registro"""
-    ult_status = ult_upd = ult_shop = 0.0
+    ult_status = ult_upd = ult_shop = ult_gta = 0.0
     time.sleep(20)
     while True:
         try:
@@ -267,6 +302,9 @@ def laco(CAN, SHP, EDI, versao, drive_raiz, detto, cfg_painel, reinicia, log=pri
             if t - ult_shop >= 120 and cp.get("shop_auto", True):
                 ult_shop = t
                 shop_meta(CAN, SHP, EDI, cp, log)
+            if t - ult_gta >= 150:
+                ult_gta = t
+                reels_gta_meta(CAN, SHP, EDI, cp, log)
             if cp.get("auto_atualizar", True) and t - ult_upd >= 1800:
                 ult_upd = t
                 if atualiza_se_preciso(CAN, SHP, EDI, log):

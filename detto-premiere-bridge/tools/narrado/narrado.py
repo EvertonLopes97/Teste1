@@ -143,11 +143,24 @@ Responda SÓ este JSON:
  "legenda":"legenda do post, 1 a 2 linhas","tags":["#tag1","#tag2","#tag3","#tag4","#tag5"]}"""
 
 
+TEMA = {"v": "futebol"}   # "futebol" (o de sempre) | "gta" (reels de GTA 6 do dia do lançamento)
+
+REGRAS_GTA = REGRAS.replace("notícia de futebol", "notícia de GTA 6 / games").replace(
+    "Termine com uma pergunta curta que peça comentário.",
+    "Termine com uma pergunta curta que peça comentário (ex.: \"vai comprar no dia 19?\").").replace(
+    "(jogadas, gols, melhores momentos, entrevista, despedida, homenagem)",
+    "(trailer, gameplay, mapa, personagens, comparativo, bastidores)").replace(
+    "Cristiano Ronaldo melhores momentos seleção portuguesa", "GTA 6 trailer 3 mapa de Leonida").replace(
+    "aposentadoria seleção", "novidades").replace(
+    '("Cristiano Ronaldo")', '("GTA 6", "Lucia Caminos", "Rockstar Games")').replace(
+    "Ruim:", "Ruim:")
+
+
 def roteiro(assunto, segundos, log=log):
     from reels import gemini_json
 
     alvo = int(segundos * PALAVRAS_POR_MIN / 60)
-    pedido = (f"{REGRAS}\n\nASSUNTO: {assunto}\n\nA narração tem de ter cerca de {alvo} palavras "
+    pedido = (f"{REGRAS_GTA if TEMA['v'] == 'gta' else REGRAS}\n\nASSUNTO: {assunto}\n\nA narração tem de ter cerca de {alvo} palavras "
               f"(o vídeo é de ~{segundos} segundos a {PALAVRAS_POR_MIN} palavras por minuto).")
     d = gemini_json([{"text": pedido}], temperatura=0.8) or {}
     texto = re.sub(r"\s+", " ", (d.get("narracao") or "")).strip()
@@ -158,7 +171,9 @@ def roteiro(assunto, segundos, log=log):
     # a busca SEM o nome do sujeito traz qualquer vídeo do tema (foi o que trouxe a Euro 2016 inteira)
     primeiro = norm(sujeito).split()[0] if norm(sujeito) else ""
     buscas = [b if primeiro and primeiro in norm(b) else f"{sujeito} {b}" for b in map(str, buscas)]
-    for extra in (f"{sujeito} melhores momentos", f"{sujeito} gols e jogadas", f"{sujeito} entrevista"):
+    extras = ((f"{sujeito} trailer", f"{sujeito} gameplay", f"{sujeito} novidades") if TEMA["v"] == "gta"
+              else (f"{sujeito} melhores momentos", f"{sujeito} gols e jogadas", f"{sujeito} entrevista"))
+    for extra in extras:
         if extra not in buscas:
             buscas.append(extra)
     return {"titulo": (d.get("titulo") or assunto)[:120], "narracao": texto,
@@ -358,6 +373,59 @@ def poe_legendas(base, grupos, tmp, saida, log=log):
     return saida
 
 
+def monta_tela_cheia(topo, saida, log=log):
+    """REELS sem a sua reação (GTA, o dia todo): o conteúdo 1080x1344 centralizado num fundo borrado dele mesmo, 1080x1920"""
+    t = dur(topo)
+    fc = (f"[0:v]split[a][b];[a]scale={W}:1920:force_original_aspect_ratio=increase,crop={W}:1920,"
+          f"scale=135:240,scale={W}:1920,eq=brightness=-0.12[bg];[b]scale={W}:-2[fg];"
+          f"[bg][fg]overlay=(W-w)/2:(H-h)/2,fps={FPS}[v]")
+    roda(["ffmpeg", "-v", "error", "-i", str(topo), "-filter_complex", fc, "-map", "[v]", "-map", "0:a?",
+          "-t", f"{t:.3f}", "-c:v", "libx264", "-crf", "19", "-preset", "veryfast", "-pix_fmt", "yuv420p",
+          "-c:a", "aac", "-b:a", "192k", "-y", str(saida)], "tela cheia")
+    return saida
+
+
+def para_fila(cfg, video, txt, log=log):
+    """cada reel pronto entra na fila de postagem (as mesmas contas dos reels)"""
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "postar"))
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "reels"))
+        import postar as P
+        from reels import destinos_reels
+
+        pb = P.pasta_padrao()
+        alvos = destinos_reels({"postar": cfg.get("postar") or ["todas"]}, pb)
+        postos = P.enfileira(pb, video, alvos, txt)
+        log(f"   na fila: {', '.join(Path(p).parent.name for p in postos)}")
+    except Exception as e:   # noqa: BLE001
+        log(f"   não consegui pôr na fila ({str(e)[:140]}) — o vídeo está em prontos\\")
+
+
+def proximo_do_canal(pasta_canal, base, log=log):
+    """o próximo assunto de GTA JÁ coletado pelo canal (manchete + texto da notícia, nada inventado), que ainda não virou reel"""
+    h = Path(pasta_canal) / "historico.json"
+    try:
+        trechos = json.loads(h.read_text(encoding="utf-8-sig")).get("trechos", [])
+    except (OSError, ValueError):
+        return ""
+    uf = Path(base) / "gta_usados.json"
+    try:
+        usados = set(json.loads(uf.read_text(encoding="utf-8")))
+    except (OSError, ValueError):
+        usados = set()
+    for t in sorted(trechos, key=lambda x: (x.get("data", ""), x.get("nota", 0)), reverse=True):
+        m = (t.get("manchete") or "").strip()
+        k = norm(m)[:60]
+        if not m or k in usados:
+            continue
+        usados.add(k)
+        uf.write_text(json.dumps(sorted(usados)[-400:], ensure_ascii=False), encoding="utf-8")
+        resumo = (t.get("resumo") or t.get("texto") or "")[:700]
+        log(f"assunto do canal GTA: {m}")
+        return f"{m}. {resumo}".strip()
+    return ""
+
+
 def monta_completo(topo, reacao, saida, log=log):
     """1080x1920: o conteúdo em cima (70%), a reação dele embaixo (30%) — a proporção medida nos 3 vídeos"""
     t = dur(topo)
@@ -387,7 +455,7 @@ def monta_completo(topo, reacao, saida, log=log):
 
 
 # ------------------------------------------------------------------ o caminho inteiro
-def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log):
+def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log, tela_cheia=False, fila=False):
     global LOG_F
     base = Path(base)
     (base / "prontos").mkdir(parents=True, exist_ok=True)
@@ -432,9 +500,14 @@ def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log):
           "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", "-y", str(topo)], "som")
 
     shutil.copyfile(topo, dia / "topo.mp4")
-    monta_completo(topo, reacao, dia / "completo.mp4", log)
+    if tela_cheia:
+        monta_tela_cheia(topo, dia / "completo.mp4", log)
+    else:
+        monta_completo(topo, reacao, dia / "completo.mp4", log)
     (dia / "post.txt").write_text(
         f"{rot['titulo']}\n\n{rot.get('legenda', '')}\n\n{' '.join(rot.get('tags', []))}\n", encoding="utf-8")
+    if fila:
+        para_fila(cfg, dia / "completo.mp4", dia / "post.txt", log)
     (dia / "roteiro.json").write_text(json.dumps(rot, ensure_ascii=False, indent=1), encoding="utf-8")
     shutil.rmtree(tmp, ignore_errors=True)
     log(f"PRONTO: {dia}")
@@ -467,7 +540,12 @@ def main():
     ap.add_argument("--reacao", default="", help="o vídeo da sua reação (vai embaixo)")
     ap.add_argument("--sem-clipes", action="store_true", help="(teste) não baixa vídeo nenhum")
     ap.add_argument("--pasta", default="")
+    ap.add_argument("--tema", default="futebol", choices=["futebol", "gta"])
+    ap.add_argument("--fonte-canal", default="", help="pasta de um canal (ex. canal_gta6): o assunto vem das notícias que ele já coletou")
+    ap.add_argument("--tela-cheia", action="store_true", help="reels 1080x1920 sem o espaço da sua reação")
+    ap.add_argument("--fila", action="store_true", help="põe o pronto na fila de postagem")
     a = ap.parse_args()
+    TEMA["v"] = a.tema
     base = Path(a.pasta) if a.pasta else raiz() / "narrado"
     base.mkdir(parents=True, exist_ok=True)
     cfg_f = base / "config.json"
@@ -480,10 +558,11 @@ def main():
     if a.montar:
         monta_depois(a.montar, a.reacao)
         return
-    assunto = a.assunto or (assunto_quente() if a.quente else "")
+    assunto = a.assunto or (proximo_do_canal(a.fonte_canal, base) if a.fonte_canal else "") or (assunto_quente() if a.quente and a.tema == "futebol" else "")
     if not assunto:
         sys.exit("diga o assunto: --assunto \"...\"  (ou --quente para pegar dos portais)")
-    faz(assunto, base, cfg, segundos=a.segundos, reacao=a.reacao, usar_clipes=not a.sem_clipes)
+    faz(assunto, base, cfg, segundos=a.segundos, reacao=a.reacao, usar_clipes=not a.sem_clipes,
+        tela_cheia=a.tela_cheia, fila=a.fila)
 
 
 if __name__ == "__main__":
