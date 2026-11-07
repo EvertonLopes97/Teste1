@@ -1,0 +1,23 @@
+DETTO — HISTÓRIAS EM SÉRIE | PAINEL SECUNDÁRIO EXPERIMENTAL
+
+ISOLAMENTO
+- Este painel é um plugin UXP separado, com ID próprio.
+- Não substitui nem modifica o manifest.json, HTML, CSS ou JS do plugin DETTO Premiere Bridge.
+- Não altera sequências, projetos ou mídia do Premiere.
+- Nesta versão, o painel monta um briefing/prompt para copiar. Não chama uma IA automaticamente e não renderiza vídeos.
+
+COMO ABRIR NO PREMIERE PRO
+1. Extraia o ZIP do projeto para uma pasta local.
+2. Abra o Adobe UXP Developer Tool (instalado com as ferramentas Adobe).
+3. Clique em Add Plugin / Add Plugin... e selecione este arquivo:
+   detto-historias-panel/manifest.json
+4. Clique em Load/Load and Watch para carregar o painel experimental.
+5. No Premiere Pro, procure o painel em Window > UXP Plugins (o nome do menu pode variar por versão) > DETTO — Histórias em Série.
+6. Deixe o painel principal DETTO VIDEO ENGINE como está; os dois plugins têm IDs e manifests separados.
+
+LOCAL DO ARQUIVO
+No ZIP atualizado, a pasta fica ao lado de detto-premiere-bridge:
+Teste1-claude-upbeat-sagan-y007mb/detto-historias-panel/manifest.json
+
+IMPORTANTE
+Não copie os arquivos deste painel por cima da pasta plugin/ existente. Adicione o manifest do painel secundário como plugin separado no UXP Developer Tool.

@@ -1,0 +1,76 @@
+DETTO — O QUE ESTÁ NO AR E COMO INSTALAR EM OUTRO PC / OUTRA CONTA
+(reels automáticos + postagem + painel + editor; detalhes de cada parte nos LEIA-ME de cada pasta)
+
+=====================================================================
+ O QUE ESTÁ FUNCIONANDO (resumo)
+=====================================================================
+ PAINEL (http://localhost:8730, também no celular com PIN) — liga com o Windows e faz tudo sozinho:
+ 1. REELS AUTOMÁTICOS (aba Reels): você cola links (TikTok/Insta/YouTube) → o meme fica IGUAL ao original
+    (texto, música, lance, duração) e só a parte da outra pessoa vira o SEU começo (em todas as cenas em que ela
+    aparece, no começo, no meio ou no fim). Sem links, ele busca virais de futebol e escreve o texto "Quando...".
+    - Começos: pasta "Começo" no Google Drive → o Gemini dá o nome do que você faz e o melhor trecho.
+    - Cor: só converte HDR → SDR (cor exata do CapCut com tools\cor_lut.py, ver abaixo).
+    - Conferências antes de ir para a fila: (1) cenas — Gemini + comparação de imagem/rosto (a pessoa que volta no
+      meio também é coberta); (2) letra — duas leituras do texto (recorte × tela) e, se não baterem, o outro recorte;
+      (3) vídeo pronto — pixels (a outra pessoa sumiu, lance igual) + Gemini olhando um quadro de cada cena (texto
+      inteiro e igual ao que continua na tela, ninguém além de você, imagem não estourada). Achou problema: refaz
+      pelo outro jeito e confere de novo; ainda com problema = NÃO posta (fica em prontos\<dia>\conferir\).
+    - Legenda do post: viral, ligada ao vídeo (Gemini), nunca "meme"; 5 tags (as do original primeiro).
+      Quer no seu jeito? E:\DETTO\reels\config.json → "exemplos_legenda": ["legenda que você gosta", ...].
+ 2. POSTAGEM: Instagram @detto.galo (Reels TESTE pelo Catbox; Facebook junto), TikTok @detto.galo e @detto.tv
+    pelo TikTok Studio (o painel planeja os horários e prepara a pasta). Fila, ordem, horário, máx./dia, falhas.
+ 3. EDIÇÃO (aba Edição): vídeo com roteiro (horizontal + vertical + cortes + thumbs), Galo, React, vertical de vídeo
+    pronto, Vlog.
+ 4. CANAIS DO YOUTUBE (aba Canais): notícias (voz clonada + máscara) e vlogs (pasta do Drive), com aprovação.
+
+=====================================================================
+ INSTALAR NUM PC NOVO (Windows)
+=====================================================================
+ 1. Programas: Git (git-scm.com), Python 3.11 (python.org, marque "Add to PATH"), Node 20 LTS (nodejs.org),
+    FFmpeg full:  winget install Gyan.FFmpeg   (opcional: Google Drive para computador; Tesseract OCR)
+ 2. Código:
+       cd C:\Users\<você>
+       git clone https://github.com/EvertonLopes97/Teste1.git
+       cd Teste1
+       git checkout claude/upbeat-sagan-y007mb
+       cd detto-premiere-bridge
+       INSTALAR.bat
+ 3. Chave do Gemini (aistudio.google.com → Get API key):  setx GEMINI_API_KEY "SUA_CHAVE"  → feche e abra o PowerShell.
+    (Nunca cole a chave em chat/print.)
+ 4. Pastas de trabalho: o padrão é E:\DETTO\ (reels, postar, edicao, canal_*). PC sem disco E:? Crie E: ou mude
+    no painel (Configurações) / config.json de cada pasta.
+ 5. Copie do PC antigo (se quiser manter tudo):  E:\DETTO\reels\inicios\  (seus começos),  E:\DETTO\reels\config.json,
+    E:\DETTO\reels\historico.json (o que já foi usado),  E:\DETTO\postar\config.json  e  E:\DETTO\postar\tokens\
+    (logins; ou refaça os logins no painel),  E:\DETTO\youtube\client_secret.json  e o token.json de cada canal,
+    tools\cor\referencia.cube (cor exata; já vem no git se estiver lá).
+ 6. Ligar:  python tools\painel\painel.py --instalar   → atalho "Painel DETTO" + liga sozinho com o Windows.
+    Energia do Windows: Suspender = Nunca (desligado/dormindo não posta).
+ 7. Teste: aba Reels → cole 1 link → veja o pronto em E:\DETTO\reels\prontos\<data>\ antes de ligar a postagem.
+
+=====================================================================
+ OUTRA CONTA (Instagram / TikTok / YouTube)
+=====================================================================
+ INSTAGRAM (outra conta profissional): no app da Meta (developers.facebook.com) adicione a conta como testadora
+   (Funções do app → Testadores do Instagram; aceite no app do Instagram) → painel → Configurações → Nova conta
+   (Instagram + @usuario) → Conectar (ou colar o token IGAA...). Cada conta tem a sua fila: E:\DETTO\postar\entrada\
+   instagram_<conta>\. Facebook junto: login pelo Facebook com pages_manage_posts (tools\postar\LEIA-ME.txt, 1b).
+   Reels automáticos postando na conta nova: E:\DETTO\reels\config.json → "postar": ["instagram:<conta>", ...].
+ TIKTOK: painel → Configurações → Nova conta (TikTok + @usuario) → os vídeos vão para E:\DETTO\postar\tiktok_studio\<conta>\ e você
+   agenda no TikTok Studio logado nela.
+ YOUTUBE: aba Canais → "Conectar" no card e escolha o canal certo na tela do Google.
+ Outro DONO (outra pessoa usando o sistema): ela precisa do próprio app da Meta (chave + ID), da própria chave do
+   Gemini, dos próprios começos (pasta Começo do Drive dela) e de trocar "@detto.galo"/exemplos no config.json dos reels.
+
+=====================================================================
+ COR EXATA (uma vez)
+=====================================================================
+ python tools\cor_lut.py "<vídeo original do iPhone>" "<o mesmo vídeo exportado do CapCut — ou o reel postado que
+ você editou no CapCut com ele>"  → grava tools\cor\referencia.cube; dali em diante toda gravação HDR sai com essa cor.
+
+=====================================================================
+ ATUALIZAR (sempre que o Claude mudar algo)
+=====================================================================
+   cd C:\Users\<você>\Teste1
+   git pull
+   cd detto-premiere-bridge
+   python tools\painel\painel.py --instalar

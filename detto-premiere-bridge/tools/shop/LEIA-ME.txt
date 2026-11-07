@@ -1,0 +1,61 @@
+VÍDEOS DE TIKTOK SHOP AUTOMÁTICOS
+=================================
+
+O que faz: pega um produto e devolve um reels 9:16 pronto para postar, com gancho, texto na tela, legenda,
+etiqueta de preço, vantagens e a chamada para a vitrine. Cada vídeo pronto já entra na fila de postagem do painel.
+
+Onde fica tudo:  E:\DETTO\shop\
+  produtos.txt         você cola os links aqui (um por linha)
+  produtos\<nome>\     o que chegou na sua casa: as fotos/vídeos + produto.json
+  achados\             o que ele encontrou sozinho nas categorias
+  prontos\<data>\      os vídeos prontos (+ .txt com legenda e tags)
+  produtos_falhos.txt  o que NÃO virou vídeo, com o motivo (o painel mostra)
+  config.json          modo, duração, categorias, CTA, para onde postar
+
+AS TRÊS ORIGENS DE PRODUTO (as três ligadas ao mesmo tempo)
+-----------------------------------------------------------
+1) LINKS COLADOS — painel aba "TikTok Shop" → "Colar links de produto", ou direto no produtos.txt.
+   Vale o link do produto E o link de um vídeo do produto (desse ele baixa o vídeo junto).
+
+2) O QUE CHEGOU EM CASA — crie E:\DETTO\shop\produtos\<nome do produto>\ e jogue lá dentro as fotos e os
+   vídeos que você gravou. Ao lado, um produto.json:
+
+       {"nome": "Organizador giratório de armário",
+        "preco": "39,90",
+        "preco_de": "79,90",
+        "link": "https://...",
+        "sobre": "gira 360 graus e cabe 18 potes",
+        "selo": "ESGOTANDO",
+        "modo": "eu"}
+
+   Só o "nome" é obrigatório. Se um dos vídeos tiver "eu", "review" ou "unbox" no nome do arquivo, ele é tratado
+   como a SUA gravação (modo "eu").
+
+3) ELE PROCURA — painel: "Achar o que está vendendo" com a categoria (cozinha, beleza...). Ele busca os vídeos
+   de Shop que mais bombaram, a IA diz qual é o produto e faz o vídeo no modo "vendedor".
+
+OS TRÊS MODOS DE VÍDEO (--modo, ou "modo" no produto.json / no config)
+----------------------------------------------------------------------
+  ia        sem você na tela: fotos/vídeos do produto com zoom lento + VOZ clonada + texto + legenda
+  eu        a SUA gravação manda, e as fotos do produto entram por cima nos momentos certos
+  vendedor  reaproveita o vídeo que o vendedor já tem: corta, amplia para 9:16, texto e voz novos
+
+PELA LINHA DE COMANDO
+---------------------
+  python tools\shop\shop.py                      faz a fila (links + pastas; sem nada, procura numa categoria)
+  python tools\shop\shop.py --so-links           só os links do produtos.txt (é o que o painel usa)
+  python tools\shop\shop.py --link "<link>"      um produto só
+  python tools\shop\shop.py --produto "E:\DETTO\shop\produtos\organizador"
+  python tools\shop\shop.py --achar cozinha --quantos 2
+  --modo ia|eu|vendedor   --nao-postar   --cookies firefox   --quantos N
+
+PRECISA DE
+----------
+  - GEMINI_API_KEY (o roteiro; sem ela cai nas IAs grátis e no Claude da assinatura, como o resto do projeto)
+  - VoiceStudio aberto no PC (ou FISH_API_KEY) para a voz dos modos "ia" e "vendedor"
+  - node + playwright (as cartelas de texto) e o FFmpeg — os mesmos do resto
+
+O QUE ELE NUNCA FAZ
+-------------------
+Inventar característica, medida, garantia ou preço que não esteja no material do produto. Sem o dado, a IA é
+instruída a não falar dele — vídeo de afiliado com informação errada derruba a conta e a confiança.

@@ -1,0 +1,5376 @@
+{
+"CAM": [
+{
+"id": 147464,
+"name": "Dudu",
+"short": "Dudu",
+"pos": "F",
+"foto": "147464.webp"
+},
+{
+"id": 1122552,
+"name": "Alan Minda",
+"short": "A. Minda",
+"pos": "F",
+"foto": "1122552.webp"
+},
+{
+"id": 832708,
+"name": "Mateo Cassierra",
+"short": "M. Cassierra",
+"pos": "F",
+"foto": "832708.webp"
+},
+{
+"id": 1018547,
+"name": "Thiago Borbas",
+"short": "T. Borbas",
+"pos": "F",
+"foto": "1018547.webp"
+},
+{
+"id": 1829036,
+"name": "Cauã Campos Soares",
+"short": "C. C. Soares",
+"pos": "F",
+"foto": "1829036.webp"
+},
+{
+"id": 978562,
+"name": "Reinier",
+"short": "Reinier",
+"pos": "M",
+"foto": "978562.webp"
+},
+{
+"id": 243623,
+"name": "Fred",
+"short": "Fred",
+"pos": "M",
+"foto": "243623.webp"
+},
+{
+"id": 559036,
+"name": "Gustavo Scarpa",
+"short": "G. Scarpa",
+"pos": "M",
+"foto": "559036.webp"
+},
+{
+"id": 1170954,
+"name": "Victor Hugo",
+"short": "V. Hugo",
+"pos": "M",
+"foto": "1170954.webp"
+},
+{
+"id": 1066915,
+"name": "Kevin Castaño",
+"short": "K. Castaño",
+"pos": "M",
+"foto": "1066915.webp"
+},
+{
+"id": 822729,
+"name": "Alan Franco",
+"short": "A. Franco",
+"pos": "M",
+"foto": "822729.webp"
+},
+{
+"id": 831778,
+"name": "Maycon",
+"short": "Maycon",
+"pos": "M",
+"foto": "831778.webp"
+},
+{
+"id": 241488,
+"name": "Bernard",
+"short": "Bernard",
+"pos": "M",
+"foto": "241488.webp"
+},
+{
+"id": 871273,
+"name": "Tomás Cuello",
+"short": "T. Cuello",
+"pos": "M",
+"foto": "871273.webp"
+},
+{
+"id": 1185617,
+"name": "Alexsander",
+"short": "Alexsander",
+"pos": "M",
+"foto": "1185617.webp"
+},
+{
+"id": 1485090,
+"name": "Tomás Pérez",
+"short": "T. Pérez",
+"pos": "M",
+"foto": "1485090.webp"
+},
+{
+"id": 2155474,
+"name": "Mamady Cissé",
+"short": "M. Cissé",
+"pos": "M",
+"foto": "2155474.webp"
+},
+{
+"id": 913598,
+"name": "Igor Gomes",
+"short": "I. Gomes",
+"pos": "M",
+"foto": "913598.webp"
+},
+{
+"id": 1829023,
+"name": "Índio",
+"short": "Índio",
+"pos": "M",
+"foto": "1829023.webp"
+},
+{
+"id": 1645891,
+"name": "Igor Toledo",
+"short": "I. Toledo",
+"pos": "M",
+"foto": "1645891.webp"
+},
+{
+"id": 2671648,
+"name": "Gutte",
+"short": "Gutte",
+"pos": "M",
+"foto": "2671648.webp"
+},
+{
+"id": 2035319,
+"name": "Eric de Jesus Soares",
+"short": "E. Soares",
+"pos": "M",
+"foto": ""
+},
+{
+"id": 1829037,
+"name": "Gutte",
+"short": "Gutte",
+"pos": "M",
+"foto": ""
+},
+{
+"id": 851150,
+"name": "Renan Lodi",
+"short": "R. Lodi",
+"pos": "D",
+"foto": "851150.webp"
+},
+{
+"id": 881844,
+"name": "Ángelo Preciado",
+"short": "Á. Preciado",
+"pos": "D",
+"foto": "881844.webp"
+},
+{
+"id": 797893,
+"name": "Lyanco",
+"short": "Lyanco",
+"pos": "D",
+"foto": "797893.webp"
+},
+{
+"id": 914487,
+"name": "Ruan",
+"short": "Ruan",
+"pos": "D",
+"foto": "914487.webp"
+},
+{
+"id": 1046805,
+"name": "Natanael",
+"short": "Natanael",
+"pos": "D",
+"foto": "1046805.webp"
+},
+{
+"id": 794838,
+"name": "Vitor Hugo",
+"short": "V. Hugo",
+"pos": "D",
+"foto": "794838.webp"
+},
+{
+"id": 2569547,
+"name": "Vitão",
+"short": "V. F. C. Teixeira",
+"pos": "D",
+"foto": "2569547.webp"
+},
+{
+"id": 839982,
+"name": "Léo Duarte",
+"short": "L. Duarte",
+"pos": "D",
+"foto": "839982.webp"
+},
+{
+"id": 1829022,
+"name": "Kauã Pascini",
+"short": "K. P. Resende",
+"pos": "D",
+"foto": "1829022.webp"
+},
+{
+"id": 1633611,
+"name": "Samuel Lima Barros",
+"short": "Samuel",
+"pos": "D",
+"foto": "1633611.webp"
+},
+{
+"id": 2443880,
+"name": "Luis Gustavo",
+"short": "L. Gustavo",
+"pos": "D",
+"foto": "2443880.webp"
+},
+{
+"id": 1860940,
+"name": "Lucas Souza Silva",
+"short": "L. S. Silva",
+"pos": "D",
+"foto": "1860940.webp"
+},
+{
+"id": 2726134,
+"name": "Pedro Henrique Lemos Barbosa",
+"short": "P. H. L. Barbosa",
+"pos": "D",
+"foto": "2726134.webp"
+},
+{
+"id": 2804553,
+"name": "Samuel",
+"short": "Samuel",
+"pos": "D",
+"foto": ""
+},
+{
+"id": 870748,
+"name": "Everson",
+"short": "Everson",
+"pos": "G",
+"foto": "870748.webp"
+},
+{
+"id": 1117032,
+"name": "Gabriel Delfim",
+"short": "G. Delfim",
+"pos": "G",
+"foto": "1117032.webp"
+},
+{
+"id": 1633621,
+"name": "Robert Alves",
+"short": "R. Alves",
+"pos": "G",
+"foto": "1633621.webp"
+},
+{
+"id": 1903241,
+"name": "Pedro Cobra Rodrigues",
+"short": "P. C. Rodrigues",
+"pos": "G",
+"foto": "1903241.webp"
+},
+{
+"id": 2826441,
+"name": "Guilherme Pires",
+"short": "G. Pires",
+"pos": "G",
+"foto": ""
+}
+],
+"CAP": [
+{
+"id": 925124,
+"name": "Kevin Viveros",
+"short": "K. Viveros",
+"pos": "F",
+"foto": "925124.webp"
+},
+{
+"id": 1546647,
+"name": "Leozinho",
+"short": "Leozinho",
+"pos": "F",
+"foto": "1546647.webp"
+},
+{
+"id": 1628441,
+"name": "Jorge Rivaldo",
+"short": "J. Rivaldo",
+"pos": "F",
+"foto": "1628441.webp"
+},
+{
+"id": 1459787,
+"name": "Renan Viana",
+"short": "R. Viana",
+"pos": "F",
+"foto": "1459787.webp"
+},
+{
+"id": 2436885,
+"name": "Renan Peixoto Nepomuceno",
+"short": "R. P. Nepomuceno",
+"pos": "F",
+"foto": "2436885.webp"
+},
+{
+"id": 2009425,
+"name": "Nicolas Azambuja",
+"short": "N. Azambuja",
+"pos": "F",
+"foto": "2009425.webp"
+},
+{
+"id": 1546666,
+"name": "Daniel Troiano",
+"short": "D. Troiano",
+"pos": "F",
+"foto": "1546666.webp"
+},
+{
+"id": 1804705,
+"name": "Kauê Sestrem",
+"short": "K. V. S. d. Costa",
+"pos": "F",
+"foto": "1804705.webp"
+},
+{
+"id": 2731159,
+"name": "Bryan Sant Ana",
+"short": "B. S. Ana",
+"pos": "F",
+"foto": ""
+},
+{
+"id": 29735,
+"name": "Luiz Gustavo",
+"short": "L. Gustavo",
+"pos": "M",
+"foto": "29735.webp"
+},
+{
+"id": 980580,
+"name": "Juan Portilla",
+"short": "J. Portilla",
+"pos": "M",
+"foto": "980580.webp"
+},
+{
+"id": 1092354,
+"name": "Bruno Zapelli",
+"short": "Bruno Zapelli",
+"pos": "M",
+"foto": "1092354.webp"
+},
+{
+"id": 354510,
+"name": "Steven Mendoza",
+"short": "S. Mendoza",
+"pos": "M",
+"foto": "354510.webp"
+},
+{
+"id": 1485226,
+"name": "João Cruz",
+"short": "J. Cruz",
+"pos": "M",
+"foto": "1485226.webp"
+},
+{
+"id": 1482354,
+"name": "Dudu",
+"short": "Dudu",
+"pos": "M",
+"foto": "1482354.webp"
+},
+{
+"id": 1131136,
+"name": "Kerwin Vargas",
+"short": "K. C. Vargas",
+"pos": "M",
+"foto": "1131136.webp"
+},
+{
+"id": 243651,
+"name": "Jádson",
+"short": "Jádson",
+"pos": "M",
+"foto": "243651.webp"
+},
+{
+"id": 1464519,
+"name": "Isaac",
+"short": "Isaac",
+"pos": "M",
+"foto": "1464519.webp"
+},
+{
+"id": 1459788,
+"name": "Chiqueti",
+"short": "F. Chiqueti",
+"pos": "M",
+"foto": "1459788.webp"
+},
+{
+"id": 1107060,
+"name": "Felipinho",
+"short": "Felipinho",
+"pos": "M",
+"foto": "1107060.webp"
+},
+{
+"id": 912291,
+"name": "Alejandro García",
+"short": "A. García",
+"pos": "M",
+"foto": "912291.webp"
+},
+{
+"id": 1635772,
+"name": "Diogo Riquelme",
+"short": "D. Riquelme",
+"pos": "M",
+"foto": "1635772.webp"
+},
+{
+"id": 2025640,
+"name": "Kauan Augusto Stabelini",
+"short": "K. A. Stabelini",
+"pos": "M",
+"foto": "2025640.webp"
+},
+{
+"id": 2631968,
+"name": "Caio Mozart Martins Varanda",
+"short": "C. M. M. Varanda",
+"pos": "M",
+"foto": ""
+},
+{
+"id": 2752039,
+"name": "Pedro Wisniewski Carraro",
+"short": "P. W. Carraro",
+"pos": "M",
+"foto": ""
+},
+{
+"id": 2063956,
+"name": "Arthur Dias",
+"short": "A. Dias",
+"pos": "D",
+"foto": "2063956.webp"
+},
+{
+"id": 1087079,
+"name": "Lucas Esquivel",
+"short": "L. Esquivel",
+"pos": "D",
+"foto": "1087079.webp"
+},
+{
+"id": 1941312,
+"name": "Gilberto Junior",
+"short": "G. Junior",
+"pos": "D",
+"foto": "1941312.webp"
+},
+{
+"id": 261687,
+"name": "Gilberto",
+"short": "Gilberto",
+"pos": "D",
+"foto": "261687.webp"
+},
+{
+"id": 360940,
+"name": "Léo",
+"short": "Léo",
+"pos": "D",
+"foto": "360940.webp"
+},
+{
+"id": 974512,
+"name": "Carlos Terán",
+"short": "C. Terán",
+"pos": "D",
+"foto": "974512.webp"
+},
+{
+"id": 925173,
+"name": "Juan Felipe Aguirre",
+"short": "J. F. Aguirre",
+"pos": "D",
+"foto": "925173.webp"
+},
+{
+"id": 1476558,
+"name": "Dantas",
+"short": "Dantas",
+"pos": "D",
+"foto": "1476558.webp"
+},
+{
+"id": 981452,
+"name": "Gastón Benavídez",
+"short": "G. Benavídez",
+"pos": "D",
+"foto": "981452.webp"
+},
+{
+"id": 1199277,
+"name": "Leonardo Derik",
+"short": "Leonardo Derik",
+"pos": "D",
+"foto": "1199277.webp"
+},
+{
+"id": 1633871,
+"name": "Claudinho",
+"short": "Claudinho",
+"pos": "D",
+"foto": "1633871.webp"
+},
+{
+"id": 1631220,
+"name": "Fábio Lucas Ferreira Dos Santos",
+"short": "F. Ferreira",
+"pos": "D",
+"foto": "1631220.webp"
+},
+{
+"id": 2752037,
+"name": "Enzo Bernardo Freitas de Souza",
+"short": "E. B. F. d. Souza",
+"pos": "D",
+"foto": ""
+},
+{
+"id": 166491,
+"name": "Santos",
+"short": "Santos",
+"pos": "G",
+"foto": "166491.webp"
+},
+{
+"id": 1128850,
+"name": "Mycael",
+"short": "Mycael",
+"pos": "G",
+"foto": "1128850.webp"
+},
+{
+"id": 1485244,
+"name": "Matheus Soares",
+"short": "M. Soares",
+"pos": "G",
+"foto": "1485244.webp"
+},
+{
+"id": 2170349,
+"name": "João Pedro de Borba Rodrigues",
+"short": "J. P. d. B. Rodrigues",
+"pos": "G",
+"foto": ""
+}
+],
+"BAH": [
+{
+"id": 1104070,
+"name": "Erick Pulga",
+"short": "E. Pulga",
+"pos": "F",
+"foto": "1104070.webp"
+},
+{
+"id": 1116987,
+"name": "Alejo Véliz",
+"short": "A. Véliz",
+"pos": "F",
+"foto": "1116987.webp"
+},
+{
+"id": 2050427,
+"name": "Dell",
+"short": "Dell",
+"pos": "F",
+"foto": "2050427.webp"
+},
+{
+"id": 123223,
+"name": "Willian José",
+"short": "W. José",
+"pos": "F",
+"foto": "123223.webp"
+},
+{
+"id": 386212,
+"name": "Everaldo",
+"short": "Everaldo",
+"pos": "F",
+"foto": "386212.webp"
+},
+{
+"id": 1068987,
+"name": "Cristian Olivera",
+"short": "C. Olivera",
+"pos": "F",
+"foto": "1068987.webp"
+},
+{
+"id": 922546,
+"name": "Ademir",
+"short": "Ademir",
+"pos": "F",
+"foto": "922546.webp"
+},
+{
+"id": 1182233,
+"name": "Mateo Sanabria",
+"short": "M. Sanabria",
+"pos": "F",
+"foto": "1182233.webp"
+},
+{
+"id": 145063,
+"name": "Everton Ribeiro",
+"short": "E. Ribeiro",
+"pos": "M",
+"foto": "145063.webp"
+},
+{
+"id": 927975,
+"name": "Jean Lucas",
+"short": "J. Lucas",
+"pos": "M",
+"foto": "927975.webp"
+},
+{
+"id": 905461,
+"name": "Rodrigo Nestor",
+"short": "R. Nestor",
+"pos": "M",
+"foto": "905461.webp"
+},
+{
+"id": 1633616,
+"name": "Ruan Pablo",
+"short": "R. Pablo",
+"pos": "M",
+"foto": "1633616.webp"
+},
+{
+"id": 1008832,
+"name": "Caio Alexandre",
+"short": "C. Alexandre",
+"pos": "M",
+"foto": "1008832.webp"
+},
+{
+"id": 924857,
+"name": "Michel Araújo",
+"short": "M. Araújo",
+"pos": "M",
+"foto": "924857.webp"
+},
+{
+"id": 959620,
+"name": "Nicolás Acevedo",
+"short": "N. Acevedo",
+"pos": "M",
+"foto": "959620.webp"
+},
+{
+"id": 874063,
+"name": "Erick",
+"short": "Erick",
+"pos": "M",
+"foto": "874063.webp"
+},
+{
+"id": 1640604,
+"name": "Roger Gabriel",
+"short": "Roger",
+"pos": "M",
+"foto": "1640604.webp"
+},
+{
+"id": 1402669,
+"name": "Lautaro López",
+"short": "L. López",
+"pos": "M",
+"foto": "1402669.webp"
+},
+{
+"id": 1017264,
+"name": "Luciano Juba",
+"short": "L. Juba",
+"pos": "D",
+"foto": "1017264.webp"
+},
+{
+"id": 810715,
+"name": "David Duarte",
+"short": "D. Duarte",
+"pos": "D",
+"foto": "810715.webp"
+},
+{
+"id": 1634148,
+"name": "Luiz Gustavo",
+"short": "L. Gustavo",
+"pos": "D",
+"foto": "1634148.webp"
+},
+{
+"id": 871705,
+"name": "Kanu",
+"short": "Kanu",
+"pos": "D",
+"foto": "871705.webp"
+},
+{
+"id": 1807816,
+"name": "Román Gómez",
+"short": "R. Gómez",
+"pos": "D",
+"foto": "1807816.webp"
+},
+{
+"id": 1174196,
+"name": "Marcos Victor",
+"short": "M. Victor",
+"pos": "D",
+"foto": "1174196.webp"
+},
+{
+"id": 1476894,
+"name": "José Guilherme",
+"short": "J. Guilherme",
+"pos": "D",
+"foto": "1476894.webp"
+},
+{
+"id": 2031382,
+"name": "Fredi Gomes",
+"short": "F. Gomes",
+"pos": "D",
+"foto": "2031382.webp"
+},
+{
+"id": 997094,
+"name": "Marco Moreno",
+"short": "M. Moreno",
+"pos": "D",
+"foto": "997094.webp"
+},
+{
+"id": 840106,
+"name": "Ronaldo",
+"short": "Ronaldo",
+"pos": "G",
+"foto": "840106.webp"
+},
+{
+"id": 166279,
+"name": "Léo Vieira",
+"short": "L. Vieira",
+"pos": "G",
+"foto": "166279.webp"
+},
+{
+"id": 248977,
+"name": "Guido Herrera",
+"short": "G. Herrera",
+"pos": "G",
+"foto": "248977.webp"
+},
+{
+"id": 1640599,
+"name": "Victor",
+"short": "Victor",
+"pos": "G",
+"foto": ""
+}
+],
+"BOT": [
+{
+"id": 870762,
+"name": "Arthur Cabral",
+"short": "A. Cabral",
+"pos": "F",
+"foto": "870762.webp"
+},
+{
+"id": 789100,
+"name": "Tiquinho Soares",
+"short": "T. Soares",
+"pos": "F",
+"foto": "789100.webp"
+},
+{
+"id": 2282985,
+"name": "Kadir Barría",
+"short": "K. Barría",
+"pos": "F",
+"foto": "2282985.webp"
+},
+{
+"id": 922559,
+"name": "Júnior Santos",
+"short": "J. Santos",
+"pos": "F",
+"foto": "922559.webp"
+},
+{
+"id": 1106779,
+"name": "Matheus Martins",
+"short": "M. Martins",
+"pos": "F",
+"foto": "1106779.webp"
+},
+{
+"id": 940647,
+"name": "Danilo Pereira",
+"short": "D. Pereira",
+"pos": "F",
+"foto": "940647.webp"
+},
+{
+"id": 2083516,
+"name": "Lucas Emanuel",
+"short": "L. Emanuel",
+"pos": "F",
+"foto": "2083516.webp"
+},
+{
+"id": 2428433,
+"name": "Arthur Izaque",
+"short": "A. Izaque",
+"pos": "F",
+"foto": "2428433.webp"
+},
+{
+"id": 249437,
+"name": "Hakim Ziyech",
+"short": "H. Ziyech",
+"pos": "M",
+"foto": "249437.webp"
+},
+{
+"id": 1064039,
+"name": "Danilo Santos",
+"short": "D. Santos",
+"pos": "M",
+"foto": "1064039.webp"
+},
+{
+"id": 158277,
+"name": "Allan",
+"short": "Allan",
+"pos": "M",
+"foto": "158277.webp"
+},
+{
+"id": 1650770,
+"name": "Álvaro Montoro",
+"short": "Á. Montoro",
+"pos": "M",
+"foto": "1650770.webp"
+},
+{
+"id": 1003010,
+"name": "Cristian Medina",
+"short": "C. Medina",
+"pos": "M",
+"foto": "1003010.webp"
+},
+{
+"id": 1899902,
+"name": "Jordan Barrera",
+"short": "J. Barrera",
+"pos": "M",
+"foto": "1899902.webp"
+},
+{
+"id": 221636,
+"name": "Edenilson",
+"short": "Edenilson",
+"pos": "M",
+"foto": "221636.webp"
+},
+{
+"id": 1109864,
+"name": "Lucas Villalba",
+"short": "L. Villalba",
+"pos": "M",
+"foto": "1109864.webp"
+},
+{
+"id": 2030103,
+"name": "Huguinho",
+"short": "Huguinho",
+"pos": "M",
+"foto": "2030103.webp"
+},
+{
+"id": 1002147,
+"name": "Domingos Andrade",
+"short": "D. Andrade",
+"pos": "M",
+"foto": "1002147.webp"
+},
+{
+"id": 1884816,
+"name": "Wallace Davi",
+"short": "W. Davi",
+"pos": "M",
+"foto": "1884816.webp"
+},
+{
+"id": 1587971,
+"name": "Kauan Toledo",
+"short": "K. Toledo",
+"pos": "M",
+"foto": "1587971.webp"
+},
+{
+"id": 2028289,
+"name": "Caio Valle",
+"short": "C. Valle",
+"pos": "M",
+"foto": "2028289.webp"
+},
+{
+"id": 1440798,
+"name": "Bernardo Valim",
+"short": "B. Valim",
+"pos": "M",
+"foto": "1440798.webp"
+},
+{
+"id": 2081972,
+"name": "Victor Hugo",
+"short": "V. Hugo",
+"pos": "M",
+"foto": "2081972.webp"
+},
+{
+"id": 312110,
+"name": "Alex Telles",
+"short": "A. Telles",
+"pos": "D",
+"foto": "312110.webp"
+},
+{
+"id": 914477,
+"name": "Vitinho",
+"short": "Vitinho",
+"pos": "D",
+"foto": "914477.webp"
+},
+{
+"id": 881215,
+"name": "Nahuel Ferraresi",
+"short": "N. Ferraresi",
+"pos": "D",
+"foto": "881215.webp"
+},
+{
+"id": 1099163,
+"name": "Mateo Ponte",
+"short": "M. Ponte",
+"pos": "D",
+"foto": "1099163.webp"
+},
+{
+"id": 143593,
+"name": "Marçal",
+"short": "Marçal",
+"pos": "D",
+"foto": "143593.webp"
+},
+{
+"id": 990193,
+"name": "Kaio Pantaleão",
+"short": "K. Pantaleão",
+"pos": "D",
+"foto": "990193.webp"
+},
+{
+"id": 1122806,
+"name": "Arthur Chaves",
+"short": "A. Chaves",
+"pos": "D",
+"foto": "1122806.webp"
+},
+{
+"id": 1482359,
+"name": "Jhoan Hernandez",
+"short": "J. Hernández",
+"pos": "D",
+"foto": "1482359.webp"
+},
+{
+"id": 1631268,
+"name": "Gabriel Justino",
+"short": "G. Justino",
+"pos": "D",
+"foto": "1631268.webp"
+},
+{
+"id": 1843325,
+"name": "Kadu Santos",
+"short": "K. Santos",
+"pos": "D",
+"foto": "1843325.webp"
+},
+{
+"id": 944458,
+"name": "Paulinho",
+"short": "Paulinho",
+"pos": "D",
+"foto": "944458.webp"
+},
+{
+"id": 1069328,
+"name": "Caio Roque",
+"short": "C. Roque",
+"pos": "D",
+"foto": "1069328.webp"
+},
+{
+"id": 1048247,
+"name": "Lucas Monzón",
+"short": "L. Monzón",
+"pos": "D",
+"foto": "1048247.webp"
+},
+{
+"id": 1512551,
+"name": "Ythallo",
+"short": "Ythallo",
+"pos": "D",
+"foto": "1512551.webp"
+},
+{
+"id": 1809800,
+"name": "Anthony",
+"short": "Anthony",
+"pos": "D",
+"foto": "1809800.webp"
+},
+{
+"id": 1631700,
+"name": "Kauã Branco",
+"short": "K. Branco",
+"pos": "D",
+"foto": "1631700.webp"
+},
+{
+"id": 1191406,
+"name": "Kawan Thomaz",
+"short": "Kawan",
+"pos": "D",
+"foto": "1191406.webp"
+},
+{
+"id": 2084595,
+"name": "Gabriel Abdias",
+"short": "G. Abdias",
+"pos": "D",
+"foto": "2084595.webp"
+},
+{
+"id": 2081002,
+"name": "Herick",
+"short": "Herick",
+"pos": "D",
+"foto": ""
+},
+{
+"id": 861071,
+"name": "Warleson",
+"short": "Warleson",
+"pos": "G",
+"foto": "861071.webp"
+},
+{
+"id": 1470452,
+"name": "Cristhian Loor",
+"short": "C. Loor",
+"pos": "G",
+"foto": "1470452.webp"
+},
+{
+"id": 822526,
+"name": "Gabriel Batista",
+"short": "G. Batista",
+"pos": "G",
+"foto": "822526.webp"
+},
+{
+"id": 1819829,
+"name": "Rhyan Carvalho",
+"short": "Rhyan",
+"pos": "G",
+"foto": "1819829.webp"
+},
+{
+"id": 1831094,
+"name": "Cléber Lucas",
+"short": "C. Lucas",
+"pos": "G",
+"foto": "1831094.webp"
+}
+],
+"RBB": [
+{
+"id": 1466084,
+"name": "Wallace Yan",
+"short": "Wallace",
+"pos": "F",
+"foto": "1466084.webp"
+},
+{
+"id": 979861,
+"name": "Isidro Pitta",
+"short": "I. Pitta",
+"pos": "F",
+"foto": "979861.webp"
+},
+{
+"id": 143846,
+"name": "Eduardo Sasha",
+"short": "E. Sasha",
+"pos": "F",
+"foto": "143846.webp"
+},
+{
+"id": 911195,
+"name": "Fernando",
+"short": "Fernando",
+"pos": "F",
+"foto": "911195.webp"
+},
+{
+"id": 1587965,
+"name": "Vinicinho",
+"short": "Vinicinho",
+"pos": "F",
+"foto": "1587965.webp"
+},
+{
+"id": 1868441,
+"name": "Bruno Goncalves",
+"short": "B. Goncalves",
+"pos": "F",
+"foto": "1868441.webp"
+},
+{
+"id": 882854,
+"name": "Gabriel Novaes",
+"short": "G. Novaes",
+"pos": "F",
+"foto": "882854.webp"
+},
+{
+"id": 1828980,
+"name": "Jhuan Nunes Coelho",
+"short": "J. N. Coelho",
+"pos": "F",
+"foto": "1828980.webp"
+},
+{
+"id": 1046800,
+"name": "Kawê",
+"short": "Kawê",
+"pos": "F",
+"foto": "1046800.webp"
+},
+{
+"id": 1200730,
+"name": "Rodriguinho",
+"short": "Rodriguinho",
+"pos": "M",
+"foto": "1200730.webp"
+},
+{
+"id": 1117513,
+"name": "Fabinho",
+"short": "Fabinho",
+"pos": "M",
+"foto": "1117513.webp"
+},
+{
+"id": 1067641,
+"name": "Lucas Barbosa",
+"short": "L. Barbosa",
+"pos": "M",
+"foto": "1067641.webp"
+},
+{
+"id": 1170680,
+"name": "Henry Mosquera",
+"short": "H. Mosquera",
+"pos": "M",
+"foto": "1170680.webp"
+},
+{
+"id": 1485290,
+"name": "Patrick",
+"short": "Patrick",
+"pos": "M",
+"foto": "1485290.webp"
+},
+{
+"id": 840150,
+"name": "Matheus Fernandes",
+"short": "M. Fernandes",
+"pos": "M",
+"foto": "840150.webp"
+},
+{
+"id": 242052,
+"name": "Gabriel Girotto",
+"short": "G. Girotto",
+"pos": "M",
+"foto": "242052.webp"
+},
+{
+"id": 1179171,
+"name": "José Herrera",
+"short": "J. Herrera",
+"pos": "M",
+"foto": "1179171.webp"
+},
+{
+"id": 1112896,
+"name": "Ignacio Sosa",
+"short": "I. Sosa",
+"pos": "M",
+"foto": "1112896.webp"
+},
+{
+"id": 1018093,
+"name": "Bruno Praxedes",
+"short": "B. Praxedes",
+"pos": "M",
+"foto": "1018093.webp"
+},
+{
+"id": 950545,
+"name": "Eric Ramires",
+"short": "E. Ramires",
+"pos": "M",
+"foto": "950545.webp"
+},
+{
+"id": 1463904,
+"name": "Gustavo Neves",
+"short": "G. Neves",
+"pos": "M",
+"foto": "1463904.webp"
+},
+{
+"id": 2032806,
+"name": "Davi Gomes",
+"short": "D. Gomes",
+"pos": "M",
+"foto": "2032806.webp"
+},
+{
+"id": 1631403,
+"name": "Yuri Alves de Aquino",
+"short": "Y. A. d. Aquino",
+"pos": "M",
+"foto": "1631403.webp"
+},
+{
+"id": 1485603,
+"name": "Marcelinho Braz",
+"short": "M. Braz",
+"pos": "M",
+"foto": "1485603.webp"
+},
+{
+"id": 1591285,
+"name": "Gabriel Lopes",
+"short": "G. Lopes",
+"pos": "M",
+"foto": "1591285.webp"
+},
+{
+"id": 2726136,
+"name": "Vini Krygsman",
+"short": "V. Krygsman",
+"pos": "M",
+"foto": "2726136.webp"
+},
+{
+"id": 1067640,
+"name": "Vanderlan",
+"short": "Vanderlan",
+"pos": "D",
+"foto": "1067640.webp"
+},
+{
+"id": 870556,
+"name": "Juninho Capixaba",
+"short": "J. Capixaba",
+"pos": "D",
+"foto": "870556.webp"
+},
+{
+"id": 997239,
+"name": "Guzmán Rodríguez",
+"short": "G. Rodríguez",
+"pos": "D",
+"foto": "997239.webp"
+},
+{
+"id": 987589,
+"name": "José Andrés Hurtado",
+"short": "J. A. Hurtado",
+"pos": "D",
+"foto": "987589.webp"
+},
+{
+"id": 1174764,
+"name": "Gustavo Marques",
+"short": "G. Marques",
+"pos": "D",
+"foto": "1174764.webp"
+},
+{
+"id": 1117597,
+"name": "Alix Vinicius",
+"short": "A. Vinicius",
+"pos": "D",
+"foto": "1117597.webp"
+},
+{
+"id": 869726,
+"name": "Agustin Sant Anna",
+"short": "A. Sant Anna",
+"pos": "D",
+"foto": "869726.webp"
+},
+{
+"id": 2075010,
+"name": "Weimar Vivas Palacios",
+"short": "W. E. V. Palacios",
+"pos": "D",
+"foto": "2075010.webp"
+},
+{
+"id": 925189,
+"name": "Eduardo Santos",
+"short": "E. Santos",
+"pos": "D",
+"foto": "925189.webp"
+},
+{
+"id": 2026380,
+"name": "Ryan Augusto",
+"short": "R. Augusto",
+"pos": "D",
+"foto": "2026380.webp"
+},
+{
+"id": 1632360,
+"name": "Cauê Nascimento",
+"short": "C. N. Santos",
+"pos": "D",
+"foto": "1632360.webp"
+},
+{
+"id": 2076825,
+"name": "Breno",
+"short": "Breno",
+"pos": "D",
+"foto": "2076825.webp"
+},
+{
+"id": 243509,
+"name": "Tiago Volpi",
+"short": "T. Volpi",
+"pos": "G",
+"foto": "243509.webp"
+},
+{
+"id": 844576,
+"name": "Cleiton",
+"short": "Cleiton",
+"pos": "G",
+"foto": "844576.webp"
+},
+{
+"id": 1881677,
+"name": "Gustavo Reis",
+"short": "G. Reis",
+"pos": "G",
+"foto": "1881677.webp"
+},
+{
+"id": 1047208,
+"name": "Fabrício",
+"short": "Fabrício",
+"pos": "G",
+"foto": "1047208.webp"
+}
+],
+"CHA": [
+{
+"id": 46620,
+"name": "Yannick Bolasie",
+"short": "Y. Bolasie",
+"pos": "F",
+"foto": "46620.webp"
+},
+{
+"id": 1050353,
+"name": "Maurício Garcez",
+"short": "Maurício Garcez",
+"pos": "F",
+"foto": "1050353.webp"
+},
+{
+"id": 82680,
+"name": "Giovanni Augusto",
+"short": "G. Augusto",
+"pos": "F",
+"foto": "82680.webp"
+},
+{
+"id": 870329,
+"name": "Marcinho",
+"short": "Marcinho",
+"pos": "F",
+"foto": "870329.webp"
+},
+{
+"id": 1609859,
+"name": "Tulio Eduardo",
+"short": "T. E. S. d. Oliveira",
+"pos": "F",
+"foto": "1609859.webp"
+},
+{
+"id": 1112889,
+"name": "Franco Rossi",
+"short": "F. Rossi",
+"pos": "F",
+"foto": "1112889.webp"
+},
+{
+"id": 2660881,
+"name": "Kassio da Silva de Jesus",
+"short": "Kássio",
+"pos": "F",
+"foto": "2660881.webp"
+},
+{
+"id": 2537253,
+"name": "Rodrigo Endrio",
+"short": "R. Endrio",
+"pos": "F",
+"foto": "2537253.webp"
+},
+{
+"id": 975319,
+"name": "Camilo",
+"short": "Camilo",
+"pos": "M",
+"foto": "975319.webp"
+},
+{
+"id": 980933,
+"name": "Dylan Borrero",
+"short": "D. Borrero",
+"pos": "M",
+"foto": "980933.webp"
+},
+{
+"id": 1650085,
+"name": "Robert Santos",
+"short": "R. Santos",
+"pos": "M",
+"foto": "1650085.webp"
+},
+{
+"id": 552164,
+"name": "Yago Felipe",
+"short": "Y. Felipe",
+"pos": "M",
+"foto": "552164.webp"
+},
+{
+"id": 1105838,
+"name": "Max",
+"short": "Max",
+"pos": "M",
+"foto": "1105838.webp"
+},
+{
+"id": 789931,
+"name": "Kevin Ramírez",
+"short": "K. Ramírez",
+"pos": "M",
+"foto": "789931.webp"
+},
+{
+"id": 1120738,
+"name": "Rafael Carvalheira",
+"short": "R. Carvalheira",
+"pos": "M",
+"foto": "1120738.webp"
+},
+{
+"id": 1065976,
+"name": "Vinicius Balieiro",
+"short": "V. Balieiro",
+"pos": "M",
+"foto": "1065976.webp"
+},
+{
+"id": 1184312,
+"name": "Miguel Carvalho",
+"short": "M. Carvalho",
+"pos": "M",
+"foto": "1184312.webp"
+},
+{
+"id": 1470928,
+"name": "Rubens Tadeu",
+"short": "R. Tadeu",
+"pos": "M",
+"foto": "1470928.webp"
+},
+{
+"id": 924131,
+"name": "Bruno Matias",
+"short": "B. Matias",
+"pos": "M",
+"foto": "924131.webp"
+},
+{
+"id": 1105232,
+"name": "Everton",
+"short": "Everton",
+"pos": "M",
+"foto": "1105232.webp"
+},
+{
+"id": 2083032,
+"name": "David Antunes",
+"short": "D. Antunes",
+"pos": "M",
+"foto": "2083032.webp"
+},
+{
+"id": 2083035,
+"name": "Juan Ferreira Leite",
+"short": "J. Ferreira",
+"pos": "M",
+"foto": "2083035.webp"
+},
+{
+"id": 1474329,
+"name": "Rosivan",
+"short": "Rosivan",
+"pos": "M",
+"foto": "1474329.webp"
+},
+{
+"id": 931588,
+"name": "Bruno Tubarão",
+"short": "B. Tubarão",
+"pos": "D",
+"foto": "931588.webp"
+},
+{
+"id": 870691,
+"name": "Bruno Pacheco",
+"short": "B. Pacheco",
+"pos": "D",
+"foto": "870691.webp"
+},
+{
+"id": 354894,
+"name": "Rafael Thyere",
+"short": "R. Thyere",
+"pos": "D",
+"foto": "354894.webp"
+},
+{
+"id": 1473223,
+"name": "Gustavo Talles",
+"short": "G. Talles",
+"pos": "D",
+"foto": "1473223.webp"
+},
+{
+"id": 1017746,
+"name": "Fernando",
+"short": "Fernando",
+"pos": "D",
+"foto": "1017746.webp"
+},
+{
+"id": 974503,
+"name": "Heitor",
+"short": "Heitor",
+"pos": "D",
+"foto": "974503.webp"
+},
+{
+"id": 859083,
+"name": "Dudu",
+"short": "Dudu",
+"pos": "D",
+"foto": "859083.webp"
+},
+{
+"id": 1122967,
+"name": "Eduardo Doma",
+"short": "E. Doma",
+"pos": "D",
+"foto": "1122967.webp"
+},
+{
+"id": 1019157,
+"name": "João Paulo",
+"short": "J. Paulo",
+"pos": "D",
+"foto": "1019157.webp"
+},
+{
+"id": 863292,
+"name": "Victor Caetano",
+"short": "V. Caetano",
+"pos": "D",
+"foto": "863292.webp"
+},
+{
+"id": 1108007,
+"name": "Mancha",
+"short": "Mancha",
+"pos": "D",
+"foto": "1108007.webp"
+},
+{
+"id": 1198003,
+"name": "Kauan",
+"short": "Kauan",
+"pos": "D",
+"foto": "1198003.webp"
+},
+{
+"id": 2083027,
+"name": "Vinícius Eduardo de Almeida",
+"short": "V. Eduardo",
+"pos": "D",
+"foto": "2083027.webp"
+},
+{
+"id": 2723955,
+"name": "Luciano",
+"short": "Luciano",
+"pos": "D",
+"foto": ""
+},
+{
+"id": 942061,
+"name": "Anderson",
+"short": "Anderson",
+"pos": "G",
+"foto": "942061.webp"
+},
+{
+"id": 108480,
+"name": "Rafael Santos",
+"short": "R. Santos",
+"pos": "G",
+"foto": "108480.webp"
+},
+{
+"id": 922592,
+"name": "Matheus",
+"short": "Matheus",
+"pos": "G",
+"foto": "922592.webp"
+}
+],
+"COR": [
+{
+"id": 138833,
+"name": "Memphis Depay",
+"short": "M. Depay",
+"pos": "F",
+"foto": "138833.webp"
+},
+{
+"id": 905463,
+"name": "Yuri Alberto",
+"short": "Y. Alberto",
+"pos": "F",
+"foto": "905463.webp"
+},
+{
+"id": 1396009,
+"name": "Kaio César",
+"short": "Kaio César",
+"pos": "F",
+"foto": "1396009.webp"
+},
+{
+"id": 1922597,
+"name": "Gui Negão",
+"short": "G. Negão",
+"pos": "F",
+"foto": "1922597.webp"
+},
+{
+"id": 866911,
+"name": "Pedro Raul",
+"short": "P. Raul",
+"pos": "F",
+"foto": "866911.webp"
+},
+{
+"id": 242054,
+"name": "Vitinho",
+"short": "Vitinho",
+"pos": "F",
+"foto": "242054.webp"
+},
+{
+"id": 1411152,
+"name": "Kayke Ferrari",
+"short": "Kayke",
+"pos": "F",
+"foto": "1411152.webp"
+},
+{
+"id": 2166174,
+"name": "Luiz Fernando",
+"short": "L. Fernando",
+"pos": "F",
+"foto": "2166174.webp"
+},
+{
+"id": 994454,
+"name": "Rodrigo Garro",
+"short": "R. Garro",
+"pos": "M",
+"foto": "994454.webp"
+},
+{
+"id": 205508,
+"name": "Jesse Lingard",
+"short": "J. Lingard",
+"pos": "M",
+"foto": "205508.webp"
+},
+{
+"id": 1199261,
+"name": "Breno Bidon",
+"short": "B. Bidon",
+"pos": "M",
+"foto": "1199261.webp"
+},
+{
+"id": 115182,
+"name": "André Carrillo",
+"short": "A. Carrillo",
+"pos": "M",
+"foto": "115182.webp"
+},
+{
+"id": 866392,
+"name": "Raniele",
+"short": "Raniele",
+"pos": "M",
+"foto": "866392.webp"
+},
+{
+"id": 828839,
+"name": "Allan",
+"short": "Allan",
+"pos": "M",
+"foto": "828839.webp"
+},
+{
+"id": 1647612,
+"name": "André Luiz",
+"short": "A. Luiz",
+"pos": "M",
+"foto": "1647612.webp"
+},
+{
+"id": 106142,
+"name": "Zakaria Labyad",
+"short": "Z. Labyad",
+"pos": "M",
+"foto": "106142.webp"
+},
+{
+"id": 795268,
+"name": "Matheus Pereira",
+"short": "M. Pereira",
+"pos": "M",
+"foto": "795268.webp"
+},
+{
+"id": 845178,
+"name": "Charles",
+"short": "Charles",
+"pos": "M",
+"foto": "845178.webp"
+},
+{
+"id": 1916131,
+"name": "Dieguinho",
+"short": "Dieguinho",
+"pos": "M",
+"foto": "1916131.webp"
+},
+{
+"id": 358166,
+"name": "Alex Santana",
+"short": "A. Santana",
+"pos": "M",
+"foto": "358166.webp"
+},
+{
+"id": 1482358,
+"name": "Luiz Gustavo Bahia",
+"short": "Bahia",
+"pos": "M",
+"foto": "1482358.webp"
+},
+{
+"id": 931540,
+"name": "Matheuzinho",
+"short": "Matheuzinho",
+"pos": "D",
+"foto": "931540.webp"
+},
+{
+"id": 981703,
+"name": "Matheus Bidu",
+"short": "M. Bidu",
+"pos": "D",
+"foto": "981703.webp"
+},
+{
+"id": 243181,
+"name": "Gustavo Henrique",
+"short": "G. Henrique",
+"pos": "D",
+"foto": "243181.webp"
+},
+{
+"id": 124737,
+"name": "Gabriel Paulista",
+"short": "G. Paulista",
+"pos": "D",
+"foto": "124737.webp"
+},
+{
+"id": 148155,
+"name": "André Ramalho",
+"short": "A. Ramalho",
+"pos": "D",
+"foto": "148155.webp"
+},
+{
+"id": 311462,
+"name": "Fabrizio Angileri",
+"short": "F. Angileri",
+"pos": "D",
+"foto": "311462.webp"
+},
+{
+"id": 1411150,
+"name": "João Pedro Tchoca",
+"short": "J. Pedro",
+"pos": "D",
+"foto": "1411150.webp"
+},
+{
+"id": 1017827,
+"name": "Hugo",
+"short": "Hugo",
+"pos": "D",
+"foto": "1017827.webp"
+},
+{
+"id": 985809,
+"name": "Pedro Milans",
+"short": "P. Milans",
+"pos": "D",
+"foto": "985809.webp"
+},
+{
+"id": 1170769,
+"name": "Léo Mana",
+"short": "L. Mana",
+"pos": "D",
+"foto": "1170769.webp"
+},
+{
+"id": 1411159,
+"name": "Renato Santos",
+"short": "R. Santos",
+"pos": "D",
+"foto": "1411159.webp"
+},
+{
+"id": 1883368,
+"name": "Yago Melo",
+"short": "Y. V. Veloso",
+"pos": "D",
+"foto": "1883368.webp"
+},
+{
+"id": 950454,
+"name": "Hugo Souza",
+"short": "H. Souza",
+"pos": "G",
+"foto": "950454.webp"
+},
+{
+"id": 1485272,
+"name": "Felipe Longo",
+"short": "F. Longo",
+"pos": "G",
+"foto": "1485272.webp"
+},
+{
+"id": 1382923,
+"name": "Kauê Camargo",
+"short": "Kauê",
+"pos": "G",
+"foto": "1382923.webp"
+}
+],
+"CFC": [
+{
+"id": 989091,
+"name": "Rodrigo Rodrigues",
+"short": "R. Rodrigues",
+"pos": "F",
+"foto": "989091.webp"
+},
+{
+"id": 787607,
+"name": "Keno",
+"short": "Keno",
+"pos": "F",
+"foto": "787607.webp"
+},
+{
+"id": 794930,
+"name": "Pedro Rocha",
+"short": "P. Rocha",
+"pos": "F",
+"foto": "794930.webp"
+},
+{
+"id": 1194689,
+"name": "Renato Marques",
+"short": "Renato Marques",
+"pos": "F",
+"foto": "1194689.webp"
+},
+{
+"id": 995294,
+"name": "Fabinho",
+"short": "Fabinho",
+"pos": "F",
+"foto": "995294.webp"
+},
+{
+"id": 1464655,
+"name": "Brandão",
+"short": "Brandão",
+"pos": "F",
+"foto": "1464655.webp"
+},
+{
+"id": 2429936,
+"name": "Paulo Roberto",
+"short": "P. Roberto",
+"pos": "F",
+"foto": "2429936.webp"
+},
+{
+"id": 1588326,
+"name": "Eberth Araujo Nogueira",
+"short": "E. A. Nogueira",
+"pos": "F",
+"foto": "1588326.webp"
+},
+{
+"id": 77726,
+"name": "Josué",
+"short": "Josué",
+"pos": "M",
+"foto": "77726.webp"
+},
+{
+"id": 937552,
+"name": "Breno Lopes",
+"short": "B. Lopes",
+"pos": "M",
+"foto": "937552.webp"
+},
+{
+"id": 1172056,
+"name": "Lucas Ronier",
+"short": "L. Ronier",
+"pos": "M",
+"foto": "1172056.webp"
+},
+{
+"id": 1122737,
+"name": "Joaquín Lavega",
+"short": "J. Lavega",
+"pos": "M",
+"foto": "1122737.webp"
+},
+{
+"id": 941405,
+"name": "Brian Ocampo",
+"short": "B. Ocampo",
+"pos": "M",
+"foto": "941405.webp"
+},
+{
+"id": 378590,
+"name": "Thiago Santos",
+"short": "T. Santos",
+"pos": "M",
+"foto": "378590.webp"
+},
+{
+"id": 944629,
+"name": "Nicolas Fonseca",
+"short": "N. Fonseca",
+"pos": "M",
+"foto": "944629.webp"
+},
+{
+"id": 925142,
+"name": "Sebastián Gómez",
+"short": "S. Gomez",
+"pos": "M",
+"foto": "925142.webp"
+},
+{
+"id": 897617,
+"name": "Richard",
+"short": "Richard",
+"pos": "M",
+"foto": "897617.webp"
+},
+{
+"id": 1099747,
+"name": "Gustavo",
+"short": "Gustavo",
+"pos": "M",
+"foto": "1099747.webp"
+},
+{
+"id": 1111139,
+"name": "Vini Paulista",
+"short": "V. Paulista",
+"pos": "M",
+"foto": "1111139.webp"
+},
+{
+"id": 1864296,
+"name": "Vitor Gonçalves Tissi",
+"short": "V. G. Tissi",
+"pos": "M",
+"foto": "1864296.webp"
+},
+{
+"id": 1507611,
+"name": "Jean Gabriel",
+"short": "Jean Gabriel",
+"pos": "M",
+"foto": "1507611.webp"
+},
+{
+"id": 850023,
+"name": "Fabricio Bustos",
+"short": "F. Bustos",
+"pos": "D",
+"foto": "850023.webp"
+},
+{
+"id": 44691,
+"name": "Maicon",
+"short": "Maicon",
+"pos": "D",
+"foto": "44691.webp"
+},
+{
+"id": 880204,
+"name": "Jacy Maranhão",
+"short": "J. Maranhão",
+"pos": "D",
+"foto": "880204.webp"
+},
+{
+"id": 931574,
+"name": "Felipe Jonatan",
+"short": "F. Jonatan",
+"pos": "D",
+"foto": "931574.webp"
+},
+{
+"id": 330057,
+"name": "Tinga",
+"short": "Tinga",
+"pos": "D",
+"foto": "330057.webp"
+},
+{
+"id": 1124329,
+"name": "Tiago Cóser",
+"short": "T. Cóser",
+"pos": "D",
+"foto": "1124329.webp"
+},
+{
+"id": 72080,
+"name": "Rodrigo Moledo",
+"short": "R. Moledo",
+"pos": "D",
+"foto": "72080.webp"
+},
+{
+"id": 870851,
+"name": "Bruno Melo",
+"short": "Bruno Melo",
+"pos": "D",
+"foto": "870851.webp"
+},
+{
+"id": 1465499,
+"name": "Rodrigo Gelado",
+"short": "R. Gelado",
+"pos": "D",
+"foto": "1465499.webp"
+},
+{
+"id": 1507616,
+"name": "Pedro Morisco",
+"short": "Pedro Morisco",
+"pos": "G",
+"foto": "1507616.webp"
+},
+{
+"id": 1092614,
+"name": "Pedro Rangel",
+"short": "P. Rangel",
+"pos": "G",
+"foto": "1092614.webp"
+},
+{
+"id": 840082,
+"name": "Keiller",
+"short": "Keiller",
+"pos": "G",
+"foto": "840082.webp"
+},
+{
+"id": 1174621,
+"name": "Benassi",
+"short": "Benassi",
+"pos": "G",
+"foto": "1174621.webp"
+},
+{
+"id": 1174208,
+"name": "Rafael William",
+"short": "Rafael William",
+"pos": "G",
+"foto": "1174208.webp"
+}
+],
+"CRU": [
+{
+"id": 954888,
+"name": "Kaio Jorge",
+"short": "K. Jorge",
+"pos": "F",
+"foto": "954888.webp"
+},
+{
+"id": 836070,
+"name": "Luis Sinisterra",
+"short": "L. Sinisterra",
+"pos": "F",
+"foto": "836070.webp"
+},
+{
+"id": 1539599,
+"name": "Néiser Villarreal",
+"short": "N. Villarreal",
+"pos": "F",
+"foto": "1539599.webp"
+},
+{
+"id": 1099361,
+"name": "Luciano Rodríguez",
+"short": "L. Rodríguez",
+"pos": "F",
+"foto": "1099361.webp"
+},
+{
+"id": 817650,
+"name": "Bruno Rodrigues",
+"short": "B. Rodrigues",
+"pos": "F",
+"foto": "817650.webp"
+},
+{
+"id": 247483,
+"name": "Wanderson",
+"short": "Wanderson",
+"pos": "F",
+"foto": "247483.webp"
+},
+{
+"id": 1647579,
+"name": "Kaique Kenji",
+"short": "K. Kenji",
+"pos": "F",
+"foto": "1647579.webp"
+},
+{
+"id": 1459631,
+"name": "Rhuan Gabriel",
+"short": "Rhuan",
+"pos": "F",
+"foto": "1459631.webp"
+},
+{
+"id": 611876,
+"name": "Gerson",
+"short": "Gerson",
+"pos": "M",
+"foto": "611876.webp"
+},
+{
+"id": 377238,
+"name": "Matheus Pereira",
+"short": "M. Pereira",
+"pos": "M",
+"foto": "377238.webp"
+},
+{
+"id": 1211632,
+"name": "Wesley",
+"short": "Wesley",
+"pos": "M",
+"foto": "1211632.webp"
+},
+{
+"id": 1482431,
+"name": "Keny Arroyo",
+"short": "K. Arroyo",
+"pos": "M",
+"foto": "1482431.webp"
+},
+{
+"id": 995072,
+"name": "Gabriel Pec",
+"short": "G. Pec",
+"pos": "M",
+"foto": "995072.webp"
+},
+{
+"id": 2040561,
+"name": "Zé Lucas",
+"short": "Zé Lucas",
+"pos": "M",
+"foto": "2040561.webp"
+},
+{
+"id": 1116954,
+"name": "Marquinhos",
+"short": "Marquinhos",
+"pos": "M",
+"foto": "1116954.webp"
+},
+{
+"id": 263477,
+"name": "Lucas Romero",
+"short": "L. Romero",
+"pos": "M",
+"foto": "263477.webp"
+},
+{
+"id": 912786,
+"name": "Matheus Henrique",
+"short": "M. Henrique",
+"pos": "M",
+"foto": "912786.webp"
+},
+{
+"id": 245159,
+"name": "Lucas Silva",
+"short": "L. Silva",
+"pos": "M",
+"foto": "245159.webp"
+},
+{
+"id": 2028294,
+"name": "Felipe Morais",
+"short": "F. Morais",
+"pos": "M",
+"foto": "2028294.webp"
+},
+{
+"id": 1397478,
+"name": "João Costa",
+"short": "J. Costa",
+"pos": "M",
+"foto": "1397478.webp"
+},
+{
+"id": 1386893,
+"name": "Fabrizio Peralta",
+"short": "F. Peralta",
+"pos": "M",
+"foto": "1386893.webp"
+},
+{
+"id": 1831101,
+"name": "Rayan Lelis",
+"short": "R. Lelis",
+"pos": "M",
+"foto": "1831101.webp"
+},
+{
+"id": 875295,
+"name": "Matías Viña",
+"short": "M. Viña",
+"pos": "D",
+"foto": "875295.webp"
+},
+{
+"id": 840220,
+"name": "Fabrício Bruno",
+"short": "F. Bruno",
+"pos": "D",
+"foto": "840220.webp"
+},
+{
+"id": 25554,
+"name": "Fagner",
+"short": "Fagner",
+"pos": "D",
+"foto": "25554.webp"
+},
+{
+"id": 604274,
+"name": "William Furtado",
+"short": "W. Furtado",
+"pos": "D",
+"foto": "604274.webp"
+},
+{
+"id": 260077,
+"name": "Lucas Villalba",
+"short": "L. Villalba",
+"pos": "D",
+"foto": "260077.webp"
+},
+{
+"id": 1498670,
+"name": "Jonathan Jesus",
+"short": "J. Jesus",
+"pos": "D",
+"foto": "1498670.webp"
+},
+{
+"id": 978638,
+"name": "João Marcelo",
+"short": "J. Marcelo",
+"pos": "D",
+"foto": "978638.webp"
+},
+{
+"id": 1387300,
+"name": "Gabriel Rojas",
+"short": "G. Rojas",
+"pos": "D",
+"foto": "1387300.webp"
+},
+{
+"id": 2057367,
+"name": "Kauã Moraes",
+"short": "K. Moraes",
+"pos": "D",
+"foto": "2057367.webp"
+},
+{
+"id": 1633799,
+"name": "Kelvin Coutinho",
+"short": "K. Coutinho",
+"pos": "D",
+"foto": "1633799.webp"
+},
+{
+"id": 27756,
+"name": "Cássio",
+"short": "Cássio",
+"pos": "G",
+"foto": "27756.webp"
+},
+{
+"id": 1589358,
+"name": "Otávio Costa",
+"short": "Otávio",
+"pos": "G",
+"foto": "1589358.webp"
+},
+{
+"id": 1488035,
+"name": "Léo Aragão",
+"short": "L. Aragão",
+"pos": "G",
+"foto": "1488035.webp"
+},
+{
+"id": 1647541,
+"name": "Vitor Lamounier Rego",
+"short": "V. Lamounier",
+"pos": "G",
+"foto": "1647541.webp"
+}
+],
+"FLA": [
+{
+"id": 840219,
+"name": "Pedro Guilherme",
+"short": "Pedro",
+"pos": "F",
+"foto": "840219.webp"
+},
+{
+"id": 795291,
+"name": "Bruno Henrique",
+"short": "B. Henrique",
+"pos": "F",
+"foto": "795291.webp"
+},
+{
+"id": 2173803,
+"name": "Joaquín Freitas",
+"short": "J. Freitas",
+"pos": "F",
+"foto": "2173803.webp"
+},
+{
+"id": 1020197,
+"name": "Anthony Valencia",
+"short": "A. Valencia",
+"pos": "F",
+"foto": "1020197.webp"
+},
+{
+"id": 2408644,
+"name": "Joao Camargo",
+"short": "J. Camargo",
+"pos": "F",
+"foto": "2408644.webp"
+},
+{
+"id": 2338346,
+"name": "Josmar",
+"short": "Josmar",
+"pos": "F",
+"foto": "2338346.webp"
+},
+{
+"id": 333587,
+"name": "Giorgian de Arrascaeta",
+"short": "G. de Arrascaeta",
+"pos": "M",
+"foto": "333587.webp"
+},
+{
+"id": 839981,
+"name": "Lucas Paquetá",
+"short": "L. Paquetá",
+"pos": "M",
+"foto": "839981.webp"
+},
+{
+"id": 132874,
+"name": "Jorginho",
+"short": "Jorginho",
+"pos": "M",
+"foto": "132874.webp"
+},
+{
+"id": 874705,
+"name": "Samuel Lino",
+"short": "S. Lino",
+"pos": "M",
+"foto": "874705.webp"
+},
+{
+"id": 937937,
+"name": "Gonzalo Plata",
+"short": "G. Plata",
+"pos": "M",
+"foto": "937937.webp"
+},
+{
+"id": 590392,
+"name": "Jorge Carrascal",
+"short": "J. Carrascal",
+"pos": "M",
+"foto": "590392.webp"
+},
+{
+"id": 877513,
+"name": "Nicolás de la Cruz",
+"short": "N. De la Cruz",
+"pos": "M",
+"foto": "877513.webp"
+},
+{
+"id": 590262,
+"name": "Erick Pulgar",
+"short": "E. Pulgar",
+"pos": "M",
+"foto": "590262.webp"
+},
+{
+"id": 840451,
+"name": "Luiz Araújo",
+"short": "L. Araújo",
+"pos": "M",
+"foto": "840451.webp"
+},
+{
+"id": 116955,
+"name": "Saúl Ñíguez",
+"short": "S. Ñíguez",
+"pos": "M",
+"foto": "116955.webp"
+},
+{
+"id": 1145106,
+"name": "Evertton Araujo",
+"short": "E. Araujo",
+"pos": "M",
+"foto": "1145106.webp"
+},
+{
+"id": 2031651,
+"name": "Pablo Lucio",
+"short": "P. Lucio",
+"pos": "M",
+"foto": "2031651.webp"
+},
+{
+"id": 1883287,
+"name": "Caio Joshua",
+"short": "C. Joshua",
+"pos": "M",
+"foto": "1883287.webp"
+},
+{
+"id": 1883345,
+"name": "Luiz Felipe",
+"short": "L. Felipe",
+"pos": "M",
+"foto": "1883345.webp"
+},
+{
+"id": 1485196,
+"name": "Caio Garcia",
+"short": "C. Garcia",
+"pos": "M",
+"foto": "1485196.webp"
+},
+{
+"id": 124992,
+"name": "Danilo",
+"short": "Danilo",
+"pos": "D",
+"foto": "124992.webp"
+},
+{
+"id": 358548,
+"name": "Léo Pereira",
+"short": "L. Pereira",
+"pos": "D",
+"foto": "358548.webp"
+},
+{
+"id": 84854,
+"name": "Alex Sandro",
+"short": "A. Sandro",
+"pos": "D",
+"foto": "84854.webp"
+},
+{
+"id": 869643,
+"name": "Léo Ortiz",
+"short": "L. Ortiz",
+"pos": "D",
+"foto": "869643.webp"
+},
+{
+"id": 856123,
+"name": "Emerson Royal",
+"short": "E. Royal",
+"pos": "D",
+"foto": "856123.webp"
+},
+{
+"id": 311456,
+"name": "Guillermo Varela",
+"short": "G. Varela",
+"pos": "D",
+"foto": "311456.webp"
+},
+{
+"id": 818473,
+"name": "Ayrton Lucas",
+"short": "A. Lucas",
+"pos": "D",
+"foto": "818473.webp"
+},
+{
+"id": 876625,
+"name": "Vitão",
+"short": "Vitão",
+"pos": "D",
+"foto": "876625.webp"
+},
+{
+"id": 1602833,
+"name": "João Victor",
+"short": "J. Victor",
+"pos": "D",
+"foto": "1602833.webp"
+},
+{
+"id": 1459762,
+"name": "Daniel Sales",
+"short": "D. Sales",
+"pos": "D",
+"foto": "1459762.webp"
+},
+{
+"id": 2063998,
+"name": "Johnny Goes",
+"short": "J. Góes",
+"pos": "D",
+"foto": "2063998.webp"
+},
+{
+"id": 2456574,
+"name": "Daniel Thuram",
+"short": "D. Thuram",
+"pos": "D",
+"foto": "2456574.webp"
+},
+{
+"id": 2747674,
+"name": "Douglas Costa Telles",
+"short": "D. C. Telles",
+"pos": "D",
+"foto": ""
+},
+{
+"id": 1883289,
+"name": "Daniel Carvalho Marinho",
+"short": "D. C. Marinho",
+"pos": "D",
+"foto": ""
+},
+{
+"id": 1140986,
+"name": "Agustín Rossi",
+"short": "A. Rossi",
+"pos": "G",
+"foto": "1140986.webp"
+},
+{
+"id": 947893,
+"name": "Andrew",
+"short": "Andrew",
+"pos": "G",
+"foto": "947893.webp"
+},
+{
+"id": 1883341,
+"name": "Leonardo Nannetti",
+"short": "L. Nannetti",
+"pos": "G",
+"foto": "1883341.webp"
+},
+{
+"id": 1514629,
+"name": "Dyogo Alves",
+"short": "D. Alves",
+"pos": "G",
+"foto": "1514629.webp"
+}
+],
+"FLU": [
+{
+"id": 34705,
+"name": "Hulk",
+"short": "Hulk",
+"pos": "F",
+"foto": "34705.webp"
+},
+{
+"id": 33238,
+"name": "Germán Cano",
+"short": "G. Cano",
+"pos": "F",
+"foto": "33238.webp"
+},
+{
+"id": 1087399,
+"name": "John Kennedy",
+"short": "John Kennedy",
+"pos": "F",
+"foto": "1087399.webp"
+},
+{
+"id": 1182504,
+"name": "Rodrigo Castillo",
+"short": "R. Castillo",
+"pos": "F",
+"foto": "1182504.webp"
+},
+{
+"id": 1483339,
+"name": "Matheus Reis",
+"short": "M. Reis",
+"pos": "F",
+"foto": "1483339.webp"
+},
+{
+"id": 1884778,
+"name": "Keven Samuel",
+"short": "K. Samuel",
+"pos": "F",
+"foto": "1884778.webp"
+},
+{
+"id": 789960,
+"name": "Yeferson Soteldo",
+"short": "Y. Soteldo",
+"pos": "M",
+"foto": "789960.webp"
+},
+{
+"id": 874739,
+"name": "Jefferson Savarino",
+"short": "J. Savarino",
+"pos": "M",
+"foto": "874739.webp"
+},
+{
+"id": 1067671,
+"name": "Matheus Martinelli",
+"short": "Martinelli",
+"pos": "M",
+"foto": "1067671.webp"
+},
+{
+"id": 846413,
+"name": "Agustín Canobbio",
+"short": "A. Canobbio",
+"pos": "M",
+"foto": "846413.webp"
+},
+{
+"id": 548030,
+"name": "Luciano Acosta",
+"short": "L. Acosta",
+"pos": "M",
+"foto": "548030.webp"
+},
+{
+"id": 981374,
+"name": "Kevin Serna",
+"short": "K. Serna",
+"pos": "M",
+"foto": "981374.webp"
+},
+{
+"id": 116853,
+"name": "Ganso",
+"short": "Ganso",
+"pos": "M",
+"foto": "116853.webp"
+},
+{
+"id": 1104068,
+"name": "Hércules",
+"short": "Hércules",
+"pos": "M",
+"foto": "1104068.webp"
+},
+{
+"id": 291723,
+"name": "Alisson",
+"short": "Alisson",
+"pos": "M",
+"foto": "291723.webp"
+},
+{
+"id": 1884803,
+"name": "Riquelme Felipe",
+"short": "R. Felipe",
+"pos": "M",
+"foto": "1884803.webp"
+},
+{
+"id": 922566,
+"name": "Nonato",
+"short": "Nonato",
+"pos": "M",
+"foto": "922566.webp"
+},
+{
+"id": 552686,
+"name": "Otávio",
+"short": "Otávio",
+"pos": "M",
+"foto": "552686.webp"
+},
+{
+"id": 1518961,
+"name": "Yago",
+"short": "Yago",
+"pos": "M",
+"foto": "1518961.webp"
+},
+{
+"id": 1862245,
+"name": "Ruan Sales",
+"short": "R. Sales",
+"pos": "M",
+"foto": ""
+},
+{
+"id": 33541,
+"name": "Thiago Silva",
+"short": "T. Silva",
+"pos": "D",
+"foto": "33541.webp"
+},
+{
+"id": 1127439,
+"name": "Guilherme Arana",
+"short": "G. Arana",
+"pos": "D",
+"foto": "1127439.webp"
+},
+{
+"id": 795773,
+"name": "Samuel Xavier",
+"short": "S. Xavier",
+"pos": "D",
+"foto": "795773.webp"
+},
+{
+"id": 958382,
+"name": "Ignácio",
+"short": "Ignácio",
+"pos": "D",
+"foto": "958382.webp"
+},
+{
+"id": 243113,
+"name": "Renê",
+"short": "Renê",
+"pos": "D",
+"foto": "243113.webp"
+},
+{
+"id": 962187,
+"name": "Juan Pablo Freytes",
+"short": "J. Freytes",
+"pos": "D",
+"foto": "962187.webp"
+},
+{
+"id": 928134,
+"name": "Guga",
+"short": "Guga",
+"pos": "D",
+"foto": "928134.webp"
+},
+{
+"id": 839085,
+"name": "Julián Millán",
+"short": "J. Millán",
+"pos": "D",
+"foto": "839085.webp"
+},
+{
+"id": 753662,
+"name": "Igor Rabello",
+"short": "I. Rabello",
+"pos": "D",
+"foto": "753662.webp"
+},
+{
+"id": 1527129,
+"name": "Jemmes",
+"short": "Jemmes",
+"pos": "D",
+"foto": "1527129.webp"
+},
+{
+"id": 1561524,
+"name": "Júlio Fidelis",
+"short": "J. Fidelis",
+"pos": "D",
+"foto": "1561524.webp"
+},
+{
+"id": 1631686,
+"name": "Léo Jance",
+"short": "L. d. O. Jance",
+"pos": "D",
+"foto": "1631686.webp"
+},
+{
+"id": 17785,
+"name": "Fábio",
+"short": "Fábio",
+"pos": "G",
+"foto": "17785.webp"
+},
+{
+"id": 1093974,
+"name": "Marcelo Pitaluga",
+"short": "M. Pitaluga",
+"pos": "G",
+"foto": "1093974.webp"
+},
+{
+"id": 927666,
+"name": "Vitor Eudes",
+"short": "Vitor Eudes",
+"pos": "G",
+"foto": "927666.webp"
+}
+],
+"GRE": [
+{
+"id": 891920,
+"name": "Carlos Vinícius",
+"short": "C. Vinícius",
+"pos": "F",
+"foto": "891920.webp"
+},
+{
+"id": 66471,
+"name": "Martin Braithwaite",
+"short": "M. Braithwaite",
+"pos": "F",
+"foto": "66471.webp"
+},
+{
+"id": 980327,
+"name": "Tetê",
+"short": "Tetê",
+"pos": "F",
+"foto": "980327.webp"
+},
+{
+"id": 974558,
+"name": "José Enamorado",
+"short": "J. Enamorado",
+"pos": "F",
+"foto": "974558.webp"
+},
+{
+"id": 845802,
+"name": "Jovane Cabral",
+"short": "J. Cabral",
+"pos": "F",
+"foto": "845802.webp"
+},
+{
+"id": 1047683,
+"name": "Matheus Nascimento",
+"short": "M. Nascimento",
+"pos": "F",
+"foto": "1047683.webp"
+},
+{
+"id": 1020375,
+"name": "Erick Noriega",
+"short": "E. Noriega",
+"pos": "M",
+"foto": "1020375.webp"
+},
+{
+"id": 358956,
+"name": "Cristian Pavón",
+"short": "C. Pavón",
+"pos": "M",
+"foto": "358956.webp"
+},
+{
+"id": 1139775,
+"name": "Mathias Villasanti",
+"short": "M. Villasanti",
+"pos": "M",
+"foto": "1139775.webp"
+},
+{
+"id": 322417,
+"name": "Filip Krovinović",
+"short": "F. Krovinović",
+"pos": "M",
+"foto": "322417.webp"
+},
+{
+"id": 901889,
+"name": "Francis Amuzu",
+"short": "F. Amuzu",
+"pos": "M",
+"foto": "901889.webp"
+},
+{
+"id": 2010540,
+"name": "Tiaguinho",
+"short": "Tiaguinho",
+"pos": "M",
+"foto": "2010540.webp"
+},
+{
+"id": 989862,
+"name": "Juan Nardoni",
+"short": "J. Nardoni",
+"pos": "M",
+"foto": "989862.webp"
+},
+{
+"id": 870804,
+"name": "Dodi",
+"short": "Dodi",
+"pos": "M",
+"foto": "870804.webp"
+},
+{
+"id": 330063,
+"name": "Danilo Barbosa",
+"short": "D. Barbosa",
+"pos": "M",
+"foto": "330063.webp"
+},
+{
+"id": 1634619,
+"name": "Riquelme Freitas",
+"short": "Riquelme",
+"pos": "M",
+"foto": "1634619.webp"
+},
+{
+"id": 1907757,
+"name": "Roger",
+"short": "Roger",
+"pos": "M",
+"foto": "1907757.webp"
+},
+{
+"id": 249647,
+"name": "Walter Kannemann",
+"short": "W. Kannemann",
+"pos": "D",
+"foto": "249647.webp"
+},
+{
+"id": 82576,
+"name": "Marcos Rocha",
+"short": "M. Rocha",
+"pos": "D",
+"foto": "82576.webp"
+},
+{
+"id": 870787,
+"name": "Marlon",
+"short": "Marlon",
+"pos": "D",
+"foto": "870787.webp"
+},
+{
+"id": 339447,
+"name": "Fabián Balbuena",
+"short": "F. Balbuena",
+"pos": "D",
+"foto": "339447.webp"
+},
+{
+"id": 931591,
+"name": "Caio Paulista",
+"short": "C. Paulista",
+"pos": "D",
+"foto": "931591.webp"
+},
+{
+"id": 976235,
+"name": "Wagner Leonardo",
+"short": "W. Leonardo",
+"pos": "D",
+"foto": "976235.webp"
+},
+{
+"id": 1105796,
+"name": "Gustavo Martins",
+"short": "G. Martins",
+"pos": "D",
+"foto": "1105796.webp"
+},
+{
+"id": 605528,
+"name": "João Pedro",
+"short": "J. Pedro",
+"pos": "D",
+"foto": "605528.webp"
+},
+{
+"id": 1895389,
+"name": "Luis Guedes",
+"short": "L. Guedes",
+"pos": "D",
+"foto": "1895389.webp"
+},
+{
+"id": 1843731,
+"name": "Wallace",
+"short": "Wallace",
+"pos": "D",
+"foto": "1843731.webp"
+},
+{
+"id": 1907755,
+"name": "Pedro Gabriel",
+"short": "P. Gabriel",
+"pos": "D",
+"foto": "1907755.webp"
+},
+{
+"id": 1468270,
+"name": "Diego Caito",
+"short": "Diego Caito",
+"pos": "D",
+"foto": "1468270.webp"
+},
+{
+"id": 243529,
+"name": "Weverton",
+"short": "Weverton",
+"pos": "G",
+"foto": "243529.webp"
+},
+{
+"id": 1111770,
+"name": "Gabriel Grando",
+"short": "G. Grando",
+"pos": "G",
+"foto": "1111770.webp"
+},
+{
+"id": 1607287,
+"name": "Thiago Beltrame",
+"short": "T. Beltrame",
+"pos": "G",
+"foto": "1607287.webp"
+},
+{
+"id": 2152875,
+"name": "Gabriel Menegon",
+"short": "G. Menegon",
+"pos": "G",
+"foto": "2152875.webp"
+},
+{
+"id": 1532673,
+"name": "Shane Dunning",
+"short": "S. Dunning",
+"pos": "P",
+"foto": ""
+}
+],
+"INT": [
+{
+"id": 333261,
+"name": "Antonio Sanabria",
+"short": "A. Sanabria",
+"pos": "F",
+"foto": "333261.webp"
+},
+{
+"id": 925125,
+"name": "Johan Carbonero",
+"short": "J. Carbonero",
+"pos": "F",
+"foto": "925125.webp"
+},
+{
+"id": 1106151,
+"name": "Kayky",
+"short": "Kayky",
+"pos": "F",
+"foto": "1106151.webp"
+},
+{
+"id": 923948,
+"name": "Alerrandro",
+"short": "Alerrandro",
+"pos": "F",
+"foto": "923948.webp"
+},
+{
+"id": 1888163,
+"name": "Raykkonen Pereira Soares",
+"short": "Raykkonen",
+"pos": "F",
+"foto": "1888163.webp"
+},
+{
+"id": 1589315,
+"name": "Leandro Kaua",
+"short": "L. Kauã",
+"pos": "F",
+"foto": "1589315.webp"
+},
+{
+"id": 2677478,
+"name": "Fabricio",
+"short": "Fabricio",
+"pos": "F",
+"foto": "2677478.webp"
+},
+{
+"id": 124997,
+"name": "Alan Patrick",
+"short": "A. Patrick",
+"pos": "M",
+"foto": "124997.webp"
+},
+{
+"id": 879902,
+"name": "Paulinho Paula",
+"short": "P. Paula",
+"pos": "M",
+"foto": "879902.webp"
+},
+{
+"id": 358550,
+"name": "Thiago Maia",
+"short": "T. Maia",
+"pos": "M",
+"foto": "358550.webp"
+},
+{
+"id": 982405,
+"name": "Vitinho",
+"short": "Vitinho",
+"pos": "M",
+"foto": "982405.webp"
+},
+{
+"id": 316196,
+"name": "Niclas Eliasson",
+"short": "N. Eliasson",
+"pos": "M",
+"foto": "316196.webp"
+},
+{
+"id": 345113,
+"name": "Bruno Henrique",
+"short": "B. Henrique",
+"pos": "M",
+"foto": "345113.webp"
+},
+{
+"id": 978563,
+"name": "Rodrigo Villagra",
+"short": "R. Villagra",
+"pos": "M",
+"foto": "978563.webp"
+},
+{
+"id": 1046796,
+"name": "Calebe Gonçalves",
+"short": "Calebe",
+"pos": "M",
+"foto": "1046796.webp"
+},
+{
+"id": 824152,
+"name": "Ronaldo",
+"short": "Ronaldo",
+"pos": "M",
+"foto": "824152.webp"
+},
+{
+"id": 1485191,
+"name": "Allex",
+"short": "Allex",
+"pos": "M",
+"foto": "1485191.webp"
+},
+{
+"id": 2027868,
+"name": "Benjamin Arhin",
+"short": "B. Arhin",
+"pos": "M",
+"foto": "2027868.webp"
+},
+{
+"id": 1890696,
+"name": "Alisson Rodrigues de Melo",
+"short": "A. R. d. Melo",
+"pos": "M",
+"foto": "1890696.webp"
+},
+{
+"id": 1922592,
+"name": "João Victor Alves de Morais Francisco",
+"short": "J. V. Francisco",
+"pos": "M",
+"foto": "1922592.webp"
+},
+{
+"id": 2677474,
+"name": "Gabriel Vinicius",
+"short": "G. Vinicius",
+"pos": "M",
+"foto": "2677474.webp"
+},
+{
+"id": 2726135,
+"name": "Kempes",
+"short": "Kempes",
+"pos": "M",
+"foto": "2726135.webp"
+},
+{
+"id": 881848,
+"name": "Félix Torres",
+"short": "F. Torres",
+"pos": "D",
+"foto": "881848.webp"
+},
+{
+"id": 989200,
+"name": "Alexandro Bernabei",
+"short": "A. Bernabei",
+"pos": "D",
+"foto": "989200.webp"
+},
+{
+"id": 339909,
+"name": "Guillermo Maripán",
+"short": "G. Maripán",
+"pos": "D",
+"foto": "339909.webp"
+},
+{
+"id": 128376,
+"name": "Gabriel Mercado",
+"short": "G. Mercado",
+"pos": "D",
+"foto": "128376.webp"
+},
+{
+"id": 995071,
+"name": "Bruno Gomes",
+"short": "B. Gomes",
+"pos": "D",
+"foto": "995071.webp"
+},
+{
+"id": 1106487,
+"name": "Victor Gabriel",
+"short": "V. Gabriel",
+"pos": "D",
+"foto": "1106487.webp"
+},
+{
+"id": 1047204,
+"name": "Matheus Bahia",
+"short": "M. Bahia",
+"pos": "D",
+"foto": "1047204.webp"
+},
+{
+"id": 1084963,
+"name": "Braian Aguirre",
+"short": "B. Aguirre",
+"pos": "D",
+"foto": "1084963.webp"
+},
+{
+"id": 799947,
+"name": "Jose Juninho",
+"short": "J. Juninho",
+"pos": "D",
+"foto": "799947.webp"
+},
+{
+"id": 1105835,
+"name": "Matheus Cunha",
+"short": "M. Cunha",
+"pos": "G",
+"foto": "1105835.webp"
+},
+{
+"id": 581060,
+"name": "Sergio Rochet",
+"short": "S. Rochet",
+"pos": "G",
+"foto": "581060.webp"
+},
+{
+"id": 1106134,
+"name": "Anthoni",
+"short": "Anthoni",
+"pos": "G",
+"foto": "1106134.webp"
+},
+{
+"id": 1485233,
+"name": "Kauan",
+"short": "Kauan",
+"pos": "G",
+"foto": "1485233.webp"
+},
+{
+"id": 1650025,
+"name": "Diego Esser",
+"short": "D. Esser",
+"pos": "G",
+"foto": "1650025.webp"
+}
+],
+"MIR": [
+{
+"id": 904297,
+"name": "André Luis",
+"short": "A. Luis",
+"pos": "F",
+"foto": "904297.webp"
+},
+{
+"id": 871015,
+"name": "Alesson",
+"short": "Alesson",
+"pos": "F",
+"foto": "871015.webp"
+},
+{
+"id": 1105781,
+"name": "Bruno Santos",
+"short": "B. Santos",
+"pos": "F",
+"foto": "1105781.webp"
+},
+{
+"id": 795295,
+"name": "Carlos Eduardo",
+"short": "C. Eduardo",
+"pos": "F",
+"foto": "795295.webp"
+},
+{
+"id": 842076,
+"name": "Zé Roberto",
+"short": "Z. Roberto",
+"pos": "F",
+"foto": "842076.webp"
+},
+{
+"id": 1048612,
+"name": "Edson Carioca",
+"short": "E. Carioca",
+"pos": "F",
+"foto": "1048612.webp"
+},
+{
+"id": 76507,
+"name": "Eduardo",
+"short": "Eduardo",
+"pos": "M",
+"foto": "76507.webp"
+},
+{
+"id": 1459623,
+"name": "Japa",
+"short": "Japa",
+"pos": "M",
+"foto": "1459623.webp"
+},
+{
+"id": 880132,
+"name": "Chico",
+"short": "Chico",
+"pos": "M",
+"foto": "880132.webp"
+},
+{
+"id": 872007,
+"name": "Negueba",
+"short": "Negueba",
+"pos": "M",
+"foto": "872007.webp"
+},
+{
+"id": 863283,
+"name": "Gustavo Silva",
+"short": "G. Silva",
+"pos": "M",
+"foto": "863283.webp"
+},
+{
+"id": 1175760,
+"name": "Denilson",
+"short": "Denilson",
+"pos": "M",
+"foto": "1175760.webp"
+},
+{
+"id": 874723,
+"name": "Shaylon",
+"short": "Shaylon",
+"pos": "M",
+"foto": "874723.webp"
+},
+{
+"id": 559034,
+"name": "Neto Moura",
+"short": "N. Moura",
+"pos": "M",
+"foto": "559034.webp"
+},
+{
+"id": 988851,
+"name": "José Aldo",
+"short": "J. Aldo",
+"pos": "M",
+"foto": "988851.webp"
+},
+{
+"id": 871219,
+"name": "Fernandinho",
+"short": "Fernandinho",
+"pos": "M",
+"foto": "871219.webp"
+},
+{
+"id": 922601,
+"name": "Wallisson Luiz",
+"short": "Wallisson Luiz",
+"pos": "M",
+"foto": "922601.webp"
+},
+{
+"id": 892073,
+"name": "Gustavo Cazonatti",
+"short": "G. Cazonatti",
+"pos": "M",
+"foto": "892073.webp"
+},
+{
+"id": 1090716,
+"name": "Luiz Filipe",
+"short": "Luiz Filipe",
+"pos": "M",
+"foto": "1090716.webp"
+},
+{
+"id": 243109,
+"name": "Reinaldo",
+"short": "Reinaldo",
+"pos": "D",
+"foto": "243109.webp"
+},
+{
+"id": 252781,
+"name": "Victor Luis",
+"short": "V. Luis",
+"pos": "D",
+"foto": "252781.webp"
+},
+{
+"id": 867907,
+"name": "Lucas Oliveira",
+"short": "L. Oliveira",
+"pos": "D",
+"foto": "867907.webp"
+},
+{
+"id": 925871,
+"name": "Willian Machado",
+"short": "W. Machado",
+"pos": "D",
+"foto": "925871.webp"
+},
+{
+"id": 1009030,
+"name": "Igor Formiga",
+"short": "Igor Formiga",
+"pos": "D",
+"foto": "1009030.webp"
+},
+{
+"id": 863297,
+"name": "João Victor",
+"short": "J. Victor",
+"pos": "D",
+"foto": "863297.webp"
+},
+{
+"id": 1465498,
+"name": "Gabriel Knesowitsch",
+"short": "Gabriel",
+"pos": "D",
+"foto": "1465498.webp"
+},
+{
+"id": 794874,
+"name": "Daniel Borges",
+"short": "D. Borges",
+"pos": "D",
+"foto": "794874.webp"
+},
+{
+"id": 981812,
+"name": "Elias",
+"short": "Elias",
+"pos": "D",
+"foto": "981812.webp"
+},
+{
+"id": 1470509,
+"name": "Wesley Santos",
+"short": "W. Santos",
+"pos": "D",
+"foto": "1470509.webp"
+},
+{
+"id": 329055,
+"name": "Walter",
+"short": "Walter",
+"pos": "G",
+"foto": "329055.webp"
+},
+{
+"id": 340113,
+"name": "Alex Muralha",
+"short": "A. Muralha",
+"pos": "G",
+"foto": "340113.webp"
+},
+{
+"id": 870929,
+"name": "Thomazella",
+"short": "Thomazella",
+"pos": "G",
+"foto": "870929.webp"
+},
+{
+"id": 329225,
+"name": "Georgemy",
+"short": "Georgemy",
+"pos": "G",
+"foto": "329225.webp"
+}
+],
+"PAL": [
+{
+"id": 1150391,
+"name": "Vitor Roque",
+"short": "V. Roque",
+"pos": "F",
+"foto": "1150391.webp"
+},
+{
+"id": 1094179,
+"name": "José Manuel López",
+"short": "J. López",
+"pos": "F",
+"foto": "1094179.webp"
+},
+{
+"id": 885179,
+"name": "Paulinho",
+"short": "Paulinho",
+"pos": "F",
+"foto": "885179.webp"
+},
+{
+"id": 1015733,
+"name": "Ramón Sosa",
+"short": "R. Sosa",
+"pos": "F",
+"foto": "1015733.webp"
+},
+{
+"id": 1884619,
+"name": "Heittor",
+"short": "Heittor",
+"pos": "F",
+"foto": "1884619.webp"
+},
+{
+"id": 2551774,
+"name": "Miguel Cinoncelli Bilong",
+"short": "M. C. Bilong",
+"pos": "F",
+"foto": "2551774.webp"
+},
+{
+"id": 844096,
+"name": "Jhon Arias",
+"short": "J. Arias",
+"pos": "M",
+"foto": "844096.webp"
+},
+{
+"id": 285949,
+"name": "Andreas Pereira",
+"short": "A. Pereira",
+"pos": "M",
+"foto": "285949.webp"
+},
+{
+"id": 986233,
+"name": "Mauricio",
+"short": "Mauricio",
+"pos": "M",
+"foto": "986233.webp"
+},
+{
+"id": 152276,
+"name": "Felipe Anderson",
+"short": "F. Anderson",
+"pos": "M",
+"foto": "152276.webp"
+},
+{
+"id": 840202,
+"name": "Marlon Freitas",
+"short": "M. Freitas",
+"pos": "M",
+"foto": "840202.webp"
+},
+{
+"id": 973533,
+"name": "Emiliano Martínez",
+"short": "E. Martínez",
+"pos": "M",
+"foto": "973533.webp"
+},
+{
+"id": 331397,
+"name": "Lucas Evangelista",
+"short": "L. Evangelista",
+"pos": "M",
+"foto": "331397.webp"
+},
+{
+"id": 1633503,
+"name": "Erick Belé",
+"short": "E. Belé",
+"pos": "M",
+"foto": "1633503.webp"
+},
+{
+"id": 1884646,
+"name": "Luis Pacheco",
+"short": "L. F. Pacheco",
+"pos": "M",
+"foto": "1884646.webp"
+},
+{
+"id": 2057364,
+"name": "Larson",
+"short": "Larson",
+"pos": "M",
+"foto": "2057364.webp"
+},
+{
+"id": 1634976,
+"name": "Rafael Coutinho",
+"short": "Coutinho",
+"pos": "M",
+"foto": "1634976.webp"
+},
+{
+"id": 1591269,
+"name": "Fabiano Rodrigues Pereira",
+"short": "F. R. Pereira",
+"pos": "M",
+"foto": "1591269.webp"
+},
+{
+"id": 1106603,
+"name": "Agustín Giay",
+"short": "A. Giay",
+"pos": "D",
+"foto": "1106603.webp"
+},
+{
+"id": 220833,
+"name": "Gustavo Gómez",
+"short": "G. Gómez",
+"pos": "D",
+"foto": "220833.webp"
+},
+{
+"id": 881110,
+"name": "Joaquín Piquerez",
+"short": "J. Piquerez",
+"pos": "D",
+"foto": "881110.webp"
+},
+{
+"id": 874729,
+"name": "Murilo",
+"short": "Murilo",
+"pos": "D",
+"foto": "874729.webp"
+},
+{
+"id": 973737,
+"name": "Bruno Fuchs",
+"short": "B. Fuchs",
+"pos": "D",
+"foto": "973737.webp"
+},
+{
+"id": 801044,
+"name": "Alexander Barboza",
+"short": "A. Barboza",
+"pos": "D",
+"foto": "801044.webp"
+},
+{
+"id": 1485284,
+"name": "Luis Benedetti",
+"short": "L. Benedetti",
+"pos": "D",
+"foto": "1485284.webp"
+},
+{
+"id": 984896,
+"name": "Khellven",
+"short": "Khellven",
+"pos": "D",
+"foto": "984896.webp"
+},
+{
+"id": 1116665,
+"name": "Jefté",
+"short": "Jefté",
+"pos": "D",
+"foto": "1116665.webp"
+},
+{
+"id": 1633501,
+"name": "Arthur Gabriel",
+"short": "A. Gabriel",
+"pos": "D",
+"foto": "1633501.webp"
+},
+{
+"id": 2479177,
+"name": "Zié Koné",
+"short": "Z. M. Kone",
+"pos": "D",
+"foto": "2479177.webp"
+},
+{
+"id": 1941313,
+"name": "André Lucas",
+"short": "A. Lucas",
+"pos": "D",
+"foto": "1941313.webp"
+},
+{
+"id": 973738,
+"name": "Carlos Miguel",
+"short": "C. Miguel",
+"pos": "G",
+"foto": "973738.webp"
+},
+{
+"id": 34141,
+"name": "Marcelo Lomba",
+"short": "M. Lomba",
+"pos": "G",
+"foto": "34141.webp"
+},
+{
+"id": 977079,
+"name": "Bruno Bertinato",
+"short": "B. Bertinato",
+"pos": "G",
+"foto": "977079.webp"
+}
+],
+"REM": [
+{
+"id": 954719,
+"name": "Alef Manga",
+"short": "A. Manga",
+"pos": "F",
+"foto": "954719.webp"
+},
+{
+"id": 933955,
+"name": "Gabriel Taliari",
+"short": "G. Taliari",
+"pos": "F",
+"foto": "933955.webp"
+},
+{
+"id": 937806,
+"name": "Gabriel Poveda",
+"short": "G. Poveda",
+"pos": "F",
+"foto": "937806.webp"
+},
+{
+"id": 1018777,
+"name": "Eduardo Melo",
+"short": "E. Melo",
+"pos": "F",
+"foto": "1018777.webp"
+},
+{
+"id": 2055917,
+"name": "Tico",
+"short": "Tico",
+"pos": "F",
+"foto": ""
+},
+{
+"id": 363688,
+"name": "Yago Pikachu",
+"short": "Y. Pikachu",
+"pos": "M",
+"foto": "363688.webp"
+},
+{
+"id": 883207,
+"name": "Antonio Galeano",
+"short": "A. Galeano",
+"pos": "M",
+"foto": "883207.webp"
+},
+{
+"id": 808785,
+"name": "Vitor Bueno",
+"short": "V. Bueno",
+"pos": "M",
+"foto": "808785.webp"
+},
+{
+"id": 594428,
+"name": "Patrick",
+"short": "Patrick",
+"pos": "M",
+"foto": "594428.webp"
+},
+{
+"id": 1018779,
+"name": "Jajá",
+"short": "Jajá",
+"pos": "M",
+"foto": "1018779.webp"
+},
+{
+"id": 551422,
+"name": "Zé Welison",
+"short": "Zé Welison",
+"pos": "M",
+"foto": "551422.webp"
+},
+{
+"id": 981350,
+"name": "Leonel Picco",
+"short": "L. Picco",
+"pos": "M",
+"foto": "981350.webp"
+},
+{
+"id": 869639,
+"name": "Jáderson",
+"short": "Jaderson",
+"pos": "M",
+"foto": "869639.webp"
+},
+{
+"id": 943044,
+"name": "Zé Ricardo",
+"short": "Zé Ricardo",
+"pos": "M",
+"foto": "943044.webp"
+},
+{
+"id": 1470709,
+"name": "David Braga",
+"short": "D. Braga",
+"pos": "M",
+"foto": "1470709.webp"
+},
+{
+"id": 1089140,
+"name": "Franco Catarozzi",
+"short": "F. Catarozzi",
+"pos": "M",
+"foto": "1089140.webp"
+},
+{
+"id": 988779,
+"name": "Edson Fernando",
+"short": "Edson Fernando",
+"pos": "M",
+"foto": "988779.webp"
+},
+{
+"id": 1587951,
+"name": "Edson Kauã",
+"short": "E. K. R. Alves",
+"pos": "M",
+"foto": ""
+},
+{
+"id": 844602,
+"name": "Zé Ivaldo",
+"short": "Z. Ivaldo",
+"pos": "D",
+"foto": "844602.webp"
+},
+{
+"id": 981019,
+"name": "João Lucas",
+"short": "J. Lucas",
+"pos": "D",
+"foto": "981019.webp"
+},
+{
+"id": 891792,
+"name": "Duplexe Tchamba",
+"short": "D. Tchamba",
+"pos": "D",
+"foto": "891792.webp"
+},
+{
+"id": 221206,
+"name": "Marllon",
+"short": "Marllon",
+"pos": "D",
+"foto": "221206.webp"
+},
+{
+"id": 944459,
+"name": "Mayk",
+"short": "Mayk",
+"pos": "D",
+"foto": "944459.webp"
+},
+{
+"id": 953736,
+"name": "Matheus Alexandre",
+"short": "M. Alexandre",
+"pos": "D",
+"foto": "953736.webp"
+},
+{
+"id": 986868,
+"name": "Marcelinho",
+"short": "Marcelinho",
+"pos": "D",
+"foto": "986868.webp"
+},
+{
+"id": 903027,
+"name": "Léo",
+"short": "Léo",
+"pos": "D",
+"foto": "903027.webp"
+},
+{
+"id": 790099,
+"name": "Cristian Gonzalez",
+"short": "C. Gonzalez",
+"pos": "D",
+"foto": "790099.webp"
+},
+{
+"id": 1110173,
+"name": "Matheus Felipe",
+"short": "M. Felipe",
+"pos": "D",
+"foto": "1110173.webp"
+},
+{
+"id": 870933,
+"name": "Marlon Lopes",
+"short": "Marlon",
+"pos": "D",
+"foto": "870933.webp"
+},
+{
+"id": 1588988,
+"name": "Caio Pereira Magalhães",
+"short": "C. P. Magalhães",
+"pos": "D",
+"foto": ""
+},
+{
+"id": 795029,
+"name": "Ivan",
+"short": "Ivan",
+"pos": "G",
+"foto": "795029.webp"
+},
+{
+"id": 870902,
+"name": "Marcelo Rangel",
+"short": "M. Rangel",
+"pos": "G",
+"foto": "870902.webp"
+},
+{
+"id": 922569,
+"name": "Ygor Vinhas",
+"short": "Y. Vinhas",
+"pos": "G",
+"foto": "922569.webp"
+}
+],
+"SAN": [
+{
+"id": 124712,
+"name": "Neymar",
+"short": "Neymar",
+"pos": "F",
+"foto": "124712.webp"
+},
+{
+"id": 358554,
+"name": "Gabriel Barbosa",
+"short": "G. Barbosa",
+"pos": "F",
+"foto": "358554.webp"
+},
+{
+"id": 835260,
+"name": "Rony",
+"short": "Rony",
+"pos": "F",
+"foto": "835260.webp"
+},
+{
+"id": 1046501,
+"name": "Moisés",
+"short": "Moisés",
+"pos": "F",
+"foto": "1046501.webp"
+},
+{
+"id": 1430092,
+"name": "Rafael Freitas",
+"short": "R. Freitas",
+"pos": "F",
+"foto": "1430092.webp"
+},
+{
+"id": 1831085,
+"name": "Pedro Assis",
+"short": "Pedro Assis",
+"pos": "F",
+"foto": "1831085.webp"
+},
+{
+"id": 119159,
+"name": "Philippe Coutinho",
+"short": "P. Coutinho",
+"pos": "M",
+"foto": "119159.webp"
+},
+{
+"id": 386198,
+"name": "Everton Cebolinha",
+"short": "Everton",
+"pos": "M",
+"foto": "386198.webp"
+},
+{
+"id": 794927,
+"name": "Arthur",
+"short": "Arthur",
+"pos": "M",
+"foto": "794927.webp"
+},
+{
+"id": 1159656,
+"name": "Miguelito",
+"short": "Miguelito",
+"pos": "M",
+"foto": "1159656.webp"
+},
+{
+"id": 1656036,
+"name": "Gabriel Bontempo",
+"short": "G. Bontempo",
+"pos": "M",
+"foto": "1656036.webp"
+},
+{
+"id": 922454,
+"name": "Benjamín Rollheiser",
+"short": "B. Rollheiser",
+"pos": "M",
+"foto": "922454.webp"
+},
+{
+"id": 949687,
+"name": "Álvaro Barreal",
+"short": "Á. Barreal",
+"pos": "M",
+"foto": "949687.webp"
+},
+{
+"id": 974556,
+"name": "Gabriel Menino",
+"short": "G. Menino",
+"pos": "M",
+"foto": "974556.webp"
+},
+{
+"id": 242213,
+"name": "Willian Arão",
+"short": "Willian Arão",
+"pos": "M",
+"foto": "242213.webp"
+},
+{
+"id": 46798,
+"name": "Tomás Rincón",
+"short": "T. Rincón",
+"pos": "M",
+"foto": "46798.webp"
+},
+{
+"id": 872039,
+"name": "Thaciano",
+"short": "Thaciano",
+"pos": "M",
+"foto": "872039.webp"
+},
+{
+"id": 988656,
+"name": "Gustavo Caballero",
+"short": "G. Caballero",
+"pos": "M",
+"foto": "988656.webp"
+},
+{
+"id": 807850,
+"name": "Lima",
+"short": "Lima",
+"pos": "M",
+"foto": "807850.webp"
+},
+{
+"id": 244591,
+"name": "João Schmidt",
+"short": "J. Schmidt",
+"pos": "M",
+"foto": "244591.webp"
+},
+{
+"id": 923803,
+"name": "Christian Oliva",
+"short": "C. Oliva",
+"pos": "M",
+"foto": "923803.webp"
+},
+{
+"id": 1884605,
+"name": "Mateus Xavier",
+"short": "M. Xavier",
+"pos": "M",
+"foto": "1884605.webp"
+},
+{
+"id": 1587827,
+"name": "Gustavinho",
+"short": "Gustavinho",
+"pos": "M",
+"foto": "1587827.webp"
+},
+{
+"id": 1590315,
+"name": "Enzo Duscov Boer",
+"short": "E. D. Boer",
+"pos": "M",
+"foto": "1590315.webp"
+},
+{
+"id": 1888796,
+"name": "Pepê Fermino",
+"short": "P. Fermino",
+"pos": "M",
+"foto": "1888796.webp"
+},
+{
+"id": 2075078,
+"name": "Davi Fernandes Cavalcante Ribeiro",
+"short": "D. F. C. Ribeiro",
+"pos": "M",
+"foto": ""
+},
+{
+"id": 244039,
+"name": "Rodinei",
+"short": "Rodinei",
+"pos": "D",
+"foto": "244039.webp"
+},
+{
+"id": 840119,
+"name": "Igor Vinícius",
+"short": "I. Vinícius",
+"pos": "D",
+"foto": "840119.webp"
+},
+{
+"id": 826343,
+"name": "Lucas Veríssimo",
+"short": "L. Veríssimo",
+"pos": "D",
+"foto": "826343.webp"
+},
+{
+"id": 840500,
+"name": "Gonzalo Escobar",
+"short": "G. Escobar",
+"pos": "D",
+"foto": "840500.webp"
+},
+{
+"id": 842098,
+"name": "Luan Peres",
+"short": "L. Peres",
+"pos": "D",
+"foto": "842098.webp"
+},
+{
+"id": 2039241,
+"name": "Vinicius Rodrigues Lira",
+"short": "V. Lira",
+"pos": "D",
+"foto": "2039241.webp"
+},
+{
+"id": 883205,
+"name": "Alexis Duarte",
+"short": "A. Duarte",
+"pos": "D",
+"foto": "883205.webp"
+},
+{
+"id": 1888624,
+"name": "João Paulo Ananias",
+"short": "J. P. Ananias",
+"pos": "D",
+"foto": "1888624.webp"
+},
+{
+"id": 2550839,
+"name": "Samuel Mendes",
+"short": "S. Mendes",
+"pos": "D",
+"foto": "2550839.webp"
+},
+{
+"id": 2162650,
+"name": "João Alencar",
+"short": "J. Alencar",
+"pos": "D",
+"foto": "2162650.webp"
+},
+{
+"id": 905448,
+"name": "Gabriel Brazão",
+"short": "G. Brazão",
+"pos": "G",
+"foto": "905448.webp"
+},
+{
+"id": 795177,
+"name": "João Paulo",
+"short": "J. Paulo",
+"pos": "G",
+"foto": "795177.webp"
+},
+{
+"id": 1128754,
+"name": "Diogenes",
+"short": "Diogenes",
+"pos": "G",
+"foto": "1128754.webp"
+},
+{
+"id": 1589458,
+"name": "Rodrigo Falcão",
+"short": "R. Falcão",
+"pos": "G",
+"foto": "1589458.webp"
+},
+{
+"id": 1656025,
+"name": "João Fernandes",
+"short": "J. Fernandes",
+"pos": "G",
+"foto": "1656025.webp"
+}
+],
+"SAO": [
+{
+"id": 149710,
+"name": "Lucas Moura",
+"short": "L. Moura",
+"pos": "F",
+"foto": "149710.webp"
+},
+{
+"id": 340519,
+"name": "Jonathan Calleri",
+"short": "J. Calleri",
+"pos": "F",
+"foto": "340519.webp"
+},
+{
+"id": 282557,
+"name": "Luciano",
+"short": "Luciano",
+"pos": "F",
+"foto": "282557.webp"
+},
+{
+"id": 1631904,
+"name": "Ryan Francisco",
+"short": "R. Francisco",
+"pos": "F",
+"foto": "1631904.webp"
+},
+{
+"id": 925072,
+"name": "André Silva",
+"short": "A. Silva",
+"pos": "F",
+"foto": "925072.webp"
+},
+{
+"id": 1589758,
+"name": "Gustavo Santana",
+"short": "G. Santana",
+"pos": "F",
+"foto": "1589758.webp"
+},
+{
+"id": 998499,
+"name": "Ferreirinha",
+"short": "Ferreira",
+"pos": "M",
+"foto": "998499.webp"
+},
+{
+"id": 1015261,
+"name": "Damián Bobadilla",
+"short": "D. Bobadilla",
+"pos": "M",
+"foto": "1015261.webp"
+},
+{
+"id": 841128,
+"name": "Artur",
+"short": "Artur",
+"pos": "M",
+"foto": "841128.webp"
+},
+{
+"id": 905453,
+"name": "Marcos Antônio",
+"short": "M. Antônio",
+"pos": "M",
+"foto": "905453.webp"
+},
+{
+"id": 255873,
+"name": "Cauly",
+"short": "Cauly",
+"pos": "M",
+"foto": "255873.webp"
+},
+{
+"id": 1120721,
+"name": "Pablo Maia",
+"short": "P. Maia",
+"pos": "M",
+"foto": "1120721.webp"
+},
+{
+"id": 44760,
+"name": "Cédric Soares",
+"short": "C. Soares",
+"pos": "M",
+"foto": "44760.webp"
+},
+{
+"id": 2162243,
+"name": "Lucca",
+"short": "Lucca",
+"pos": "M",
+"foto": "2162243.webp"
+},
+{
+"id": 356514,
+"name": "Danielzinho",
+"short": "Danielzinho",
+"pos": "M",
+"foto": "356514.webp"
+},
+{
+"id": 2026233,
+"name": "Pedro Ferreira",
+"short": "P. Ferreira",
+"pos": "M",
+"foto": "2026233.webp"
+},
+{
+"id": 1463909,
+"name": "Newton",
+"short": "Newton",
+"pos": "M",
+"foto": "1463909.webp"
+},
+{
+"id": 1900321,
+"name": "Tetê",
+"short": "Tetê",
+"pos": "M",
+"foto": "1900321.webp"
+},
+{
+"id": 799634,
+"name": "Victor Sá",
+"short": "Victor Sá",
+"pos": "M",
+"foto": "799634.webp"
+},
+{
+"id": 1884601,
+"name": "Djhordney",
+"short": "Djhordney",
+"pos": "M",
+"foto": "1884601.webp"
+},
+{
+"id": 2026234,
+"name": "Pedro Bezerra",
+"short": "P. Bezerra",
+"pos": "M",
+"foto": "2026234.webp"
+},
+{
+"id": 1597270,
+"name": "Pedro Lima",
+"short": "P. Lima",
+"pos": "D",
+"foto": "1597270.webp"
+},
+{
+"id": 338937,
+"name": "Robert Arboleda",
+"short": "R. Arboleda",
+"pos": "D",
+"foto": "338937.webp"
+},
+{
+"id": 335033,
+"name": "Wendell",
+"short": "Wendell",
+"pos": "D",
+"foto": "335033.webp"
+},
+{
+"id": 932937,
+"name": "Enzo Díaz",
+"short": "E. Díaz",
+"pos": "D",
+"foto": "932937.webp"
+},
+{
+"id": 82943,
+"name": "Rafael Tolói",
+"short": "R. Tolói",
+"pos": "D",
+"foto": "82943.webp"
+},
+{
+"id": 975118,
+"name": "Sabino",
+"short": "Sabino",
+"pos": "D",
+"foto": "975118.webp"
+},
+{
+"id": 576276,
+"name": "Domingos Duarte",
+"short": "D. Duarte",
+"pos": "D",
+"foto": "576276.webp"
+},
+{
+"id": 797225,
+"name": "Lucas Ramon",
+"short": "L. Ramon",
+"pos": "D",
+"foto": "797225.webp"
+},
+{
+"id": 869644,
+"name": "Iago Borduchi",
+"short": "I. Borduchi",
+"pos": "D",
+"foto": "869644.webp"
+},
+{
+"id": 1631911,
+"name": "Igor Felisberto",
+"short": "I. Felisberto",
+"pos": "D",
+"foto": "1631911.webp"
+},
+{
+"id": 1892395,
+"name": "Nicolas Bosshardt",
+"short": "Nicolas",
+"pos": "D",
+"foto": "1892395.webp"
+},
+{
+"id": 1466551,
+"name": "Matheus Belém",
+"short": "Matheus Belém",
+"pos": "D",
+"foto": "1466551.webp"
+},
+{
+"id": 357752,
+"name": "Aurélio Buta",
+"short": "A. Buta",
+"pos": "D",
+"foto": "357752.webp"
+},
+{
+"id": 1836799,
+"name": "Luis Osorio",
+"short": "L. Osorio",
+"pos": "D",
+"foto": "1836799.webp"
+},
+{
+"id": 1482842,
+"name": "Isac",
+"short": "Isac",
+"pos": "D",
+"foto": "1482842.webp"
+},
+{
+"id": 33132,
+"name": "Rafael",
+"short": "Rafael",
+"pos": "G",
+"foto": "33132.webp"
+},
+{
+"id": 1116957,
+"name": "Young",
+"short": "Young",
+"pos": "G",
+"foto": "1116957.webp"
+},
+{
+"id": 800150,
+"name": "Carlos Coronel",
+"short": "C. Coronel",
+"pos": "G",
+"foto": "800150.webp"
+},
+{
+"id": 1631898,
+"name": "Felipe Gabriel Preis",
+"short": "F. G. Preis",
+"pos": "G",
+"foto": "1631898.webp"
+},
+{
+"id": 1634547,
+"name": "João Pedro",
+"short": "J. Pedro",
+"pos": "G",
+"foto": "1634547.webp"
+}
+],
+"VAS": [
+{
+"id": 927308,
+"name": "Facundo Colidio",
+"short": "F. Colidio",
+"pos": "F",
+"foto": "927308.webp"
+},
+{
+"id": 884980,
+"name": "Brenner",
+"short": "Brenner",
+"pos": "F",
+"foto": "884980.webp"
+},
+{
+"id": 861297,
+"name": "Claudio Spinelli",
+"short": "C. Spinelli",
+"pos": "F",
+"foto": "861297.webp"
+},
+{
+"id": 878830,
+"name": "Bruno Duarte",
+"short": "B. Duarte",
+"pos": "F",
+"foto": "878830.webp"
+},
+{
+"id": 1105970,
+"name": "Adson",
+"short": "Adson",
+"pos": "F",
+"foto": "1105970.webp"
+},
+{
+"id": 840291,
+"name": "David",
+"short": "David",
+"pos": "F",
+"foto": "840291.webp"
+},
+{
+"id": 2039991,
+"name": "Andrey Fernandes",
+"short": "A. Fernandes",
+"pos": "F",
+"foto": "2039991.webp"
+},
+{
+"id": 1652392,
+"name": "Bruno Lopes",
+"short": "B. Lopes",
+"pos": "F",
+"foto": "1652392.webp"
+},
+{
+"id": 1160386,
+"name": "Andrés Gómez",
+"short": "A. Gómez",
+"pos": "M",
+"foto": "1160386.webp"
+},
+{
+"id": 972587,
+"name": "Marino Hinestroza",
+"short": "M. Hinestroza",
+"pos": "M",
+"foto": "972587.webp"
+},
+{
+"id": 851285,
+"name": "Nuno Moreira",
+"short": "N. Moreira",
+"pos": "M",
+"foto": "851285.webp"
+},
+{
+"id": 329303,
+"name": "Thiago Mendes",
+"short": "T. Mendes",
+"pos": "M",
+"foto": "329303.webp"
+},
+{
+"id": 1444694,
+"name": "Cauan Barros",
+"short": "C. Barros",
+"pos": "M",
+"foto": "1444694.webp"
+},
+{
+"id": 1173373,
+"name": "Johan Rojas",
+"short": "J. Rojas",
+"pos": "M",
+"foto": "1173373.webp"
+},
+{
+"id": 928237,
+"name": "Santiago Sosa",
+"short": "S. Sosa",
+"pos": "M",
+"foto": "928237.webp"
+},
+{
+"id": 840398,
+"name": "Tchê Tchê",
+"short": "Tchê Tchê",
+"pos": "M",
+"foto": "840398.webp"
+},
+{
+"id": 1186068,
+"name": "Alan Lescano",
+"short": "A. Lescano",
+"pos": "M",
+"foto": "1186068.webp"
+},
+{
+"id": 268419,
+"name": "Jair",
+"short": "Jair",
+"pos": "M",
+"foto": "268419.webp"
+},
+{
+"id": 1634144,
+"name": "Guilherme Estrella",
+"short": "G. Estrella",
+"pos": "M",
+"foto": "1634144.webp"
+},
+{
+"id": 1641136,
+"name": "Lukas Zuccarello",
+"short": "L. Zuccarello",
+"pos": "M",
+"foto": "1641136.webp"
+},
+{
+"id": 1391962,
+"name": "Mateus Carvalho",
+"short": "M. Carvalho",
+"pos": "M",
+"foto": "1391962.webp"
+},
+{
+"id": 1110708,
+"name": "Loide Augusto",
+"short": "L. Augusto",
+"pos": "M",
+"foto": "1110708.webp"
+},
+{
+"id": 1635831,
+"name": "Ramon Rique",
+"short": "R. Rique",
+"pos": "M",
+"foto": "1635831.webp"
+},
+{
+"id": 2075165,
+"name": "João Mutano",
+"short": "J. Mutano",
+"pos": "M",
+"foto": "2075165.webp"
+},
+{
+"id": 1644844,
+"name": "Euder",
+"short": "Euder",
+"pos": "M",
+"foto": "1644844.webp"
+},
+{
+"id": 2161941,
+"name": "Samuel Jesus",
+"short": "Samuel",
+"pos": "M",
+"foto": "2161941.webp"
+},
+{
+"id": 2026625,
+"name": "Gustavo Guimarães Soares",
+"short": "G. G. Soares",
+"pos": "M",
+"foto": "2026625.webp"
+},
+{
+"id": 1021721,
+"name": "Paulo Henrique",
+"short": "P. Henrique",
+"pos": "D",
+"foto": "1021721.webp"
+},
+{
+"id": 839095,
+"name": "Carlos Cuesta",
+"short": "C. Cuesta",
+"pos": "D",
+"foto": "839095.webp"
+},
+{
+"id": 1160554,
+"name": "Cuiabano",
+"short": "Cuiabano",
+"pos": "D",
+"foto": "1160554.webp"
+},
+{
+"id": 1191278,
+"name": "Robert Renan",
+"short": "R. Renan",
+"pos": "D",
+"foto": "1191278.webp"
+},
+{
+"id": 982174,
+"name": "Lucas Piton",
+"short": "L. Piton",
+"pos": "D",
+"foto": "982174.webp"
+},
+{
+"id": 877591,
+"name": "Puma Rodríguez",
+"short": "P. Rodríguez",
+"pos": "D",
+"foto": "877591.webp"
+},
+{
+"id": 1112908,
+"name": "Alan Saldivia",
+"short": "A. Saldivia",
+"pos": "D",
+"foto": "1112908.webp"
+},
+{
+"id": 1069729,
+"name": "Lucas Freitas",
+"short": "L. Freitas",
+"pos": "D",
+"foto": "1069729.webp"
+},
+{
+"id": 992652,
+"name": "Gabriel Pereira",
+"short": "G. Pereira",
+"pos": "D",
+"foto": "992652.webp"
+},
+{
+"id": 1016905,
+"name": "Riquelme",
+"short": "Riquelme",
+"pos": "D",
+"foto": "1016905.webp"
+},
+{
+"id": 2026623,
+"name": "Riquelme Avellar",
+"short": "R. A. d. S. Fortes",
+"pos": "D",
+"foto": "2026623.webp"
+},
+{
+"id": 2028691,
+"name": "Walace Falcão",
+"short": "Walace",
+"pos": "D",
+"foto": "2028691.webp"
+},
+{
+"id": 1485496,
+"name": "Paulinho",
+"short": "Paulinho",
+"pos": "D",
+"foto": "1485496.webp"
+},
+{
+"id": 2026626,
+"name": "Bruno André",
+"short": "B. André",
+"pos": "D",
+"foto": "2026626.webp"
+},
+{
+"id": 1634143,
+"name": "Breno Vereza da Silva",
+"short": "B. V. d. Silva",
+"pos": "D",
+"foto": "1634143.webp"
+},
+{
+"id": 2028670,
+"name": "Alison De Nardi Araujo",
+"short": "Alison",
+"pos": "D",
+"foto": "2028670.webp"
+},
+{
+"id": 595598,
+"name": "Léo Jardim",
+"short": "L. Jardim",
+"pos": "G",
+"foto": "595598.webp"
+},
+{
+"id": 863276,
+"name": "Daniel Fuzato",
+"short": "D. Fuzato",
+"pos": "G",
+"foto": "863276.webp"
+},
+{
+"id": 1652393,
+"name": "Pablo",
+"short": "Pablo",
+"pos": "G",
+"foto": "1652393.webp"
+},
+{
+"id": 1482343,
+"name": "Phillipe Gabriel",
+"short": "P. Gabriel",
+"pos": "G",
+"foto": "1482343.webp"
+}
+],
+"VIT": [
+{
+"id": 798127,
+"name": "Marinho",
+"short": "Marinho",
+"pos": "F",
+"foto": "798127.webp"
+},
+{
+"id": 814723,
+"name": "Renato Kayzer",
+"short": "R. Kayzer",
+"pos": "F",
+"foto": "814723.webp"
+},
+{
+"id": 1644830,
+"name": "Renê Sousa",
+"short": "Renê",
+"pos": "F",
+"foto": "1644830.webp"
+},
+{
+"id": 90468,
+"name": "Osvaldo",
+"short": "Osvaldo",
+"pos": "F",
+"foto": "90468.webp"
+},
+{
+"id": 975351,
+"name": "Fabrício Santos",
+"short": "F. Santos",
+"pos": "F",
+"foto": "975351.webp"
+},
+{
+"id": 1468444,
+"name": "Alex Bruno",
+"short": "A. Bruno",
+"pos": "F",
+"foto": "1468444.webp"
+},
+{
+"id": 895650,
+"name": "Erick",
+"short": "Erick",
+"pos": "M",
+"foto": "895650.webp"
+},
+{
+"id": 795266,
+"name": "Matheuzinho",
+"short": "Matheuzinho",
+"pos": "M",
+"foto": "795266.webp"
+},
+{
+"id": 553686,
+"name": "Walace",
+"short": "Walace",
+"pos": "M",
+"foto": "553686.webp"
+},
+{
+"id": 824626,
+"name": "Tomás Pochettino",
+"short": "T. Pochettino",
+"pos": "M",
+"foto": "824626.webp"
+},
+{
+"id": 922575,
+"name": "Gabriel Baralhas",
+"short": "G. Baralhas",
+"pos": "M",
+"foto": "922575.webp"
+},
+{
+"id": 794312,
+"name": "Emmanuel Martínez",
+"short": "E. Martinez",
+"pos": "M",
+"foto": "794312.webp"
+},
+{
+"id": 948004,
+"name": "Ignacio Laquintana",
+"short": "I. Laquintana",
+"pos": "M",
+"foto": "948004.webp"
+},
+{
+"id": 1124220,
+"name": "Dudu",
+"short": "D. Rodrigues",
+"pos": "M",
+"foto": "1124220.webp"
+},
+{
+"id": 1650040,
+"name": "Diego Tarzia",
+"short": "D. Tarzia",
+"pos": "M",
+"foto": "1650040.webp"
+},
+{
+"id": 1188028,
+"name": "Zé Vitor",
+"short": "Z. Vitor",
+"pos": "M",
+"foto": "1188028.webp"
+},
+{
+"id": 871032,
+"name": "Caique Gonçalves",
+"short": "Caique",
+"pos": "M",
+"foto": "871032.webp"
+},
+{
+"id": 2441013,
+"name": "Anderson Pato",
+"short": "A. Pato",
+"pos": "M",
+"foto": "2441013.webp"
+},
+{
+"id": 1032938,
+"name": "Kike Saverio",
+"short": "K. Saverio",
+"pos": "M",
+"foto": "1032938.webp"
+},
+{
+"id": 1469058,
+"name": "Rúben Ramos Ismael",
+"short": "Ismael",
+"pos": "M",
+"foto": "1469058.webp"
+},
+{
+"id": 980421,
+"name": "Lucas Silva",
+"short": "L. Silva",
+"pos": "M",
+"foto": "980421.webp"
+},
+{
+"id": 1896090,
+"name": "José Breno",
+"short": "J. Breno",
+"pos": "M",
+"foto": "1896090.webp"
+},
+{
+"id": 2613161,
+"name": "Cauan Farias",
+"short": "Cauan",
+"pos": "M",
+"foto": "2613161.webp"
+},
+{
+"id": 929200,
+"name": "Cacá",
+"short": "Cacá",
+"pos": "D",
+"foto": "929200.webp"
+},
+{
+"id": 980761,
+"name": "Ramon",
+"short": "Ramon",
+"pos": "D",
+"foto": "980761.webp"
+},
+{
+"id": 905459,
+"name": "Luan Cândido",
+"short": "L. Cândido",
+"pos": "D",
+"foto": "905459.webp"
+},
+{
+"id": 789395,
+"name": "Emanuel Brítez",
+"short": "E. Brítez",
+"pos": "D",
+"foto": "789395.webp"
+},
+{
+"id": 931759,
+"name": "Camutanga",
+"short": "Camutanga",
+"pos": "D",
+"foto": "931759.webp"
+},
+{
+"id": 972373,
+"name": "Jamerson",
+"short": "Jamerson",
+"pos": "D",
+"foto": "972373.webp"
+},
+{
+"id": 1116955,
+"name": "Nathan Mendes",
+"short": "N. Mendes",
+"pos": "D",
+"foto": "1116955.webp"
+},
+{
+"id": 1107069,
+"name": "Mateusinho",
+"short": "Mateusinho",
+"pos": "D",
+"foto": "1107069.webp"
+},
+{
+"id": 1130513,
+"name": "Fabiano Souza",
+"short": "F. Souza",
+"pos": "D",
+"foto": "1130513.webp"
+},
+{
+"id": 989715,
+"name": "Edu",
+"short": "Edu",
+"pos": "D",
+"foto": "989715.webp"
+},
+{
+"id": 927166,
+"name": "Riccieli",
+"short": "Riccieli",
+"pos": "D",
+"foto": "927166.webp"
+},
+{
+"id": 1959800,
+"name": "Darlan",
+"short": "Darlan",
+"pos": "D",
+"foto": "1959800.webp"
+},
+{
+"id": 2797159,
+"name": "Hiago Costa",
+"short": "H. Costa",
+"pos": "D",
+"foto": ""
+},
+{
+"id": 982558,
+"name": "Lucas Arcanjo",
+"short": "L. Arcanjo",
+"pos": "G",
+"foto": "982558.webp"
+},
+{
+"id": 1017274,
+"name": "Alexandre Fintelman",
+"short": "A. Fintelman",
+"pos": "G",
+"foto": "1017274.webp"
+},
+{
+"id": 905464,
+"name": "Yuri Sena",
+"short": "Y. Sena",
+"pos": "G",
+"foto": "905464.webp"
+}
+]
+}

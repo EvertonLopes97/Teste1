@@ -1,0 +1,40 @@
+VÍDEO NARRADO PARA REAGIR — o formato dos 3 vídeos que ele mandou
+==================================================================
+
+MEDIDO nos três (06/nov), não chutado:
+  · o corte entre o conteúdo e a reação fica em 68% / 72% / 68% da altura  → uso 70%
+  · o clipe de cima troca a cada 2,2 s (30 cortes em 67 s, 33 em 73 s)
+  · a narração corre a 192 palavras/min
+  · legenda de 1 a 3 palavras, CAIXA ALTA, contorno preto grosso, palavra-chave em amarelo
+  · em cima é VÍDEO DE VERDADE (jogo, entrevista, treino), nunca foto parada
+
+COMO USAR
+  python tools\narrado\narrado.py --quente
+      pega a notícia mais quente dos portais (G1, GE, CNN, UOL)
+
+  python tools\narrado\narrado.py --assunto "CR7 anuncia aposentadoria da seleção"
+  python tools\narrado\narrado.py --assunto "..." --reacao "C:\...\minha_reacao.mp4"
+  --segundos 60     tamanho alvo (padrão 60)
+
+No painel: aba REAGIR.
+
+O QUE SAI  (E:\DETTO\narrado\prontos\<data>\<assunto>\)
+  topo.mp4       1080x1344 — só o conteúdo. É este que você abre para gravar a reação olhando.
+  completo.mp4   1080x1920 — conteúdo em cima (70%), sua reação (ou o espaço) embaixo (30%).
+  post.txt       título, legenda e tags
+  roteiro.json   a narração e os termos de busca usados
+
+COMO ELE CONSEGUE 25 CLIPES SEM BAIXAR 25 VÍDEOS
+Baixa um pedaço de 3 vídeos de notícia sobre o assunto e corta cada um em pedaços de 2,2 s.
+Um vídeo de 75 s já rende 30 pedaços. A IA escolhe os termos de busca a partir do assunto.
+
+Aqui os clipes MOSTRAM gente de propósito — o jogador e o técnico SÃO a notícia. É o contrário
+do TikTok Shop, onde a cara de outra pessoa no anúncio estragaria (lá o filtro de rosto fica ligado).
+
+A VOZ segue a ordem do resto do sistema: VoiceStudio (a SUA voz clonada) → Fish → neural pt-BR.
+Abra o VoiceStudio antes de rodar se quiser a sua voz.
+
+A LEGENDA é sincronizada pela transcrição da própria narração (faster-whisper). Se a transcrição
+falhar, o tempo é repartido pelo tamanho das palavras — nunca fica sem legenda.
+
+PROIBIDO INVENTAR está no prompt: a IA só usa o que está no assunto.

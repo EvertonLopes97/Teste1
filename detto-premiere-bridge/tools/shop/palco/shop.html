@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Cartelas do TikTok Shop</title>
+    <link rel="stylesheet" href="shop.css" />
+  </head>
+  <body>
+    <div id="palco"></div>
+    <script>
+      "use strict";
+
+      /* Desenha UMA cartela (PNG transparente) por pedido. O vídeo/foto do produto entra por baixo, no FFmpeg.
+         window.SHOP.monta(peca) → o palco fica pronto para o screenshot. */
+
+      const PALCO = document.getElementById("palco");
+
+      function esc(s) {
+        return String(s == null ? "" : s).replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+      }
+
+      /** *palavra* vira destaque amarelo; _palavra_ vira verde. Sem marcação, destaca o número (é o que prende). */
+      function marca(txt) {
+        let t = esc(txt).replace(/\*([^*]+)\*/g, "<em>$1</em>").replace(/_([^_]+)_/g, "<b>$1</b>");
+        if (!/<em>|<b>/.test(t)) {
+          t = t.replace(/(R\$ ?[\d.,]+|\d+[\d.,]*\s?(?:%|x|reais|mil)?)/i, "<em>$1</em>");
+        }
+        return t;
+      }
+
+      /** quebra em linhas parelhas para o texto não sair com uma palavra sozinha na última linha */
+      function linhas(txt, porLinha) {
+        const ws = String(txt || "").trim().split(/\s+/).filter(Boolean);
+        if (!ws.length) return "";
+        const n = Math.max(1, Math.min(4, Math.ceil(ws.join(" ").length / (porLinha || 17))));
+        const out = Array.from({ length: n }, () => []);
+        const q = Math.ceil(ws.length / n);
+        ws.forEach((w, i) => out[Math.min(n - 1, Math.floor(i / q))].push(w));
+        return out.filter((l) => l.length).map((l) => marca(l.join(" "))).join("<br>");
+      }
+
+      function el(cls, html, estilo) {
+        const d = document.createElement("div");
+        d.className = cls;
+        if (html != null) d.innerHTML = html;
+        if (estilo) Object.assign(d.style, estilo);
+        PALCO.appendChild(d);
+        return d;
+      }
+
+      /* o preço e a legenda brigavam pelo mesmo lugar: com legenda na tela, a etiqueta sobe */
+      function precoTopo(p) {
+        if (p.preco_em) return p.preco_em;
+        return p.legenda ? 980 : 1180;
+      }
+
+      function precoBloco(p) {
+        const [a, b] = String(p.preco || "").replace(/[Rr]\$\s*/, "").split(/[.,](\d{2})$/);
+        const cent = b ? `<span class="cent">,${b}</span>` : "";
+        const de = p.preco_de ? `<span class="de">${esc(p.preco_de)}</span>` : "";
+        el("preco", `${de}<span class="por">R$ ${esc(a || p.preco)}${cent}</span>`, { top: precoTopo(p) + "px" });
+      }
+
+      const SHOP = {
+        monta(peca) {
+          PALCO.innerHTML = "";
+          const p = peca || {};
+          document.body.style.background = p.fundo || "transparent";
+
+          if (p.tipo === "fim") {
+            el("fim");
+            const f = PALCO.lastChild;
+            f.innerHTML =
+              `<div class="t">${linhas(p.texto || "CORRE QUE *ESGOTA*", 13)}</div>` +
+              (p.sub ? `<div class="sub">${esc(p.sub)}</div>` : "") +
+              (p.arroba ? `<div class="arroba">${esc(p.arroba)}</div>` : "");
+            if (p.preco) precoBloco(p);
+            return;
+          }
+
+          if (p.tipo === "vantagens") {
+            const vs = (p.itens || []).slice(0, 4);
+            const html = vs
+              .map((v, i) => `<div class="v${p.ate != null && i > p.ate ? " apaga" : ""}"><span class="ok">✓</span><span>${marca(v)}</span></div>`)
+              .join("");
+            el("vantagens", html, p.em ? { top: p.em + "px" } : null);
+          }
+
+          if (p.texto) {
+            // com selo na tela, o texto NÃO sobe: o selo ficava em cima da primeira palavra do gancho
+            const alto = p.topo_alto && !p.selo ? " alto" : "";
+            const menor = String(p.texto).length > 42 ? " menor" : "";
+            const t = el("topo" + alto + menor, linhas(p.texto, 17));
+            // a tarja segue a altura real do texto (em foto clara o branco sumia)
+            const r = t.getBoundingClientRect();
+            const tarja = el("tarja", "", { top: Math.max(0, r.top - 70) + "px", height: r.height + 140 + "px" });
+            PALCO.insertBefore(tarja, t);
+          }
+          if (p.legenda) el("legenda", marca(p.legenda), p.legenda_em ? { bottom: p.legenda_em + "px" } : null);
+          if (p.selo) el("selo", esc(p.selo));
+          if (p.preco) precoBloco(p);
+          if (p.cta) {
+            const c = el("cta" + (p.cta_baixo ? " baixo" : ""));
+            c.innerHTML = `<div class="bolha">${marca(p.cta)}</div><div class="seta"></div>`;
+          }
+        },
+      };
+
+      window.SHOP = SHOP;
+    </script>
+  </body>
+</html>
