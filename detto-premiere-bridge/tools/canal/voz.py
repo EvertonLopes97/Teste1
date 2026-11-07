@@ -211,7 +211,14 @@ def voicestudio_ligado(url=None, tempo=4):
 def voicestudio_pronto(url=None, tempo=4):
     """aberto E com ALGUMA voz cadastrada. Sem voz nenhuma ele SORTEIA uma (saía voz de mulher no lugar da
     dele), então nesse caso é melhor cair no Fish Audio."""
-    return bool(voicestudio_ligado(url, tempo=tempo)) and bool(voicestudio_vozes(url))
+    if not voicestudio_ligado(url, tempo=tempo):
+        return False
+    if voicestudio_vozes(url):
+        return True
+    # aberto, mas a API NÃO lista os perfis salvos (acontece: o perfil "everton" existe no app e a lista vem vazia).
+    # Antes isso pulava o VoiceStudio em silêncio e caía no Fish/neural. Agora tenta pelo NOME do perfil.
+    print("voz: VoiceStudio aberto, mas a lista de vozes veio vazia — vou tentar pelo nome do perfil (everton)", flush=True)
+    return True
 
 
 def voicestudio_vozes(url=None):
@@ -236,7 +243,7 @@ def voicestudio_escolhe(url=None, pedida="", log=print):
     senão a primeira da lista. "default" deixava o VoiceStudio sortear — por isso saía ora feminina, ora masculina."""
     vozes = voicestudio_vozes(url)
     if not vozes:
-        return pedida or "default", "nenhuma voz cadastrada no VoiceStudio"
+        return (pedida or os.environ.get("DETTO_VS_VOZ") or "everton"), "perfil pelo nome (a lista de vozes veio vazia)"
     pedida = (pedida or "").strip()
     if pedida:
         for v in vozes:  # confere se a escolhida ainda existe (id ou nome)
