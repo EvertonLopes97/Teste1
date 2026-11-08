@@ -46,8 +46,31 @@ def pasta_marca():
     return Path.home() / "DETTO" / "marca"
 
 
-def _ff(args):
-    return subprocess.run(["ffmpeg", "-v", "error", "-y", *args], capture_output=True, text=True)
+def _ff(args, timeout=None):
+    try:
+        return subprocess.run(["ffmpeg", "-v", "error", "-y", *args], capture_output=True, text=True, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(args, 1, "", f"passou de {timeout}s e foi encerrado")
+
+
+_ENC_V = None
+
+
+def _enc_v():
+    """NVENC se a placa responde (testa 1 quadro), senão x264 veryfast. Antes era x264 'medium' na CPU: 15 min de
+    1080p levavam 30-60 min e o registro ficava mudo (rodada 'travada' em 08/nov)."""
+    global _ENC_V
+    if _ENC_V is None:
+        _ENC_V = ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20"]
+        if os.environ.get("DETTO_SEM_NVENC") != "1":
+            try:
+                r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", "color=c=black:s=256x256:d=0.1",
+                                    "-c:v", "h264_nvenc", "-f", "null", "-"], capture_output=True, timeout=120)
+                if r.returncode == 0:
+                    _ENC_V = ["-c:v", "h264_nvenc", "-preset", "p4", "-rc", "vbr", "-cq", "21", "-b:v", "0"]
+            except Exception:  # noqa: BLE001
+                pass
+    return _ENC_V
 
 
 def formato(video):
@@ -142,9 +165,10 @@ def emenda(vinheta, video, saida, log=log, em=0.0):
     g = saida.parent / "_vinheta_grafo.txt"
     g.parent.mkdir(parents=True, exist_ok=True)
     g.write_text(grafo, encoding="utf-8")
+    log(f"vinheta: emendando no vídeo de {total / 60:.1f} min (prazo 25 min)...")
     r = _ff([*entradas, *filtro_complexo(str(g)), "-map", "[v]", "-map", "[a]",
-             "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
-             "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(saida)])
+             *_enc_v(), "-pix_fmt", "yuv420p",
+             "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", str(saida)], timeout=1500)
     g.unlink(missing_ok=True)
     if r.returncode != 0 or not saida.exists():
         log(f"vinheta: não emendei ({(r.stderr or '')[-200:]})")

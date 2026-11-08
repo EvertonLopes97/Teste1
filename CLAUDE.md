@@ -3,6 +3,14 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 08/nov — RODADA DE NOTÍCIAS "TRAVADA" DEPOIS DE "vídeo montado"
+
+- Causa provável: `vinheta.emenda` recodificava o vídeo INTEIRO (15 min, 1080p) no CPU com `libx264 -preset medium`,
+  sem prazo e sem NENHUMA linha no registro (a vinheta já em cache não loga) — 60–108 min de silêncio e o relógio
+  de 110 min matava a rodada. Agora NVENC (testado com 1 quadro) ou x264 veryfast, prazo de 25 min e log "vinheta:
+  emendando...". canal.py também loga "thumb: começando/pronta (N min)" e "shorts: N para fazer". Se ainda demorar,
+  a linha `TEMPOS:` + essas linhas dizem a etapa. NÃO conferido no PC dele.
+
 ## 06/nov — A RODADA LENTA, OS FORMATOS, O SHOP COM VÍDEO E O "REAGIR"
 
 - **VOZ 1,25x, TRADUÇÃO SÓ EM LÍNGUA ESTRANGEIRA E MODO LANÇAMENTO (06/nov, 22:49)** — **1** `velocidade_voz` padrão 1,25

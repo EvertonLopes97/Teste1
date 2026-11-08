@@ -2849,7 +2849,10 @@ def main():
                                                        "com 10 s cada) — o vídeo sai sem a barrinha")
         except Exception as e:  # noqa: BLE001
             log(f"capítulos: não saíram ({str(e)[:120]})")
+    log("thumb: começando")
+    _t0 = time.time()
     th = thumb(video, rot, {**cfg, "_pasta": str(pasta)}, pronto, sel)
+    log(f"thumb: {'pronta' if th else 'sem thumb'} ({(time.time() - _t0) / 60:.1f} min)")
     creditos = sorted({origem(x) + (f" — youtube.com/{x['canal']}" if x.get("canal") else "") for x in sel})
     tags = [t.strip("#") for t in rot.get("tags", [])][:15]
     hashtags = " ".join("#" + re.sub(r"\W", "", t) for t in tags[:3])
@@ -2876,11 +2879,13 @@ def main():
     fala_antes = {f["antes"]: f for f in falas if "antes" in f}
     ordem = sorted(range(len(sel)), key=lambda i: (not sel[i].get("pauta"), -float(sel[i].get("nota", 5))))
     shorts = []
+    log(f"shorts: {min(len(ordem), int(cfg.get('shorts', 0)))} para fazer")
     for n, i in enumerate(ordem[: int(cfg.get("shorts", 0))]):
         log(f"   short {n + 1}: {sel[i]['manchete']}")
         sv = short(cfg, pasta, fala_antes.get(i), sel[i], tmp, n, pronto / f"short_{n + 1}.mp4")
         if sv:
             shorts.append({"arquivo": sv.name, "titulo": sel[i]["manchete"].title(), "descricao": sel[i].get("resumo", "")})
+    log("shorts: prontos; gravando o registro e publicando")
     for x in sel:
         x["usado"] = True
     # lembra o que foi postado (3 dias) para a mesma notícia não voltar por outro canal
