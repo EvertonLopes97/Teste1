@@ -9,7 +9,7 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
   sem prazo e sem NENHUMA linha no registro (a vinheta já em cache não loga) — 60–108 min de silêncio e o relógio
   de 110 min matava a rodada. Agora NVENC (testado com 1 quadro) ou x264 veryfast, prazo de 25 min e log "vinheta:
   emendando...". canal.py também loga "thumb: começando/pronta (N min)" e "shorts: N para fazer". Se ainda demorar,
-  a linha `TEMPOS:` + essas linhas dizem a etapa. NÃO conferido no PC dele.
+  a linha `TEMPOS:` + essas linhas dizem a etapa. **Mesmo assim ficou >23 min (20:24→20:47)**: agora `emenda_rapida` — corta no quadro-chave seguinte, recodifica só a vinheta (3 s) e junta com `-c copy` (segundos; testado 60 s+3 s = 63,06 s). `DETTO_EMENDA_LENTA=1` volta ao caminho antigo; falhou = cai nele. NÃO conferido no PC dele.
 
 ## 06/nov — A RODADA LENTA, OS FORMATOS, O SHOP COM VÍDEO E O "REAGIR"
 

@@ -127,6 +127,68 @@ def duracao(f):
         return 0.0
 
 
+def _proximo_keyframe(video, em):
+    """segundo do primeiro quadro-chave em/depois de `em` (None se não achar)"""
+    try:
+        r = subprocess.run(["ffprobe", "-v", "error", "-select_streams", "v:0", "-skip_frame", "nokey", "-read_intervals",
+                            f"{em:.2f}%+40", "-show_entries", "frame=pts_time", "-of", "csv=p=0", str(video)],
+                           capture_output=True, text=True, timeout=120)
+        for l in r.stdout.split():
+            try:
+                t = float(l.strip(",")); 
+            except ValueError:
+                continue
+            if t >= em - 0.01:
+                return t
+    except Exception:  # noqa: BLE001
+        pass
+    return None
+
+
+def emenda_rapida(vinheta, video, saida, em, log=log):
+    """SEM recodificar o vídeo: corta num quadro-chave perto de `em`, recodifica só a vinheta (3 s) com os mesmos
+    parâmetros do vídeo e junta tudo com -c copy. Leva segundos em vez de 20-60 min. None = não deu (cai no caminho lento)."""
+    w, h, fps, tem_audio = formato(video)
+    if not tem_audio:
+        return None
+    k = _proximo_keyframe(video, em)
+    if not k or k > em + 12:
+        return None
+    pasta = saida.parent
+    a, v, b, lista = pasta / "_vf_a.mp4", pasta / "_vf_v.mp4", pasta / "_vf_b.mp4", pasta / "_vf_lista.txt"
+    try:
+        r1 = _ff(["-i", str(video), "-t", f"{k:.3f}", "-c", "copy", "-avoid_negative_ts", "make_zero", str(a)], timeout=600)
+        r2 = _ff(["-ss", f"{k:.3f}", "-i", str(video), "-c", "copy", "-avoid_negative_ts", "make_zero", str(b)], timeout=600)
+        g = (f"[0:v]scale={w}:{h},setsar=1,fps={fps},format=yuv420p[v];"
+             "[0:a]aresample=48000,aformat=channel_layouts=stereo[a]")
+        gf = pasta / "_vf_grafo.txt"
+        gf.write_text(g, encoding="utf-8")
+        sys.path.insert(0, str(TOOLS))
+        from ffcompat import filtro_complexo
+
+        r3 = _ff(["-i", str(vinheta), *filtro_complexo(str(gf)), "-map", "[v]", "-map", "[a]", *_enc_v(), "-pix_fmt", "yuv420p",
+                  "-c:a", "aac", "-b:a", "192k", "-ar", "48000", str(v)], timeout=300)
+        gf.unlink(missing_ok=True)
+        if r1.returncode or r2.returncode or r3.returncode or not (a.exists() and b.exists() and v.exists()):
+            return None
+        lista.write_text("".join(f"file '{x.as_posix()}'\n" for x in (a, v, b)), encoding="utf-8")
+        r4 = _ff(["-f", "concat", "-safe", "0", "-i", str(lista), "-c", "copy", "-movflags", "+faststart", str(saida)], timeout=600)
+        if r4.returncode or not saida.exists():
+            return None
+        d0, d1 = duracao(video), duracao(saida)
+        if d0 and d1 and abs(d1 - (d0 + duracao(vinheta))) > 3:   # soma não bate: emenda estragada, usa o caminho lento
+            saida.unlink(missing_ok=True)
+            return None
+        log(f"vinheta: emendada sem recodificar (aos {k:.1f}s)")
+        return saida
+    except Exception as e:  # noqa: BLE001
+        log(f"vinheta: emenda rápida falhou ({str(e)[:100]})")
+        return None
+    finally:
+        for x in (a, v, b, lista):
+            x.unlink(missing_ok=True)
+
+
 def emenda(vinheta, video, saida, log=log, em=0.0):
     """põe a vinheta no vídeo. `em` = em que segundo ela entra (0 = na frente).
     VINHETA NO SEGUNDO 0 QUEBRA A RETENÇÃO (26/out): quem abre o vídeo tem que ouvir a chamada primeiro; a
@@ -139,6 +201,11 @@ def emenda(vinheta, video, saida, log=log, em=0.0):
     em = float(em or 0)
     if em < 0.3 or (total and em > total - 0.5):
         em = 0.0   # não dá para partir aqui: volta para a frente do vídeo
+    if em and os.environ.get("DETTO_EMENDA_LENTA") != "1":
+        rapida = emenda_rapida(vinheta, video, saida, em, log)
+        if rapida:
+            return rapida
+        log("vinheta: emenda rápida não deu; recodificando (lento)")
     sys.path.insert(0, str(TOOLS))
     from ffcompat import filtro_complexo
 
