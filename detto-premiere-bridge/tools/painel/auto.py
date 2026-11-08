@@ -214,6 +214,9 @@ def atualiza_se_preciso(CAN, SHP, EDI, log=print):
     return True
 
 
+SHOP_ESPERA = {"ate": 0.0}
+
+
 def shop_meta(CAN, SHP, EDI, cp, log=print):
     """30 vídeos de Shop por dia (06/nov): quando o PC está livre e faltam vídeos, completa a lista de
     produtos (viral_shop.py) e manda o shop.py fazer um lote pequeno — um lote por vez, nunca junto com canal."""
@@ -236,6 +239,8 @@ def shop_meta(CAN, SHP, EDI, cp, log=print):
         return [l for l in nf.read_text(encoding="utf-8").splitlines() if l.strip()] if nf.exists() else []
 
     if len(nomes()) < 3:
+        if time.time() < SHOP_ESPERA["ate"]:     # a última busca não achou nada: não repete a cada 2 min a noite inteira
+            return
         log(f"auto: lista de nomes do Shop com {len(nomes())} — buscando virais")
         try:
             subprocess.run([sys.executable, str(TOOLS / "shop" / "viral_shop.py"), "--pasta", str(base), "--quantos", "40"],
@@ -244,6 +249,7 @@ def shop_meta(CAN, SHP, EDI, cp, log=print):
             log(f"auto: viral_shop falhou ({str(e)[:100]})")
             return
     if not nomes():
+        SHOP_ESPERA["ate"] = time.time() + 3600      # espera 1 h antes de buscar de novo
         avisa_1x("shop-sem-produto", f"🛒 Shop: {feitos}/{meta} hoje e não achei produto novo.", log, 240)
         return
     r = SHP.acao("shop_fazer", {"nomes_lista": True, "quantos": min(2, meta - feitos)})
