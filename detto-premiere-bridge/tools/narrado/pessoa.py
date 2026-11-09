@@ -268,11 +268,85 @@ def acha_videos(termo, sujeito_tokens, quantos=3, log=log):
     return out
 
 
+_ROSTOS = {}
+
+
+def _rostos():
+    if "r" not in _ROSTOS:
+        try:
+            _ROSTOS["r"] = Rostos(lambda *a, **k: None)
+        except Exception:  # noqa: BLE001
+            _ROSTOS["r"] = None
+    return _ROSTOS["r"]
+
+
+def foco_do_plano(fonte, ini, dur):
+    """caixa (x0,y0,x1,y1, relativa 0-1) que une os rostos GRANDES do plano; None se não há rosto"""
+    r = _rostos()
+    if r is None or not r.pode_detectar:
+        return None
+    caixas = []
+    for t in (ini + 0.2, ini + dur / 2, ini + max(0.3, dur - 0.2)):
+        try:
+            img = quadro(fonte, t)
+        except Exception:  # noqa: BLE001
+            img = None
+        if img is None:
+            continue
+        h, w = img.shape[:2]
+        fs = [f for f in r.faces(img) if (float(f[2]) * float(f[3])) / (w * h) >= 0.004]
+        if not fs:
+            continue
+        maior = max(float(f[2]) * float(f[3]) for f in fs)
+        for f in fs:
+            if float(f[2]) * float(f[3]) >= maior * 0.4:
+                caixas.append((float(f[0]) / w, float(f[1]) / h, (float(f[0]) + float(f[2])) / w,
+                               (float(f[1]) + float(f[3])) / h))
+    if not caixas:
+        return None
+    return (min(c[0] for c in caixas), min(c[1] for c in caixas), max(c[2] for c in caixas), max(c[3] for c in caixas))
+
+
+def filtro_enquadra(foco, larg, alt, fonte_ar):
+    """NÃO CORTA A PESSOA: a janela do corte é centrada no rosto; se o rosto não cabe nela, o plano
+    inteiro entra com fundo desfocado. Sem rosto, corte central (jogo, torcida)."""
+    ta = larg / alt
+    if foco is None:
+        return f"scale={larg}:{alt}:force_original_aspect_ratio=increase,crop={larg}:{alt},fps=30"
+    x0, y0, x1, y1 = foco
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    # largura/altura relativas da janela
+    if fonte_ar > ta:
+        jan_w, jan_h = ta / fonte_ar, 1.0
+    else:
+        jan_w, jan_h = 1.0, fonte_ar / ta
+    face_w, face_h = x1 - x0, y1 - y0
+    if face_w > jan_w * 0.9 or face_h > jan_h * 0.9:
+        return (f"split[a][b];[a]scale={larg}:{alt}:force_original_aspect_ratio=increase,crop={larg}:{alt},"
+                f"scale={larg // 8}:{alt // 8},scale={larg}:{alt},eq=brightness=-0.1[bg];"
+                f"[b]scale={larg}:{alt}:force_original_aspect_ratio=decrease[fg];"
+                f"[bg][fg]overlay=(W-w)/2:(H-h)/2,fps=30")
+    # o rosto fica um pouco acima do meio na vertical (sobra espaço para o corpo embaixo)
+    cy_alvo = cy + 0.10 * jan_h
+    return (f"crop=w='min(iw,ih*{ta:.5f})':h='min(ih,iw/{ta:.5f})':"
+            f"x='min(max({cx:.4f}*iw-out_w/2,0),iw-out_w)':y='min(max({cy_alvo:.4f}*ih-out_h/2,0),ih-out_h)',"
+            f"scale={larg}:{alt},fps=30")
+
+
 def corta_plano(fonte, ini, dur, destino, larg, alt):
-    subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{ini:.2f}", "-i", str(fonte), "-t", f"{dur:.2f}",
-                        "-an", "-vf", f"scale={larg}:{alt}:force_original_aspect_ratio=increase,crop={larg}:{alt},fps=30",
-                        "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", str(destino)],
-                       capture_output=True, text=True, timeout=300)
+    ar = None
+    try:
+        img = quadro(fonte, ini + dur / 2, 320)
+        if img is not None:
+            ar = img.shape[1] / img.shape[0]
+    except Exception:  # noqa: BLE001
+        ar = None
+    foco = foco_do_plano(fonte, ini, dur) if ar else None
+    vf = filtro_enquadra(foco, larg, alt, ar or 16 / 9)
+    cmd = ["ffmpeg", "-v", "error", "-y", "-ss", f"{ini:.2f}", "-i", str(fonte), "-t", f"{dur:.2f}", "-an"]
+    cmd += ["-filter_complex", f"[0:v]{vf}[v]", "-map", "[v]"] if ";" in vf else ["-vf", vf]
+    cmd += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", str(destino)]
+    subprocess.run(cmd, capture_output=True, text=True, timeout=300)
     return destino.exists() and destino.stat().st_size > 8000
 
 

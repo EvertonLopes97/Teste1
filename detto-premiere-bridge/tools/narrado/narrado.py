@@ -156,11 +156,37 @@ REGRAS_GTA = REGRAS.replace("notícia de futebol", "notícia de GTA 6 / games").
     "Ruim:", "Ruim:")
 
 
+REGRAS_HISTORIA = REGRAS.replace("notícia de futebol", "HISTÓRIA/CURIOSIDADE de futebol").replace(
+    "- Comece pelo FATO MAIS FORTE, na primeira frase. Sem \"olá pessoal\", sem apresentação, sem contexto antes.",
+    "- GANCHO nos primeiros 3 segundos: a promessa ou o dado mais absurdo da história, que deixa a pessoa com "
+    "vontade de saber o resto (\"o jogador que rejeitou a princesa da Espanha\"). Sem \"olá\", sem apresentação.\n"
+    "- Conte como HISTÓRIA com começo, virada e fim: deixe uma pergunta em aberto e só responda perto do final "
+    "(é isso que segura a pessoa até o último segundo). Uma ideia só, sem enrolar.").replace(
+    "- PROIBIDO INVENTAR: use só o que está no assunto. Sem número chutado, sem declaração inventada.",
+    "- PROIBIDO INVENTAR FATO, FALA OU NÚMERO SOBRE PESSOA REAL: conte só o que é público e conhecido. Se o assunto "
+    "pedir uma história inventada, use PERSONAGENS FICTÍCIOS (nunca o nome de um jogador ou pessoa real) e diga no "
+    "início que é uma história.")
+
+
+def ideias_virais(n, usados, log=log):
+    """assuntos de vídeo narrado com cara de viral (jogador viral, bastidor, curiosidade), sem repetir os usados"""
+    from reels import gemini_json
+
+    pedido = (f"Sugira {n} assuntos para vídeos curtos de futebol que viralizam no Instagram/TikTok no Brasil: "
+              "jogadores do momento, bastidores, curiosidades e histórias de VERDADE (já públicas e conhecidas), "
+              "no estilo \"o jogador que rejeitou a princesa da Espanha\" ou \"o dia em que o time perdeu de "
+              "propósito\". Nada inventado sobre pessoas reais, nada de tragédia, crime ou doença. "
+              f"NÃO repita estes: {'; '.join(usados[-40:]) or 'nenhum'}.\n"
+              'Responda SÓ este JSON: {"ideias":["assunto 1","assunto 2"]}')
+    d = gemini_json([{"text": pedido}], temperatura=0.95) or {}
+    return [str(x).strip() for x in (d.get("ideias") or []) if str(x).strip()][:n]
+
+
 def roteiro(assunto, segundos, log=log):
     from reels import gemini_json
 
     alvo = int(segundos * PALAVRAS_POR_MIN / 60)
-    pedido = (f"{REGRAS_GTA if TEMA['v'] == 'gta' else REGRAS}\n\nASSUNTO: {assunto}\n\nA narração tem de ter cerca de {alvo} palavras "
+    pedido = (f"{REGRAS_GTA if TEMA['v'] == 'gta' else REGRAS_HISTORIA if TEMA['v'] == 'historia' else REGRAS}\n\nASSUNTO: {assunto}\n\nA narração tem de ter cerca de {alvo} palavras "
               f"(o vídeo é de ~{segundos} segundos a {PALAVRAS_POR_MIN} palavras por minuto).")
     d = gemini_json([{"text": pedido}], temperatura=0.8) or {}
     texto = re.sub(r"\s+", " ", (d.get("narracao") or "")).strip()
@@ -268,11 +294,11 @@ def legenda_png(palavras, saida, chave_idx=None, largura=W, altura=270):
 
     img = Image.new("RGBA", (largura, altura), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    tam = 86
+    tam = 80
     f = _fonte(tam)
     cheio = [p.upper() for p in palavras]
     # diminui até caber; chegando no mínimo legível, QUEBRA EM DUAS LINHAS em vez de cortar na borda
-    while d.textlength(" ".join(cheio), font=f) > largura - 80 and tam > 54:
+    while d.textlength(" ".join(cheio), font=f) > largura - 80 and tam > 50:
         tam -= 6
         f = _fonte(tam)
     linhas = [list(range(len(cheio)))]
@@ -286,8 +312,12 @@ def legenda_png(palavras, saida, chave_idx=None, largura=W, altura=270):
         x = (largura - larg_ln) / 2
         for k, i in enumerate(ln):
             w = cheio[i] + (" " if k < len(ln) - 1 else "")
-            cor = (255, 214, 0, 255) if i == chave_idx else (255, 255, 255, 255)
-            d.text((x, y), w, font=f, fill=cor, stroke_width=9, stroke_fill=(0, 0, 0, 240))
+            numero = any(c.isdigit() for c in cheio[i])
+            cor = ((255, 214, 0, 255) if i == chave_idx else (255, 255, 255, 255))
+            if numero:
+                cor = (120, 255, 90, 255)
+            d.text((x + 3, y + 7), w, font=f, fill=(0, 0, 0, 150), stroke_width=9, stroke_fill=(0, 0, 0, 150))
+            d.text((x, y), w, font=f, fill=cor, stroke_width=8, stroke_fill=(0, 0, 0, 245))
             x += d.textlength(w, font=f)
         y += alt_linha
     img.save(saida)
@@ -456,7 +486,7 @@ def monta_completo(topo, reacao, saida, log=log):
 
 
 # ------------------------------------------------------------------ o caminho inteiro
-def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log, tela_cheia=False, fila=False):
+def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log, tela_cheia=False, fila=False, drive=""):
     global LOG_F
     base = Path(base)
     (base / "prontos").mkdir(parents=True, exist_ok=True)
@@ -509,6 +539,18 @@ def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log, t
         f"{rot['titulo']}\n\n{rot.get('legenda', '')}\n\n{' '.join(rot.get('tags', []))}\n", encoding="utf-8")
     if fila:
         para_fila(cfg, dia / "completo.mp4", dia / "post.txt", log)
+    if drive:
+        try:
+            alvo = Path(drive)
+            alvo.mkdir(parents=True, exist_ok=True)
+            nome = f"{dt.date.today():%d-%m} {slug(rot['titulo'], 50)}"
+            shutil.copyfile(dia / "completo.mp4", alvo / f"{nome}.mp4")
+            shutil.copyfile(dia / "topo.mp4", alvo / f"{nome} (topo p-reagir).mp4")
+            shutil.copyfile(dia / "post.txt", alvo / f"{nome}.txt")
+            (dia / "no_drive.txt").write_text(str(alvo / nome), encoding="utf-8")
+            log(f"   copiado para o Drive: {alvo / nome}")
+        except OSError as e:
+            log(f"   NÃO consegui copiar para o Drive ({str(e)[:100]})")
     (dia / "roteiro.json").write_text(json.dumps(rot, ensure_ascii=False, indent=1), encoding="utf-8")
     shutil.rmtree(tmp, ignore_errors=True)
     log(f"PRONTO: {dia}")
@@ -541,10 +583,12 @@ def main():
     ap.add_argument("--reacao", default="", help="o vídeo da sua reação (vai embaixo)")
     ap.add_argument("--sem-clipes", action="store_true", help="(teste) não baixa vídeo nenhum")
     ap.add_argument("--pasta", default="")
-    ap.add_argument("--tema", default="futebol", choices=["futebol", "gta"])
+    ap.add_argument("--tema", default="futebol", choices=["futebol", "gta", "historia"])
     ap.add_argument("--fonte-canal", default="", help="pasta de um canal (ex. canal_gta6): o assunto vem das notícias que ele já coletou")
     ap.add_argument("--tela-cheia", action="store_true", help="reels 1080x1920 sem o espaço da sua reação")
     ap.add_argument("--fila", action="store_true", help="põe o pronto na fila de postagem")
+    ap.add_argument("--viral", action="store_true", help="escolhe sozinho um assunto viral (jogador/bastidor/história) que ainda não usou")
+    ap.add_argument("--drive", default="", help="pasta para copiar o completo.mp4, o topo e o texto")
     a = ap.parse_args()
     TEMA["v"] = a.tema
     base = Path(a.pasta) if a.pasta else raiz() / "narrado"
@@ -559,11 +603,27 @@ def main():
     if a.montar:
         monta_depois(a.montar, a.reacao)
         return
+    if a.viral and not a.assunto:
+        uf = base / "usados_virais.json"
+        try:
+            usados = json.loads(uf.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            usados = []
+        # alterna: história/curiosidade viral e notícia quente dos portais (cai na outra se uma falhar)
+        quente = len(usados) % 2 == 1
+        a.assunto = assunto_quente() if quente else ""
+        TEMA["v"] = "futebol"
+        if not a.assunto:
+            a.assunto = (ideias_virais(1, usados) or [""])[0]
+            TEMA["v"] = "historia"
+        if a.assunto:
+            usados.append(a.assunto)
+            uf.write_text(json.dumps(usados[-200:], ensure_ascii=False), encoding="utf-8")
     assunto = a.assunto or (proximo_do_canal(a.fonte_canal, base) if a.fonte_canal else "") or (assunto_quente() if a.quente and a.tema == "futebol" else "")
     if not assunto:
         sys.exit("diga o assunto: --assunto \"...\"  (ou --quente para pegar dos portais)")
     faz(assunto, base, cfg, segundos=a.segundos, reacao=a.reacao, usar_clipes=not a.sem_clipes,
-        tela_cheia=a.tela_cheia, fila=a.fila)
+        tela_cheia=a.tela_cheia, fila=a.fila, drive=a.drive)
 
 
 if __name__ == "__main__":

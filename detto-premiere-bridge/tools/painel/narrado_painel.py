@@ -101,12 +101,16 @@ def acao(nome, d):
         args = []
         if assunto:
             args += ["--assunto", assunto]
+        elif d.get("viral"):
+            args += ["--viral"]
         else:
             args += ["--quente"]
-        if d.get("tema") == "gta":
-            args += ["--tema", "gta"]
+        if d.get("drive"):
+            args += ["--drive", str(d["drive"])]
+        if d.get("tema") in ("gta", "historia"):
+            args += ["--tema", d["tema"]]
         if d.get("tema") == "gta" or d.get("tela_cheia"):
-            args += ["--tela-cheia", "--fila"]
+            args += ["--tela-cheia"] + ([] if d.get("drive") else ["--fila"])
         if d.get("fonte_canal"):
             args += ["--fonte-canal", str(d["fonte_canal"])]
         seg = int(float(d.get("segundos") or 60))

@@ -358,6 +358,61 @@ def reels_gta_meta(CAN, SHP, EDI, cp, log=print):
     log(f"auto: short {canal} {cont.get(canal, 0)}/{metas[canal]} feitos hoje (começou: {'sim' if r.get('ok') else r.get('erro')})")
 
 
+def narrados_meta(CAN, SHP, EDI, cp, drive_raiz, log=print):
+    """NARRADOS VIRAIS (pedido dele, 09/nov): pelo menos `narrados_dia` (5) por dia, das 7h às 22h, com assunto viral
+    (jogador do momento, bastidor, história de verdade ou notícia quente), 1080x1920 + o topo para ele reagir,
+    copiados para `Meu Drive\\DETTO\\Narrados`. `narrados_auto: false` desliga."""
+    if not cp.get("narrados_auto", True):
+        return
+    agora = dt.datetime.now()
+    if not (7 <= agora.hour <= 22) or not tudo_parado(CAN, SHP, EDI):
+        return
+    import narrado_painel as NAR
+    if NAR.rodando():
+        return
+    meta = int(cp.get("narrados_dia", 5))
+    raiz = drive_raiz()
+    if not raiz:
+        avisa_1x("narrados-drive", "📁 narrados: não achei o Google Drive no PC (pasta Meu Drive).", log, 240)
+        return
+    destino = Path(raiz) / "DETTO" / "Narrados"
+    base = NAR.pasta()
+    hoje = dt.date.today().isoformat()
+    dia = base / "prontos" / hoje
+    feitos = len(list(dia.glob("*/no_drive.txt"))) if dia.is_dir() else 0
+    arq = base / "narrados_estado.json"
+    try:
+        est = json.loads(arq.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        est = {}
+    if est.get("dia") != hoje:
+        est = {"dia": hoje, "falhas": 0, "pausa": 0}
+    if est.pop("pendente", False) and feitos <= est.get("n_antes", 0):
+        est["falhas"] = est.get("falhas", 0) + 1
+        motivo = next((l for l in reversed(NAR.PROC["log"]) if l.strip() and not l.startswith("   ")), "") or "sem registro"
+        log(f"auto: narrado NÃO saiu ({est['falhas']}x): {motivo[:200]}")
+        if est["falhas"] >= 3:
+            est["pausa"] = time.time() + 3600
+            est["falhas"] = 0
+            avisa_1x("narrados-falha", f"⚠ narrados falharam 3x; pausa de 1 h. Último motivo: {motivo[:160]}", log, 60)
+    elif feitos > est.get("n_antes", 0):
+        est["falhas"] = 0
+    try:
+        livre = shutil.disk_usage(str(base)).free / 1e9
+    except OSError:
+        livre = 99
+    if feitos >= meta or est.get("pausa", 0) > time.time() or livre < 4:
+        arq.write_text(json.dumps(est), encoding="utf-8")
+        return
+    est["n_antes"] = feitos
+    r = NAR.acao("narrado_fazer", {"viral": True, "tela_cheia": True, "drive": str(destino),
+                                   "segundos": int(cp.get("narrados_seg", 55))})
+    if r.get("ok"):
+        est["pendente"] = True
+    arq.write_text(json.dumps(est), encoding="utf-8")
+    log(f"auto: narrado {feitos}/{meta} no Drive hoje (começou: {'sim' if r.get('ok') else r.get('erro')})")
+
+
 def laco(CAN, SHP, EDI, versao, drive_raiz, detto, cfg_painel, reinicia, log=print):
     """roda para sempre na thread do painel; qualquer erro só vai para o registro"""
     ult_status = ult_upd = ult_shop = ult_gta = 0.0
@@ -377,6 +432,7 @@ def laco(CAN, SHP, EDI, versao, drive_raiz, detto, cfg_painel, reinicia, log=pri
                 shop_meta(CAN, SHP, EDI, cp, log)
             if t - ult_gta >= 150:
                 ult_gta = t
+                narrados_meta(CAN, SHP, EDI, cp, drive_raiz, log)
                 reels_gta_meta(CAN, SHP, EDI, cp, log)
             if cp.get("auto_atualizar", True) and t - ult_upd >= 1800:
                 ult_upd = t

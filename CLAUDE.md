@@ -3,6 +3,17 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 09/nov (noite) — NARRADO MAIS VIRAL, SEM CORTAR A PESSOA, 5 POR DIA NO DRIVE
+
+- Ele mandou 5 exemplos (Haaland/Enzo, árbitro, Caracas, Gavi e a princesa): topo ~70% com planos de 2–3 s, rosto SEMPRE inteiro,
+  legenda pequena com palavra amarela, história de bastidor; embaixo a reação dele.
+- `pessoa.corta_plano`: antes era corte central (cortava o jogador). Agora `foco_do_plano` acha os rostos grandes (YuNet), a janela
+  do corte é CENTRADA no rosto; se o rosto não cabe, entra o plano inteiro com fundo desfocado. Sem rosto = corte central. Testado.
+- Legenda: sombra, contorno 8, número em verde, palavra-chave amarela. `--tema historia` (REGRAS_HISTORIA: gancho em 3 s, laço
+  aberto, só fato público ou personagem fictício) e `--viral` (alterna história/curiosidade e notícia quente, `usados_virais.json`).
+- `auto.narrados_meta`: `narrados_dia` 5 (7–22 h, `narrados_auto`, `narrados_seg` 55) → copia `<data> <título>.mp4` + `(topo p-reagir).mp4` + `.txt`
+  para `Meu Drive\DETTO\Narrados`; conta pelo `no_drive.txt`; 3 falhas = pausa 1 h. NÃO vai para a fila de postagem. NÃO conferido no PC dele.
+
 ## 09/nov — GTA "SEM TRECHOS" E 30 SHORTS/DIA POR CANAL
 
 - **GTA: o vídeo baixava, era transcrito e a rodada terminava "0 trecho(s)… sem trechos para montar"** (status.txt 11:53,
