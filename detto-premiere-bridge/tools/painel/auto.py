@@ -113,6 +113,11 @@ def monta_status(CAN, SHP, EDI, versao):
             s["canais"][c] = {"erro_ao_ler": str(e)[:150]}
     s["shop_ultimas_linhas"] = [l[:200] for l in SHP.PROC["log"][-6:]]
     try:
+        import narrado_painel as _NAR
+        s["narrado_ultimas_linhas"] = [l[:200] for l in _NAR.PROC["log"][-10:]]   # o REAGIR/shorts: o motivo de não ter saído
+    except Exception:  # noqa: BLE001
+        pass
+    try:
         base = SHP.pasta()
         dia = dt.date.today().isoformat()
         s["shop_prontos_hoje"] = len(list((base / "prontos" / dia).glob("*.mp4"))) if (base / "prontos" / dia).is_dir() else 0
