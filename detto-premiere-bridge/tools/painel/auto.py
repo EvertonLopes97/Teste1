@@ -360,7 +360,8 @@ def reels_gta_meta(CAN, SHP, EDI, cp, log=print):
 
 def narrados_meta(CAN, SHP, EDI, cp, drive_raiz, log=print):
     """NARRADOS VIRAIS (pedido dele, 09/nov): pelo menos `narrados_dia` (5) por dia, das 7h às 22h, com assunto viral
-    (jogador do momento, bastidor, história de verdade ou notícia quente), 1080x1920 + o topo para ele reagir,
+    (jogador do momento, possibilidade/opinião ou notícia quente), 1080x1920 com uma reação PROVISÓRIA dele embaixo
+    (vídeo da pasta `Narrados\\reacoes` ou fotos de `Narrados\\fotos`) + o topo para ele regravar a reação,
     copiados para `Meu Drive\\DETTO\\Narrados`. `narrados_auto: false` desliga."""
     if not cp.get("narrados_auto", True):
         return
@@ -405,7 +406,7 @@ def narrados_meta(CAN, SHP, EDI, cp, drive_raiz, log=print):
         arq.write_text(json.dumps(est), encoding="utf-8")
         return
     est["n_antes"] = feitos
-    r = NAR.acao("narrado_fazer", {"viral": True, "tela_cheia": True, "drive": str(destino),
+    r = NAR.acao("narrado_fazer", {"viral": True, "drive": str(destino),
                                    "segundos": int(cp.get("narrados_seg", 55))})
     if r.get("ok"):
         est["pendente"] = True

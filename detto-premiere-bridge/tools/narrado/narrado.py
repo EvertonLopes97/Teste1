@@ -156,26 +156,25 @@ REGRAS_GTA = REGRAS.replace("notícia de futebol", "notícia de GTA 6 / games").
     "Ruim:", "Ruim:")
 
 
-REGRAS_HISTORIA = REGRAS.replace("notícia de futebol", "HISTÓRIA/CURIOSIDADE de futebol").replace(
+REGRAS_HISTORIA = REGRAS.replace("notícia de futebol", "ASSUNTO VIRAL de futebol (possibilidade, projeção ou opinião)").replace(
     "- Comece pelo FATO MAIS FORTE, na primeira frase. Sem \"olá pessoal\", sem apresentação, sem contexto antes.",
-    "- GANCHO nos primeiros 3 segundos: a promessa ou o dado mais absurdo da história, que deixa a pessoa com "
-    "vontade de saber o resto (\"o jogador que rejeitou a princesa da Espanha\"). Sem \"olá\", sem apresentação.\n"
-    "- Conte como HISTÓRIA com começo, virada e fim: deixe uma pergunta em aberto e só responda perto do final "
-    "(é isso que segura a pessoa até o último segundo). Uma ideia só, sem enrolar.").replace(
+    "- GANCHO nos primeiros 3 segundos: a pergunta ou a possibilidade mais forte (\"o Estêvão na Copa de 2030?\"). "
+    "Sem \"olá\", sem apresentação.\n"
+    "- Argumente com FATOS REAIS e números conhecidos (idade, gols, clube, contrato), mostre os dois lados e dê uma "
+    "OPINIÃO clara no fim. Uma ideia só, sem enrolar.").replace(
     "- PROIBIDO INVENTAR: use só o que está no assunto. Sem número chutado, sem declaração inventada.",
-    "- PROIBIDO INVENTAR FATO, FALA OU NÚMERO SOBRE PESSOA REAL: conte só o que é público e conhecido. Se o assunto "
-    "pedir uma história inventada, use PERSONAGENS FICTÍCIOS (nunca o nome de um jogador ou pessoa real) e diga no "
-    "início que é uma história.")
+    "- PROIBIDO INVENTAR história, fala ou número. Projeção e opinião valem, mas dita como opinião (\"na minha visão\", "
+    "\"dá para sonhar\"), nunca como fato consumado.")
 
 
 def ideias_virais(n, usados, log=log):
-    """assuntos de vídeo narrado com cara de viral (jogador viral, bastidor, curiosidade), sem repetir os usados"""
+    """assuntos virais de futebol (jogador do momento, possibilidade, opinião), sem repetir os usados"""
     from reels import gemini_json
 
-    pedido = (f"Sugira {n} assuntos para vídeos curtos de futebol que viralizam no Instagram/TikTok no Brasil: "
-              "jogadores do momento, bastidores, curiosidades e histórias de VERDADE (já públicas e conhecidas), "
-              "no estilo \"o jogador que rejeitou a princesa da Espanha\" ou \"o dia em que o time perdeu de "
-              "propósito\". Nada inventado sobre pessoas reais, nada de tragédia, crime ou doença. "
+    pedido = (f"Sugira {n} assuntos para vídeos curtos de futebol que estão VIRAIS agora no Brasil (Instagram/TikTok): "
+              "jogador do momento, possibilidades e projeções (ex.: \"Estêvão na Copa de 2030\", \"Neymar na Copa de 2026?\"), "
+              "debates e opiniões polêmicas. Só assunto real e atual, que as pessoas estão comentando. Nada inventado, "
+              "nada de tragédia, crime ou doença. "
               f"NÃO repita estes: {'; '.join(usados[-40:]) or 'nenhum'}.\n"
               'Responda SÓ este JSON: {"ideias":["assunto 1","assunto 2"]}')
     d = gemini_json([{"text": pedido}], temperatura=0.95) or {}
@@ -457,6 +456,38 @@ def proximo_do_canal(pasta_canal, base, log=log):
     return ""
 
 
+def reacao_generica(pasta, total, tmp, log=log):
+    """a reação PROVISÓRIA: um vídeo seu qualquer da pasta `reacoes` ou, sem vídeo, as fotos expressivas da pasta
+    `fotos` trocando a cada ~2,5 s. Depois ele grava a reação de verdade e troca com --montar."""
+    import random
+
+    pasta = Path(pasta)
+    vids = [p for p in (pasta / "reacoes").glob("*") if p.suffix.lower() in (".mp4", ".mov", ".m4v", ".mkv")] \
+        if (pasta / "reacoes").is_dir() else []
+    if vids:
+        v = random.choice(vids)
+        log(f"   reação provisória: o seu vídeo {v.name}")
+        return str(v)
+    fotos = [p for p in (pasta / "fotos").glob("*") if p.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp")] \
+        if (pasta / "fotos").is_dir() else []
+    if not fotos:
+        log("   sem vídeos nem fotos em reacoes\\ e fotos\\ — o espaço da reação fica vazio")
+        return ""
+    random.shuffle(fotos)
+    n = max(2, int(total / 2.5) + 1)
+    entradas, partes = [], []
+    for i in range(n):
+        entradas += ["-loop", "1", "-t", "2.5", "-i", str(fotos[i % len(fotos)])]
+        partes.append(f"[{i}:v]scale={W}:{H_BAIXO}:force_original_aspect_ratio=increase,crop={W}:{H_BAIXO},"
+                      f"fps={FPS},setsar=1,format=yuv420p[p{i}]")
+    fc = ";".join(partes) + ";" + "".join(f"[p{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=0[v]"
+    saida = tmp / "reacao_fotos.mp4"
+    roda(["ffmpeg", "-v", "error", *entradas, "-filter_complex", fc, "-map", "[v]", "-t", f"{total:.2f}",
+          "-c:v", "libx264", "-crf", "20", "-preset", "veryfast", "-y", str(saida)], "fotos")
+    log(f"   reação provisória: {len(fotos)} foto(s) sua(s) trocando a cada 2,5 s")
+    return str(saida)
+
+
 def monta_completo(topo, reacao, saida, log=log):
     """1080x1920: o conteúdo em cima (70%), a reação dele embaixo (30%) — a proporção medida nos 3 vídeos"""
     t = dur(topo)
@@ -534,6 +565,8 @@ def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log, t
     if tela_cheia:
         monta_tela_cheia(topo, dia / "completo.mp4", log)
     else:
+        if not reacao and drive:
+            reacao = reacao_generica(Path(drive), dur(topo), tmp, log)
         monta_completo(topo, reacao, dia / "completo.mp4", log)
     (dia / "post.txt").write_text(
         f"{rot['titulo']}\n\n{rot.get('legenda', '')}\n\n{' '.join(rot.get('tags', []))}\n", encoding="utf-8")
