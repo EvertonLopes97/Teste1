@@ -137,8 +137,14 @@ Você também devolve:
   imagem DELE (jogadas, gols, melhores momentos, entrevista, despedida, homenagem) — nunca só o tema.
   Ruim: "aposentadoria seleção". Bom: "Cristiano Ronaldo melhores momentos seleção portuguesa".
 
+- "cenas": 4 a 6 cenas EM ORDEM, uma para cada parte da narração em que muda o que deve aparecer na tela.
+  Cada cena tem "frase" (as 3 a 5 primeiras palavras EXATAS dessa parte da narração), "sujeito" (quem/o que aparece:
+  pessoa, time ou lugar daquela parte), "pessoa" (true/false) e "busca" (termo de YouTube que acha imagem DAQUELE
+  sujeito fazendo o que a frase diz). A imagem na tela TEM de ser o que está sendo falado naquele momento.
+
 Responda SÓ este JSON:
 {"titulo":"...","narracao":"o texto corrido inteiro","sujeito":"...","sujeito_pessoa":true,"apelidos":["..."],
+ "cenas":[{"frase":"as 3 a 5 primeiras palavras","sujeito":"...","pessoa":true,"busca":"..."}],
  "buscas":["...","..."],
  "legenda":"legenda do post, 1 a 2 linhas","tags":["#tag1","#tag2","#tag3","#tag4","#tag5"]}"""
 
@@ -201,7 +207,12 @@ def roteiro(assunto, segundos, log=log):
     for extra in extras:
         if extra not in buscas:
             buscas.append(extra)
-    return {"titulo": (d.get("titulo") or assunto)[:120], "narracao": texto,
+    cenas = []
+    for c in (d.get("cenas") or []):
+        if isinstance(c, dict) and str(c.get("frase", "")).strip() and str(c.get("busca", "")).strip():
+            cenas.append({"frase": str(c["frase"]).strip(), "sujeito": str(c.get("sujeito") or sujeito).strip() or sujeito,
+                          "pessoa": c.get("pessoa", True) is not False, "busca": str(c["busca"]).strip()[:90]})
+    return {"cenas": cenas[:6], "titulo": (d.get("titulo") or assunto)[:120], "narracao": texto,
             "sujeito": sujeito, "sujeito_pessoa": d.get("sujeito_pessoa", True) is not False,
             "apelidos": [str(a) for a in (d.get("apelidos") or [])][:4],
             "buscas": [str(b)[:80] for b in buscas],
@@ -278,6 +289,73 @@ def pool_de_clipes(rot, total, pasta, log=log):
 
     return pool(rot["sujeito"], rot.get("apelidos", []), rot["buscas"], total, pasta, W, H_TOPO,
                 log=log, e_pessoa=rot.get("sujeito_pessoa", True))
+
+
+def inicio_das_cenas(cenas, palavras, total):
+    """segundo em que cada cena começa: acha a `frase` nas palavras faladas (em ordem); sem achar, reparte por igual"""
+    toks = [norm(p["w"]).strip(".,!?:;\"'") for p in palavras]
+    ini, cursor = [], 0
+    for k, c in enumerate(cenas):
+        alvo = [t for t in norm(c["frase"]).replace(",", " ").split() if t][:3]
+        achou = None
+        for i in range(cursor, len(toks) - len(alvo) + 1):
+            if alvo and toks[i:i + len(alvo)] == [a.strip(".,!?:;\"'") for a in alvo]:
+                achou = i
+                break
+        if k == 0:
+            ini.append(0.0)
+            cursor = max(cursor, achou or 0)
+            continue
+        if achou is None or palavras[achou]["s"] <= ini[-1] + 2:
+            t = max(ini[-1] + 2.5, total * k / len(cenas))
+        else:
+            t = palavras[achou]["s"]
+            cursor = achou
+        ini.append(min(t, total - 2))
+    return ini
+
+
+def pool_por_cenas(rot, palavras, total, pasta, log=log):
+    """O QUE APARECE É O QUE ESTÁ SENDO FALADO: cada cena da narração ganha clipes do SEU sujeito, no segundo certo.
+    Cena sem clipe usa os que sobraram das outras; sem cena nenhuma, cai no jeito de sempre."""
+    from pessoa import pool
+
+    cenas = rot.get("cenas") or []
+    if len(cenas) < 2:
+        return pool_de_clipes(rot, total, pasta, log)
+    ini = inicio_das_cenas(cenas, palavras, total)
+    fim = ini[1:] + [total]
+    por_cena = []
+    for k, c in enumerate(cenas):
+        dur_c = max(3.0, fim[k] - ini[k])
+        log(f"   cena {k + 1}/{len(cenas)} ({ini[k]:.0f}s): {c['sujeito']} — \"{c['frase']}\"")
+        buscas = [c["busca"], f"{c['sujeito']} melhores momentos", f"{c['sujeito']} entrevista"]
+        try:
+            ps = pool(c["sujeito"], [], buscas, dur_c, Path(pasta) / f"cena{k}", W, H_TOPO, log=log,
+                      e_pessoa=c["pessoa"], min_fontes=2)
+        except Exception as e:  # noqa: BLE001
+            log(f"   cena {k + 1} falhou ({str(e)[:100]})")
+            ps = []
+        por_cena.append(ps)
+    todos = [p for ps in por_cena for p in ps]
+    if not todos:
+        return pool_de_clipes(rot, total, pasta, log)
+    seq, acum, extra = [], 0.0, 0
+    for k, ps in enumerate(por_cena):
+        ps = list(ps) or todos[extra % len(todos):] + todos[:extra % len(todos)]
+        if not ps:
+            continue
+        j = 0
+        while acum < fim[k] - 0.8 and j < len(ps) + 6:
+            seq.append(ps[j % len(ps)])
+            acum += ps[j % len(ps)]["dur"]
+            j += 1
+        extra += 3
+    while acum < total + 2 and todos:
+        p = todos[len(seq) % len(todos)]
+        seq.append(p)
+        acum += p["dur"]
+    return seq
 
 
 # ------------------------------------------------------------------ 5) A LEGENDA
@@ -548,7 +626,7 @@ def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log, t
     palavras = tempos_das_palavras(wav, rot["narracao"], log)
     grupos = grupos_de_legenda(palavras)
 
-    clipes = pool_de_clipes(rot, total, tmp / "clipes", log) if usar_clipes else []
+    clipes = pool_por_cenas(rot, palavras, total, tmp / "clipes", log) if usar_clipes else []
     if not clipes:
         raise RuntimeError("não consegui vídeo nenhum sobre o assunto — sem isso o vídeo sairia com fundo liso. "
                            "Confira a internet e o cookies.txt do YouTube.")

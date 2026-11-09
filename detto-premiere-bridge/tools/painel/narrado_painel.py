@@ -29,6 +29,24 @@ def pasta():
     return _n().raiz() / "narrado"
 
 
+def destino():
+    """`Meu Drive\\DETTO\\Narrados` (onde saem os prontos, a lista e as pastas reacoes\\ e fotos\\)"""
+    try:
+        import edicao
+        raiz = edicao.drive_raiz()
+    except Exception:  # noqa: BLE001
+        raiz = None
+    return (Path(raiz) / "DETTO" / "Narrados") if raiz else pasta()
+
+
+def lista_linhas():
+    try:
+        return [l.strip() for l in (destino() / "lista.txt").read_text(encoding="utf-8-sig").splitlines()
+                if l.strip() and not l.strip().startswith("#")]
+    except OSError:
+        return []
+
+
 def rodando():
     return PROC["p"] is not None and PROC["p"].poll() is None
 
@@ -67,7 +85,7 @@ def estado():
                                 "topo": "topo.mp4" in tem, "completo": "completo.mp4" in tem})
             if len(prontos) >= 12:
                 break
-    return {"pasta": str(base), "rodando": rodando(), "o_que": PROC["o_que"],
+    return {"pasta": str(base), "lista": lista_linhas(), "destino": str(destino()), "rodando": rodando(), "o_que": PROC["o_que"],
             "log": PROC["log"][-14:], "prontos": prontos[:12]}
 
 
@@ -113,6 +131,8 @@ def acao(nome, d):
             args += ["--tela-cheia"] + ([] if d.get("drive") else ["--fila"])
         if d.get("fonte_canal"):
             args += ["--fonte-canal", str(d["fonte_canal"])]
+        if not d.get("drive") and not str(d.get("reacao", "")).strip():
+            args += ["--drive", str(destino())]
         seg = int(float(d.get("segundos") or 60))
         args += ["--segundos", str(max(20, min(90, seg)))]
         if d.get("sem_clipes"):
@@ -131,6 +151,17 @@ def acao(nome, d):
         if not reacao or not Path(reacao).exists():
             return {"ok": False, "erro": "não achei a gravação da reação nesse caminho"}
         return _roda(["--montar", str(alvo), "--reacao", reacao], f"juntando a reação em {job}")
+    if nome == "narrado_lista":
+        # um assunto por linha; o automático faz um vídeo de cada, em sequência (Drive\\DETTO\\Narrados\\lista.txt)
+        novas = [l.strip() for l in str(d.get("texto", "")).splitlines() if l.strip()]
+        f = destino() / "lista.txt"
+        try:
+            f.parent.mkdir(parents=True, exist_ok=True)
+            antigas = [] if d.get("substituir") else [l for l in lista_linhas()]
+            f.write_text("\n".join(antigas + novas) + "\n", encoding="utf-8")
+        except OSError as e:
+            return {"ok": False, "erro": f"não consegui gravar a lista ({str(e)[:100]})"}
+        return {"ok": True, "n": len(novas)}
     if nome == "narrado_parar":
         if rodando():
             PROC["p"].terminate()

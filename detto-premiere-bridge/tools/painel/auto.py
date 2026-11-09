@@ -366,17 +366,14 @@ def narrados_meta(CAN, SHP, EDI, cp, drive_raiz, log=print):
     if not cp.get("narrados_auto", True):
         return
     agora = dt.datetime.now()
-    if not (7 <= agora.hour <= 22) or not tudo_parado(CAN, SHP, EDI):
-        return
     import narrado_painel as NAR
-    if NAR.rodando():
+    if not tudo_parado(CAN, SHP, EDI) or NAR.rodando():
+        return
+    # a LISTA dele roda a qualquer hora; os 5 automáticos só das 7h às 22h
+    if not (7 <= agora.hour <= 22) and not NAR.lista_linhas():
         return
     meta = int(cp.get("narrados_dia", 5))
-    raiz = drive_raiz()
-    if not raiz:
-        avisa_1x("narrados-drive", "📁 narrados: não achei o Google Drive no PC (pasta Meu Drive).", log, 240)
-        return
-    destino = Path(raiz) / "DETTO" / "Narrados"
+    destino = NAR.destino()
     base = NAR.pasta()
     hoje = dt.date.today().isoformat()
     dia = base / "prontos" / hoje

@@ -905,6 +905,15 @@ function reagir(){
       <input type="text" id="narrReacao" placeholder="(opcional) caminho da sua gravação de reação, para já montar embaixo" style="flex:1;min-width:280px">
       <button class="mini" onclick="api('narrado_fazer',{assunto:$('#narrAssunto').value,segundos:+$('#narrSeg').value,reacao:$('#narrReacao').value}).then(()=>carrega(true))" ${N.rodando?"disabled":""}>▶ Fazer já com a reação</button>
     </div>
+    <div style="margin-top:12px"><b>Lista de assuntos</b> — um por linha, sai um vídeo de cada, em sequência
+      <small style="display:block;opacity:.65;margin:2px 0 6px">Cada vídeo vai para ${esc(N.destino||"")} já com a reação provisória (vídeos/fotos suas das pastas <b>reacoes</b> e <b>fotos</b>). Linha com # é ignorada.</small>
+      <textarea id="narrLista" rows="5" style="width:100%" placeholder="Estêvão na Copa de 2030&#10;Neymar ainda tem lugar na Seleção?&#10;Final da Copa do Brasil: Grêmio x Palmeiras"></textarea>
+      <div class="linha" style="margin-top:6px">
+        <button class="mini" onclick="api('narrado_lista',{texto:$('#narrLista').value}).then(()=>{$('#narrLista').value='';carrega(true)})">▶ Adicionar à fila e fazer todos</button>
+        <button class="mini" onclick="if(confirm('Limpar a fila de assuntos?'))api('narrado_lista',{texto:'',substituir:true}).then(()=>carrega(true))">Limpar fila</button>
+        <span style="opacity:.7">${(N.lista||[]).length ? "Na fila ("+N.lista.length+"): "+esc(N.lista.slice(0,5).join(" · ")) : "Fila vazia"}</span>
+      </div>
+    </div>
     ${N.rodando ? `<div class="info" style="margin-top:8px">Fazendo: <b>${esc(N.o_que)}</b></div>` : ""}
     ${(N.log||[]).length ? `<pre class="log" style="margin-top:8px">${esc((N.log||[]).join("\n"))}</pre>` : ""}
   </div>

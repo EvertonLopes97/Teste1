@@ -350,7 +350,7 @@ def corta_plano(fonte, ini, dur, destino, larg, alt):
     return destino.exists() and destino.stat().st_size > 8000
 
 
-def pool(sujeito, apelidos, buscas, total_s, pasta, larg, alt, log=log, e_pessoa=True):
+def pool(sujeito, apelidos, buscas, total_s, pasta, larg, alt, log=log, e_pessoa=True, min_fontes=3):
     """devolve [{arq, dur, tipo, fonte}] na ORDEM em que devem entrar na tela"""
     from clipes_web import baixa_trecho
 
@@ -366,7 +366,7 @@ def pool(sujeito, apelidos, buscas, total_s, pasta, larg, alt, log=log, e_pessoa
     por_fonte, ja = {}, set()
     precisa_s = total_s * 1.5
     for termo in buscas:
-        if sum(p["dur"] for ps in por_fonte.values() for p in ps) >= precisa_s and len(por_fonte) >= 3:
+        if sum(p["dur"] for ps in por_fonte.values() for p in ps) >= precisa_s and len(por_fonte) >= min_fontes:
             break
         log(f"   procurando: {termo}")
         try:
