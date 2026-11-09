@@ -15,6 +15,12 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
   Assunto = notícia mais nova do `historico.json` do canal (`usados_<canal>.json`); Galo cai nos portais (`--quente`)
   quando acaba. LIMITE: YouTube Shorts = 4/dia por conta (cota da API ~6 envios/dia no total); Instagram teste ~vagas.
 
+- **"30/30 ok" ERA FALSO (09/nov 18:50)**: o auto contava o short ao COMEÇAR o processo; o narrado morria em segundos porque
+  NENHUMA IA de texto respondia (Gemini sem cota + Claude "OAuth session expired" + sem chave grátis) → `roteiro()` levanta
+  "a IA não devolveu narração". Agora o auto conta só se saiu `completo.mp4` novo, loga o motivo, 3 falhas seguidas =
+  pausa de 1 h + alerta; `topo.mp4` de dias anteriores é apagado e abaixo de 4 GB livres os shorts param. A CAUSA RAIZ é a IA:
+  no PC dele, `claude` no terminal (refaz o login) e/ou `GROQ_API_KEY`/`CEREBRAS_API_KEY` (grátis).
+
 ## 08/nov — RODADA DE NOTÍCIAS "TRAVADA" DEPOIS DE "vídeo montado"
 
 - Causa provável: `vinheta.emenda` recodificava o vídeo INTEIRO (15 min, 1080p) no CPU com `libx264 -preset medium`,

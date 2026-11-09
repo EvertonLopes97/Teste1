@@ -286,15 +286,54 @@ def reels_gta_meta(CAN, SHP, EDI, cp, log=print):
     if modo_lancamento(cp):
         metas["gta"] = max(metas["gta"], int(cp.get("reels_gta_dia", 24)))
     base = NAR.pasta()
+    praiz = base / "prontos"
+    hoje = dt.date.today().isoformat()
+    dia = praiz / hoje
+
+    def _feitos():
+        return len([p for p in dia.glob("*/completo.mp4")]) if dia.is_dir() else 0
+
+    # espaço: o disco dele chegou a 5 GB; sem folga o short não roda (e o topo.mp4 de dias anteriores é cópia do completo)
+    try:
+        for d_ in praiz.iterdir():
+            if d_.is_dir() and d_.name < hoje:
+                for t_ in d_.glob("*/topo.mp4"):
+                    t_.unlink(missing_ok=True)
+        livre = shutil.disk_usage(str(base)).free / 1e9
+    except OSError:
+        livre = 99
+    if livre < 4:
+        avisa_1x("shorts-disco", f"💾 shorts parados: só {livre:.1f} GB livres. Apague vídeos antigos (E:\\DETTO) para voltar.", log, 120)
+        return
     arq = base / "shorts_contagem.json"
     try:
         cont = json.loads(arq.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         cont = {}
-    if cont.get("dia") != dt.date.today().isoformat():
-        cont = {"dia": dt.date.today().isoformat(), "gta": 0, "galo": 0}
-    falta = {k: metas[k] - cont.get(k, 0) for k in metas if metas[k] > 0}
+    if cont.get("dia") != hoje:
+        cont = {"dia": hoje, "gta": 0, "galo": 0, "falhas": {}, "pausa": {}}
+    cont.setdefault("falhas", {})
+    cont.setdefault("pausa", {})
+    # CONFERE o short anterior: "ok" só dizia que o processo começou. Conta só se saiu um completo.mp4 novo.
+    pend = cont.pop("pendente", None)
+    if pend:
+        if _feitos() > cont.get("n_antes", 0):
+            cont[pend] = cont.get(pend, 0) + 1
+            cont["falhas"][pend] = 0
+        else:
+            cont["falhas"][pend] = cont["falhas"].get(pend, 0) + 1
+            motivo = next((l for l in reversed(NAR.PROC["log"]) if l.strip() and not l.startswith("   ")), "") or "sem registro"
+            log(f"auto: short {pend} NÃO saiu ({cont['falhas'][pend]}x seguidas): {motivo[:200]}")
+            if cont["falhas"][pend] >= 3:
+                cont["pausa"][pend] = time.time() + 3600
+                cont["falhas"][pend] = 0
+                avisa_1x(f"shorts-{pend}", f"⚠ shorts do canal {pend} falharam 3x seguidas; pausa de 1 h. Último motivo: {motivo[:160]}", log, 60)
+    falta = {k: metas[k] - cont.get(k, 0) for k in metas if metas[k] > 0 and cont["pausa"].get(k, 0) < time.time()}
     falta = {k: v for k, v in falta.items() if v > 0}
+    try:
+        arq.write_text(json.dumps(cont), encoding="utf-8")
+    except OSError:
+        pass
     if not falta:
         return
     canal = max(falta, key=lambda k: falta[k])          # o que está mais atrasado
@@ -303,14 +342,15 @@ def reels_gta_meta(CAN, SHP, EDI, cp, log=print):
         d = {"tema": "gta", "fonte_canal": str(CAN.pasta("gta6")), "segundos": seg}
     else:
         d = {"tema": "futebol", "tela_cheia": True, "fonte_canal": str(CAN.pasta("noticias")), "segundos": seg}
+    cont["n_antes"] = _feitos()
     r = NAR.acao("narrado_fazer", d)
     if r.get("ok"):
-        cont[canal] = cont.get(canal, 0) + 1
-        try:
-            arq.write_text(json.dumps(cont), encoding="utf-8")
-        except OSError:
-            pass
-    log(f"auto: short {canal} {cont.get(canal, 0)}/{metas[canal]} hoje ({'ok' if r.get('ok') else r.get('erro')})")
+        cont["pendente"] = canal
+    try:
+        arq.write_text(json.dumps(cont), encoding="utf-8")
+    except OSError:
+        pass
+    log(f"auto: short {canal} {cont.get(canal, 0)}/{metas[canal]} feitos hoje (começou: {'sim' if r.get('ok') else r.get('erro')})")
 
 
 def laco(CAN, SHP, EDI, versao, drive_raiz, detto, cfg_painel, reinicia, log=print):
