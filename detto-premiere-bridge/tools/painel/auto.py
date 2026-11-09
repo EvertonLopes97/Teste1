@@ -270,25 +270,47 @@ def modo_lancamento(cp):
 
 
 def reels_gta_meta(CAN, SHP, EDI, cp, log=print):
-    """REELS DE GTA O DIA TODO (pedido dele): no modo lançamento, das 8h às 23h, um reel a cada ~40 min com o assunto
-    mais novo que o canal de GTA já coletou, na voz dele, 1080x1920, direto na fila de postagem."""
-    if not modo_lancamento(cp) or not cp.get("reels_gta_auto", True):
+    """SHORTS O DIA TODO EM CADA CANAL (pedido dele, 09/nov: "pelo menos 30 por dia em cada canal"): das 6h às 23h,
+    alternando GTA 6 e Galo, faz um reel 9:16 por vez com o assunto mais novo que o canal já coletou (na voz dele,
+    clipes do YouTube, direto na fila de postagem). Meta: `shorts_dia` (30) por canal; no modo lançamento do GTA
+    vale `reels_gta_dia` se for maior. `shorts_auto: false` desliga."""
+    if not cp.get("shorts_auto", cp.get("reels_gta_auto", True)):
         return
-    meta = int(cp.get("reels_gta_dia", 24))
     agora = dt.datetime.now()
-    if meta <= 0 or not (8 <= agora.hour <= 23) or not tudo_parado(CAN, SHP, EDI):
+    if not (6 <= agora.hour <= 23) or not tudo_parado(CAN, SHP, EDI):
         return
     import narrado_painel as NAR
     if NAR.rodando():
         return
+    metas = {"gta": int(cp.get("shorts_dia", 30)), "galo": int(cp.get("shorts_dia_galo", cp.get("shorts_dia", 30)))}
+    if modo_lancamento(cp):
+        metas["gta"] = max(metas["gta"], int(cp.get("reels_gta_dia", 24)))
     base = NAR.pasta()
-    dia = base / "prontos" / dt.date.today().isoformat()
-    feitos = len([p for p in dia.iterdir() if p.is_dir() and (p / "completo.mp4").exists()]) if dia.is_dir() else 0
-    if feitos >= meta:
+    arq = base / "shorts_contagem.json"
+    try:
+        cont = json.loads(arq.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        cont = {}
+    if cont.get("dia") != dt.date.today().isoformat():
+        cont = {"dia": dt.date.today().isoformat(), "gta": 0, "galo": 0}
+    falta = {k: metas[k] - cont.get(k, 0) for k in metas if metas[k] > 0}
+    falta = {k: v for k, v in falta.items() if v > 0}
+    if not falta:
         return
-    pasta_gta = CAN.pasta("gta6")
-    r = NAR.acao("narrado_fazer", {"tema": "gta", "fonte_canal": str(pasta_gta), "segundos": int(cp.get("reels_gta_seg", 45))})
-    log(f"auto: reel GTA {feitos}/{meta} hoje ({'ok' if r.get('ok') else r.get('erro')})")
+    canal = max(falta, key=lambda k: falta[k])          # o que está mais atrasado
+    seg = int(cp.get("shorts_seg", cp.get("reels_gta_seg", 45)))
+    if canal == "gta":
+        d = {"tema": "gta", "fonte_canal": str(CAN.pasta("gta6")), "segundos": seg}
+    else:
+        d = {"tema": "futebol", "tela_cheia": True, "fonte_canal": str(CAN.pasta("noticias")), "segundos": seg}
+    r = NAR.acao("narrado_fazer", d)
+    if r.get("ok"):
+        cont[canal] = cont.get(canal, 0) + 1
+        try:
+            arq.write_text(json.dumps(cont), encoding="utf-8")
+        except OSError:
+            pass
+    log(f"auto: short {canal} {cont.get(canal, 0)}/{metas[canal]} hoje ({'ok' if r.get('ok') else r.get('erro')})")
 
 
 def laco(CAN, SHP, EDI, versao, drive_raiz, detto, cfg_painel, reinicia, log=print):

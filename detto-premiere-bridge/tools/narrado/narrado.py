@@ -402,13 +402,14 @@ def para_fila(cfg, video, txt, log=log):
 
 
 def proximo_do_canal(pasta_canal, base, log=log):
-    """o próximo assunto de GTA JÁ coletado pelo canal (manchete + texto da notícia, nada inventado), que ainda não virou reel"""
+    """o próximo assunto JÁ coletado pelo canal (manchete + texto da notícia, nada inventado), que ainda não virou reel"""
     h = Path(pasta_canal) / "historico.json"
     try:
         trechos = json.loads(h.read_text(encoding="utf-8-sig")).get("trechos", [])
     except (OSError, ValueError):
         return ""
-    uf = Path(base) / "gta_usados.json"
+    _nome = Path(pasta_canal).name.lower()
+    uf = Path(base) / ("gta_usados.json" if "gta" in _nome else f"usados_{_nome}.json")
     try:
         usados = set(json.loads(uf.read_text(encoding="utf-8")))
     except (OSError, ValueError):

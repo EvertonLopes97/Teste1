@@ -104,9 +104,11 @@ def acao(nome, d):
         else:
             args += ["--quente"]
         if d.get("tema") == "gta":
-            args += ["--tema", "gta", "--tela-cheia", "--fila"]
-            if d.get("fonte_canal"):
-                args += ["--fonte-canal", str(d["fonte_canal"])]
+            args += ["--tema", "gta"]
+        if d.get("tema") == "gta" or d.get("tela_cheia"):
+            args += ["--tela-cheia", "--fila"]
+        if d.get("fonte_canal"):
+            args += ["--fonte-canal", str(d["fonte_canal"])]
         seg = int(float(d.get("segundos") or 60))
         args += ["--segundos", str(max(20, min(90, seg)))]
         if d.get("sem_clipes"):

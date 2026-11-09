@@ -3,6 +3,18 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 09/nov — GTA "SEM TRECHOS" E 30 SHORTS/DIA POR CANAL
+
+- **GTA: o vídeo baixava, era transcrito e a rodada terminava "0 trecho(s)… sem trechos para montar"** (status.txt 11:53,
+  cookies `logado: false`). Quando NENHUMA IA de texto respondia (`gemini_json` devolve None: cota/rede), `acha_trechos`
+  devolvia [] e o laço marcava o vídeo como VISTO — queimado para sempre, o mesmo erro da coleta de 06/nov. Agora
+  `IA_FALHOU`: log "⚠ NENHUMA IA de texto respondeu", o vídeo conta em `tentativas` e só na 3ª é abandonado. Se o
+  registro mostrar esse aviso, o problema é a IA (chaves/cota), não o canal. Galo: "JÁ VISTOS"/short — sem notícia nova mesmo.
+- **SHORTS 30/DIA EM CADA CANAL**: `auto.reels_gta_meta` virou gerador para GTA e Galo (6–23 h, alterna pelo mais
+  atrasado; `shorts_dia` 30, `shorts_dia_galo`, `shorts_seg` 45, `shorts_auto`; contagem em `narrado\shorts_contagem.json`).
+  Assunto = notícia mais nova do `historico.json` do canal (`usados_<canal>.json`); Galo cai nos portais (`--quente`)
+  quando acaba. LIMITE: YouTube Shorts = 4/dia por conta (cota da API ~6 envios/dia no total); Instagram teste ~vagas.
+
 ## 08/nov — RODADA DE NOTÍCIAS "TRAVADA" DEPOIS DE "vídeo montado"
 
 - Causa provável: `vinheta.emenda` recodificava o vídeo INTEIRO (15 min, 1080p) no CPU com `libx264 -preset medium`,

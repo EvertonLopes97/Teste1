@@ -695,6 +695,9 @@ PROGRAMA de onde saiu (Globo Esporte MG, Jogo Aberto, ESPN, Itatiaia, Alterosa).
 ARBITRAGEM/ROUBO/VAR (rende 0,89x nesses canais). Nota máxima 10."""
 
 
+IA_FALHOU = {"v": False}
+
+
 def acha_trechos(words, info, cfg, assunto=None):
     """trechos que falam do time (ou do ASSUNTO de uma pauta sua): Gemini (começo/fim certos, manchete, clima);
     sem chave: janelas pela palavra (pauta sem chave: o começo do vídeo)"""
@@ -727,6 +730,9 @@ Responda SÓ JSON:
  "clima": "<um de: {', '.join(CLIMAS)}>", "nota": <1 a 10: o quanto é NOVIDADE importante e prende o torcedor (notícia velha/repetida = nota baixa)>}}]}}
 
 {linhas_tempo(words)[:60000]}"""}])
+    IA_FALHOU["v"] = g is None
+    if g is None:
+        log("   ⚠ NENHUMA IA de texto respondeu (Gemini/grátis/Claude): este vídeo NÃO conta como lido, volta na próxima rodada")
     trechos = (g or {}).get("trechos") or []
     if not trechos and assunto and not os.environ.get("GEMINI_API_KEY") and words:
         fim = min(words[-1]["e"], 90.0)
@@ -2622,7 +2628,13 @@ def main():
         if lin != "pt":
             log(f"   esse vídeo está em {lin.upper()}: vou traduzir e LEGENDAR o trecho em português")
         tr = acha_trechos(words, v, cfg, assunto=v.get("assunto"))
-        if v.get("id") and not str(v["id"]).startswith("local_"):
+        if IA_FALHOU["v"] and not tr and v.get("id"):
+            # a IA não respondeu (cota/rede): marcar como visto QUEIMAVA o vídeo para sempre ("0 trechos" em todo canal)
+            _t = hist.setdefault("tentativas", {})
+            _t[v["id"]] = _t.get(v["id"], 0) + 1
+            if _t[v["id"]] >= 3:
+                hist["vistos"][v["id"]] = hoje
+        elif v.get("id") and not str(v["id"]).startswith("local_"):
             hist["vistos"][v["id"]] = hoje      # agora sim: foi baixado e lido
         do_que = v["campeonato"] if v.get("campeonato") else (cfg.get("assunto", "")[:40] or "o Galo")
         log(f"   {len(tr)} trecho(s) sobre {do_que}")
