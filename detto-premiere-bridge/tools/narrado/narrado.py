@@ -209,6 +209,11 @@ def roteiro(assunto, segundos, log=log):
 
 
 # ------------------------------------------------------------------ 3) A VOZ
+INSTRUCAO_NARRADO = ("narrador esportivo brasileiro de redes sociais: expressivo, empolgado, com energia alta, "
+                     "variando entonação e ritmo, enfatizando nomes e números, pausas curtas de suspense, "
+                     "pt-BR neutro sem sotaque europeu")
+
+
 def narra(texto, saida, cfg, log=log):
     """a narração INTEIRA de uma vez: a entonação fica muito melhor que frase a frase"""
     import voz as V
@@ -216,10 +221,10 @@ def narra(texto, saida, cfg, log=log):
     falado = V.pronuncia(texto)
     url = cfg.get("voicestudio") or V.voicestudio_url()
     if V.voicestudio_pronto(url):
-        vid, vnome = V.voicestudio_escolhe(url, cfg.get("voz_voicestudio"), log)
+        vid, vnome = V.voicestudio_escolhe(url, cfg.get("voz_narrado") or cfg.get("voz_voicestudio") or "detto", log)
         log(f"voz: VoiceStudio — \"{vnome}\"")
         V.voicestudio_fala(falado, saida, vid, url, velocidade=float(cfg.get("velocidade_voz", 1.0)),
-                           instrucao=cfg.get("instrucao_voz") or V.INSTRUCAO_PADRAO)
+                           instrucao=cfg.get("instrucao_narrado") or INSTRUCAO_NARRADO)
         if saida.exists():
             return saida
     chave = os.environ.get("FISH_API_KEY")

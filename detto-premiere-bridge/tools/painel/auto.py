@@ -390,6 +390,7 @@ def narrados_meta(CAN, SHP, EDI, cp, drive_raiz, log=print):
         est = {"dia": hoje, "falhas": 0, "pausa": 0}
     if est.pop("pendente", False) and feitos <= est.get("n_antes", 0):
         est["falhas"] = est.get("falhas", 0) + 1
+        est["falhou_da_lista"] = True
         motivo = next((l for l in reversed(NAR.PROC["log"]) if l.strip() and not l.startswith("   ")), "") or "sem registro"
         log(f"auto: narrado NÃO saiu ({est['falhas']}x): {motivo[:200]}")
         if est["falhas"] >= 3:
@@ -402,12 +403,39 @@ def narrados_meta(CAN, SHP, EDI, cp, drive_raiz, log=print):
         livre = shutil.disk_usage(str(base)).free / 1e9
     except OSError:
         livre = 99
-    if feitos >= meta or est.get("pausa", 0) > time.time() or livre < 4:
+    # LISTA DELE: `Narrados\\lista.txt`, um assunto por linha, feita em sequência (vale além da meta de 5)
+    lista_f = destino / "lista.txt"
+    try:
+        linhas = [l for l in lista_f.read_text(encoding="utf-8-sig").splitlines()]
+    except OSError:
+        linhas = []
+    if est.pop("falhou_da_lista", None) and est.get("da_lista"):
+        linhas.insert(0, est["da_lista"])           # a tentativa falhou: o assunto volta para o topo
+        est["da_lista"] = ""
+        try:
+            lista_f.write_text("\n".join(linhas) + "\n", encoding="utf-8")
+        except OSError:
+            pass
+    pend_lista = [l for l in linhas if l.strip() and not l.strip().startswith("#")]
+    if (feitos >= meta and not pend_lista) or est.get("pausa", 0) > time.time() or livre < 4:
         arq.write_text(json.dumps(est), encoding="utf-8")
         return
     est["n_antes"] = feitos
-    r = NAR.acao("narrado_fazer", {"viral": True, "drive": str(destino),
-                                   "segundos": int(cp.get("narrados_seg", 55))})
+    d = {"drive": str(destino), "segundos": int(cp.get("narrados_seg", 55))}
+    est["da_lista"] = ""
+    if pend_lista:
+        item = pend_lista[0].strip()
+        d["assunto"] = item
+        est["da_lista"] = item
+        resto = list(linhas)
+        resto.remove(next(l for l in resto if l.strip() == item))
+        try:
+            lista_f.write_text("\n".join(resto) + "\n", encoding="utf-8")
+        except OSError:
+            pass
+    else:
+        d["viral"] = True
+    r = NAR.acao("narrado_fazer", d)
     if r.get("ok"):
         est["pendente"] = True
     arq.write_text(json.dumps(est), encoding="utf-8")
