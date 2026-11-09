@@ -10,6 +10,7 @@ Ele diz "mexe só nos REELS" e eu mexo só ali.
 - `pessoa.corta_plano`: antes era corte central (cortava o jogador). Agora `foco_do_plano` acha os rostos grandes (YuNet), a janela
   do corte é CENTRADA no rosto; se o rosto não cabe, entra o plano inteiro com fundo desfocado. Sem rosto = corte central. Testado.
 - **CORREÇÃO (20:34, pedido dele)**: NADA de história inventada — o `--viral` pede só assunto viral REAL: possibilidade/projeção/opinião ("Estêvão na Copa de 2030") ou notícia quente. O narrado do Drive já sai 70/30 com REAÇÃO PROVISÓRIA: vídeo dele em `Narrados\reacoes\` ou fotos expressivas em `Narrados\fotos\` (trocam a cada 2,5 s; `reacao_generica`). Ele regrava e troca com `--montar` (usa o `(topo p-reagir).mp4`).
+- **VOZ DO NARRADO (20:37)**: perfil VoiceStudio "detto" primeiro (`voz_narrado` no config do narrado muda) + `INSTRUCAO_NARRADO` (expressivo, energia alta). **LISTA DELE**: `Meu Drive\DETTO\Narrados\lista.txt`, um assunto por linha (# comenta), feito em sequência pelo `auto.narrados_meta` mesmo acima dos 5/dia; linha sai ao começar e volta ao topo se falhar.
 - Legenda: sombra, contorno 8, número em verde, palavra-chave amarela. `--tema historia` (REGRAS_HISTORIA: gancho em 3 s, laço
   aberto, só fato público ou personagem fictício) e `--viral` (alterna história/curiosidade e notícia quente, `usados_virais.json`).
 - `auto.narrados_meta`: `narrados_dia` 5 (7–22 h, `narrados_auto`, `narrados_seg` 55) → copia `<data> <título>.mp4` + `(topo p-reagir).mp4` + `.txt`
