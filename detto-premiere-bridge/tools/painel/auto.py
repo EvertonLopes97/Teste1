@@ -118,6 +118,11 @@ def monta_status(CAN, SHP, EDI, versao):
     except Exception:  # noqa: BLE001
         pass
     try:
+        _dl = (CAN.pasta("gta6") / "documentario.log").read_text(encoding="utf-8", errors="replace").splitlines()
+        s["documentario_ultimas_linhas"] = _dl[-12:]
+    except Exception:  # noqa: BLE001
+        pass
+    try:
         base = SHP.pasta()
         dia = dt.date.today().isoformat()
         s["shop_prontos_hoje"] = len(list((base / "prontos" / dia).glob("*.mp4"))) if (base / "prontos" / dia).is_dir() else 0
@@ -441,6 +446,56 @@ def narrados_meta(CAN, SHP, EDI, cp, drive_raiz, log=print):
     log(f"auto: narrado {feitos}/{meta} no Drive hoje (começou: {'sim' if r.get('ok') else r.get('erro')})")
 
 
+DOC = {"p": None}
+
+
+def documentario_meta(CAN, SHP, EDI, cp, log=print):
+    """DOCUMENTÁRIO DIÁRIO DO GTA 6 (10/nov, pedido dele): 1 por dia, 12+ min, ele narrando (narrado/documentario.py).
+    Roda como a montagem do card GTA 6 (CAN.PESADO): enquanto isso canal, Shop, edição e shorts esperam.
+    `doc_gta_auto: false` desliga; até 2 tentativas por dia; das 8h às 20h."""
+    if not cp.get("doc_gta_auto", True):
+        return
+    p = DOC["p"]
+    if p is not None and p.poll() is None:
+        return
+    DOC["p"] = None
+    agora = dt.datetime.now()
+    if not (8 <= agora.hour <= 20) or not tudo_parado(CAN, SHP, EDI):
+        return
+    import narrado_painel as NAR
+    if NAR.rodando():
+        return
+    pasta = CAN.pasta("gta6")
+    hoje = dt.date.today().isoformat()
+    try:
+        if (pasta / "documentario_feito.txt").read_text(encoding="utf-8").strip() == hoje:
+            return
+    except OSError:
+        pass
+    est_f = pasta / "documentario_estado.json"
+    try:
+        est = json.loads(est_f.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        est = {}
+    if est.get("dia") != hoje:
+        est = {"dia": hoje, "tentativas": 0}
+    if est["tentativas"] >= 2:
+        return
+    est["tentativas"] += 1
+    est_f.write_text(json.dumps(est), encoding="utf-8")
+    exe, extra = CAN.py()
+    logf = open(pasta / "documentario.log", "a", encoding="utf-8")
+    logf.write(f"\n===== {agora:%d/%m %H:%M} documentário (tentativa {est['tentativas']}) =====\n")
+    logf.flush()
+    proc = subprocess.Popen([exe, "-u", str(Path(__file__).resolve().parent.parent / "narrado" / "documentario.py"),
+                             "--pasta", str(pasta)], stdout=logf, stderr=subprocess.STDOUT,
+                            cwd=str(Path(__file__).resolve().parent.parent.parent),
+                            env={**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"}, **extra)
+    DOC["p"] = proc
+    CAN.PESADO.update(id="gta6", p=proc, o_que="documentário do dia")
+    log(f"auto: documentário do GTA 6 começou (tentativa {est['tentativas']}; registro em {pasta / 'documentario.log'})")
+
+
 def laco(CAN, SHP, EDI, versao, drive_raiz, detto, cfg_painel, reinicia, log=print):
     """roda para sempre na thread do painel; qualquer erro só vai para o registro"""
     ult_status = ult_upd = ult_shop = ult_gta = 0.0
@@ -460,6 +515,7 @@ def laco(CAN, SHP, EDI, versao, drive_raiz, detto, cfg_painel, reinicia, log=pri
                 shop_meta(CAN, SHP, EDI, cp, log)
             if t - ult_gta >= 150:
                 ult_gta = t
+                documentario_meta(CAN, SHP, EDI, cp, log)
                 narrados_meta(CAN, SHP, EDI, cp, drive_raiz, log)
                 reels_gta_meta(CAN, SHP, EDI, cp, log)
             if cp.get("auto_atualizar", True) and t - ult_upd >= 1800:

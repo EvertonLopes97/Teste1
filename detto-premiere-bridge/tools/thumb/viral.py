@@ -198,6 +198,14 @@ def melhores_quadros(video, faixas=None, n=3, sem_rosto_grande=False):
             c = _caixa_rosto(img)
             if c and c[3] > img.shape[0] * 0.45:
                 nota *= 0.5
+        # quadro com TEXTO QUEIMADO (legenda/título de outro canal) estraga a thumb: quase descartado
+        try:
+            sys.path.insert(0, str(TOOLS / "narrado"))
+            from pessoa import _caixas_de_texto
+            if _caixas_de_texto(img):
+                nota *= 0.2
+        except Exception:  # noqa: BLE001
+            pass
         notas.append((nota, t))
     for f in tmp.glob("q*.jpg"):
         f.unlink(missing_ok=True)

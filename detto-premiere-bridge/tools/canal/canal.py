@@ -135,6 +135,7 @@ CONFIG_PADRAO = {
     ],
     "por_fonte": 15,
     "max_min_fonte": 120,
+    "min_minutos_video": 12,  # 10/nov, pedido dele: NENHUM vídeo horizontal com menos de 12 min (nem com --forcar)
     "duracao_alvo_min": 16,  # MEDIDO nos concorrentes: 16-25 min rende 1,17x; 25+ cai para 0,72x (imprensa + falas)
     "min_trechos": 4,
     "max_videos_dia": 2,
@@ -1126,7 +1127,7 @@ def roteiro(sel, cfg, titulos_antes=()):
 
 Escreva a narração que liga os trechos. Responda SÓ JSON:
 {{"titulo": "<título do YouTube em MAIÚSCULAS, chamativo, até 95 letras, com o principal nome/placar>",
- "thumb_texto": "<2 a 4 palavras da NOTÍCIA PRINCIPAL que dão vontade de clicar (nome do jogador/técnico/assunto; sem mentir)>", "thumb_destaque": "<1 palavra do thumb_texto para destacar>",
+ "thumb_texto": "<2 a 4 palavras da NOTÍCIA PRINCIPAL que dão vontade de clicar (nome/assunto + NÚMERO se a notícia tiver; NÃO repita palavras do título; sem mentir)>", "thumb_destaque": "<1 palavra do thumb_texto para destacar>",
  "descricao": "<2 a 3 frases sobre o vídeo>", "tags": ["<10 a 15 tags>"],
  "abertura": {{"texto": "<gancho de 2 a 3 frases, até 45 palavras>", "clima": "<{'|'.join(CLIMAS)}>"}},
  "falas": [{{"antes_do": <número do trecho>, "texto": "<sua opinião/ponte para o trecho, 1 a 3 frases, até 40 palavras>", "clima": "..."}}],
@@ -1963,6 +1964,18 @@ def thumb(video, rot, cfg, pasta_saida, sel=None):
                 var = "gancho"
         THUMB_VARIANTE["v"] = var
         log(f"   thumb: variante {var}")
+        if cfg.get("estilo_thumb") == "gta6":
+            # GTA 6 (10/nov): o JOGO em tela cheia, cor viva, 2 linhas gigantes, aro no personagem (thumb/gta6.py)
+            try:
+                from gta6 import thumb_gta6
+                THUMB_VARIANTE["v"] = "gta6"
+                feitas = thumb_gta6(pasta / "thumbs", quadro, faixas, rot.get("thumb_texto") or rot.get("titulo", "")[:40],
+                                    rot.get("thumb_destaque", ""), log=log)
+                if feitas:
+                    shutil.copyfile(feitas[0], pasta / "thumb_1.jpg")
+                    return pasta / "thumb_1.jpg"
+            except Exception as e:  # noqa: BLE001
+                log(f"   thumb GTA 6 falhou ({str(e)[:100]}); vou no modelo antigo")
         feitas = thumb_viral(pasta / "thumbs", assunto, rot.get("thumb_texto", ""), rot.get("thumb_destaque", ""), None,
                              masc[:6], quadro, faixas, [esc] if esc.exists() else [],
                              cfg.get("estilo_thumb", "noticia"), cfg.get("nome_canal", ""), log=log, variante=var, pessoa=pessoa)
@@ -2305,10 +2318,13 @@ GTA6 = {
         {"canal": "@IGN", "nome": "IGN", "filtro": "gta", "prioridade": 3},
         {"canal": "@GameSpot", "nome": "GameSpot", "filtro": "gta", "prioridade": 3},
     ],
-    "formato": "auto",   # "auto" = rodízio (1 de cada por dia) ou noticias / documentario / cartoes
-    "formatos_ativos": ["noticias", "documentario", "cartoes"],
+    # 10/nov: os formatos "documentario" (5 x 45 s) e "cartoes" (6 x 25 s) eram o que fazia o vídeo sair com
+    # 4–6 min. O documentário de verdade agora é o narrado/documentario.py (ele narrando 12+ min, 1 por dia).
+    "formato": "noticias",
+    "formatos_ativos": ["noticias"],
+    "min_minutos_video": 12,
     "max_canais_busca": 5,
-    "fontes_versao": 8,   # 06/nov: canais e buscas em inglês; 05/nov: filtro "gta" nos 2 canais de GTA; ids; barra de capítulo dos canais (feed em vez de yt-dlp) + bloco de outros games
+    "fontes_versao": 9,   # 10/nov: só "noticias" + piso de 12 min; 06/nov: canais e buscas em inglês; 05/nov: filtro "gta" nos 2 canais de GTA; ids; barra de capítulo dos canais (feed em vez de yt-dlp) + bloco de outros games
     "busca": ["gta 6 notícias", "gta 6 gameplay", "gta 6 trailer análise", "gta 6 novidades hoje",
               "grand theft auto 6 notícia", "gta 6 vazamento",
               "gta 6 news today", "gta 6 trailer 3", "gta 6 gameplay leak", "gta 6 rockstar new screenshots"],
@@ -2430,7 +2446,7 @@ def prepara(pasta, preset=""):
         if base is not CONFIG_PADRAO and seu.get("fontes_versao", 1) < base.get("fontes_versao", 1):
             for k_ in ("fontes", "fontes_versao", "busca", "fora", "campeonatos", "campeonatos_ligado",
                        "max_trechos_campeonato", "max_videos_campeonato", "bloco_extra_nome",
-                       "bloco_extra_aviso", "regra_titulo", "termos", "termos_nao", "barra_capitulo", "formato", "formatos_ativos", "max_canais_busca", "parecido_max", "titulo_parecido_max", "dias_ja_postado", "max_min_busca"):
+                       "bloco_extra_aviso", "regra_titulo", "termos", "termos_nao", "barra_capitulo", "formato", "formatos_ativos", "min_minutos_video", "max_canais_busca", "parecido_max", "titulo_parecido_max", "dias_ja_postado", "max_min_busca"):
                 if k_ in base:
                     seu[k_] = base[k_]
             grava_json(cfg_f, seu)
@@ -2823,6 +2839,13 @@ def main():
     if tot < float(cfg.get("min_imprensa_s", 45)):
         log(f"NÃO RODEI: só {tot:.0f}s de imprensa no total — isso não dá um vídeo, dá uma chamada. "
             "Espero a próxima rodada.")
+        return
+    piso = float(cfg.get("min_minutos_video", 12)) * 60
+    if total_estimado() < piso + 30:
+        # PISO QUE NADA FURA (10/nov): vídeo horizontal curto não viraliza (12-18 min rende 1,3x no nicho);
+        # o material fica guardado e soma com o da próxima rodada
+        log(f"NÃO RODEI: só ~{total_estimado() / 60:.1f} min de material (mínimo {piso / 60:.0f} min). "
+            "Guardo e somo com a próxima rodada.")
         return
     if total_estimado() < alvo:
         if not a.forcar:

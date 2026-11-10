@@ -220,6 +220,18 @@ def roteiro(assunto, segundos, log=log):
               f"(o vídeo é de ~{segundos} segundos a {PALAVRAS_POR_MIN} palavras por minuto).")
     d = gemini_json([{"text": pedido}], temperatura=0.8) or {}
     texto = re.sub(r"\s+", " ", (d.get("narracao") or "")).strip()
+    for _ in range(2):
+        # VÍDEO MAIS CURTO QUE O MÍNIMO (10/nov): a IA costuma devolver metade das palavras pedidas
+        n = len(texto.split())
+        if n >= alvo * 0.85 or n < 20:
+            break
+        log(f"   a narração veio com {n} palavras (pedi {alvo}); peço de novo, mais longa")
+        d2 = gemini_json([{"text": pedido + f"\n\nATENÇÃO: a versão anterior tinha só {n} palavras. A narração "
+                                             f"PRECISA ter pelo menos {alvo} palavras — acrescente fatos e detalhes reais, "
+                                             "sem enrolação."}], temperatura=0.8) or {}
+        t2 = re.sub(r"\s+", " ", (d2.get("narracao") or "")).strip()
+        if len(t2.split()) > n:
+            d, texto = d2, t2
     if len(texto.split()) < 20:
         raise RuntimeError("a IA não devolveu narração (sem GEMINI_API_KEY e sem IA grátis?)")
     buscas = [b for b in (d.get("buscas") or []) if str(b).strip()][:6] or [assunto]

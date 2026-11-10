@@ -3,6 +3,29 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 10/nov (manhã) — GTA: PISO DE 12 MIN, DOCUMENTÁRIO DIÁRIO E THUMB NOVA ("vídeos ruins, curtos, thumbs ruins")
+
+- **POR QUE SAÍA CURTO**: o rodízio de formatos do gta6 (`documentario` = 5 trechos de 45 s, `cartoes` = 6 de 25 s) dava
+  vídeo de 4–6 min, e o `--forcar` passava pela guarda de duração. Agora `min_minutos_video` 12 (padrão de TODO canal e no
+  preset gta6, `fontes_versao` 9 leva ao config dele): abaixo de 12 min (+30 s de folga) é "NÃO RODEI" mesmo com --forcar
+  e o material soma com a próxima rodada. O gta6 ficou só com o formato `noticias`.
+- **DOCUMENTÁRIO DIÁRIO** (`tools\narrado\documentario.py`, `auto.documentario_meta`): 1 por dia (8–20 h, até 2
+  tentativas, `doc_gta_auto`, `doc_minutos` 14), tipo em rodízio EXPLICAR/MOSTRAR/PROJETAR. IA: esboço (título com número,
+  thumb_texto, 6–8 capítulos com buscas) → narração por capítulo (pede de novo se vier curta) → voz do perfil detto
+  (`narrado.narra`) → faltou tempo = capítulo extra "O que ainda não sabemos" (até 10) → abaixo do piso NÃO entrega.
+  Imagem: `pool_de_clipes` em 1920x1080 por capítulo (trailer/gameplay do que é dito), etiqueta "CAPÍTULO N" 4,5 s,
+  loudnorm -14, vinheta gta6 depois da 1ª frase, capítulos do YouTube, thumb gta6 → `prontos\<data> - <título>\` com
+  post.json (`formato: documentario_narrado`), posta se `auto_postar`. Roda como `CAN.PESADO` (canal/Shop/shorts esperam).
+  Registro: `<canal_gta6>\documentario.log` (status.json: `documentario_ultimas_linhas`). `--teste` = 2 min, não posta.
+  Testado aqui com IA/voz/clipes FALSOS (o caminho de montagem); NÃO conferido com YouTube/IA/voz reais.
+- **THUMB GTA 6** (`tools\thumb\gta6.py`, PIL): renderizei a antiga e olhei — quadro escuro/borrado com a LEGENDA de outro
+  canal queimada, texto pequeno brigando com o quadro, metade escurecida e faixa do canal no rodapé. Nova: jogo em tela
+  cheia com cor viva (saturação 1,35, contraste, nitidez), 2 linhas gigantes (Anton; 1ª branca, 2ª amarela, contorno 10 +
+  sombra) no lado OPOSTO ao personagem, aro vermelho no personagem (YuNet/HOG com peso > 1), sem faixa. `melhores_quadros`
+  agora derruba (x0,2) quadro com texto queimado. canal.py usa quando `estilo_thumb` = gta6. thumb_texto pede número e
+  proíbe repetir o título.
+- Narrado (shorts): roteiro com menos de 85% das palavras pedidas é pedido de novo (até 2x) — saía curto.
+
 ## 10/nov — SHORTS DE FUNCIONALIDADES DO GTA 6 (exemplo "o que vai ser o GTA 6")
 
 - Referência que ele mandou (68 s, tela cheia, trailer/gameplay trocando a cada 2–3 s, legenda de 1–2 palavras BRANCA no meio, setas vermelhas): no tema `gta` a legenda agora é de 2 palavras, branca, a 60% da altura. `auto.reels_gta_meta`: um short sim, um não vira FUNCIONALIDADE (`--viral` + `--tema gta` → `ideias_funcoes_gta`, só o mostrado nos trailers/confirmado; `REGRAS_GTA_FUNCAO`: gancho, 1 detalhe por cena, busca do trecho daquela função). Voz = perfil detto. NÃO feito: setas vermelhas nos detalhes e VÍDEO LONGO horizontal de funcionalidades (próximo passo). Atenção: o exemplo tem marca d'água de outra conta — não copiar.
