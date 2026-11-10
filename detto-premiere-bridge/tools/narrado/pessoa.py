@@ -333,7 +333,86 @@ def filtro_enquadra(foco, larg, alt, fonte_ar):
             f"scale={larg}:{alt},fps=30")
 
 
-def corta_plano(fonte, ini, dur, destino, larg, alt):
+def _caixas_de_texto(img):
+    """caixas (x0,y0,x1,y1 relativas) de texto queimado: letra branca/amarela em linha, como legenda e título"""
+    import cv2
+    import numpy as np
+
+    h, w = img.shape[:2]
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    branco = (hsv[..., 2] > 215) & (hsv[..., 1] < 55)
+    amarelo = (hsv[..., 0] >= 18) & (hsv[..., 0] <= 36) & (hsv[..., 1] > 140) & (hsv[..., 2] > 200)
+    m = ((branco | amarelo) * 255).astype(np.uint8)
+    m = cv2.dilate(m, cv2.getStructuringElement(cv2.MORPH_RECT, (19, 5)))
+    cs, _ = cv2.findContours(m, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    out = []
+    for c in cs:
+        x, y, bw, bh = cv2.boundingRect(c)
+        if bw < 0.10 * w or bh < 0.025 * h or bh > 0.16 * h or bw / bh < 2.5 or bw / bh > 16:
+            continue
+        caixa = branco[y:y + bh, x:x + bw] | amarelo[y:y + bh, x:x + bw]
+        fill = float(caixa.mean())
+        # texto: letra fina com muito fundo em volta (0.06–0.45); camisa/placa branca enche a caixa
+        if not 0.06 <= fill <= 0.45:
+            continue
+        # e contorno escuro colado na letra (legenda tem; faixa branca de campo não)
+        escuro = (hsv[y:y + bh, x:x + bw, 2] < 70).mean()
+        if escuro < 0.12:
+            continue
+        out.append((x / w, y / h, (x + bw) / w, (y + bh) / h))
+    return out
+
+
+def faixas_de_texto(fonte, ini, dur):
+    """faixas (y0,y1,x0,x1) com texto queimado em pelo menos 2 de 4 quadros (título, legenda, narração anterior)"""
+    amostras = []
+    for t in (ini + 0.15, ini + dur * 0.4, ini + dur * 0.7, ini + max(0.3, dur - 0.15)):
+        try:
+            img = quadro(fonte, t)
+        except Exception:  # noqa: BLE001
+            img = None
+        if img is not None:
+            amostras.append(_caixas_de_texto(img))
+    faixas = []
+    for i, cs in enumerate(amostras):
+        for c in cs:
+            vistos = 1 + sum(1 for j, o in enumerate(amostras) if j != i and any(
+                min(c[3], q[3]) - max(c[1], q[1]) > 0.5 * min(c[3] - c[1], q[3] - q[1]) for q in o))
+            if vistos >= 2:
+                faixas.append(c)
+    # junta as que se sobrepõem na vertical
+    faixas.sort(key=lambda c: c[1])
+    juntas = []
+    for c in faixas:
+        if juntas and c[1] <= juntas[-1][3] + 0.01:
+            u = juntas[-1]
+            juntas[-1] = (min(u[0], c[0]), u[1], max(u[2], c[2]), max(u[3], c[3]))
+        else:
+            juntas.append(c)
+    return [(c[1], c[3], c[0], c[2]) for c in juntas]
+
+
+def limpeza(faixas, foco=None):
+    """texto na borda de cima/baixo = corta fora (lo/hi); no meio = borra a caixa"""
+    lo, hi, borra = 0.0, 1.0, []
+    for (y0, y1, x0, x1) in faixas:
+        cy = (y0 + y1) / 2
+        if cy < 0.2 and y1 + 0.01 - lo > 0:
+            lo = max(lo, min(0.4, y1 + 0.015))
+        elif cy > 0.65:
+            hi = min(hi, max(0.6, y0 - 0.015))
+        else:
+            if foco:   # NUNCA borra em cima da pessoa (painel de patrocínio atrás dela vira falso positivo)
+                fy1 = foco[3] + (foco[3] - foco[1]) * 1.3
+                if y0 < fy1 and y1 > foco[1] and x0 < foco[2] + 0.05 and x1 > foco[0] - 0.05:
+                    continue
+            borra.append((max(0, x0 - 0.02), max(0, y0 - 0.02), min(1, x1 + 0.02), min(1, y1 + 0.02)))
+    if hi - lo < 0.6:   # cortar tanto estragaria o plano: borra em vez de cortar
+        lo, hi = 0.0, 1.0
+    return lo, hi, borra
+
+
+def corta_plano(fonte, ini, dur, destino, larg, alt, log=log):
     ar = None
     try:
         img = quadro(fonte, ini + dur / 2, 320)
@@ -342,11 +421,47 @@ def corta_plano(fonte, ini, dur, destino, larg, alt):
     except Exception:  # noqa: BLE001
         ar = None
     foco = foco_do_plano(fonte, ini, dur) if ar else None
-    vf = filtro_enquadra(foco, larg, alt, ar or 16 / 9)
+    lo, hi, borra = 0.0, 1.0, []
+    if ar:
+        try:
+            lo, hi, borra = limpeza(faixas_de_texto(fonte, ini, dur), foco)
+        except Exception:  # noqa: BLE001
+            pass
+    if (lo > 0 or hi < 1 or borra) and ar:
+        log(f"   tirei o texto do vídeo-fonte ({'corte' if lo > 0 or hi < 1 else ''}{' + ' if (lo > 0 or hi < 1) and borra else ''}{'desfoque' if borra else ''})")
+    k = hi - lo
+    if foco and k < 1:
+        foco = (foco[0], min(1, max(0, (foco[1] - lo) / k)), foco[2], min(1, max(0, (foco[3] - lo) / k)))
+    vf = filtro_enquadra(foco, larg, alt, (ar or 16 / 9) / k)
+    partes = []
+    if borra:
+        # (um split por caixa, cada uma com a sua cópia)
+        corpo = [f"[0:v]split={1 + len(borra)}[s1]" + "".join(f"[c{i}]" for i in range(len(borra)))]
+        atual = "[s1]"
+        for n, (x0, y0, x1, y1) in enumerate(borra):
+            corpo.append(f"[c{n}]crop=iw*{x1 - x0:.4f}:ih*{y1 - y0:.4f}:iw*{x0:.4f}:ih*{y0:.4f},boxblur=22:4[b{n}]")
+            corpo.append(f"{atual}[b{n}]overlay=W*{x0:.4f}:H*{y0:.4f}[o{n}]")
+            atual = f"[o{n}]"
+        partes.append(";".join(corpo))
+        entrada = atual
+    else:
+        entrada = "[0:v]"
+    if k < 1:
+        partes.append(f"{entrada}crop=iw:ih*{k:.4f}:0:ih*{lo:.4f}[cr]")
+        entrada = "[cr]"
     cmd = ["ffmpeg", "-v", "error", "-y", "-ss", f"{ini:.2f}", "-i", str(fonte), "-t", f"{dur:.2f}", "-an"]
-    cmd += ["-filter_complex", f"[0:v]{vf}[v]", "-map", "[v]"] if ";" in vf else ["-vf", vf]
+    if partes:
+        cmd += ["-filter_complex", ";".join(partes) + f";{entrada}{vf}[v]", "-map", "[v]"]
+    else:
+        cmd += ["-filter_complex", f"[0:v]{vf}[v]", "-map", "[v]"] if ";" in vf else ["-vf", vf]
     cmd += ["-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", str(destino)]
-    subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+    if r.returncode != 0 and partes:
+        # a limpeza falhou: melhor o plano com texto do que nenhum plano
+        cmd2 = ["ffmpeg", "-v", "error", "-y", "-ss", f"{ini:.2f}", "-i", str(fonte), "-t", f"{dur:.2f}", "-an",
+                "-vf", f"scale={larg}:{alt}:force_original_aspect_ratio=increase,crop={larg}:{alt},fps=30",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p", str(destino)]
+        subprocess.run(cmd2, capture_output=True, text=True, timeout=300)
     return destino.exists() and destino.stat().st_size > 8000
 
 
@@ -401,7 +516,7 @@ def pool(sujeito, apelidos, buscas, total_s, pasta, larg, alt, log=log, e_pessoa
             for k, (a, b, tipo) in enumerate(escolhidos):
                 d = min(MAX_PLANO_S, b - a - 0.12)
                 alvo = pasta / f"{v['id'][:6]}_{k:02d}_{tipo}.mp4"
-                if corta_plano(bruto, a + 0.06, d, alvo, larg, alt):
+                if corta_plano(bruto, a + 0.06, d, alvo, larg, alt, log):
                     lista.append({"arq": alvo, "dur": d, "tipo": tipo, "fonte": v["id"]})
             por_fonte[v["id"]] = lista
             bruto.unlink(missing_ok=True)

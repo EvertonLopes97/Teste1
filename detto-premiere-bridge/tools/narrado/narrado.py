@@ -430,17 +430,40 @@ def grupos_de_legenda(palavras, por=3):
 
 # ------------------------------------------------------------------ 6) A MONTAGEM
 def faixa_titulo(texto, saida, largura=W):
+    """o TÍTULO como nos virais dele: caixa vermelha arredondada no pé do conteúdo, letra branca grossa em
+    caixa alta, até 2 linhas, centralizada"""
     from PIL import Image, ImageDraw, ImageFont
 
-    alt = 120
+    alt = 190
     img = Image.new("RGBA", (largura, alt), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
-    d.rounded_rectangle([24, 18, largura - 24, alt - 14], 16, fill=(200, 16, 32, 235))
-    f = ImageFont.truetype(str(FONTES / "Inter-Bold.otf"), 42)
-    t = texto.upper()[:46]
-    while d.textlength(t, font=f) > largura - 110 and len(t) > 10:
-        t = t[:-2]
-    d.text(((largura - d.textlength(t, font=f)) / 2, 34), t, font=f, fill=(255, 255, 255, 255))
+    caminho = FONTES / "Inter-ExtraBold.otf"
+    if not caminho.exists():
+        caminho = FONTES / "Inter-Bold.otf"
+    t = " ".join(texto.upper().split())[:80]
+    tam = 62
+    while True:
+        f = ImageFont.truetype(str(caminho), tam)
+        palavras, linhas, atual = t.split(), [], ""
+        for pal in palavras:
+            teste = (atual + " " + pal).strip()
+            if d.textlength(teste, font=f) <= largura - 120:
+                atual = teste
+            else:
+                linhas.append(atual)
+                atual = pal
+        linhas.append(atual)
+        if (len(linhas) <= 2 and all(d.textlength(l, font=f) <= largura - 120 for l in linhas)) or tam <= 36:
+            break
+        tam -= 4
+    linhas = linhas[:2]
+    d.rounded_rectangle([20, 8, largura - 20, alt - 8], 22, fill=(214, 18, 28, 250))
+    lh = tam + 10
+    y = (alt - lh * len(linhas)) / 2 - 2
+    for l in linhas:
+        d.text(((largura - d.textlength(l, font=f)) / 2, y), l, font=f, fill=(255, 255, 255, 255),
+               stroke_width=2, stroke_fill=(0, 0, 0, 255))
+        y += lh
     img.save(saida)
     return saida
 
@@ -636,7 +659,7 @@ def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log, t
     tit = faixa_titulo(rot["titulo"], tmp / "titulo.png")
     com_tit = tmp / "topo_mudo.mp4"
     roda(["ffmpeg", "-v", "error", "-i", str(com_leg), "-i", str(tit),
-          "-filter_complex", "[0:v][1:v]overlay=0:30:enable='lt(t,4)'",
+          "-filter_complex", f"[0:v][1:v]overlay=0:{H_TOPO - 200}:enable='lt(t,6)'",
           "-c:v", "libx264", "-crf", "19", "-preset", "veryfast", "-pix_fmt", "yuv420p",
           "-y", str(com_tit)], "titulo")
     topo = tmp / "topo.mp4"
@@ -659,7 +682,9 @@ def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log, t
         try:
             alvo = Path(drive)
             alvo.mkdir(parents=True, exist_ok=True)
-            nome = f"{dt.date.today():%d-%m} {slug(rot['titulo'], 50)}"
+            nome = re.sub(r'[\\/:*?"<>|]+', "", rot["titulo"]).strip().strip(".")[:90] or slug(assunto)
+            if (alvo / f"{nome}.mp4").exists():
+                nome = f"{nome} ({dt.datetime.now():%H%M})"
             shutil.copyfile(dia / "completo.mp4", alvo / f"{nome}.mp4")
             shutil.copyfile(dia / "topo.mp4", alvo / f"{nome} (topo p-reagir).mp4")
             shutil.copyfile(dia / "post.txt", alvo / f"{nome}.txt")
