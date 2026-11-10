@@ -345,6 +345,8 @@ def reels_gta_meta(CAN, SHP, EDI, cp, log=print):
     seg = int(cp.get("shorts_seg", cp.get("reels_gta_seg", 45)))
     if canal == "gta":
         d = {"tema": "gta", "fonte_canal": str(CAN.pasta("gta6")), "segundos": seg}
+        if cont.get("gta", 0) % 2 == 1:      # um short sim, um não: explicar uma FUNCIONALIDADE mostrada nos trailers
+            d["viral"] = True
     else:
         d = {"tema": "futebol", "tela_cheia": True, "fonte_canal": str(CAN.pasta("noticias")), "segundos": seg}
     cont["n_antes"] = _feitos()

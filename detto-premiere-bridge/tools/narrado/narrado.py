@@ -162,6 +162,28 @@ REGRAS_GTA = REGRAS.replace("notícia de futebol", "notícia de GTA 6 / games").
     "Ruim:", "Ruim:")
 
 
+REGRAS_GTA_FUNCAO = (
+    "\n\nMODO FUNCIONALIDADE (GTA 6): explique COMO a funcionalidade funciona e mostre-a na tela. "
+    "Gancho de 3 segundos com a pergunta que a pessoa tem (\"sabia que o carro agora desgasta de verdade?\"). "
+    "Depois 3 a 5 detalhes, UM por cena, na ordem em que aparecem na tela, com frases curtas e concretas. "
+    "Use SÓ o que foi mostrado nos trailers, no site oficial da Rockstar ou confirmado; o que for rumor ou "
+    "vazamento tem de ser chamado de rumor. PROIBIDO inventar. As buscas de cada cena têm de achar o trecho do "
+    'trailer/gameplay DAQUELA funcionalidade ("GTA 6 trailer carros gameplay", "GTA 6 trailer animais").')
+
+
+def ideias_funcoes_gta(n, usados, log=log):
+    """funcionalidades do GTA 6 já mostradas/confirmadas (carros, armas, animais, barcos, pesca...), sem repetir"""
+    from reels import gemini_json
+
+    pedido = (f"Liste {n} funcionalidades ou sistemas do GTA 6 que já foram MOSTRADOS nos trailers ou CONFIRMADOS pela Rockstar "
+              "(ex.: comportamento dos carros, roda de armas, animais, barcos e pesca, mecânica de oficina, mundo vivo). "
+              "Cada item é uma frase curta de assunto para um vídeo explicativo. Nada de rumor. "
+              f"NÃO repita: {'; '.join(usados[-40:]) or 'nenhum'}.\n"
+              'Responda SÓ este JSON: {"ideias":["..."]}')
+    d = gemini_json([{"text": pedido}], temperatura=0.8) or {}
+    return [str(x).strip() for x in (d.get("ideias") or []) if str(x).strip()][:n]
+
+
 REGRAS_HISTORIA = REGRAS.replace("notícia de futebol", "ASSUNTO VIRAL de futebol (possibilidade, projeção ou opinião)").replace(
     "- Comece pelo FATO MAIS FORTE, na primeira frase. Sem \"olá pessoal\", sem apresentação, sem contexto antes.",
     "- GANCHO nos primeiros 3 segundos: a pergunta ou a possibilidade mais forte (\"o Estêvão na Copa de 2030?\"). "
@@ -191,7 +213,10 @@ def roteiro(assunto, segundos, log=log):
     from reels import gemini_json
 
     alvo = int(segundos * PALAVRAS_POR_MIN / 60)
-    pedido = (f"{REGRAS_GTA if TEMA['v'] == 'gta' else REGRAS_HISTORIA if TEMA['v'] == 'historia' else REGRAS}\n\nASSUNTO: {assunto}\n\nA narração tem de ter cerca de {alvo} palavras "
+    regras = REGRAS_GTA if TEMA["v"] == "gta" else REGRAS_HISTORIA if TEMA["v"] == "historia" else REGRAS
+    if TEMA["v"] == "gta" and assunto.upper().startswith("FUNCIONALIDADE"):
+        regras += REGRAS_GTA_FUNCAO
+    pedido = (f"{regras}\n\nASSUNTO: {assunto}\n\nA narração tem de ter cerca de {alvo} palavras "
               f"(o vídeo é de ~{segundos} segundos a {PALAVRAS_POR_MIN} palavras por minuto).")
     d = gemini_json([{"text": pedido}], temperatura=0.8) or {}
     texto = re.sub(r"\s+", " ", (d.get("narracao") or "")).strip()
@@ -484,6 +509,7 @@ def legenda_png(palavras, saida, chave_idx=None, largura=W, altura=270):
     d = ImageDraw.Draw(img)
     tam = 80
     f = _fonte(tam)
+    centro = TEMA["v"] == "gta"
     cheio = [p.upper() for p in palavras]
     # diminui até caber; chegando no mínimo legível, QUEBRA EM DUAS LINHAS em vez de cortar na borda
     while d.textlength(" ".join(cheio), font=f) > largura - 80 and tam > 50:
@@ -502,7 +528,9 @@ def legenda_png(palavras, saida, chave_idx=None, largura=W, altura=270):
             w = cheio[i] + (" " if k < len(ln) - 1 else "")
             numero = any(c.isdigit() for c in cheio[i])
             cor = ((255, 214, 0, 255) if i == chave_idx else (255, 255, 255, 255))
-            if numero:
+            if centro:
+                cor = (255, 255, 255, 255)
+            elif numero:
                 cor = (120, 255, 90, 255)
             d.text((x + 3, y + 7), w, font=f, fill=(0, 0, 0, 150), stroke_width=9, stroke_fill=(0, 0, 0, 150))
             d.text((x, y), w, font=f, fill=cor, stroke_width=8, stroke_fill=(0, 0, 0, 245))
@@ -597,7 +625,7 @@ def poe_legendas(base, grupos, tmp, saida, log=log):
         shutil.copyfile(base, saida)
         return saida
     pngs, filtros, entradas = [], [], ["-i", str(base)]
-    y = H_TOPO - 430
+    y = int(H_TOPO * 0.60 - 135) if TEMA["v"] == "gta" else H_TOPO - 430   # GTA: no meio, como nos shorts de referência
     for i, g in enumerate(grupos):
         p = tmp / f"leg{i:03d}.png"
         legenda_png(g["palavras"], p, g.get("chave"))
@@ -753,7 +781,7 @@ def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log, t
     log(f"   narração: {total:.0f}s")
 
     palavras = tempos_das_palavras(wav, rot["narracao"], log)
-    grupos = grupos_de_legenda(palavras)
+    grupos = grupos_de_legenda(palavras, 2 if TEMA["v"] == "gta" else 3)
 
     clipes = pool_por_cenas(rot, palavras, total, tmp / "clipes", log) if usar_clipes else []
     if not clipes:
@@ -854,7 +882,18 @@ def main():
     if a.montar:
         monta_depois(a.montar, a.reacao)
         return
-    if a.viral and not a.assunto:
+    if a.viral and not a.assunto and TEMA["v"] == "gta":
+        uf = base / "usados_funcoes_gta.json"
+        try:
+            usados = json.loads(uf.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            usados = []
+        ideia = (ideias_funcoes_gta(1, usados) or [""])[0]
+        if ideia:
+            a.assunto = "FUNCIONALIDADE: " + ideia
+            usados.append(ideia)
+            uf.write_text(json.dumps(usados[-200:], ensure_ascii=False), encoding="utf-8")
+    if a.viral and not a.assunto and TEMA["v"] != "gta":
         uf = base / "usados_virais.json"
         try:
             usados = json.loads(uf.read_text(encoding="utf-8"))

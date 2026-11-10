@@ -3,6 +3,10 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 10/nov — SHORTS DE FUNCIONALIDADES DO GTA 6 (exemplo "o que vai ser o GTA 6")
+
+- Referência que ele mandou (68 s, tela cheia, trailer/gameplay trocando a cada 2–3 s, legenda de 1–2 palavras BRANCA no meio, setas vermelhas): no tema `gta` a legenda agora é de 2 palavras, branca, a 60% da altura. `auto.reels_gta_meta`: um short sim, um não vira FUNCIONALIDADE (`--viral` + `--tema gta` → `ideias_funcoes_gta`, só o mostrado nos trailers/confirmado; `REGRAS_GTA_FUNCAO`: gancho, 1 detalhe por cena, busca do trecho daquela função). Voz = perfil detto. NÃO feito: setas vermelhas nos detalhes e VÍDEO LONGO horizontal de funcionalidades (próximo passo). Atenção: o exemplo tem marca d'água de outra conta — não copiar.
+
 ## 09/nov (noite) — NARRADO MAIS VIRAL, SEM CORTAR A PESSOA, 5 POR DIA NO DRIVE
 
 - Ele mandou 5 exemplos (Haaland/Enzo, árbitro, Caracas, Gavi e a princesa): topo ~70% com planos de 2–3 s, rosto SEMPRE inteiro,
