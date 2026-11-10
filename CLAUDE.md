@@ -3,6 +3,14 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 10/nov (12h) — "NÃO GEROU VÍDEO DEPOIS DAS 10 NEM O DOCUMENTÁRIO": NENHUMA IA DE TEXTO RESPONDIA
+
+- Lido do `status.json` do Drive: Gemini 429 "exceeded its monthly spending cap" · **Groq 403 "error code: 1010"** (Cloudflare barra o
+  User-Agent padrão `Python-urllib`; a chave estava certa) · Claude "5-hour limit, reset 12:20". Notícias 10:47 "sem trechos" e
+  documentário 09:54 "NÃO RODEI: a IA não devolveu o esboço" — tudo pela mesma causa, não pelo código novo.
+- Conserto: `roteiro_ia.UA_NAVEGADOR` nos pedidos às IAs grátis (Groq/Cerebras/Mistral/OpenRouter). Documentário: até 6 tentativas/dia,
+  30 min entre elas, janela 8–22 h (antes 2 tentativas — as duas se perdiam sem IA).
+
 ## 10/nov (manhã) — GTA: PISO DE 12 MIN, DOCUMENTÁRIO DIÁRIO E THUMB NOVA ("vídeos ruins, curtos, thumbs ruins")
 
 - **POR QUE SAÍA CURTO**: o rodízio de formatos do gta6 (`documentario` = 5 trechos de 45 s, `cartoes` = 6 de 25 s) dava

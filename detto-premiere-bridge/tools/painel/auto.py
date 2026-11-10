@@ -452,7 +452,7 @@ DOC = {"p": None}
 def documentario_meta(CAN, SHP, EDI, cp, log=print):
     """DOCUMENTÁRIO DIÁRIO DO GTA 6 (10/nov, pedido dele): 1 por dia, 12+ min, ele narrando (narrado/documentario.py).
     Roda como a montagem do card GTA 6 (CAN.PESADO): enquanto isso canal, Shop, edição e shorts esperam.
-    `doc_gta_auto: false` desliga; até 2 tentativas por dia; das 8h às 20h."""
+    `doc_gta_auto: false` desliga; até 6 tentativas por dia (30 min entre elas); das 8h às 22h."""
     if not cp.get("doc_gta_auto", True):
         return
     p = DOC["p"]
@@ -460,7 +460,7 @@ def documentario_meta(CAN, SHP, EDI, cp, log=print):
         return
     DOC["p"] = None
     agora = dt.datetime.now()
-    if not (8 <= agora.hour <= 20) or not tudo_parado(CAN, SHP, EDI):
+    if not (8 <= agora.hour <= 22) or not tudo_parado(CAN, SHP, EDI):
         return
     import narrado_painel as NAR
     if NAR.rodando():
@@ -479,9 +479,12 @@ def documentario_meta(CAN, SHP, EDI, cp, log=print):
         est = {}
     if est.get("dia") != hoje:
         est = {"dia": hoje, "tentativas": 0}
-    if est["tentativas"] >= 2:
+    if est["tentativas"] >= 6:
+        return
+    if time.time() - est.get("ultima", 0) < 1800:  # 30 min entre tentativas (IA sem cota volta sozinha)
         return
     est["tentativas"] += 1
+    est["ultima"] = time.time()
     est_f.write_text(json.dumps(est), encoding="utf-8")
     exe, extra = CAN.py()
     logf = open(pasta / "documentario.log", "a", encoding="utf-8")

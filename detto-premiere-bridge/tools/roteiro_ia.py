@@ -17,6 +17,9 @@ import shutil
 import sys
 import urllib.error
 import urllib.request
+
+# Groq/Cloudflare responde 403 "error code: 1010" ao User-Agent padrão do Python (Python-urllib)
+UA_NAVEGADOR = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
 from pathlib import Path
 
 REGRAS = """Você é editor de vídeos de futebol do canal @detto.galo (humor, opinião, curiosidades).
@@ -238,7 +241,7 @@ PROVEDORES = [
 def _modelo_grande(base, chave):
     """o modelo não existe mais? pega o maior da lista da própria IA (70b/120b/large/qwen)"""
     try:
-        req = urllib.request.Request(f"{base}/models", headers={"Authorization": f"Bearer {chave}"})
+        req = urllib.request.Request(f"{base}/models", headers={"Authorization": f"Bearer {chave}", "User-Agent": UA_NAVEGADOR})
         ids = [m.get("id", "") for m in json.loads(urllib.request.urlopen(req, timeout=30).read()).get("data", [])]
     except Exception:
         return None
@@ -262,7 +265,8 @@ def texto_gratis(prompt, json_mode=False, log=print):
             if json_mode:
                 corpo["response_format"] = {"type": "json_object"}
             req = urllib.request.Request(f"{base}/chat/completions", data=json.dumps(corpo).encode(), method="POST",
-                                         headers={"Authorization": f"Bearer {chave}", "Content-Type": "application/json"})
+                                         headers={"Authorization": f"Bearer {chave}", "Content-Type": "application/json",
+                                                  "User-Agent": UA_NAVEGADOR, "Accept": "application/json"})
             try:
                 r = json.loads(urllib.request.urlopen(req, timeout=240).read())
                 txt = r["choices"][0]["message"]["content"] or ""
