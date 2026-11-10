@@ -358,6 +358,112 @@ def pool_por_cenas(rot, palavras, total, pasta, log=log):
     return seq
 
 
+# ------------------------------------------------------------------ 5b) EFEITOS DE LANCE (seta, círculo, flash)
+GATILHOS_LANCE = ("drible", "dribl", "caneta", "chapeu", "chapéu", "elastico", "elástico", "pedalada", "finta",
+                  "recriou", "recriar", "lance", "jogada", "golaço", "golaco", "gol ", "bicicleta", "tunel", "túnel",
+                  "ginga", "humilh", "passou por", "deixou", "deu um", "fez pelo", "arrancada", "perna")
+
+
+def alvo_do_plano(arq):
+    """onde está o jogador no plano (1080x1344): rosto se houver; senão o 'corpo' (HOG) mais central; senão o centro.
+    Devolve (cx, y_topo, altura_da_caixa)"""
+    from pessoa import quadro, foco_do_plano
+
+    try:
+        f = foco_do_plano(arq, 0.0, min(1.0, dur(arq)))
+        if f:
+            return ((f[0] + f[2]) / 2 * W, f[1] * H_TOPO, max(60, (f[3] - f[1]) * H_TOPO * 2.4))
+        import cv2
+        img = quadro(arq, min(0.8, dur(arq) / 2), 540)
+        if img is not None:
+            h, w = img.shape[:2]
+            hog = cv2.HOGDescriptor()
+            hog.setSVMDetector(cv2.HOGDescriptor_getDefaultPeopleDetector())
+            caixas, _ = hog.detectMultiScale(img, winStride=(8, 8), padding=(8, 8), scale=1.06)
+            if len(caixas):
+                bx, by, bw, bh = min(caixas, key=lambda b: abs(b[0] + b[2] / 2 - w / 2) * 1.0 - b[2] * b[3] * 0.002)
+                return ((bx + bw / 2) / w * W, by / h * H_TOPO, bh / h * H_TOPO)
+    except Exception:  # noqa: BLE001
+        pass
+    return (W / 2, H_TOPO * 0.36, H_TOPO * 0.3)
+
+
+def _seta_png(saida, tam=170):
+    from PIL import Image, ImageDraw
+
+    img = Image.new("RGBA", (tam, tam), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    pts = [(tam * .5, tam * .95), (tam * .12, tam * .45), (tam * .36, tam * .45), (tam * .36, tam * .05),
+           (tam * .64, tam * .05), (tam * .64, tam * .45), (tam * .88, tam * .45)]
+    d.polygon(pts, fill=(255, 221, 0, 255), outline=(0, 0, 0, 255))
+    d.line(pts + [pts[0]], fill=(0, 0, 0, 255), width=6, joint="curve")
+    img.save(saida)
+    return saida
+
+
+def _aro_png(saida, tam=230):
+    from PIL import Image, ImageDraw
+
+    img = Image.new("RGBA", (tam, tam), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    d.ellipse([6, 6, tam - 6, tam - 6], outline=(255, 221, 0, 255), width=9)
+    img.save(saida)
+    return saida
+
+
+def efeitos_de_lance(base, planos, palavras, tmp, saida, log=log):
+    """quando a narração fala de drible/lance, marca o jogador com SETA (jogador pequeno, plano aberto) ou ARO
+    (plano mais próximo) e dá um FLASH de cor — como nos vídeos de drible que ele mandou. No máximo 5, a ≥6 s um do outro."""
+    hits, ult = [], -99.0
+    for p in palavras:
+        t = norm(p["w"]).strip(".,!?:;")
+        if any(t.startswith(norm(g).strip()) for g in GATILHOS_LANCE if g.strip()) and p["s"] - ult >= 6:
+            hits.append(p["s"])
+            ult = p["s"]
+    hits = hits[:5]
+    if not hits or not planos:
+        shutil.copyfile(base, saida)
+        return saida
+    inicios, t = [], 0.0
+    for pl in planos:
+        inicios.append((t, t + pl["dur"], pl))
+        t += pl["dur"]
+    seta, aro = _seta_png(tmp / "seta.png"), _aro_png(tmp / "aro.png")
+    entradas, filtros, atual, n = ["-i", str(base)], [], "0:v", 0
+    for h in hits:
+        clip = next((x for x in inicios if x[0] <= h < x[1]), None)
+        if clip is None:
+            continue
+        a, b, pl = clip
+        ini, fim = max(a, h - 0.2), min(b, h + 1.8)
+        if fim - ini < 0.6:
+            continue
+        cx, ytopo, alt = alvo_do_plano(pl["arq"])
+        usa_aro = alt > H_TOPO * 0.45
+        png, tam = (aro, 230) if usa_aro else (seta, 170)
+        entradas += ["-i", str(png)]
+        n += 1
+        x = int(min(max(cx - tam / 2, 10), W - tam - 10))
+        if usa_aro:
+            y = int(min(max(ytopo - 30, 10), H_TOPO - tam - 10))
+            yexp = f"{y}"
+        else:
+            y = int(min(max(ytopo - tam - 6, 10), H_TOPO - tam - 10))
+            yexp = f"{y}+14*sin((t-{ini:.2f})*14)"          # a seta pula apontando
+        en = f"between(t,{ini:.2f},{fim:.2f})"
+        filtros.append(f"[{atual}][{n}:v]overlay={x}:'{yexp}':enable='{en}'[e{n}]")
+        # flash de cor nos primeiros quadros do lance
+        filtros.append(f"[e{n}]drawbox=x=0:y=0:w=iw:h=ih:color=orange@0.35:t=fill:enable='between(t,{ini + 0.2:.2f},{ini + 0.32:.2f})'[f{n}]")
+        atual = f"f{n}"
+        log(f"   efeito de lance em {ini:.1f}s ({'aro' if usa_aro else 'seta'})")
+    if not filtros:
+        shutil.copyfile(base, saida)
+        return saida
+    roda(["ffmpeg", "-v", "error", *entradas, "-filter_complex", ";".join(filtros), "-map", f"[{atual}]",
+          "-c:v", "libx264", "-crf", "19", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-y", str(saida)], "efeitos")
+    return saida
+
+
 # ------------------------------------------------------------------ 5) A LEGENDA
 def _fonte(tam):
     from PIL import ImageFont
@@ -655,6 +761,10 @@ def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log, t
                            "Confira a internet e o cookies.txt do YouTube.")
 
     vis = esteira(clipes, total, tmp, log)
+    try:
+        vis = efeitos_de_lance(vis, clipes, palavras, tmp, tmp / "com_efeitos.mp4", log)
+    except Exception as e:  # noqa: BLE001
+        log(f"   efeitos de lance falharam ({str(e)[:100]}); sigo sem eles")
     com_leg = poe_legendas(vis, grupos, tmp, tmp / "com_legenda.mp4", log)
     tit = faixa_titulo(rot["titulo"], tmp / "titulo.png")
     com_tit = tmp / "topo_mudo.mp4"
