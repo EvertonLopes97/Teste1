@@ -93,6 +93,14 @@ function pessoa(q, t) {
     p.push(`<rect x="${x - 24 * u}" y="${yCorpo + 1 * u}" width="${48 * u}" height="${corpoH * 0.92}" rx="${9 * u}" fill="${tom(mc, -0.25)}"/>`);
   }
 
+  // ---- 2,5D: luz vinda de cima-esquerda. Gradiente de volume (cabeça/tronco) e sombra de contato no chão.
+  p.push(`<defs>
+    <radialGradient id="vol" cx=".33" cy=".28" r=".85"><stop offset="0" stop-color="#fff" stop-opacity=".22"/><stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".30"/></radialGradient>
+    <linearGradient id="vcorpo" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity=".14"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".28"/></linearGradient>
+    <radialGradient id="chao"><stop offset="0" stop-color="#000" stop-opacity=".38"/><stop offset="1" stop-color="#000" stop-opacity="0"/></radialGradient>
+  </defs>`);
+  p.push(`<ellipse cx="${x + 2 * u}" cy="${yPes + 1.5 * u}" rx="${27 * u}" ry="${6 * u}" fill="url(#chao)"/>`);
+
   // ---- pernas
   const calca = q.calca || (roupa === "pijama" ? "#6d7f9c" : roupa === "terno" ? "#2a2f38" : "#3a5a86");
   if (pose === "agachado") {
@@ -114,6 +122,7 @@ function pessoa(q, t) {
     p.push(`<rect x="${x - 19 * u}" y="${yCorpo}" width="${38 * u}" height="${corpoH + 2 * u}" rx="${12 * u}" fill="${pele}"/>`);
   }
   p.push(`<rect x="${x - larg / 2 * u}" y="${yCorpo}" width="${larg * u}" height="${corpoH + 2 * u}" rx="${12 * u}" fill="${cor}"/>`);
+  p.push(`<rect x="${x - larg / 2 * u}" y="${yCorpo}" width="${larg * u}" height="${corpoH + 2 * u}" rx="${12 * u}" fill="url(#vcorpo)"/>`);
 
   // detalhes por tipo de roupa — é o que faz o personagem "vestir" a cena
   if (roupa === "moletom" || roupa === "capuz") {
@@ -167,6 +176,7 @@ function pessoa(q, t) {
     p.push(`<path d="M${x - cabR * 1.06} ${yCab} a${cabR * 1.06} ${cabR * 1.06} 0 0 1 ${cabR * 2.12} 0 l0 ${cabR * 1.25} l${-cabR * 0.5} 0 l0 ${-cabR * 0.7} l${-cabR * 1.12} 0 l0 ${cabR * 0.7} l${-cabR * 0.5} 0 z" fill="${cabelo}"/>`);
   }
   p.push(`<circle cx="${x}" cy="${yCab}" r="${cabR}" fill="${pele}"/>`);
+  p.push(`<circle cx="${x}" cy="${yCab}" r="${cabR}" fill="url(#vol)"/>`);
   const calota = (alturaFranja, cor) =>
     `<path d="M${x - cabR} ${yCab + cabR * alturaFranja} a${cabR} ${cabR} 0 0 1 ${cabR * 2} 0 l${-cabR * 0.17} 0 a${cabR * 0.83} ${cabR * 0.52} 0 0 0 ${-cabR * 1.66} 0 z" fill="${cor}"/>`
     + `<path d="M${x - cabR} ${yCab + cabR * alturaFranja} a${cabR} ${cabR} 0 0 1 ${cabR * 2} 0 l0 ${-cabR * (0.4 + alturaFranja)} a${cabR} ${cabR} 0 0 0 ${-cabR * 2} 0 z" fill="${cor}"/>`;

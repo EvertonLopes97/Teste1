@@ -3,6 +3,13 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 10/nov (12h40) — HISTÓRIAS: VOLUME 2,5D NO BONECO (pedido "assets mais 3D"; as referências dele são 2D)
+
+- Mantive o estilo 2D chapado da série; o boneco ganhou VOLUME por gradientes SVG (`pessoa()` em `palco/cena.js`): luz de cima-esquerda
+  na cabeça (`#vol`) e no tronco (`#vcorpo`) + sombra de contato no chão (`#chao`). Sem custo de render (continua SVG no Chromium).
+  Conferido na folha antes×depois (`folha.js`); `npm run check` 114/114. NÃO feito: objetos (porta, prédio, gerador…) com volume,
+  3D de verdade (Three.js/Blender) — só se ele mandar o vídeo/estilo de referência (o link youtu.be/3UbOzkPHcT4 não abriu aqui).
+
 ## 10/nov (12h) — "NÃO GEROU VÍDEO DEPOIS DAS 10 NEM O DOCUMENTÁRIO": NENHUMA IA DE TEXTO RESPONDIA
 
 - Lido do `status.json` do Drive: Gemini 429 "exceeded its monthly spending cap" · **Groq 403 "error code: 1010"** (Cloudflare barra o
