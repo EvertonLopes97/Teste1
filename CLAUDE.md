@@ -3,6 +3,15 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 10/nov (19h) — "RODAR AGORA" ENTREGA O VÍDEO COMPLETO (nunca mais "NÃO RODEI: só ~11.6 min")
+
+- Pedido dele: "é só criar mais fala minha, colocar imagens do jogo; se eu clico para rodar quero o vídeo completo". Com `--forcar`,
+  faltando tempo para o piso (`min_minutos_video` 12 + 30 s), `canal.py` NÃO aborta: `roteiro()` recebe `fala_extra_s` e a IA devolve
+  `analises` (70–100 palavras, `depois_do` = trecho; proibido inventar); `monta()` as fala na voz dele DEPOIS do trecho com imagem do
+  jogo atrás (`add_fala(..., forca=True)`, pedaços diferentes do trecho). Ficou < piso+10 s → até 2 pedidos de mais análise. Abaixo de 90%
+  do piso ainda é "NÃO RODEI". Sem `--forcar` (automático) segue guardando para a próxima rodada. Testado: sintaxe, teste_rapido e o
+  prompt; NÃO rodado com voz/vídeo reais.
+
 ## 10/nov (12h40) — HISTÓRIAS: VOLUME 2,5D NO BONECO (pedido "assets mais 3D"; as referências dele são 2D)
 
 - Mantive o estilo 2D chapado da série; o boneco ganhou VOLUME por gradientes SVG (`pessoa()` em `palco/cena.js`): luz de cima-esquerda

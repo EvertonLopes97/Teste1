@@ -1122,6 +1122,21 @@ def roteiro(sel, cfg, titulos_antes=()):
         "NÃO construa o título em cima de ARBITRAGEM/ROUBO/VAR: rende 0,89x (MENOS que a média) nesses canais.\n"
         "O 🚨 não muda nada (1,02x): pode usar, mas não conta como gancho.\n"
         "Título em CAIXA ALTA, até 100 caracteres, terminando com \" / NOTÍCIAS DO GALO\".")
+    # COMPLETAR COM FALA DELE (10/nov, "é só criar mais fala minha, colocar imagens do jogo; se clico para
+    # rodar quero o vídeo completo"): faltou tempo para o piso → a IA escreve ANÁLISES longas, que entram
+    # depois dos trechos com imagem do jogo atrás, em vez de a rodada abortar.
+    schema_extra, regra_extra = "", ""
+    falta_s = float(cfg.get("fala_extra_s") or 0)
+    if falta_s > 0:
+        palavras = int(falta_s * 2.6 * 1.25) + 40
+        n_an = max(2, min(len(sel) * 2, round(palavras / 85)))
+        schema_extra = ('\n "analises": [{"depois_do": <número do trecho>, "texto": "<análise sua, 70 a 100 palavras>", '
+                        '"clima": "..."}],')
+        regra_extra = (f"\nANÁLISES (OBRIGATÓRIO): o vídeo está curto. Escreva {n_an} ANÁLISES em 'analises', somando "
+                       f"~{palavras} palavras no total, cada uma de 70 a 100 palavras, comentando, explicando e opinando "
+                       "sobre o que acabou de ser mostrado no trecho (depois_do = número dele; pode repetir o mesmo trecho "
+                       "com outro ângulo). Imagens do jogo ficam na tela enquanto você fala. PROIBIDO inventar: só fatos "
+                       "dos trechos e do que já se sabe; vazamento é chamado de vazamento; opinião é opinião.")
     g = gemini_json([{"text": f"""Você narra o canal "{cfg['nome_canal']}", de {assunto}, {persona}. Os trechos, em ordem:
 {lista}
 
@@ -1131,7 +1146,7 @@ Escreva a narração que liga os trechos. Responda SÓ JSON:
  "descricao": "<2 a 3 frases sobre o vídeo>", "tags": ["<10 a 15 tags>"],
  "abertura": {{"texto": "<gancho de 2 a 3 frases, até 45 palavras>", "clima": "<{'|'.join(CLIMAS)}>"}},
  "falas": [{{"antes_do": <número do trecho>, "texto": "<sua opinião/ponte para o trecho, 1 a 3 frases, até 40 palavras>", "clima": "..."}}],
- "comentarios": [{{"trecho": <número>, "depois_de": <segundo do trecho, logo DEPOIS de uma frase forte>, "texto": "<sua reação curta ao que ACABOU de ser dito, 6 a 20 palavras>", "clima": "..."}}],
+ "comentarios": [{{"trecho": <número>, "depois_de": <segundo do trecho, logo DEPOIS de uma frase forte>, "texto": "<sua reação curta ao que ACABOU de ser dito, 6 a 20 palavras>", "clima": "..."}}],{schema_extra}
  "fechamento": {{"texto": "<opinião final + pedir like, inscrição e comentário, até 40 palavras>", "clima": "..."}}}}
 COMENTÁRIOS NO MEIO: nos trechos longos abaixo, entre UMA reação sua no meio da reportagem (2 se passar de 2 min), como
 quem pausa e comenta o que acabou de ouvir ("Olha isso, Massa!", "Concordo demais com ele", "Aí não, né?") — só onde
@@ -1140,7 +1155,7 @@ combina, nunca nos primeiros 10 s nem nos últimos 10 s do trecho.
 
 {regra_titulo}
 {proibido_repetir}
-{regras_extra}
+{regras_extra}{regra_extra}
 
 Uma fala antes de CADA trecho (antes_do = 1, 2, 3...). CADA fala DIZ DE ONDE VEM o trecho seguinte, pelo nome do programa/emissora
 da ORIGEM (ex.: "olha o que falaram no Globo Esporte Minas", "o pessoal do Jogo Aberto, da Band, comentou"; se for "via" um canal,
@@ -1779,6 +1794,15 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
         if corte is None:
             continue
         falas.append({"id": f"c{i + 1:02d}{k}", "texto": c["texto"], "clima": c.get("clima", "falando"), "comenta": i, "em": corte})
+    # ANÁLISES para completar o tempo (fala dele + imagem do jogo do trecho citado)
+    for k, an in enumerate(rot.get("analises") or []):
+        try:
+            i = int(an.get("depois_do", 0)) - 1
+        except (TypeError, ValueError):
+            continue
+        if not (0 <= i < len(sel)) or not str(an.get("texto", "")).strip():
+            continue
+        falas.append({"id": f"a{i + 1:02d}{k}", "texto": an["texto"], "clima": an.get("clima", "falando"), "depois": i})
     falas.append({"id": "f99", "texto": rot["fechamento"]["texto"], "clima": rot["fechamento"].get("clima", "comemorando")})
     fj = tmp / "falas.json"
     grava_json(fj, falas)
@@ -1810,6 +1834,10 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
     for f in falas:
         if "comenta" in f:
             comenta.setdefault(f["comenta"], []).append(f)
+    analises_dep = {}
+    for f in falas:
+        if "depois" in f:
+            analises_dep.setdefault(f["depois"], []).append(f)
     # 2) peças: abertura → (fala → trecho [→ comentário → resto do trecho])… → fechamento
     pecas = []
     # CAPÍTULOS: as peças são emendadas em ORDEM com -c copy, então somando a duração das anteriores eu
@@ -1827,11 +1855,13 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
     # janela, em vez de só a sua cara. Ligado por canal (`apoio_na_fala`), para não mudar o visual do Galo.
     quer_apoio = bool(cfg.get("apoio_na_fala"))
 
-    def add_fala(f, apoio=None):
+    def add_fala(f, apoio=None, forca=False):
         p = tmp / f"p{len(pecas):03d}.mp4"
         t0 = time.time()
+        if not (quer_apoio or forca):
+            apoio = None
         if peca_fala(base, f["arquivo"], mascara_de(f["clima"], pasta), f["texto"], tmp, len(pecas), p, logo,
-                     apoio=apoio if quer_apoio else None):
+                     apoio=apoio):
             pecas.append(p)
             log(f"      peça {len(pecas)} (sua fala{' + imagem do jogo' if (apoio and quer_apoio) else ''}) "
                 f"pronta em {time.time() - t0:.0f}s")
@@ -1892,6 +1922,11 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
             if n < len(coms):
                 log(f"      comentário seu no meio: {coms[n]['texto'][:60]}")
                 add_fala(coms[n])
+        for k, an in enumerate(analises_dep.get(i, [])):
+            # imagem do jogo atrás: pedaços diferentes do trecho a cada análise (sem passar do fim)
+            seg = min(x["ini"] + 20.0 * (k + 1), max(x["ini"], x["fim"] - 6.0))
+            log(f"      análise sua + imagem do jogo: {an['texto'][:60]}")
+            add_fala(an, apoio=(x["arquivo"], seg), forca=True)
     add_fala(falas[-1])
     lista = tmp / "pecas.txt"
     lista.write_text("".join(f"file '{p.as_posix()}'\n" for p in pecas), encoding="utf-8")
@@ -2841,25 +2876,57 @@ def main():
             "Espero a próxima rodada.")
         return
     piso = float(cfg.get("min_minutos_video", 12)) * 60
-    if total_estimado() < piso + 30:
+    falta = piso + 30 - total_estimado()
+    if falta > 0 and not a.forcar:
         # PISO QUE NADA FURA (10/nov): vídeo horizontal curto não viraliza (12-18 min rende 1,3x no nicho);
-        # o material fica guardado e soma com o da próxima rodada
+        # no automático o material fica guardado e soma com o da próxima rodada
         log(f"NÃO RODEI: só ~{total_estimado() / 60:.1f} min de material (mínimo {piso / 60:.0f} min). "
             "Guardo e somo com a próxima rodada.")
         return
+    if falta > 0:
+        # "Rodar agora" (--forcar): NÃO aborta; completa com mais fala dele + imagem do jogo (ver roteiro/monta)
+        log(f"faltam ~{falta / 60:.1f} min para o piso de {piso / 60:.0f} min: completo com análises suas "
+            "e imagens do jogo")
     if total_estimado() < alvo:
         if not a.forcar:
             log(f"ainda não dá {cfg['duracao_alvo_min']} min (tem ~{total_estimado() / 60:.1f} min de notícia nova); espera a próxima rodada")
             return
         log(f"AVISO: só tem ~{total_estimado() / 60:.1f} min de notícia nova (menos de {cfg['duracao_alvo_min']}); monto assim porque você mandou")
     log(f"\nmontando: {len(sel)} trechos, {tot / 60:.1f} min de imprensa (~{total_estimado() / 60:.1f} min de vídeo)")
-    rot = roteiro(sel, cfg, titulos_antes)
+    cfg_r = dict(cfg)
+    if falta > 0:
+        cfg_r["fala_extra_s"] = falta
+    rot = roteiro(sel, cfg_r, titulos_antes)
     tmp = pasta / "tmp"
     shutil.rmtree(tmp, ignore_errors=True)
     tmp.mkdir()
     pronto = pasta / "prontos" / f"{dt.datetime.now():%Y-%m-%d_%H%M} - {slug(rot['titulo'], 50)}"
     pronto.mkdir(parents=True, exist_ok=True)
-    video, abertura_s, marcas = monta(sel, rot, cfg, pasta, tmp, pronto / "video.mp4")
+    video, abertura_s, marcas = monta(sel, rot, cfg_r, pasta, tmp, pronto / "video.mp4")
+    if falta > 0:
+        # a vinheta soma ~3 s; 10 s de folga. Ainda curto → mais uma rodada de análises, maior
+        for _ in range(2):
+            d = dur_mp4(video)
+            if d >= piso + 10:
+                break
+            falta_real = piso + 10 - d
+            log(f"ficou com {d / 60:.1f} min (piso {piso / 60:.0f}): peço mais ~{falta_real / 60:.1f} min de fala sua")
+            cfg_r["fala_extra_s"] = float(cfg_r["fala_extra_s"]) + falta_real * 1.3 + 30
+            mais = roteiro(sel, cfg_r, titulos_antes)
+            if not mais.get("analises"):
+                log("a IA não devolveu análises extras")
+                break
+            rot["analises"] = mais["analises"]
+            shutil.rmtree(tmp, ignore_errors=True)
+            tmp.mkdir()
+            video, abertura_s, marcas = monta(sel, rot, cfg_r, pasta, tmp, pronto / "video.mp4")
+        d = dur_mp4(video)
+        if d < piso * 0.9:
+            log(f"NÃO RODEI: mesmo completando com fala sua o vídeo ficou com {d / 60:.1f} min (mínimo {piso / 60:.0f}). "
+                "Veja acima se a IA de texto respondeu.")
+            return
+        if d < piso:
+            log(f"AVISO: ficou com {d / 60:.1f} min, um pouco abaixo de {piso / 60:.0f}; entrego porque você mandou rodar")
     antes_da_vinheta = dur_mp4(video)
     try:   # vinheta do canal DEPOIS da chamada de abertura (no segundo 0 ela quebrava a retenção)
         import vinheta as VIN
