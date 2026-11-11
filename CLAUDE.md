@@ -3,6 +3,16 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 11/nov (16h) — "SEMPRE TEM COMO FAZER VÍDEO, MESMO SEM CLAUDE E OUTRAS IAs"
+
+- Log dele: Groq 429 (limite de tokens do modelo), Claude parado sozinho (6 falhas), Gemini sem cota → "NÃO RODEI: ficou com 6.7 min",
+  shorts GTA/Galo "a IA não devolveu narração". Agora NENHUMA IA parando derruba o vídeo:
+  `texto_gratis` troca de modelo no 429 (`RESERVAS`: Groq/Cerebras/OpenRouter); Claude que "parou sozinho" volta depois de 1 h;
+  `canal.analises_sem_ia` (análises-modelo com manchete/resumo/fonte + contagem regressiva, sem inventar) completa o piso de 12 min;
+  `roteiro()` sem IA em canal não-Galo usa roteiro-modelo do próprio canal (antes saía texto do Galo); `acha_trechos` sem IA usa
+  as palavras do assunto ou o começo (90 s) do vídeo e o marca como lido; `narrado.narracao_sem_ia` faz o short sem IA.
+  Testado com IA falsa=None; NÃO rodado com voz/vídeo reais. Texto-modelo é repetitivo — serve de rede de proteção, não de padrão.
+
 ## 10/nov (19h) — "RODAR AGORA" ENTREGA O VÍDEO COMPLETO (nunca mais "NÃO RODEI: só ~11.6 min")
 
 - Pedido dele: "é só criar mais fala minha, colocar imagens do jogo; se eu clico para rodar quero o vídeo completo". Com `--forcar`,

@@ -238,6 +238,13 @@ PROVEDORES = [
 ]
 
 
+RESERVAS = {
+    "GROQ_API_KEY": ["llama-3.3-70b-versatile", "openai/gpt-oss-20b", "llama-3.1-8b-instant", "qwen/qwen3-32b"],
+    "CEREBRAS_API_KEY": ["llama-3.3-70b", "gpt-oss-120b", "qwen-3-32b"],
+    "OPENROUTER_API_KEY": ["openai/gpt-oss-20b:free", "meta-llama/llama-3.3-70b-instruct:free"],
+}
+
+
 def _modelo_grande(base, chave):
     """o modelo não existe mais? pega o maior da lista da própria IA (70b/120b/large/qwen)"""
     try:
@@ -260,7 +267,9 @@ def texto_gratis(prompt, json_mode=False, log=print):
         if not chave:
             continue
         modelo = os.environ.get(env_modelo) or padrao
-        for vez in range(2):
+        # 429 (limite de tokens/min ou dia de UM modelo): os outros modelos do mesmo provedor têm cota própria
+        reserva = [m for m in RESERVAS.get(env, []) if m != modelo]
+        for vez in range(2 + len(reserva)):
             corpo = {"model": modelo, "messages": [{"role": "user", "content": prompt}], "temperature": 0.5}
             if json_mode:
                 corpo["response_format"] = {"type": "json_object"}
@@ -282,6 +291,10 @@ def texto_gratis(prompt, json_mode=False, log=print):
                         continue
                 if vez == 0 and e.code == 400 and json_mode:
                     json_mode = False  # IA sem modo JSON: pede só no texto
+                    continue
+                if e.code == 429 and reserva:
+                    log(f"   {env.split('_')[0].title()}: 429 em {modelo}; tento {reserva[0]}")
+                    modelo = reserva.pop(0)
                     continue
                 log(f"   {env.split('_')[0].title()}: {e.code} {det}")
             except Exception as e:
@@ -319,6 +332,12 @@ def _cota_claude():
     Sem limite por padrão; DETTO_CLAUDE_MAX_DIA=N põe um teto."""
     u = le_uso_claude()
     if u.get("parado"):
+        import time as _t
+        # parou SOZINHO (6 falhas, ex.: limite de 5 h): tenta de novo depois de 1 h; o parado no painel continua parado
+        if "sozinho" in (u.get("motivo") or "") and u.get("ultimas") and _t.time() - u["ultimas"][-1].get("t", 0) > 3600:
+            u["parado"], u["motivo"], u["seguidas"] = False, "", 0
+            grava_uso_claude(u)
+            return True, ""
         return False, u.get("motivo") or "parado no painel"
     teto = int(os.environ.get("DETTO_CLAUDE_MAX_DIA", "0") or 0)
     if teto and u["n"] >= teto:

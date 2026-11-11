@@ -209,6 +209,34 @@ def ideias_virais(n, usados, log=log):
     return [str(x).strip() for x in (d.get("ideias") or []) if str(x).strip()][:n]
 
 
+def narracao_sem_ia(assunto, alvo):
+    """narração falável sem IA: gancho + o assunto + contexto neutro + chamada; repete o bloco de contexto até chegar
+    perto de `alvo` palavras"""
+    import datetime as _dt
+
+    a = re.sub(r"\s+", " ", assunto or "").strip().rstrip(".!?")
+    gta = TEMA["v"] == "gta"
+    falta = ""
+    if gta:
+        try:
+            d = (_dt.date(2026, 11, 19) - _dt.date.today()).days
+            if d > 0:
+                falta = f"Faltam {d} dias para o lançamento de GTA 6, dia dezenove de novembro. "
+        except Exception:
+            pass
+    partes = [f"Atenção! {a}.", falta + "Presta atenção nos detalhes, porque cada novidade conta.",
+              "O que apareceu até agora é o que está nas imagens e nos anúncios oficiais, e eu só conto o que dá para ver.",
+              "O resto ainda é expectativa, então vale esperar a confirmação antes de tirar conclusões.",
+              "Olha de novo as imagens, repara no cenário, no movimento e no clima do que foi mostrado.",
+              "Se você acompanha isso todo dia, já percebeu que as novidades chegam rápido e mudam a conversa da comunidade.",
+              "Comenta aqui o que você achou, segue o canal para não perder nada e compartilha com quem também está esperando."]
+    out, i = [], 0
+    while len(" ".join(out).split()) < alvo * 0.9 and i < 40:
+        out.append(partes[min(i, len(partes) - 1)] if i < len(partes) else partes[2 + (i % 4)])
+        i += 1
+    return " ".join(x for x in out if x.strip())
+
+
 def roteiro(assunto, segundos, log=log):
     from reels import gemini_json
 
@@ -232,6 +260,12 @@ def roteiro(assunto, segundos, log=log):
         t2 = re.sub(r"\s+", " ", (d2.get("narracao") or "")).strip()
         if len(t2.split()) > n:
             d, texto = d2, t2
+    if len(texto.split()) < 20:
+        # SEM NENHUMA IA (11/nov, "sempre tem como fazer vídeo"): narração-modelo montada só com o assunto real
+        # (a manchete que o canal já coletou) + a contagem regressiva. Nada inventado.
+        log("   ⚠ nenhuma IA respondeu: uso a narração-modelo (só o assunto + contagem regressiva)")
+        texto = narracao_sem_ia(assunto, alvo)
+        d = {"titulo": assunto, "buscas": [assunto]}
     if len(texto.split()) < 20:
         raise RuntimeError("a IA não devolveu narração (sem GEMINI_API_KEY e sem IA grátis?)")
     buscas = [b for b in (d.get("buscas") or []) if str(b).strip()][:6] or [assunto]

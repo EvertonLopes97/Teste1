@@ -738,7 +738,7 @@ Responda SÓ JSON:
     if not trechos and assunto and not os.environ.get("GEMINI_API_KEY") and words:
         fim = min(words[-1]["e"], 90.0)
         trechos = [{"ini": words[0]["s"], "fim": fim, "manchete": info["titulo"][:60].upper(), "resumo": "", "clima": "falando", "nota": 8}]
-    elif not trechos and not os.environ.get("GEMINI_API_KEY"):
+    elif not trechos and (g is None or not os.environ.get("GEMINI_API_KEY")):
         aps, _, _ = apelidos(cfg)
         hits = [w["s"] for w in words if any(norm(w["w"]) == a for a in aps)]
         janelas = []
@@ -748,6 +748,15 @@ Responda SÓ JSON:
             else:
                 janelas.append([max(0, h - 15), h + 30])
         trechos = [{"ini": a, "fim": b, "manchete": info["titulo"][:60].upper(), "resumo": "", "clima": "falando", "nota": 5} for a, b in janelas if b - a >= 20]
+        if not trechos and g is None and words:
+            # SEM IA e sem palavra achada (canal de GTA: apelidos do Galo não casam): o vídeo já passou no filtro de
+            # assunto, então vale o começo dele (até 90 s, no fim de uma frase)
+            a0 = words[0]["s"]
+            trechos = [{"ini": a0, "fim": min(words[-1]["e"], a0 + 90.0), "manchete": info["titulo"][:60].upper(),
+                        "resumo": "", "clima": "falando", "nota": 5}]
+    if trechos and g is None:
+        IA_FALHOU["v"] = False
+        log("   (sem IA: trecho pelo começo/palavras do assunto — o vídeo conta como lido)")
     ok = []
     mx, mn = float(cfg.get("trecho_max_s", 45)), float(cfg.get("trecho_min_s", 15))
     for x in trechos:
@@ -1063,6 +1072,40 @@ def falas_do_trecho(x, passo=7.0):
     return "\n".join(out)[:3500]
 
 
+
+def analises_sem_ia(sel, cfg, n, falta_s=0.0):
+    """SEM NENHUMA IA (11/nov, "sempre tem como fazer vídeo"): análises-modelo montadas só com o que o próprio trecho
+    já traz (manchete, resumo, fonte) + a contagem regressiva. Nada inventado: é ponte, contexto e opinião genérica."""
+    assunto = cfg.get("assunto") or "o assunto do canal"
+    falta = ""
+    if cfg.get("lancamento"):
+        try:
+            d = (dt.date.fromisoformat(cfg["lancamento"]) - dt.date.today()).days
+            if d > 0:
+                falta = f"E lembra que faltam {d} dias para o lançamento. "
+        except ValueError:
+            pass
+    modelos = [
+        "Olha só o que acabamos de ver: {m}. O que mais chama atenção aqui é como isso muda a expectativa de quem acompanha {a}. {r}Guarda esse detalhe, porque ele pode aparecer de novo nas próximas semanas, e vale ficar de olho no que vem da fonte oficial antes de tirar conclusões.",
+        "Vamos com calma nessa. {m}. {r}Eu gosto de separar o que foi mostrado do que é só comentário em volta, e o que a gente viu nas imagens foi isso aí. {f}O que você achou disso? Escreve nos comentários, que eu leio.",
+        "Voltando às imagens, repara no detalhe: {m}. {r}Quando sai uma coisa assim sobre {a}, a comunidade inteira para para analisar quadro a quadro. {f}Eu fico de olho e trago o que for confirmado, sem inventar nada.",
+        "Resumindo esse ponto: {m}. {r}Pra mim o mais importante é não confundir expectativa com informação confirmada. {f}Isso aqui veio de {o}, e eu deixo os créditos na descrição. Se curtiu, deixa o like.",
+        "E aí, o que isso significa na prática? {m}. {r}Quem acompanha {a} sabe que cada novidade mexe com a ansiedade da galera. {f}Eu prefiro olhar com os pés no chão e ver o que realmente foi mostrado nas imagens.",
+        "Mais uma camada sobre isso: {m}. {r}Enquanto as imagens rolam, vale notar o ritmo, o cenário e o clima do que foi mostrado. {f}Comenta aí qual parte te chamou mais atenção.",
+    ]
+    out = []
+    for k in range(max(1, n)):
+        i = k % len(sel)
+        x = sel[i]
+        m = (x.get("manchete") or "esse assunto").capitalize()
+        r = (x.get("resumo") or "").strip()
+        r = (r + (" " if not r.endswith(".") else " ")) if r else ""
+        txt = modelos[(k // max(1, len(sel)) + k) % len(modelos)].format(
+            m=m.rstrip("."), r=r, a=assunto, f=falta, o=origem_falada(x))
+        out.append({"depois_do": i + 1, "texto": re.sub(r"\s+", " ", txt).strip(), "clima": "falando"})
+    return out
+
+
 def roteiro(sel, cfg, titulos_antes=()):
     # o nome do BLOCO SECUNDÁRIO vem do canal: no Galo é "a volta pelo mundo" (os outros campeonatos), no
     # canal de games é "o resto dos games" (05/nov). O mecanismo é o mesmo; só a redação muda.
@@ -1127,6 +1170,7 @@ def roteiro(sel, cfg, titulos_antes=()):
     # depois dos trechos com imagem do jogo atrás, em vez de a rodada abortar.
     schema_extra, regra_extra = "", ""
     falta_s = float(cfg.get("fala_extra_s") or 0)
+    n_an = 0
     if falta_s > 0:
         palavras = int(falta_s * 2.6 * 1.25) + 40
         n_an = max(2, min(len(sel) * 2, round(palavras / 85)))
@@ -1160,6 +1204,23 @@ combina, nunca nos primeiros 10 s nem nos últimos 10 s do trecho.
 Uma fala antes de CADA trecho (antes_do = 1, 2, 3...). CADA fala DIZ DE ONDE VEM o trecho seguinte, pelo nome do programa/emissora
 da ORIGEM (ex.: "olha o que falaram no Globo Esporte Minas", "o pessoal do Jogo Aberto, da Band, comentou"; se for "via" um canal,
 cite o programa e o canal). No fechamento, diga que os créditos de tudo que foi usado estão nos comentários e na descrição."""}])
+    if not g and cfg.get("assunto"):
+        # canal que NÃO é o do Galo (ex.: GTA 6) e nenhuma IA respondeu: roteiro-modelo do próprio canal
+        lanc = ""
+        if cfg.get("lancamento"):
+            try:
+                d = (dt.date.fromisoformat(cfg["lancamento"]) - dt.date.today()).days
+                lanc = f" Faltam {d} dias para o lançamento." if d > 0 else ""
+            except ValueError:
+                pass
+        g = {"titulo": sel[0]["manchete"].upper()[:95], "thumb_texto": "", "thumb_destaque": "",
+             "descricao": f"As notícias de hoje sobre {cfg['assunto']}.", "tags": [t for t in (cfg.get("termos") or [])[:12]],
+             "abertura": {"texto": f"Fala, galera! As notícias de hoje sobre {cfg['assunto']}.{lanc} Fica até o fim, deixa o like e se inscreve.",
+                          "clima": "falando"},
+             "falas": [{"antes_do": i + 1, "texto": f"Agora olha o que saiu no {origem_falada(x)}: {x['manchete'].lower()}.",
+                        "clima": x["clima"]} for i, x in enumerate(sel)],
+             "fechamento": {"texto": "E aí, o que você achou? Comenta aí, deixa o like e se inscreve. Os créditos de tudo estão nos comentários e na descrição.",
+                            "clima": "comemorando"}}
     if not g:
         nomes = ", ".join(x["fonte"] for x in sel[:3])
         g = {"titulo": f"IMPRENSA FALA DO GALO! {sel[0]['manchete']}"[:95], "thumb_texto": "", "thumb_destaque": "",
@@ -1168,6 +1229,9 @@ cite o programa e o canal). No fechamento, diga que os créditos de tudo que foi
              "falas": [{"antes_do": i + 1, "texto": f"Agora olha o que falaram no {origem_falada(x)}: {x['manchete'].lower()}.",
                         "clima": x["clima"]} for i, x in enumerate(sel)],
              "fechamento": {"texto": "E aí, Massa, concorda? Comenta aí, deixa o like e se inscreve. Os créditos de tudo estão nos comentários e na descrição. Galo doido!", "clima": "comemorando"}}
+    if falta_s > 0 and not g.get("analises"):
+        g["analises"] = analises_sem_ia(sel, cfg, min(40, max(2, int(falta_s * 2.6 * 1.3 / 60) + 1)), falta_s)
+        log(f"   (sem IA: {len(g['analises'])} análise(s)-modelo com o que os próprios trechos dizem)")
     return g
 
 
