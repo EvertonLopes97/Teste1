@@ -701,7 +701,75 @@ def monta_tela_cheia(topo, saida, log=log):
     return saida
 
 
-def para_fila(cfg, video, txt, log=log):
+def sobe_no_canal(pasta_canal, video, rot, log=log):
+    """O SHORT VAI PARA O YOUTUBE DO PRÓPRIO CANAL (11/nov, "os shorts diários não estão saindo"): os shorts de GTA e
+    do Galo iam só para a fila geral de postagem, que não tem o login do canal de GTA — nunca chegavam ao YouTube.
+    Agora sobem com o token do canal (o mesmo do vídeo longo), AGENDADOS um depois do outro (`shorts_yt_intervalo_h`,
+    padrão 2 h), até `shorts_yt_dia` por dia (padrão 3: a cota da API do YouTube é ~6 envios/dia por projeto, dividida
+    com o vídeo longo e os cortes dele). Cota estourada = para até amanhã, sem contar erro. Devolve o link ou ""."""
+    pasta_canal = Path(pasta_canal)
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "canal"))
+    try:
+        import youtube_up as YT
+    except Exception as e:   # noqa: BLE001
+        log(f"   YouTube do canal: não carreguei o envio ({str(e)[:90]})")
+        return ""
+    if not YT.tem_login(pasta_canal):
+        log(f"   YouTube do canal: sem login em {pasta_canal} (painel → Canais → Entrar no YouTube); fica só na fila")
+        return ""
+    try:
+        ccfg = json.loads((pasta_canal / "config.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        ccfg = {}
+    est_f = pasta_canal / "shorts_yt.json"
+    try:
+        est = json.loads(est_f.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        est = {}
+    hoje = dt.date.today().isoformat()
+    if est.get("dia") != hoje:
+        est = {"dia": hoje, "n": 0, "ultimo": est.get("ultimo", ""), "cota": False}
+    teto = int(ccfg.get("shorts_yt_dia", 3))
+    if est.get("cota"):
+        log("   YouTube do canal: a cota de envios de hoje acabou; este fica na fila")
+        return ""
+    if est["n"] >= teto:
+        log(f"   YouTube do canal: já foram {est['n']} shorts hoje (teto shorts_yt_dia={teto}); este fica na fila")
+        return ""
+    agora = dt.datetime.now(dt.timezone.utc)
+    quando = agora + dt.timedelta(minutes=20)
+    try:
+        ult = dt.datetime.fromisoformat(est.get("ultimo") or "")
+        quando = max(quando, ult + dt.timedelta(hours=float(ccfg.get("shorts_yt_intervalo_h", 2))))
+    except ValueError:
+        pass
+    quando = quando.replace(microsecond=0)
+    titulo = re.sub(r"\s+", " ", rot.get("titulo") or "").strip()[:88].rstrip() + " #shorts"
+    tags = [str(t).lstrip("#") for t in (rot.get("tags") or [])][:12]
+    desc = f"{rot.get('legenda') or rot.get('titulo') or ''}\n\n{' '.join('#' + t for t in tags)}\n#shorts"
+    try:
+        vid = YT.posta(pasta_canal, video, titulo, desc, tags, None, ccfg.get("privacidade", "public"),
+                       publicar_em=quando.isoformat().replace("+00:00", "Z"), sintetico=True, log=log,
+                       categoria="20" if TEMA["v"] == "gta" else "17")
+    except Exception as e:   # noqa: BLE001
+        m = str(e)
+        if "quota" in m.lower():
+            est["cota"] = True
+            log("   YouTube do canal: COTA de envios do dia esgotada (limite do Google, ~6 envios/dia por projeto). "
+                "Volta amanhã; este fica na fila")
+        else:
+            log(f"   YouTube do canal: não subiu ({m[:160]})")
+        est_f.write_text(json.dumps(est), encoding="utf-8")
+        return ""
+    est["n"] += 1
+    est["ultimo"] = quando.isoformat()
+    est_f.write_text(json.dumps(est), encoding="utf-8")
+    link = f"https://youtube.com/shorts/{vid}"
+    log(f"   SHORT agendado no YouTube do canal para {quando.astimezone():%d/%m %H:%M}: {link} ({est['n']}/{teto} hoje)")
+    return link
+
+
+def para_fila(cfg, video, txt, log=log, sem_youtube=False):
     """cada reel pronto entra na fila de postagem (as mesmas contas dos reels)"""
     try:
         sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "postar"))
@@ -711,6 +779,10 @@ def para_fila(cfg, video, txt, log=log):
 
         pb = P.pasta_padrao()
         alvos = destinos_reels({"postar": cfg.get("postar") or ["todas"]}, pb)
+        if sem_youtube:   # já subiu direto no canal: não duplica pelo postar
+            alvos = [a for a in alvos if not str(a).startswith("youtube:")]
+        if not alvos:
+            return
         postos = P.enfileira(pb, video, alvos, txt)
         log(f"   na fila: {', '.join(Path(p).parent.name for p in postos)}")
     except Exception as e:   # noqa: BLE001
@@ -804,7 +876,7 @@ def monta_completo(topo, reacao, saida, log=log):
 
 
 # ------------------------------------------------------------------ o caminho inteiro
-def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log, tela_cheia=False, fila=False, drive=""):
+def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log, tela_cheia=False, fila=False, drive="", canal_yt=""):
     global LOG_F
     base = Path(base)
     (base / "prontos").mkdir(parents=True, exist_ok=True)
@@ -862,7 +934,10 @@ def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log, t
     (dia / "post.txt").write_text(
         f"{rot['titulo']}\n\n{rot.get('legenda', '')}\n\n{' '.join(rot.get('tags', []))}\n", encoding="utf-8")
     if fila:
-        para_fila(cfg, dia / "completo.mp4", dia / "post.txt", log)
+        link = sobe_no_canal(canal_yt, dia / "completo.mp4", rot, log) if canal_yt else ""
+        if link:
+            (dia / "youtube.txt").write_text(link, encoding="utf-8")
+        para_fila(cfg, dia / "completo.mp4", dia / "post.txt", log, sem_youtube=bool(link))
     if drive:
         try:
             alvo = Path(drive)
@@ -960,7 +1035,7 @@ def main():
     if not assunto:
         sys.exit("diga o assunto: --assunto \"...\"  (ou --quente para pegar dos portais)")
     faz(assunto, base, cfg, segundos=a.segundos, reacao=a.reacao, usar_clipes=not a.sem_clipes,
-        tela_cheia=a.tela_cheia, fila=a.fila, drive=a.drive)
+        tela_cheia=a.tela_cheia, fila=a.fila, drive=a.drive, canal_yt=a.fonte_canal if a.fila else "")
 
 
 if __name__ == "__main__":

@@ -3,6 +3,16 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 11/nov (18h) — SHORTS DIÁRIOS SOBEM NO YOUTUBE DO PRÓPRIO CANAL + DOCUMENTÁRIO COM IMAGEM NA FALA
+
+- **Shorts "não estavam saindo"**: os cortes do vídeo longo subiam (status.json: "SHORT agendado"), mas os shorts DIÁRIOS do
+  `auto.reels_gta_meta` (narrado) iam só para a fila geral do postar ("todas" = Instagram/TikTok do Galo), que não tem o canal de GTA.
+  Agora `narrado.sobe_no_canal` sobe com o token do canal (`--fonte-canal` + `--fila`), agendado a cada `shorts_yt_intervalo_h` (2 h),
+  até `shorts_yt_dia` (3) por canal (config.json do canal; estado em `<canal>\shorts_yt.json`). Erro de cota = para até amanhã.
+  O resto da fila continua igual (sem duplicar YouTube). LIMITE REAL: cota da API do YouTube (~6 envios/dia por projeto Google).
+- **Documentário** (4f39f1a): `texto_capitulo` devolve `cenas` (frase + busca) → `pool_por_cenas` com os tempos da própria voz; pasta de
+  clipes POR capítulo (antes uma só para todos); peça com `tpad`/`apad` (vídeo curto dessincronizava a emenda).
+
 ## 11/nov (17h30) — DETTO-SHOP.zip COM PAINEL E INSTALADOR COMPLETO (PC do colega)
 
 - `python tools\shop\empacotar.py` → `DETTO-SHOP.zip` (0,9 MB): `INSTALAR.bat` → `instalar.ps1` (winget: Python 3.11, ffmpeg, Node; pip;
