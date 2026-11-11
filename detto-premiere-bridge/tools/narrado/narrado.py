@@ -400,7 +400,8 @@ def pool_por_cenas(rot, palavras, total, pasta, log=log):
     for k, c in enumerate(cenas):
         dur_c = max(3.0, fim[k] - ini[k])
         log(f"   cena {k + 1}/{len(cenas)} ({ini[k]:.0f}s): {c['sujeito']} — \"{c['frase']}\"")
-        buscas = [c["busca"], f"{c['sujeito']} melhores momentos", f"{c['sujeito']} entrevista"]
+        buscas = ([c["busca"], f"{c['sujeito']} melhores momentos", f"{c['sujeito']} entrevista"] if c.get("pessoa", True)
+                  else [c["busca"], f"{c['sujeito']} trailer", f"{c['sujeito']} gameplay"])   # jogo: nada de "entrevista"
         try:
             ps = pool(c["sujeito"], [], buscas, dur_c, Path(pasta) / f"cena{k}", W, H_TOPO, log=log,
                       e_pessoa=c["pessoa"], min_fontes=2)

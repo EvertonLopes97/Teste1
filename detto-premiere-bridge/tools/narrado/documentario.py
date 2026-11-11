@@ -109,6 +109,9 @@ def esboco(assunto, tipo, minutos, ctx, usados):
     return d
 
 
+CENAS_DO_TEXTO = {}   # narração → cenas (frase inicial + busca), para a imagem seguir a fala
+
+
 def texto_capitulo(esb, k, palavras, extra=""):
     caps = esb["capitulos"]
     c = caps[k]
@@ -119,17 +122,25 @@ def texto_capitulo(esb, k, palavras, extra=""):
     pedido = (f"{REGRAS_DOC}\n\nDOCUMENTÁRIO: {esb['titulo']}\nCAPÍTULOS:\n{lista}\n\nEscreva SÓ a narração do capítulo "
               f"{k + 1} (\"{c['titulo']}\": {c.get('resumo', '')}). {papel} {extra}\nTem de ter cerca de {palavras} palavras "
               "(não menos). Números por extenso não são obrigatórios.\n"
-              'Responda SÓ JSON: {"narracao":"..."}')
-    melhor = ""
+              "CENAS: divida a narração em 3 a 4 partes pelo que APARECE na tela. Para cada parte: \"frase\" = as 3 "
+              "PRIMEIRAS palavras exatas de onde ela começa na narração; \"busca\" = termo do YouTube que acha o "
+              "trailer/gameplay DAQUILO que está sendo dito (sempre com \"GTA 6\", específico: personagem, lugar, "
+              "veículo, mecânica).\n"
+              'Responda SÓ JSON: {"narracao":"...","cenas":[{"frase":"...","busca":"..."}]}')
+    melhor, cenas = "", []
     for _ in range(3):
-        t = re.sub(r"\s+", " ", str(ia(pedido).get("narracao") or "")).strip()
+        r = ia(pedido)
+        t = re.sub(r"\s+", " ", str(r.get("narracao") or "")).strip()
         if len(t.split()) > len(melhor.split()):
             melhor = t
+            cenas = [{"frase": str(x.get("frase", "")).strip(), "busca": str(x.get("busca", "")).strip()}
+                     for x in (r.get("cenas") or []) if isinstance(x, dict) and x.get("frase") and x.get("busca")][:4]
         if len(melhor.split()) >= palavras * 0.85:
             break
         pedido += f"\n\nATENÇÃO: a versão anterior tinha {len(t.split())} palavras; precisa de pelo menos {palavras}."
     if len(melhor.split()) < 40:
         raise RuntimeError(f"a IA não escreveu o capítulo {k + 1}")
+    CENAS_DO_TEXTO[melhor] = cenas
     return melhor
 
 
@@ -208,18 +219,32 @@ def faz(pasta, cfg, assunto="", minutos=14, postar=True, teste=False):
         rot = {"sujeito": "GTA 6", "apelidos": ["GTA VI", "Grand Theft Auto VI", "Grand Theft Auto 6"],
                "buscas": [b if "gta" in N.norm(b) else f"GTA 6 {b}" for b in c["buscas"][:3]]
                + ["GTA 6 trailer 4K", "GTA 6 gameplay"], "sujeito_pessoa": False}
+        # A IMAGEM SEGUE A FALA (11/nov, "imagens que remetem ao que está sendo falado"): cada parte da narração
+        # tem a sua busca e entra no SEGUNDO em que é dita (tempos pela transcrição da própria voz). Antes era um
+        # pool só por capítulo, numa pasta de cache ÚNICA para todos — as imagens não tinham relação com a fala.
+        cenas = [{"frase": x["frase"], "busca": x["busca"] if "gta" in N.norm(x["busca"]) else f"GTA 6 {x['busca']}",
+                  "sujeito": "GTA 6", "pessoa": False} for x in CENAS_DO_TEXTO.get(c["texto"], [])]
+        em_ordem = False
         try:
-            clipes = N.pool_de_clipes(rot, c["dur"], tmp / "clipes", log)
+            if len(cenas) >= 2:
+                rot["cenas"] = cenas
+                palavras = N.tempos_das_palavras(c["wav"], c["texto"], log)
+                clipes = N.pool_por_cenas(rot, palavras, c["dur"], tmp / "clipes" / f"cap{i:02d}", log)
+                em_ordem = True
+            else:
+                clipes = N.pool_de_clipes(rot, c["dur"], tmp / "clipes" / f"cap{i:02d}", log)
         except Exception as e:  # noqa: BLE001
             log(f"   capítulo {i + 1}: clipes falharam ({str(e)[:100]})")
             clipes = []
         if not clipes and todos:
             log(f"   capítulo {i + 1}: sem clipe próprio; uso os dos outros capítulos")
             clipes = random.sample(todos, len(todos))
+            em_ordem = False
         if not clipes:
             raise RuntimeError("não consegui nenhum clipe de GTA 6 (o YouTube barrou o download? confira o login)")
         todos += clipes
-        seq, s = [], 0.0
+        seq = list(clipes) if em_ordem else []     # pool_por_cenas já devolve na ordem e no tempo da fala
+        s = sum(p["dur"] for p in seq)
         while s < c["dur"] + 1:
             p = clipes[len(seq) % len(clipes)]
             seq.append(p)
@@ -228,7 +253,8 @@ def faz(pasta, cfg, assunto="", minutos=14, postar=True, teste=False):
         png = cartela_capitulo(i + 1, c["titulo"], tc / "cartela.png")
         saida = tmp / f"peca_{i:02d}.mp4"
         N.roda(["ffmpeg", "-v", "error", "-i", str(vis), "-i", str(c["wav"]), "-i", str(png), "-filter_complex",
-                "[0:v][2:v]overlay=0:H-h-40:enable='lt(t,4.5)'[v];[1:a]loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000[a]",
+                "[0:v]tpad=stop_mode=clone:stop_duration=30[b];[b][2:v]overlay=0:H-h-40:enable='lt(t,4.5)'[v];"
+                "[1:a]loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000,apad[a]",
                 "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
                 "-r", str(N.FPS), "-c:a", "aac", "-b:a", "192k", "-t", f"{c['dur']:.3f}", "-y", str(saida)], f"capítulo {i + 1}")
         pecas.append(saida)
