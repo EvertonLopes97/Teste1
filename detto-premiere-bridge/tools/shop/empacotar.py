@@ -31,7 +31,7 @@ TOOLS = AQUI.parent
 PONTE = TOOLS.parent
 
 # os .py de onde eu começo a seguir os imports
-RAIZES = ["shop/shop.py"]
+RAIZES = ["shop/shop.py", "shop/painel_shop.py", "painel/shop_painel.py"]
 
 # o que NÃO é import mas o shop precisa: o desenho das cartelas e o palco dele
 EXTRAS = [
@@ -39,6 +39,7 @@ EXTRAS = [
     "shop/palco/shop.html",
     "shop/palco/shop.css",
     "shop/LEIA-ME.txt",
+    "shop/painel_shop.html",
     "ffcompat.py",
 ]
 
@@ -61,8 +62,16 @@ DE_FORA = {
 # ninguém esvazia. Ele gera o vídeo e posta pelo celular/TikTok Studio.
 CONFIG_PADRAO = """{
   "postar": [],
+  "arroba": "",
   "modo": "ia",
+  "auto": false,
+  "narracao": true,
+  "legenda": true,
+  "clipes_internet": true,
+  "clipes_quantos": 10,
   "fotos_internet": true,
+  "voz_neural": "pt-BR-AntonioNeural",
+  "velocidade_voz": 1.1,
   "_nota": "postar vazio = o video fica em prontos\\\\ e voce posta no app. Nao mexa se nao souber."
 }
 """
@@ -76,6 +85,8 @@ faster-whisper
 edge-tts>=7.0.0
 google-generativeai
 requests
+curl_cffi
+yt-dlp-ejs
 """
 
 
@@ -172,11 +183,21 @@ def monta(saida: Path):
         if not ini.exists() and (TOOLS / sub / "__init__.py").exists():
             shutil.copy2(TOOLS / sub / "__init__.py", ini)
 
+    fonte = PONTE / "fonts" / "TikTokSans.ttf"   # o shop.css aponta para ..\..\..\fonts\TikTokSans.ttf
+    if fonte.is_file():
+        (pasta / "fonts").mkdir(exist_ok=True)
+        shutil.copy2(fonte, pasta / "fonts" / fonte.name)
+        lic = fonte.with_name("TikTokSans-OFL.txt")
+        if lic.is_file():
+            shutil.copy2(lic, pasta / "fonts" / lic.name)
     (pasta / "shop").mkdir(exist_ok=True)
     (pasta / "shop" / "config.json").write_text(CONFIG_PADRAO, encoding="utf-8")
     (pasta / "requirements.txt").write_text(REQUISITOS, encoding="utf-8")
-    (pasta / "INSTALAR.bat").write_text(INSTALAR_BAT, encoding="utf-8-sig")
-    (pasta / "RODAR.bat").write_text(RODAR_BAT, encoding="utf-8-sig")
+    # .bat em ASCII puro e com CRLF (BOM ou LF quebram o cmd); .ps1 em UTF-8 COM BOM (o PowerShell 5 exige)
+    (pasta / "INSTALAR.bat").write_bytes(INSTALAR_BAT.replace("\n", "\r\n").encode("ascii"))
+    (pasta / "ABRIR PAINEL.bat").write_bytes(ABRIR_BAT.replace("\n", "\r\n").encode("ascii"))
+    (pasta / "RODAR.bat").write_bytes(RODAR_BAT.replace("\n", "\r\n").encode("ascii"))
+    (pasta / "instalar.ps1").write_bytes(b"\xef\xbb\xbf" + INSTALAR_PS1.replace("\n", "\r\n").encode("utf-8"))
     (pasta / "LEIA-ME.txt").write_text(LEIA_ME, encoding="utf-8")
     print(f"  {copiados} arquivo(s) nossos + instaladores em {pasta}")
     return pasta
@@ -186,7 +207,7 @@ def confere(pasta: Path):
     """O PACOTE SE TESTA: importa o shop.py DENTRO dele. Faltando um arquivo, falha AQUI."""
     r = subprocess.run([sys.executable, "-c",
                         "import sys; sys.path[:0]=[r'{0}/tools/shop', r'{0}/tools', r'{0}/tools/reels', "
-                        "r'{0}/tools/canal']; import shop; print('IMPORTOU', bool(shop))"
+                        "r'{0}/tools/canal', r'{0}/tools/painel']; import shop, painel_shop, shop_painel; print('IMPORTOU', bool(shop))"
                         .format(pasta.as_posix())],
                        capture_output=True, text=True, timeout=300)
     if "IMPORTOU" in (r.stdout or ""):
@@ -202,139 +223,222 @@ def confere(pasta: Path):
 
 
 INSTALAR_BAT = """@echo off
-chcp 65001 >nul
 title DETTO SHOP - instalacao
-echo ============================================
-echo   DETTO SHOP - gerador de videos de produto
-echo ============================================
+cd /d "%~dp0"
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0instalar.ps1"
 echo.
+pause
+"""
+
+ABRIR_BAT = """@echo off
+title DETTO SHOP - painel (deixe esta janela aberta)
+cd /d "%~dp0"
+set "PLAYWRIGHT_BROWSERS_PATH=%~dp0navegador"
+set "PYTHONIOENCODING=utf-8"
 where python >nul 2>nul
 if errorlevel 1 (
-  echo [X] Python nao encontrado. Instale o Python 3.11 em python.org
-  echo     e MARQUE "Add python.exe to PATH" na primeira tela.
-  pause & exit /b 1
+  echo Python nao encontrado. Rode o INSTALAR.bat primeiro.
+  pause
+  exit /b 1
 )
-where ffmpeg >nul 2>nul
-if errorlevel 1 (
-  echo [!] ffmpeg nao encontrado. Baixe em https://www.gyan.dev/ffmpeg/builds/
-  echo     e ponha a pasta bin no PATH. Sem ele nao sai video.
-  echo.
-)
-echo Instalando as bibliotecas (demora alguns minutos na primeira vez)...
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-if errorlevel 1 ( echo [X] A instalacao falhou. & pause & exit /b 1 )
-echo.
-echo Instalando o Chromium (desenha as cartelas do video)...
-where npm >nul 2>nul
-if errorlevel 1 (
-  echo [!] Node.js nao encontrado. Instale em nodejs.org e rode este arquivo de novo.
-  echo     Sem ele o video sai SEM as cartelas de texto e preco.
-) else (
-  npm install playwright
-  npx playwright install chromium
-)
-echo.
-echo ==== PRONTO ====
-echo 1) Ponha a sua GEMINI_API_KEY (de graca em aistudio.google.com/apikey):
-echo        setx GEMINI_API_KEY "a-sua-chave"
-echo    Feche e abra o terminal depois disso.
-echo 2) Rode o RODAR.bat
+python tools\\shop\\painel_shop.py
 pause
 """
 
 RODAR_BAT = """@echo off
-chcp 65001 >nul
-title DETTO SHOP
+title DETTO SHOP - sem painel
 cd /d "%~dp0"
-if not exist "shop" mkdir shop
-if not exist "shop\\produtos.txt" (
-  echo # Cole um link do TikTok Shop por linha. Se a pagina nao der o nome, escreva assim:> "shop\\produtos.txt"
-  echo # ^<link^> ^| suporte de celular para mesa ^| 49,90>> "shop\\produtos.txt"
-)
-echo Lendo shop\\produtos.txt e a pasta shop\\produtos\\ ...
-python tools\\shop\\shop.py --pasta "%~dp0shop" %*
+set "PLAYWRIGHT_BROWSERS_PATH=%~dp0navegador"
+set "DETTO_SHOP=%~dp0shop"
+set "PYTHONIOENCODING=utf-8"
+python tools\\shop\\shop.py --pasta "%~dp0shop" --nao-postar %*
 echo.
-echo Os videos prontos estao em shop\\prontos\\
+echo Os videos prontos estao em shop\\prontos
 pause
 """
 
-LEIA_ME = """DETTO SHOP — videos de produto automaticos (pacote avulso)
-===========================================================
+# O INSTALADOR DE VERDADE (11/nov): tudo sozinho, do zero, num PC que nunca viu o projeto. PowerShell porque
+# o .bat não consegue RELER o PATH depois de instalar o Python/ffmpeg/Node — e aí "python não encontrado" logo
+# depois de instalar o Python. Pode ser rodado de novo quantas vezes quiser: pula o que já está pronto.
+INSTALAR_PS1 = """$ErrorActionPreference = 'Continue'
+$ProgressPreference = 'SilentlyContinue'
+$aqui = Split-Path -Parent $MyInvocation.MyCommand.Path
+Set-Location $aqui
+$falhas = @()
 
-Isto e SO o gerador de videos de produto do sistema do Everton. Nao tem canal de YouTube, nao tem
-postagem automatica, nao tem as contas nem as chaves dele.
+function Titulo($t) { Write-Host ''; Write-Host "== $t" -ForegroundColor Cyan }
+function RelePath {
+  $env:Path = [Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [Environment]::GetEnvironmentVariable('Path','User')
+}
+function Tem($nome) { return [bool](Get-Command $nome -ErrorAction SilentlyContinue) }
+function PythonBom {
+  # o "python" da Microsoft Store e so um atalho para a loja: nao serve
+  $c = Get-Command python -ErrorAction SilentlyContinue
+  if (-not $c) { return $false }
+  if ($c.Source -like '*WindowsApps*') { return $false }
+  $v = & python -c "import sys; print(sys.version_info >= (3, 10))" 2>$null
+  return ($v -eq 'True')
+}
+function InstalaWinget($id, $nome) {
+  if (-not (Get-Command winget.exe -ErrorAction SilentlyContinue)) {
+    Write-Host "   Este Windows nao tem o winget. Instale o $nome na mao e rode o INSTALAR.bat de novo." -ForegroundColor Yellow
+    return
+  }
+  Write-Host "   instalando o $nome (pode pedir permissao de administrador)..."
+  winget.exe install --id $id -e --silent --accept-package-agreements --accept-source-agreements
+  RelePath
+}
 
-INSTALAR (uma vez)
-------------------
-1. Instale o Python 3.11 em python.org — MARQUE "Add python.exe to PATH".
-2. Instale o Node.js em nodejs.org (e o que desenha os textos e a etiqueta de preco no video).
-3. Instale o ffmpeg: https://www.gyan.dev/ffmpeg/builds/ → descompacte → ponha a pasta `bin` no PATH.
-4. Clique duas vezes em INSTALAR.bat.
-5. Pegue uma chave do Gemini de graca em aistudio.google.com/apikey e rode no terminal:
-       setx GEMINI_API_KEY "a-sua-chave"
-   Feche e abra o terminal. (Sem ela o roteiro nao e escrito pela IA.)
+Write-Host '============================================'
+Write-Host '  DETTO SHOP - instalacao completa'
+Write-Host '  Pode levar de 10 a 30 minutos. Deixe esta janela aberta.'
+Write-Host '============================================'
+RelePath
+
+Titulo '1 de 6 - Python'
+if (PythonBom) { Write-Host '   ja tem' } else {
+  InstalaWinget 'Python.Python.3.11' 'Python 3.11'
+  $pasta = Join-Path $env:LOCALAPPDATA 'Programs\\Python\\Python311'
+  if (Test-Path (Join-Path $pasta 'python.exe')) { $env:Path = "$pasta;$pasta\\Scripts;" + $env:Path }
+}
+if (-not (PythonBom)) {
+  Write-Host '   [X] Nao consegui instalar o Python sozinho.' -ForegroundColor Red
+  Write-Host '       Baixe em https://www.python.org/downloads/ , MARQUE "Add python.exe to PATH" e rode o INSTALAR.bat de novo.'
+  exit 1
+}
+
+Titulo '2 de 6 - ffmpeg (monta o video)'
+if (Tem ffmpeg) { Write-Host '   ja tem' } else { InstalaWinget 'Gyan.FFmpeg' 'ffmpeg' }
+if (-not (Tem ffmpeg)) {
+  # plano B sem winget: baixa o zip e deixa dentro do pacote
+  try {
+    $zip = Join-Path $env:TEMP 'ffmpeg-detto.zip'
+    Write-Host '   baixando o ffmpeg direto (uns 90 MB)...'
+    Invoke-WebRequest 'https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip' -OutFile $zip -UseBasicParsing
+    $dest = Join-Path $aqui 'ffmpeg'
+    Expand-Archive $zip -DestinationPath $dest -Force
+    $bin = (Get-ChildItem $dest -Recurse -Filter ffmpeg.exe | Select-Object -First 1).DirectoryName
+    if ($bin) {
+      $u = [Environment]::GetEnvironmentVariable('Path','User')
+      [Environment]::SetEnvironmentVariable('Path', "$u;$bin", 'User')
+      RelePath
+    }
+  } catch { Write-Host "   nao deu: $($_.Exception.Message)" -ForegroundColor Yellow }
+}
+if (-not (Tem ffmpeg)) { $falhas += 'ffmpeg (sem ele NAO sai video): feche tudo e rode o INSTALAR.bat de novo' }
+
+Titulo '3 de 6 - Node.js (desenha os textos e o preco no video)'
+if (Tem node) { Write-Host '   ja tem' } else { InstalaWinget 'OpenJS.NodeJS.LTS' 'Node.js' }
+if (-not (Tem node)) { $falhas += 'Node.js (sem ele o video sai sem as cartelas de texto e preco)' }
+
+Titulo '4 de 6 - bibliotecas do Python (a parte mais demorada)'
+python -m pip install --upgrade pip --quiet
+python -m pip install -r requirements.txt
+if ($LASTEXITCODE -ne 0) {
+  Write-Host '   deu erro; tento de novo uma vez...' -ForegroundColor Yellow
+  python -m pip install -r requirements.txt
+  if ($LASTEXITCODE -ne 0) { $falhas += 'bibliotecas do Python (confira a internet e rode o INSTALAR.bat de novo)' }
+}
+
+Titulo '5 de 6 - navegador das cartelas (Chromium, uns 150 MB)'
+if (Tem node) {
+  $env:PLAYWRIGHT_BROWSERS_PATH = Join-Path $aqui 'navegador'
+  if (-not (Test-Path (Join-Path $aqui 'node_modules\\playwright'))) { cmd /c "npm install playwright --no-fund --no-audit" }
+  cmd /c "npx playwright install chromium"
+  if ($LASTEXITCODE -ne 0) { $falhas += 'Chromium das cartelas (rode o INSTALAR.bat de novo)' }
+} else { Write-Host '   pulei (sem Node.js)' -ForegroundColor Yellow }
+
+Titulo '6 de 6 - modelo da legenda (uns 480 MB, so nesta primeira vez)'
+python -c "from faster_whisper import WhisperModel; WhisperModel('small', device='cpu', compute_type='int8'); print('   modelo pronto')"
+if ($LASTEXITCODE -ne 0) { Write-Host '   nao baixou agora; ele baixa sozinho no primeiro video' -ForegroundColor Yellow }
+
+Titulo 'Conferindo'
+$env:DETTO_SHOP = Join-Path $aqui 'shop'
+python -c "import sys; sys.path[:0]=['tools/shop','tools','tools/reels','tools/canal','tools/painel']; import shop, painel_shop, cv2, PIL, edge_tts, yt_dlp; print('   programa OK')"
+if ($LASTEXITCODE -ne 0) { $falhas += 'o programa nao abriu (mande um print desta janela)' }
+
+try {   # atalho na Area de Trabalho
+  $ws = New-Object -ComObject WScript.Shell
+  $lnk = $ws.CreateShortcut((Join-Path ([Environment]::GetFolderPath('Desktop')) 'DETTO Shop.lnk'))
+  $lnk.TargetPath = Join-Path $aqui 'ABRIR PAINEL.bat'
+  $lnk.WorkingDirectory = $aqui
+  $lnk.Save()
+  Write-Host '   atalho "DETTO Shop" criado na Area de Trabalho'
+} catch {}
+
+Write-Host ''
+if ($falhas.Count) {
+  Write-Host '==== TERMINOU COM PENDENCIAS ====' -ForegroundColor Yellow
+  $falhas | ForEach-Object { Write-Host "  - $_" -ForegroundColor Yellow }
+  Write-Host 'Feche esta janela e rode o INSTALAR.bat de novo: ele continua de onde parou.'
+} else {
+  Write-Host '==== TUDO PRONTO ====' -ForegroundColor Green
+  Write-Host 'Abrindo o painel no navegador. Nos proximos dias, use o atalho "DETTO Shop" da Area de Trabalho.'
+  Start-Process (Join-Path $aqui 'ABRIR PAINEL.bat')
+}
+"""
+
+LEIA_ME = """DETTO SHOP - videos de produto para o TikTok Shop (pacote avulso, com painel)
+=============================================================================
+
+Isto e SO o gerador de videos de produto. Nao tem canal de YouTube, postagem automatica, contas nem chaves
+de ninguem.
+
+INSTALAR (uma vez, Windows 10 ou 11)
+------------------------------------
+1. Descompacte a pasta DETTO-SHOP num lugar simples (ex.: C:\\DETTO-SHOP). Nao rode de dentro do .zip.
+2. Clique duas vezes em INSTALAR.bat e espere. Ele instala sozinho o Python, o ffmpeg, o Node.js, as
+   bibliotecas, o navegador das cartelas e o modelo da legenda (10 a 30 minutos, uns 2 GB).
+   Se o Windows pedir permissao de administrador, aceite. Se o SmartScreen avisar, clique em
+   "Mais informacoes" e "Executar assim mesmo".
+3. No fim o painel abre no navegador e aparece o atalho "DETTO Shop" na Area de Trabalho.
+   Deu "TERMINOU COM PENDENCIAS"? Rode o INSTALAR.bat de novo: ele continua de onde parou.
 
 USAR
 ----
-Clique em RODAR.bat. Ele le duas coisas:
+Abra o atalho "DETTO Shop" (ou ABRIR PAINEL.bat). Deixe a janela preta aberta enquanto usa.
 
-  shop\\produtos.txt        um link do TikTok Shop por linha.
-                            A pagina do Shop barra robo, entao se o link nao trouxer nome e foto,
-                            escreva na mao:
-                                <link> | suporte de celular para mesa | 49,90
+  1. COMO QUERO O VIDEO
+       Autoral          junta cenas de 3 ou mais videos do produto, descarta as que mostram rosto, escreve
+                        roteiro novo e narra. E o mais original.
+       Copia do link    usa o video do link que voce colar, com narracao e textos novos por cima.
+                        Menos original: e o video de outra pessoa.
+       Minha gravacao   o video que voce gravou com o produto e o principal (a sua voz fica).
+     Mais: narracao ligada ou desligada, legenda, voz, velocidade, duracao, seu @ e a frase final.
 
-  shop\\produtos\\<nome>\\   o produto que chegou em casa: ponha as fotos e os videos aqui.
-                            Um arquivo com "eu", "review" ou "unbox" no nome e tratado como a SUA
-                            gravacao e vira o vídeo principal.
-                            Opcional: um produto.json com
-                                {"nome": "...", "preco": "49,90", "preco_de": "89,90",
-                                 "link": "...", "sobre": "o que ele faz", "selo": "FRETE GRATIS"}
+  2. QUAL PRODUTO: pelo nome, por link, varios links, ou a pasta de um produto que voce tem em casa
+     (shop\\produtos\\<nome>\\ com as fotos e videos; arquivo com "eu", "review" ou "unbox" no nome = a sua
+     gravacao).
 
-Os videos saem em shop\\prontos\\. O que NAO virou video sai com o motivo em shop\\produtos_falhos.txt.
+  3. FAZER O VIDEO. O andamento aparece ao lado; o video pronto aparece embaixo com a legenda do post.
+     Os arquivos ficam em shop\\prontos\\<data>.
 
-TRES MODOS (--modo, ou "modo" no produto.json)
------------------------------------------------
-  ia         fotos + voz da IA + texto e legenda      (o padrao)
-  eu         a SUA gravacao manda, as fotos entram por cima
-  vendedor   reaproveita o video do vendedor em 9:16
-
-VIDEO DO PRODUTO VINDO DA INTERNET (novo)
-------------------------------------------
-Quando o produto nao tem video seu, ele procura review/unboxing no YouTube, baixa um pedaco, corta em
-pedacos de ~4 s e JOGA FORA os que mostram a cara de alguem (o detector yunet.onnx vem no pacote).
-Assim o video sai com o produto SENDO USADO em vez de foto parada com zoom, que tem cara de anuncio
-velho. Sua gravacao, quando existe, sempre vem na frente disso.
-Desliga em shop\\config.json com  "clipes_internet": false
-
-SEM NARRACAO
-------------
-"narracao": false  no shop\\config.json faz o video so com imagem, cartelas e musica, para voce narrar
-por cima depois. O tempo das cenas passa a vir da "duracao" alvo.
+CHAVES DA IA (de graca, 2 minutos)
+----------------------------------
+No painel, em "Chaves da IA que escreve o roteiro", cole a chave do Gemini (aistudio.google.com/apikey) ou
+do Groq (console.groq.com/keys). Elas ficam so neste PC, no arquivo chaves.json.
+Sem chave nenhuma o video SAI, mas com um roteiro-modelo generico. Para video autoral de verdade, ponha a chave.
 
 A VOZ
 -----
-Sem nada configurado ele usa a voz NEURAL pt-BR da Microsoft (de graca, sem chave, sai em segundos).
-A voz clonada do Everton NAO vem neste pacote — e a voz dele.
+Voz neural pt-BR da Microsoft (de graca, sem chave). No painel da para trocar entre 4 vozes e a velocidade.
 
 REGRA QUE NAO SE QUEBRA
-------------------------
+-----------------------
 O roteiro e PROIBIDO de inventar medida, garantia ou preco que nao esteja no material do produto.
-Video de afiliado com informacao errada derruba a conta — essa regra esta dentro do prompt.
+Video de afiliado com informacao errada derruba a conta.
+
+SE ALGO NAO FUNCIONAR
+---------------------
+- O painel mostra no topo o que falta (ffmpeg, Node, chave).
+- "Nao viraram video" mostra o motivo de cada produto que falhou.
+- YouTube pedindo login ("Sign in to confirm you are not a bot"): instale o Firefox, entre no YouTube nele e
+  tente de novo.
+- Mande um print do "Andamento" para o Everton.
 
 DOIS PCs AO MESMO TEMPO
-------------------------
-Pode. Cada PC tem a sua pasta `shop\\` e o seu historico, entao os dois nao fazem o mesmo produto —
-desde que voces dividam os links/produtos entre os dois.
-
-POSTAGEM
---------
-Este pacote vem com a postagem automatica DESLIGADA de proposito ("postar": [] no shop\\config.json):
-o video fica em shop\\prontos\\ e voce posta pelo app ou pelo TikTok Studio. Nao ha token nem conta
-de ninguem aqui dentro.
-
-OBS.: o pacote traz alguns arquivos compartilhados do sistema (voz, transcricao, busca de imagem,
-cor, legendas). Eles vem porque o shop.py usa essas funcoes — nao ha historico, chave ou conta neles.
+-----------------------
+Pode. Cada PC tem a sua pasta shop\\ e o seu historico. So dividam os produtos entre os dois.
 """
 
 
@@ -361,7 +465,7 @@ def main():
                 z.write(p, p.relative_to(pasta.parent))
     mb = zipe.stat().st_size / 1e6
     print(f"\nPronto: {zipe}  ({mb:.1f} MB)")
-    print("Manda esse arquivo para o seu sócio. Ele descompacta, roda o INSTALAR.bat e depois o RODAR.bat.")
+    print("Manda esse arquivo para o seu sócio. Ele descompacta, roda o INSTALAR.bat e o painel abre sozinho.")
     return 0
 
 

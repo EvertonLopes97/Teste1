@@ -62,6 +62,8 @@ def log(m):
 
 
 def pasta_padrao():
+    if os.environ.get("DETTO_SHOP"):   # pacote avulso (PC do sócio): a pasta shop\\ ao lado do instalador
+        return Path(os.environ["DETTO_SHOP"])
     if os.name == "nt" and Path("E:/").exists():
         return Path("E:/DETTO/shop")
     return Path.home() / "DETTO" / "shop"
@@ -363,6 +365,38 @@ Responda SÓ um JSON:
 Entre 5 e 9 cenas, cada fala de 3 a 7 segundos. A soma das falas tem que dar perto de {dur} segundos."""
 
 
+def roteiro_sem_ia(produto, mid=()):
+    """SEM NENHUMA IA: roteiro-modelo que só usa o que se SABE do produto (nome, preço, "sobre"). Nenhuma medida,
+    garantia ou promoção inventada — vídeo de afiliado com informação errada derruba a conta."""
+    nome = (produto.get("nome") or "esse produto").strip()
+    sobre = re.sub(r"\s+", " ", str(produto.get("sobre") or "")).strip()
+    preco = str(produto.get("preco") or "").strip()
+    midias = [m.split(" ")[0] for m in mid] or ["foto1"]
+
+    def m(i):
+        return midias[i % len(midias)]
+    cenas = [
+        {"fala": "Para tudo e olha o que eu achei.", "tela": "OLHA *ISSO*", "movimento": "zoom", "sfx": "whoosh"},
+        {"fala": f"É o {nome}, e eu precisava te mostrar ele de perto.", "tela": nome.upper()[:28], "movimento": "afasta", "sfx": "pop"},
+    ]
+    if sobre:
+        for fr in [f.strip() for f in re.split(r"(?<=[.!?])\s+", sobre) if len(f.strip()) > 12][:3]:
+            cenas.append({"fala": fr, "tela": " ".join(fr.split()[:4]).upper(), "movimento": "direita", "sfx": "click"})
+    cenas += [
+        {"fala": "Repara nos detalhes e no acabamento, olha ele em uso.", "tela": "OLHA OS *DETALHES*", "movimento": "esquerda", "sfx": "click"},
+        {"fala": "É daquelas coisas que a gente vê e já pensa onde vai usar.", "tela": "EU *QUERO*", "movimento": "zoom", "sfx": "pop"},
+    ]
+    if preco:
+        cenas.append({"fala": f"E o preço está em {preco} reais.", "tela": f"R$ *{preco}*", "movimento": "zoom", "sfx": "ding"})
+    cenas.append({"fala": "O link está na minha vitrine, corre lá antes que acabe o estoque.", "tela": "LINK NA *VITRINE*",
+                  "movimento": "afasta", "sfx": "ding"})
+    for i, c in enumerate(cenas):
+        c["midia"] = m(i)
+    return {"gancho": "OLHA O QUE EU *ACHEI*", "cenas": cenas, "vantagens": [], "selo": "",
+            "fim": "TÁ NA MINHA *VITRINE*", "legenda": f"{nome} — o link está na vitrine 👆",
+            "tags": ["#achadinhos", "#tiktokshop", "#" + re.sub(r"\W+", "", nome.lower())[:24]]}
+
+
 def roteiro(produto, modo, cfg, log=log):
     from reels import gemini_json
 
@@ -382,7 +416,9 @@ def roteiro(produto, modo, cfg, log=log):
             if modo == "eu" else "\nMODO: narração em off, 1ª pessoa, como quem já usou o produto."))
     g = gemini_json([{"text": p}], temperatura=0.9)
     if not g or not g.get("cenas"):
-        raise RuntimeError("nenhuma IA escreveu o roteiro (sem GEMINI_API_KEY / IAs grátis / Claude?)")
+        log("   ⚠ nenhuma IA de texto respondeu: uso o roteiro-modelo (sem inventar característica do produto). "
+            "Com uma chave grátis (Gemini/Groq) o roteiro fica bem melhor.")
+        g = roteiro_sem_ia(produto, mid)
     g["cenas"] = [c for c in g["cenas"] if c.get("fala")][:9]
     if not g["cenas"]:
         raise RuntimeError("a IA não devolveu cena nenhuma com fala")
@@ -417,7 +453,16 @@ def narra(texto, saida, cfg, log=log):
                 log(f"voz: o Fish falhou ({str(e)[:140]})")
         if not feito:   # voz NEURAL pt-BR de graça: o vídeo sai natural em vez de não sair
             log("voz: neural pt-BR (abra o VoiceStudio com a sua voz para narrar com a SUA)")
-            V.edge_fala(falado, saida, cfg.get("voz_neural") or V.EDGE_VOZ, float(cfg.get("velocidade_voz", 1.0)))
+            for vez in range(3):   # a voz neural é online: queda de internet de segundos não pode perder o vídeo
+                try:
+                    V.edge_fala(falado, saida, cfg.get("voz_neural") or V.EDGE_VOZ, float(cfg.get("velocidade_voz", 1.0)))
+                    break
+                except Exception as e:
+                    if vez == 2:
+                        raise RuntimeError("a voz neural não respondeu (ela precisa de internet). Confira a conexão e tente "
+                                           f"de novo, ou desligue a Narração nas opções. Detalhe: {str(e)[:100]}") from e
+                    log(f"voz: a neural não respondeu ({str(e)[:60]}); tento de novo em 8 s")
+                    time.sleep(8)
     try:
         V.sem_pausas(saida)
     except Exception:

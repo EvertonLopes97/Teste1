@@ -3,6 +3,17 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 11/nov (17h30) — DETTO-SHOP.zip COM PAINEL E INSTALADOR COMPLETO (PC do colega)
+
+- `python tools\shop\empacotar.py` → `DETTO-SHOP.zip` (0,9 MB): `INSTALAR.bat` → `instalar.ps1` (winget: Python 3.11, ffmpeg, Node; pip;
+  Chromium das cartelas em `navegador\`; modelo whisper small; atalho "DETTO Shop") e `ABRIR PAINEL.bat` → `tools\shop\painel_shop.py`
+  (porta 8731, `painel_shop.html`): modo Autoral / Cópia do link / Minha gravação, narração, legenda, voz neural (4), velocidade,
+  duração, @, CTA, produto por nome/link/lista/pasta, chaves em `chaves.json`, andamento e prontos. Postagem desligada, `arroba` vazio.
+  `DETTO_SHOP` = pasta `shop\` ao lado. Sem IA: `shop.roteiro_sem_ia` (não inventa). Voz neural tenta 3x.
+- Bug pego lendo: a função PowerShell `Winget` sombreava o `winget.exe` (recursão infinita) → `InstalaWinget` + `winget.exe`.
+- Testado AQUI (Linux): pacote importa, painel abre, vídeo de pasta de produto sem IA e sem narração sai 1080x1920 com cartelas.
+  NÃO testado: `instalar.ps1` num Windows de verdade, voz neural (sem rede aqui), clipes do YouTube.
+
 ## 11/nov (16h) — "SEMPRE TEM COMO FAZER VÍDEO, MESMO SEM CLAUDE E OUTRAS IAs"
 
 - Log dele: Groq 429 (limite de tokens do modelo), Claude parado sozinho (6 falhas), Gemini sem cota → "NÃO RODEI: ficou com 6.7 min",

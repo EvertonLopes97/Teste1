@@ -1,3 +1,5 @@
+/* a fonte vem do projeto (no PC do sócio ela não está instalada no Windows) */
+@font-face { font-family: "TikTok Sans"; src: url("../../../fonts/TikTokSans.ttf"); font-weight: 100 900; }
 /* CARTELAS DO TIKTOK SHOP — o visual dos vídeos de achadinho que vendem: texto GRANDE em caixa alta com contorno
    grosso, palavra-chave colorida, etiqueta de preço vermelha e CTA embaixo apontando para a vitrine.
    Tudo em PNG com fundo TRANSPARENTE: o vídeo/foto do produto entra por baixo, no FFmpeg. */
