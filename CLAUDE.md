@@ -3,6 +3,14 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 11/nov (18h20) — RETENÇÃO NOS VÍDEOS DE NOTÍCIA E GTA (roteiro)
+
+- `canal.roteiro`: bloco RETENÇÃO no prompt — 1ª frase da abertura = o fato mais forte com nome/número (sem "fala galera"),
+  3ª frase PROMETE a notícia marcada `[PROMESSA]` sem entregar; cada fala dá um motivo para ver o trecho sem resumir; fala do meio
+  relembra a promessa + inscrição com benefício (1x); fechamento com UMA pergunta específica. `promessa_no_fim` (padrão ligado):
+  a 2ª notícia de maior nota do assunto principal vai para o fim do bloco principal (antes de repetidas/outros games).
+  Só roteiro/ordem; NÃO medido em retenção real — conferir no Studio (`tools\yt\retencao.py`) depois de alguns vídeos.
+
 ## 11/nov (18h) — SHORTS DIÁRIOS SOBEM NO YOUTUBE DO PRÓPRIO CANAL + DOCUMENTÁRIO COM IMAGEM NA FALA
 
 - **Shorts "não estavam saindo"**: os cortes do vídeo longo subiam (status.json: "SHORT agendado"), mas os shorts DIÁRIOS do

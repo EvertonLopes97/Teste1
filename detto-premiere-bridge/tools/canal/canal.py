@@ -1113,6 +1113,8 @@ def roteiro(sel, cfg, titulos_antes=()):
     fora_do_tema = (cfg.get("bloco_extra_aviso") or "NÃO É DO GALO")
     lista = "\n".join(f"{i + 1}. [ORIGEM: {origem(x)}]"
                       + (f" [{fora_do_tema} — {x['campeonato']}, {bloco} no fim do vídeo]" if x.get("campeonato") else "")
+                      + (" [PROMESSA: a abertura promete esta notícia SEM contar o que é; a fala antes dela entrega]"
+                         if x.get("promessa") else "")
                       + (" [ESTE ASSUNTO JÁ SAIU NUM VÍDEO SEU HOJE: trate como notícia secundária, com um ângulo "
                          "novo, e NUNCA como a manchete]" if x.get("repetida") else "")
                       + (f" [TRECHO EM {x['idioma'].upper()} — vai LEGENDADO em português; avise na sua fala que é "
@@ -1188,10 +1190,20 @@ Escreva a narração que liga os trechos. Responda SÓ JSON:
 {{"titulo": "<título do YouTube em MAIÚSCULAS, chamativo, até 95 letras, com o principal nome/placar>",
  "thumb_texto": "<2 a 4 palavras da NOTÍCIA PRINCIPAL que dão vontade de clicar (nome/assunto + NÚMERO se a notícia tiver; NÃO repita palavras do título; sem mentir)>", "thumb_destaque": "<1 palavra do thumb_texto para destacar>",
  "descricao": "<2 a 3 frases sobre o vídeo>", "tags": ["<10 a 15 tags>"],
- "abertura": {{"texto": "<gancho de 2 a 3 frases, até 45 palavras>", "clima": "<{'|'.join(CLIMAS)}>"}},
+ "abertura": {{"texto": "<gancho de 3 a 4 frases, até 60 palavras — ver RETENÇÃO>", "clima": "<{'|'.join(CLIMAS)}>"}},
  "falas": [{{"antes_do": <número do trecho>, "texto": "<sua opinião/ponte para o trecho, 1 a 3 frases, até 40 palavras>", "clima": "..."}}],
  "comentarios": [{{"trecho": <número>, "depois_de": <segundo do trecho, logo DEPOIS de uma frase forte>, "texto": "<sua reação curta ao que ACABOU de ser dito, 6 a 20 palavras>", "clima": "..."}}],{schema_extra}
- "fechamento": {{"texto": "<opinião final + pedir like, inscrição e comentário, até 40 palavras>", "clima": "..."}}}}
+ "fechamento": {{"texto": "<opinião final em 1 frase + UMA pergunta específica para comentar + like e inscrição, até 45 palavras>", "clima": "..."}}}}
+RETENÇÃO (é o que faz o YouTube entregar o vídeo — siga à risca):
+- ABERTURA: a 1ª frase JÁ É o fato mais forte do vídeo, com o NOME ou o NÚMERO (nada de "fala galera", "olá", "no vídeo
+  de hoje", nem apresentar o canal). A 2ª frase diz o que mais vem. A 3ª PROMETE, sem entregar, a notícia do trecho
+  marcado [PROMESSA] (sem marca: a do último trecho do assunto principal) ("e no final tem um detalhe sobre ... que muda tudo — fica até o fim"). Só então, em 5 palavras, like/inscrição.
+- CADA FALA antes de um trecho: diz de onde vem, dá a SUA opinião em uma frase curta e termina com um motivo para ver o
+  trecho ("repara no que ele fala no final"). Nunca resuma o trecho inteiro — quem já sabe o fim não assiste.
+- A fala do MEIO do vídeo lembra a promessa do começo ("já já chego naquele detalhe") e pede a inscrição ligada a um
+  benefício (uma vez só no vídeo).
+- A fala antes do trecho [PROMESSA] entrega a promessa ("agora sim, o que eu prometi no começo").
+- Frases curtas, de conversa, uma ideia por frase. Proibido encher linguiça e repetir o que o trecho vai dizer.
 COMENTÁRIOS NO MEIO: nos trechos longos abaixo, entre UMA reação sua no meio da reportagem (2 se passar de 2 min), como
 quem pausa e comenta o que acabou de ouvir ("Olha isso, Massa!", "Concordo demais com ele", "Aí não, né?") — só onde
 combina, nunca nos primeiros 10 s nem nos últimos 10 s do trecho.
@@ -1215,7 +1227,8 @@ cite o programa e o canal). No fechamento, diga que os créditos de tudo que foi
                 pass
         g = {"titulo": sel[0]["manchete"].upper()[:95], "thumb_texto": "", "thumb_destaque": "",
              "descricao": f"As notícias de hoje sobre {cfg['assunto']}.", "tags": [t for t in (cfg.get("termos") or [])[:12]],
-             "abertura": {"texto": f"Fala, galera! As notícias de hoje sobre {cfg['assunto']}.{lanc} Fica até o fim, deixa o like e se inscreve.",
+             "abertura": {"texto": f"{sel[0]['manchete'].capitalize().rstrip('.')}. E não é só isso: tem mais {max(1, len(sel) - 1)} "
+                                   f"novidade(s) hoje.{lanc} E no final, {sel[-1]['manchete'].lower().rstrip('.')} — fica até o fim.",
                           "clima": "falando"},
              "falas": [{"antes_do": i + 1, "texto": f"Agora olha o que saiu no {origem_falada(x)}: {x['manchete'].lower()}.",
                         "clima": x["clima"]} for i, x in enumerate(sel)],
@@ -2920,6 +2933,17 @@ def main():
     def grupo(x):
         return 3 if x.get("campeonato") else 2 if x.get("repetida") else 0 if x.get("pauta") else 1
     sel = sorted(sel, key=lambda x: (grupo(x), "".join(chr(255 - ord(c)) for c in x.get("publicado", ""))))
+    # A PROMESSA (11/nov, retenção): a 2ª notícia mais forte do assunto principal vai para o FIM do bloco principal e a
+    # abertura promete ela sem entregar ("no final tem...") — é o laço aberto que segura a pessoa até o fim.
+    principais = [x for x in sel if grupo(x) <= 1]
+    for x in sel:
+        x.pop("promessa", None)
+    if len(principais) >= 3 and cfg.get("promessa_no_fim", True):
+        guardada = max(principais[1:], key=lambda x: float(x.get("nota", 5)))
+        guardada["promessa"] = True
+        sel.remove(guardada)
+        sel.insert(len(principais) - 1, guardada)
+        log(f"   guardada para o fim (a abertura promete): \"{(guardada.get('manchete') or '')[:60]}\"")
     if n_rep:
         log(f"   {n_rep} assunto que já saiu hoje volta como notícia secundária (o foco é outro)")
     if n_camp:
