@@ -26,7 +26,8 @@ TOOLS = AQUI.parent
 PONTE = TOOLS.parent
 PORTA = int(os.environ.get("DETTO_SHOP_PORTA", "8731"))
 CHAVES_F = PONTE / "chaves.json"
-CHAVES = ("GEMINI_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "MISTRAL_API_KEY", "OPENROUTER_API_KEY")
+CHAVES = ("GEMINI_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "MISTRAL_API_KEY", "OPENROUTER_API_KEY",
+          "SEEDANCE_API_KEY", "HF_API_KEY_ID", "HF_API_KEY_SECRET")
 VOZES = [("pt-BR-AntonioNeural", "Antônio (masculina)"), ("pt-BR-FranciscaNeural", "Francisca (feminina)"),
          ("pt-BR-ThalitaMultilingualNeural", "Thalita (feminina, jovem)"),
          ("pt-BR-MacerioMultilingualNeural", "Macério (masculina, jovem)")]

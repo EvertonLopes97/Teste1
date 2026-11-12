@@ -3,6 +3,17 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 12/nov (8h30) — MOVIMENTO POR IA PAGA NO SHOP: SEEDANCE + HIGGSFIELD COM CHAVE LIGA/DESLIGA — SEM TESTE COM CONTA REAL
+
+- `tools\shop\ia_video.py`: foto REAL do produto → clipe 720p 9:16 (5/10 s). `"ia_video"`: desligado (padrão) | seedance | higgsfield;
+  `ia_video_max` (1), `ia_video_s` (5). Cache em `<shop>\ia_video\` (foto+pedido: não paga 2x). Erro = segue sem.
+  Seedance = muapi.ai (`SEEDANCE_API_KEY`/`seedance_chave`; foto vai por URL do Catbox; quality high). Higgsfield =
+  api.higgsfield.ai (`HF_API_KEY_ID`+`HF_API_KEY_SECRET`/`hf_id`+`hf_segredo`; upload próprio; modelo em `higgsfield_modelo`,
+  padrão `higgsfield-ai/dop/standard` — NÃO confirmei o caminho do modelo nem os campos duration/aspect_ratio/resolution: a doc
+  pública só mostra a base, o upload e o status; o catálogo está em console.higgsfield.ai).
+- Painel principal (aba Shop; PAINEL_VERSAO/VERSAO_TELA 2026-11-12a) e painel avulso do DETTO-SHOP têm o seletor e as chaves.
+- "Genjutsu" (motion transfer do Higgsfield: vídeo + imagem de referência) era o "gentutu" que ele citou — NÃO integrado.
+
 ## 12/nov — ELE FALANDO DE VERDADE NO REAGIR (sincronia labial local) — NÃO TESTADO NO PC DELE
 
 - Pedido: "eu aparecendo como se estivesse falando" (recusou o bonequinho; quer ele real = opção 2, e IA paga = opção 3).

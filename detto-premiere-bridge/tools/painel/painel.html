@@ -532,7 +532,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-11-06f";
+const VERSAO_TELA = "2026-11-12a";
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -981,6 +981,17 @@ function shop(){
       <a class="mini" href="/shop_arquivo?nome=${encodeURIComponent(v.nome)}&dia=${esc(v.dia)}&baixar=1">Baixar</a></span>
     </div>`).join("") : `<div class="info">Nada hoje ainda. Cada vídeo pronto já entra na fila de postagem.</div>`}
     <div class="chave"><span><b>Buscar vídeos do produto na internet</b><small>${S.clipes_internet ? "Baixa review/unboxing do produto, corta em pedaços e DESCARTA os que mostram a cara de alguém — o vídeo sai com o produto em uso, não com foto parada" : "Desligado: só as fotos"}</small></span><label class="sw"><input type="checkbox" ${S.clipes_internet ? "checked" : ""} onchange="api('shop_cfg',{clipes_internet:this.checked}).then(()=>{toast('salvo');carrega(true)})"><span></span></label></div>
+    <div class="chave"><span><b>Movimento por IA na foto do produto (PAGO por clipe)</b><small>${S.ia_video && S.ia_video !== "desligado" ? "LIGADO: a foto real do produto vira um clipe de " + S.ia_video_s + " s em 720p (" + S.ia_video_max + " por vídeo), cobrado na sua conta do serviço" : "Desligado: nada é cobrado"}${S.ia_video === "seedance" && !(S.ia_chaves||{}).seedance ? " — FALTA a chave da muapi.ai" : ""}${S.ia_video === "higgsfield" && !(S.ia_chaves||{}).higgsfield ? " — FALTAM o ID e o segredo do Higgsfield" : ""}</small></span>
+      <select onchange="api('shop_cfg',{ia_video:this.value}).then(()=>{toast('salvo');carrega(true)})"><option value="desligado" ${!S.ia_video || S.ia_video === "desligado" ? "selected" : ""}>Desligado</option><option value="seedance" ${S.ia_video === "seedance" ? "selected" : ""}>Seedance</option><option value="higgsfield" ${S.ia_video === "higgsfield" ? "selected" : ""}>Higgsfield</option></select></div>
+    <details style="margin:6px 0 10px"><summary>Chaves e ajustes do movimento por IA</summary>
+      <div class="linha" style="gap:8px;flex-wrap:wrap;margin-top:8px">
+        <input type="password" id="ia_sd" placeholder="Seedance: chave da muapi.ai ${(S.ia_chaves||{}).seedance ? "(já salva)" : ""}" autocomplete="off" style="flex:1;min-width:220px">
+        <input type="password" id="ia_hfi" placeholder="Higgsfield: API Key ID ${(S.ia_chaves||{}).higgsfield ? "(já salvo)" : ""}" autocomplete="off" style="flex:1;min-width:220px">
+        <input type="password" id="ia_hfs" placeholder="Higgsfield: API Key Secret" autocomplete="off" style="flex:1;min-width:220px">
+        <select id="ia_max"><option value="1" ${S.ia_video_max == 1 ? "selected" : ""}>1 clipe por vídeo</option><option value="2" ${S.ia_video_max == 2 ? "selected" : ""}>2 clipes</option><option value="3" ${S.ia_video_max == 3 ? "selected" : ""}>3 clipes</option></select>
+        <select id="ia_seg"><option value="5" ${S.ia_video_s == 5 ? "selected" : ""}>5 s</option><option value="10" ${S.ia_video_s == 10 ? "selected" : ""}>10 s</option></select>
+        <button onclick="api('shop_cfg',{seedance_chave:document.getElementById('ia_sd').value,hf_id:document.getElementById('ia_hfi').value,hf_segredo:document.getElementById('ia_hfs').value,ia_video_max:document.getElementById('ia_max').value,ia_video_s:document.getElementById('ia_seg').value}).then(()=>{toast('salvo');carrega(true)})">Salvar</button>
+      </div></details>
     <div class="chave"><span><b>Criação automática de vídeos de Shop</b><small>${S.auto ? "LIGADA: o painel acha produtos virais e faz os vídeos sozinho (meta de 30 por dia, um lote de cada vez)" : "DESLIGADA: só faz o que você mandar"}</small></span><label class="sw"><input type="checkbox" ${S.auto ? "checked" : ""} onchange="api('shop_cfg',{auto:this.checked}).then(()=>{toast(this.checked?'ligada':'desligada');carrega(true)})"><span></span></label></div>
     <div class="chave"><span><b>Legenda na tela</b><small>${S.legenda ? "Palavras da narração em blocos de 3" : "Desligada: sem legenda"}</small></span><label class="sw"><input type="checkbox" ${S.legenda ? "checked" : ""} onchange="api('shop_cfg',{legenda:this.checked}).then(()=>{toast('salvo');carrega(true)})"><span></span></label></div>
     <div class="chave"><span><b>Narração</b><small>${S.narracao ? "A IA escreve e a sua voz narra" : "Desligado: vídeo sem narração, só imagens, cartelas e música"}</small></span><label class="sw"><input type="checkbox" ${S.narracao ? "checked" : ""} onchange="api('shop_cfg',{narracao:this.checked}).then(()=>{toast('salvo');carrega(true)})"><span></span></label></div>

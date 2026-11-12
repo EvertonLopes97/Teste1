@@ -94,6 +94,13 @@ details summary{cursor:pointer;font-weight:600;margin-top:10px}
       <label class="chave"><input type="checkbox" id="fotos_internet"> Buscar fotos se faltar imagem</label>
     </div>
     <div class="linha">
+      <div><label for="ia_video">Movimento por IA na foto do produto (pago por clipe)</label>
+        <select id="ia_video"><option value="desligado">Desligado</option><option value="seedance">Ligado — Seedance (muapi.ai)</option><option value="higgsfield">Ligado — Higgsfield</option></select></div>
+      <div><label for="ia_video_max">Clipes pagos por vídeo</label><input type="number" id="ia_video_max" min="1" max="4" step="1"></div>
+      <div><label for="ia_video_s">Segundos de cada clipe</label><select id="ia_video_s"><option value="5">5 s</option><option value="10">10 s</option></select></div>
+    </div>
+    <p class="dica">Sai em 720p vertical, a partir da foto real do produto. Cada clipe é cobrado na sua conta do serviço; o mesmo clipe nunca é cobrado duas vezes. Precisa da chave na aba Chaves.</p>
+    <div class="linha">
       <div><label for="voz_neural">Voz da narração</label><select id="voz_neural"></select></div>
       <div><label for="velocidade_voz">Velocidade da voz (1 = normal)</label><input type="number" id="velocidade_voz" min="0.8" max="1.5" step="0.05"></div>
     </div>
@@ -168,6 +175,16 @@ details summary{cursor:pointer;font-weight:600;margin-top:10px}
       <label for="OPENROUTER_API_KEY">OpenRouter <span id="tem_OPENROUTER_API_KEY"></span></label>
       <input type="password" id="OPENROUTER_API_KEY" autocomplete="off">
     </details>
+    <h2 style="margin-top:22px">Chaves do movimento por IA (pago, opcional)</h2>
+    <p class="sub">Só são usadas quando "Movimento por IA" está ligado nas opções. Ficam só neste computador.</p>
+    <label for="SEEDANCE_API_KEY">Seedance — chave da muapi.ai <span id="tem_SEEDANCE_API_KEY"></span></label>
+    <input type="password" id="SEEDANCE_API_KEY" placeholder="cole a chave" autocomplete="off">
+    <p class="dica">Pegue em <a href="https://muapi.ai/access-keys" target="_blank" rel="noopener">muapi.ai/access-keys</a></p>
+    <label for="HF_API_KEY_ID">Higgsfield — API Key ID <span id="tem_HF_API_KEY_ID"></span></label>
+    <input type="password" id="HF_API_KEY_ID" placeholder="cole o ID" autocomplete="off">
+    <label for="HF_API_KEY_SECRET">Higgsfield — API Key Secret <span id="tem_HF_API_KEY_SECRET"></span></label>
+    <input type="password" id="HF_API_KEY_SECRET" placeholder="cole o segredo" autocomplete="off">
+    <p class="dica">Pegue em <a href="https://console.higgsfield.ai" target="_blank" rel="noopener">console.higgsfield.ai</a></p>
     <div class="acoes" style="margin-top:14px"><button id="salvar_chaves">Salvar chaves</button></div>
   </section>
 </div>
@@ -209,13 +226,14 @@ function modoEscolhido() { const m = document.querySelector("input[name=modo]:ch
 function opcoes() {
   return {modo: modoEscolhido(), narracao: $("narracao").checked, legenda: $("legenda").checked,
     clipes_internet: $("clipes_internet").checked, fotos_internet: $("fotos_internet").checked,
+    ia_video: $("ia_video").value, ia_video_max: $("ia_video_max").value || 1, ia_video_s: $("ia_video_s").value || 5,
     voz_neural: $("voz_neural").value, velocidade_voz: $("velocidade_voz").value || 1,
     duracao: $("duracao").value || 34, arroba: $("arroba").value.trim(), cta: $("cta").value.trim()};
 }
 $("salvar").onclick = async () => { const r = await manda("cfg", opcoes()); fala(r.ok ? "Opções salvas" : r.erro, r.ok ? "bom" : "erro"); };
 $("salvar_chaves").onclick = async () => {
   const d = {};
-  ["GEMINI_API_KEY","GROQ_API_KEY","CEREBRAS_API_KEY","MISTRAL_API_KEY","OPENROUTER_API_KEY"].forEach((k) => { if ($(k).value.trim()) d[k] = $(k).value.trim(); });
+  ["GEMINI_API_KEY","GROQ_API_KEY","CEREBRAS_API_KEY","MISTRAL_API_KEY","OPENROUTER_API_KEY","SEEDANCE_API_KEY","HF_API_KEY_ID","HF_API_KEY_SECRET"].forEach((k) => { if ($(k).value.trim()) d[k] = $(k).value.trim(); });
   if (!Object.keys(d).length) { fala("Cole pelo menos uma chave", "erro"); return; }
   const r = await manda("chaves", d);
   if (r.ok) { Object.keys(d).forEach((k) => { $(k).value = ""; }); fala("Chaves salvas", "bom"); carrega(); } else fala(r.erro, "erro");
@@ -255,6 +273,7 @@ function desenha(e) {
     const m = document.querySelector('input[name=modo][value="' + (e.modo || "ia") + '"]'); if (m) m.checked = true;
     ["narracao","legenda","clipes_internet","fotos_internet"].forEach((k) => { $(k).checked = !!e[k]; });
     $("voz_neural").innerHTML = e.vozes.map((v) => '<option value="' + esc(v.id) + '">' + esc(v.nome) + "</option>").join("");
+    $("ia_video").value = e.ia_video || "desligado"; $("ia_video_max").value = e.ia_video_max || 1; $("ia_video_s").value = String(e.ia_video_s || 5);
     $("voz_neural").value = e.voz_neural; $("velocidade_voz").value = e.velocidade_voz;
     $("duracao").value = e.duracao; $("arroba").value = e.arroba || ""; $("cta").value = e.cta || "";
     primeira = false;

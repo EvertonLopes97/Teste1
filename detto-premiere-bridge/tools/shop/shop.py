@@ -121,6 +121,9 @@ CFG_PADRAO = {
     "sfx": 0.3,
     # 06/nov: vídeos do produto baixados da internet (sem a cara de ninguém) em vez de foto parada
     "clipes_internet": True,
+    "ia_video": "desligado",         # movimento por IA PAGA na foto do produto: "desligado" | "seedance" | "higgsfield"
+    "ia_video_max": 1,               # clipes pagos por vídeo
+    "ia_video_s": 5,                 # segundos de cada um (720p, 9:16)
     "clipes_quantos": 10,
     "fotos_internet": True,
     "narracao": True,
@@ -887,6 +890,17 @@ def faz_video(produto, base, cfg, modo="", log=log):
                 f'o produto "{produto.get("nome") or nome}" não tem NENHUMA imagem nem vídeo e eu não achei foto '
                 "dele na internet — o vídeo sairia com fundo preto. Ponha as fotos em "
                 f"produtos\\{nome}\\ (ou cole o link do VÍDEO do produto).")
+
+    # MOVIMENTO POR IA PAGA (12/nov; desligado por padrão — ver ia_video.py): a foto REAL do produto vira clipe
+    if str(cfg.get("ia_video") or "desligado") != "desligado" and not produto.get("eu") and modo != "vendedor":
+        try:
+            import ia_video as IA
+            fotos_ia = produto.get("fotos") or (fotos_da_internet(produto, base, log=log) if cfg.get("fotos_internet", True) else [])
+            novos = IA.gera(fotos_ia, produto.get("nome") or nome, base, cfg, log)
+            if novos:
+                produto["clipes"] = novos + list(produto.get("clipes") or [])   # entram primeiro (cena de abertura)
+        except Exception as e:   # noqa: BLE001
+            log(f"   movimento por IA: não deu ({str(e)[:140]})")
 
     rot = roteiro(produto, modo, cfg, log)
     log(f"   roteiro: {len(rot['cenas'])} cenas — \"{rot.get('gancho', '')[:60]}\"")

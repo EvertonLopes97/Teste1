@@ -84,6 +84,11 @@ def estado():
         "clipes_internet": bool(cfg.get("clipes_internet", True)),
         "clipes_quantos": int(cfg.get("clipes_quantos", 6)),
         "fotos_internet": bool(cfg.get("fotos_internet", True)),
+        "ia_video": str(cfg.get("ia_video") or "desligado"), "ia_video_max": int(cfg.get("ia_video_max", 1)),
+        "ia_video_s": int(cfg.get("ia_video_s", 5)),
+        "ia_chaves": {"seedance": bool(cfg.get("seedance_chave") or os.environ.get("SEEDANCE_API_KEY")),
+                      "higgsfield": bool((cfg.get("hf_id") and cfg.get("hf_segredo"))
+                                         or (os.environ.get("HF_API_KEY_ID") and os.environ.get("HF_API_KEY_SECRET")))},
         "narracao": bool(cfg.get("narracao", True)),
         "legenda": bool(cfg.get("legenda", True)),
         "auto": bool(cfg.get("auto", True)),
@@ -160,6 +165,15 @@ def acao(nome, d):
         for k in ("modo", "duracao", "cta", "arroba", "musica"):
             if k in d:
                 cfg[k] = d[k]
+        if d.get("ia_video") in ("desligado", "seedance", "higgsfield"):
+            cfg["ia_video"] = d["ia_video"]
+        for k in ("seedance_chave", "hf_id", "hf_segredo"):
+            if str(d.get(k) or "").strip():
+                cfg[k] = str(d[k]).strip()
+        if "ia_video_max" in d:
+            cfg["ia_video_max"] = max(1, min(4, int(float(d["ia_video_max"] or 1))))
+        if "ia_video_s" in d:
+            cfg["ia_video_s"] = 10 if int(float(d["ia_video_s"] or 5)) >= 8 else 5
         for k in ("clipes_internet", "fotos_internet", "narracao", "legenda", "auto"):
             if k in d:
                 cfg[k] = bool(d[k])
