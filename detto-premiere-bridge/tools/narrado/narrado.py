@@ -323,6 +323,89 @@ def narra(texto, saida, cfg, log=log):
     return saida
 
 
+TRANSCRICAO_REAL = {"v": False}   # a última `tempos_das_palavras` veio do whisper (dá para conferir a fala)?
+
+
+def defeito_na_fala(texto, palavras):
+    """A VOZ FALOU O QUE ESTAVA ESCRITO? (12/nov, "as falas às vezes vêm com defeito"). Compara o roteiro com o que o
+    whisper ouviu: (1) quanto do texto apareceu, em ordem; (2) a voz repetiu um pedaço (mesmas 4 palavras seguidas 3x,
+    ou muito mais palavras que o texto); (3) cortou o fim. Devolve o motivo ("" = está boa)."""
+    import difflib
+
+    def limpa(ws):
+        return [w for w in (re.sub(r"[^a-zà-ú0-9]", "", norm(x)) for x in ws) if w]
+    alvo, dito = limpa(texto.split()), limpa(p["w"] for p in palavras)
+    if len(alvo) < 8 or not dito:
+        return ""
+    casou = sum(b.size for b in difflib.SequenceMatcher(None, alvo, dito, autojunk=False).get_matching_blocks())
+    if casou / len(alvo) < 0.72:
+        return f"só {casou * 100 // len(alvo)}% do texto foi dito"
+    if len(dito) > len(alvo) * 1.3 + 6:
+        return f"a voz disse {len(dito)} palavras para um texto de {len(alvo)} (repetiu)"
+    vistos = {}
+    for i in range(len(dito) - 3):
+        g = " ".join(dito[i:i + 4])
+        vistos[g] = vistos.get(g, 0) + 1
+    rep = max(vistos.values(), default=0)
+    if rep >= 3 and rep > max(1, " ".join(alvo).count(max(vistos, key=vistos.get))):
+        return f"repetiu \"{max(vistos, key=vistos.get)}\" {rep} vezes"
+    fim = alvo[-4:]
+    if not any(w in dito[-12:] for w in fim):
+        return "o fim da fala foi cortado"
+    return ""
+
+
+def narra_conferida(texto, saida, cfg, log=log):
+    """narra, transcreve e CONFERE; com defeito refaz (até 2x; a última frase a frase). Devolve (wav, palavras)."""
+    wav = narra(texto, saida, cfg, log)
+    palavras = tempos_das_palavras(wav, texto, log)
+    for vez in range(2):
+        motivo = defeito_na_fala(texto, palavras) if TRANSCRICAO_REAL["v"] else ""
+        if not motivo:
+            break
+        log(f"   ⚠ fala com defeito ({motivo}); refaço" + (" frase a frase" if vez == 1 else ""))
+        Path(saida).unlink(missing_ok=True)
+        if vez == 0:
+            wav = narra(texto, saida, cfg, log)
+        else:
+            partes, wavs = [x for x in re.split(r"(?<=[.!?…])\s+", texto.strip()) if x.strip()], []
+            for i, fr in enumerate(partes):
+                w = Path(saida).with_name(f"frase{i:03d}.wav")
+                narra(fr, w, cfg, lambda *_: None)
+                wavs.append(w)
+            lista = Path(saida).with_name("frases.txt")
+            lista.write_text("".join(f"file '{w.as_posix()}'\n" for w in wavs), encoding="utf-8")
+            roda(["ffmpeg", "-v", "error", "-f", "concat", "-safe", "0", "-i", str(lista), "-ar", "24000", "-ac", "1",
+                  "-y", str(saida)], "emenda das frases")
+            wav = saida
+        palavras = tempos_das_palavras(wav, texto, log)
+    else:
+        motivo = defeito_na_fala(texto, palavras) if TRANSCRICAO_REAL["v"] else ""
+        if motivo:
+            log(f"   ⚠ a fala ainda ficou com defeito ({motivo}) depois de refazer 2x — confira este vídeo antes de postar")
+    return wav, palavras
+
+
+def cenas_automaticas(rot):
+    """SEM `cenas` no roteiro (IA esqueceu ou não respondeu) a imagem não seguia a fala. Aqui a narração é partida em 3–4
+    partes pelas frases e cada parte busca o sujeito + as palavras fortes DAQUELA parte."""
+    frases = [x.strip() for x in re.split(r"(?<=[.!?…])\s+", rot.get("narracao", "")) if len(x.split()) >= 3]
+    if len(frases) < 2:
+        return []
+    n = min(4, max(2, len(frases) // 2))
+    passo = len(frases) / n
+    suj = rot.get("sujeito") or (rot.get("buscas") or [""])[0]
+    fracas = set("que para como mais isso esse essa este esta com sem uma uns umas dos das nos nas por pelo pela muito "
+                 "sobre quando onde porque ainda também já não sim ele ela eles elas você voce foi ser tem vai são está".split())
+    out = []
+    for k in range(n):
+        bloco = frases[int(k * passo):int((k + 1) * passo)] or [frases[-1]]
+        fortes = [w for w in re.findall(r"[A-Za-zÀ-ú0-9]{4,}", " ".join(bloco)) if norm(w) not in fracas and norm(w) not in norm(suj)]
+        out.append({"frase": " ".join(bloco[0].split()[:3]), "sujeito": suj, "busca": " ".join([suj] + fortes[:3]).strip(),
+                    "pessoa": bool(rot.get("sujeito_pessoa", True))})
+    return out
+
+
 def tempos_das_palavras(wav, texto, log=log):
     """quando cada palavra é dita — é o que faz a legenda bater com a fala.
 
@@ -330,6 +413,7 @@ def tempos_das_palavras(wav, texto, log=log):
     pelo TAMANHO de cada palavra, que erra pouco numa narração corrida e nunca deixa o vídeo sem legenda.
     """
     total = dur(wav)
+    TRANSCRICAO_REAL["v"] = False
     try:
         from transcrever import transcrever
         ps = transcrever(wav, "base", "cpu", idioma="pt")
@@ -337,6 +421,7 @@ def tempos_das_palavras(wav, texto, log=log):
             ps = ps[0]
         ps = [p for p in (ps or []) if (p.get("w") or "").strip()]
         if len(ps) >= max(8, len(texto.split()) * 0.5):
+            TRANSCRICAO_REAL["v"] = True
             log(f"   legenda sincronizada pela transcrição ({len(ps)} palavras)")
             return [{"w": p["w"].strip(), "s": float(p["s"]), "e": float(p["e"])} for p in ps]
         log("   a transcrição veio curta; reparto o tempo pelo tamanho das palavras")
@@ -815,6 +900,73 @@ def proximo_do_canal(pasta_canal, base, log=log):
     return ""
 
 
+def janelas_do_avatar(palavras, total, quantas=3, minimo=2.5, maximo=6.0):
+    """em que pedaços VOCÊ aparece falando: a 1ª frase (o gancho), uma do meio e a última (a chamada) — sempre de
+    frase inteira, para a boca abrir e fechar junto com a fala"""
+    frases, ini = [], None
+    for i, p in enumerate(palavras):
+        if ini is None:
+            ini = p["s"]
+        if re.search(r"[.!?…]$", p["w"].strip()) or i == len(palavras) - 1:
+            frases.append((ini, p["e"]))
+            ini = None
+    if not frases:   # transcrição sem pontuação: corta por tempo
+        frases = [(t, min(total, t + 4.5)) for t in (0.0, total / 2 - 2, max(0, total - 4.5))]
+    escolha = [frases[0], frases[len(frases) // 2], frases[-1]] if len(frases) >= 3 else frases[:1]
+    out = []
+    for a, b in escolha[:quantas]:
+        b = min(total, max(b, a + minimo))
+        b = min(b, a + maximo)
+        if not out or a >= out[-1][1] + 3:
+            out.append((round(a, 2), round(b, 2)))
+    return out
+
+
+def avatar_em_partes(video, wav, palavras, pastas, tmp, cfg, log=log):
+    """VOCÊ APARECE FALANDO EM 2–3 PARTES (12/nov, pedido dele): o vídeo é o de sempre; no gancho, no meio e na chamada
+    final entra você (vídeo-base de `base_fala\\`) com a boca sincronizada naquele pedaço da narração, na faixa de baixo.
+    Sem vídeo-base ou sem a sincronia instalada: avisa e não mexe em nada. `"avatar_modo": "nao"` desliga."""
+    import random
+
+    vids = []
+    for d in pastas:
+        d = Path(d) / "base_fala" if d else None
+        if d and d.is_dir():
+            vids += [p for p in d.glob("*") if p.suffix.lower() in (".mp4", ".mov", ".m4v", ".mkv")]
+    if not vids:
+        return None
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "avatar"))
+    import lipsync as LS
+    if not LS.instalado():
+        log("   avatar falando: há vídeo em base_fala\\, mas falta instalar: python tools\\avatar\\lipsync.py --instalar")
+        return None
+    total = dur(video)
+    clipes = []
+    for k, (a, b) in enumerate(janelas_do_avatar(palavras, total, int(cfg.get("avatar_partes", 3)))):
+        seg = Path(tmp) / f"avatar{k}.wav"
+        roda(["ffmpeg", "-v", "error", "-ss", f"{a:.2f}", "-t", f"{b - a:.2f}", "-i", str(wav), "-ar", "16000", "-ac", "1",
+              "-y", str(seg)], "áudio do avatar")
+        r = LS.sincroniza(random.choice(vids), seg, Path(tmp) / f"avatar{k}.mp4", log)
+        if r:
+            clipes.append((a, b, r))
+    if not clipes:
+        return None
+    entradas, filtros, atual = ["-i", str(video)], [], "0:v"
+    for i, (a, b, arq) in enumerate(clipes):
+        entradas += ["-i", str(arq)]
+        filtros.append(f"[{i + 1}:v]scale={W}:{H_BAIXO}:force_original_aspect_ratio=increase,crop={W}:{H_BAIXO},fps={FPS},"
+                       f"setpts=PTS-STARTPTS+{a:.2f}/TB[a{i}]")
+        filtros.append(f"[{atual}][a{i}]overlay=0:{H - H_BAIXO}:enable='between(t,{a:.2f},{b:.2f})':eof_action=pass[v{i}]")
+        atual = f"v{i}"
+    saida = Path(tmp) / "com_avatar.mp4"
+    roda(["ffmpeg", "-v", "error", *entradas, "-filter_complex", ";".join(filtros), "-map", f"[{atual}]", "-map", "0:a?",
+          "-c:v", "libx264", "-crf", "19", "-preset", "veryfast", "-pix_fmt", "yuv420p", "-c:a", "copy",
+          "-t", f"{total:.3f}", "-y", str(saida)], "avatar nas partes")
+    shutil.copyfile(saida, video)
+    log(f"   você aparece falando em {len(clipes)} parte(s): " + ", ".join(f"{a:.0f}–{b:.0f}s" for a, b, _ in clipes))
+    return video
+
+
 def reacao_falando(pasta, wav, tmp, cfg, log=log):
     """VOCÊ FALANDO A NARRAÇÃO (12/nov): um vídeo-base seu de `Narrados\\base_fala\\` (10–20 s olhando para a câmera) com a
     boca sincronizada na narração (tools\\avatar\\lipsync.py, local e de graça). Sem pasta, sem instalação ou com erro
@@ -921,13 +1073,15 @@ def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log, t
     log(f"   roteiro: {len(rot['narracao'].split())} palavras — \"{rot['titulo'][:70]}\"")
     log(f"   buscas: {', '.join(rot['buscas'])}")
 
-    wav = narra(rot["narracao"], tmp / "narracao.wav", cfg, log)
+    wav, palavras = narra_conferida(rot["narracao"], tmp / "narracao.wav", cfg, log)
     total = dur(wav)
     if total < 5:
         raise RuntimeError("a narração saiu vazia")
     log(f"   narração: {total:.0f}s")
-
-    palavras = tempos_das_palavras(wav, rot["narracao"], log)
+    if len(rot.get("cenas") or []) < 2:
+        rot["cenas"] = cenas_automaticas(rot)
+        if rot["cenas"]:
+            log(f"   o roteiro veio sem cenas: parti a narração em {len(rot['cenas'])} para a imagem seguir a fala")
     grupos = grupos_de_legenda(palavras, 2 if TEMA["v"] == "gta" else 3)
 
     clipes = pool_por_cenas(rot, palavras, total, tmp / "clipes", log) if usar_clipes else []
@@ -957,8 +1111,14 @@ def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log, t
         monta_tela_cheia(topo, dia / "completo.mp4", log)
     else:
         if not reacao and drive:
-            reacao = reacao_falando(Path(drive), wav, tmp, cfg, log) or reacao_generica(Path(drive), dur(topo), tmp, log)
+            inteiro = reacao_falando(Path(drive), wav, tmp, cfg, log) if cfg.get("avatar_modo") == "inteiro" else ""
+            reacao = inteiro or reacao_generica(Path(drive), dur(topo), tmp, log)
         monta_completo(topo, reacao, dia / "completo.mp4", log)
+    if cfg.get("avatar_modo", "partes") == "partes":
+        try:
+            avatar_em_partes(dia / "completo.mp4", wav, palavras, [drive, base], tmp, cfg, log)
+        except Exception as e:  # noqa: BLE001
+            log(f"   avatar falando: não deu ({str(e)[:120]}); o vídeo segue sem ele")
     (dia / "post.txt").write_text(
         f"{rot['titulo']}\n\n{rot.get('legenda', '')}\n\n{' '.join(rot.get('tags', []))}\n", encoding="utf-8")
     if fila:

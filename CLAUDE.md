@@ -3,6 +3,17 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 12/nov (13h20) — REAGIR: AVATAR FALANDO EM PARTES, FALA CONFERIDA, IMAGEM SEMPRE NA FALA
+
+- `narrado.narra_conferida` + `defeito_na_fala`: a narração é transcrita e comparada com o roteiro (<72% dito, repetição, fim
+  cortado) → refaz 1x inteira e 1x frase a frase; ainda ruim = aviso "confira este vídeo" no registro (não barra).
+- `narrado.avatar_em_partes` + `janelas_do_avatar` (`avatar_modo`: partes (padrão) | inteiro | nao; `avatar_partes` 3): 1ª frase,
+  uma do meio e a última ganham ELE falando (vídeo-base de `base_fala\` em `Narrados\` ou na pasta do narrado + `lipsync.py`) na
+  faixa de baixo (1080x576), também nos shorts de tela cheia. Sem base/instalação: nada muda.
+- `narrado.cenas_automaticas`: roteiro sem `cenas` → narração partida em 2–4 partes com busca própria (antes caía no pool único).
+- Testado aqui: conferência com falas falsas (boa/repetida/cortada), overlay do avatar com lipsync falso, teste_rapido, pyflakes,
+  npm check. NÃO testado: Wav2Lip real, voz real, YouTube real. "Projeto sem defeitos" NÃO é garantia: só o que os testes cobrem.
+
 ## 12/nov (12h40) — "REPETE O INÍCIO / A MESMA FRASE 3 A 4 VEZES" NOS VÍDEOS DE NOTÍCIA E GTA
 
 - Causa confirmada no status.json: nenhuma IA respondia (Groq 429 → reserva gpt-oss-20b dava 400 "Failed to validate JSON";
