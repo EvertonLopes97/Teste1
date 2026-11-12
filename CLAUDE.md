@@ -3,6 +3,18 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 12/nov (12h40) — "REPETE O INÍCIO / A MESMA FRASE 3 A 4 VEZES" NOS VÍDEOS DE NOTÍCIA E GTA
+
+- Causa confirmada no status.json: nenhuma IA respondia (Groq 429 → reserva gpt-oss-20b dava 400 "Failed to validate JSON";
+  Claude no limite de 5 h) → `analises_sem_ia` punha VÁRIAS análises-modelo no MESMO trecho, todas com a manchete+resumo → a mesma
+  frase em sequência. Culpa do conserto de 11/nov (meu). Causa possível extra, não confirmada: o VoiceStudio repetindo em fala longa.
+- Consertos: (1) `analises_sem_ia` = no máx. UMA por trecho, sem manchete/resumo; (2) `canal.sem_fala_repetida` confere TODAS as
+  falas antes da voz (frase repetida dentro da fala, análise ≥70% igual ou com as mesmas 5 primeiras palavras, máx. 2 análises por
+  trecho); (3) sem IA não insiste em completar: entrega a partir de 60% do piso com AVISO; (4) `voz.voicestudio_fala` confere o
+  tamanho do áudio (≈14 letras/s) e, se repetiu/cortou, refaz frase a frase; (5) `texto_gratis`: 400 no modo JSON tenta sem o modo
+  JSON em QUALQUER modelo e erro 400/404/413/5xx também passa para o modelo reserva.
+- Testado: `sem_fala_repetida` com falas falsas; teste_rapido. NÃO rodado com voz/vídeo reais. Disco dele estava com 3,4 GB livres.
+
 ## 12/nov (8h30) — MOVIMENTO POR IA PAGA NO SHOP: SEEDANCE + HIGGSFIELD COM CHAVE LIGA/DESLIGA — SEM TESTE COM CONTA REAL
 
 - `tools\shop\ia_video.py`: foto REAL do produto → clipe 720p 9:16 (5/10 s). `"ia_video"`: desligado (padrão) | seedance | higgsfield;

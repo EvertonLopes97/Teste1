@@ -1073,6 +1073,47 @@ def falas_do_trecho(x, passo=7.0):
 
 
 
+def _pal_fala(t):
+    return [w for w in re.findall(r"[a-zà-ú0-9]+", str(t).lower()) if len(w) > 2]
+
+
+def sem_fala_repetida(falas):
+    """CONFERÊNCIA ANTES DA VOZ (12/nov, "repete o início ou a mesma frase 3 a 4 vezes"): nenhuma análise/comentário
+    pode (a) ser quase igual a outra fala já aceita, (b) começar com as mesmas 5 palavras de outra, nem (c) passar de 2
+    análises no mesmo trecho; e dentro de UMA fala, frase repetida sai. Abertura, falas de antes do trecho e fechamento
+    nunca são cortados (só limpos por dentro)."""
+    aceitas, por_trecho, out = [], {}, []
+    for f in falas:
+        vistas, limpas = set(), []
+        for fr in re.split(r"(?<=[.!?…])\s+", str(f.get("texto", "")).strip()):
+            ch = " ".join(_pal_fala(fr))
+            if ch and ch in vistas:
+                continue
+            vistas.add(ch)
+            limpas.append(fr)
+        f["texto"] = " ".join(limpas).strip()
+        extra = "depois" in f or "comenta" in f
+        pal = _pal_fala(f["texto"])
+        if extra:
+            repetida = False
+            for outra in aceitas:
+                inter = len(set(pal) & set(outra))
+                if (pal[:5] and pal[:5] == outra[:5]) or (pal and inter / max(1, min(len(set(pal)), len(set(outra)))) >= 0.7):
+                    repetida = True
+                    break
+            if "depois" in f:
+                if por_trecho.get(f["depois"], 0) >= 2:
+                    repetida = True
+            if repetida or len(pal) < 4:
+                log(f"   fala repetida/vazia tirada antes da voz: \"{f['texto'][:50]}\"")
+                continue
+            if "depois" in f:
+                por_trecho[f["depois"]] = por_trecho.get(f["depois"], 0) + 1
+        aceitas.append(pal)
+        out.append(f)
+    return out
+
+
 def analises_sem_ia(sel, cfg, n, falta_s=0.0):
     """SEM NENHUMA IA (11/nov, "sempre tem como fazer vídeo"): análises-modelo montadas só com o que o próprio trecho
     já traz (manchete, resumo, fonte) + a contagem regressiva. Nada inventado: é ponte, contexto e opinião genérica."""
@@ -1085,24 +1126,23 @@ def analises_sem_ia(sel, cfg, n, falta_s=0.0):
                 falta = f"E lembra que faltam {d} dias para o lançamento. "
         except ValueError:
             pass
+    # UMA por trecho e SEM repetir a manchete/resumo (12/nov: várias análises-modelo do mesmo trecho em sequência
+    # diziam a mesma frase 3–4 vezes). A fala de antes do trecho já disse a manchete; aqui é só ponte e opinião.
     modelos = [
-        "Olha só o que acabamos de ver: {m}. O que mais chama atenção aqui é como isso muda a expectativa de quem acompanha {a}. {r}Guarda esse detalhe, porque ele pode aparecer de novo nas próximas semanas, e vale ficar de olho no que vem da fonte oficial antes de tirar conclusões.",
-        "Vamos com calma nessa. {m}. {r}Eu gosto de separar o que foi mostrado do que é só comentário em volta, e o que a gente viu nas imagens foi isso aí. {f}O que você achou disso? Escreve nos comentários, que eu leio.",
-        "Voltando às imagens, repara no detalhe: {m}. {r}Quando sai uma coisa assim sobre {a}, a comunidade inteira para para analisar quadro a quadro. {f}Eu fico de olho e trago o que for confirmado, sem inventar nada.",
-        "Resumindo esse ponto: {m}. {r}Pra mim o mais importante é não confundir expectativa com informação confirmada. {f}Isso aqui veio de {o}, e eu deixo os créditos na descrição. Se curtiu, deixa o like.",
-        "E aí, o que isso significa na prática? {m}. {r}Quem acompanha {a} sabe que cada novidade mexe com a ansiedade da galera. {f}Eu prefiro olhar com os pés no chão e ver o que realmente foi mostrado nas imagens.",
-        "Mais uma camada sobre isso: {m}. {r}Enquanto as imagens rolam, vale notar o ritmo, o cenário e o clima do que foi mostrado. {f}Comenta aí qual parte te chamou mais atenção.",
+        "O que mais chama atenção aqui é como isso muda a expectativa de quem acompanha {a}. Guarda esse detalhe, porque ele pode aparecer de novo nas próximas semanas.",
+        "Eu gosto de separar o que foi mostrado do que é só comentário em volta. {f}O que você achou disso? Escreve nos comentários, que eu leio.",
+        "Quando sai uma coisa assim, a comunidade inteira para para analisar quadro a quadro. Eu fico de olho e trago o que for confirmado, sem inventar nada.",
+        "Pra mim o mais importante é não confundir expectativa com informação confirmada. Isso aqui veio de {o}, e os créditos estão na descrição.",
+        "E na prática, o que isso significa? Cada novidade mexe com a ansiedade da galera, mas eu prefiro olhar com os pés no chão para o que realmente apareceu nas imagens.",
+        "Enquanto as imagens rolam, repara no ritmo, no cenário e no clima do que foi mostrado. Comenta aí qual parte te chamou mais atenção.",
+        "Esse é o tipo de detalhe que passa batido na primeira vez. Vale voltar e ver de novo com calma depois do vídeo.",
+        "Se isso se confirmar do jeito que parece, muda bastante coisa. Por enquanto, é acompanhar o que vem da fonte oficial.",
     ]
     out = []
-    for k in range(max(1, n)):
-        i = k % len(sel)
-        x = sel[i]
-        m = (x.get("manchete") or "esse assunto").capitalize()
-        r = (x.get("resumo") or "").strip()
-        r = (r + (" " if not r.endswith(".") else " ")) if r else ""
-        txt = modelos[(k // max(1, len(sel)) + k) % len(modelos)].format(
-            m=m.rstrip("."), r=r, a=assunto, f=falta, o=origem_falada(x))
-        out.append({"depois_do": i + 1, "texto": re.sub(r"\s+", " ", txt).strip(), "clima": "falando"})
+    for k in range(min(max(1, n), len(sel))):
+        x = sel[k]
+        txt = modelos[k % len(modelos)].format(a=assunto, f=falta if k == 1 else "", o=origem_falada(x))
+        out.append({"depois_do": k + 1, "texto": re.sub(r"\s+", " ", txt).strip(), "clima": "falando"})
     return out
 
 
@@ -1180,8 +1220,9 @@ def roteiro(sel, cfg, titulos_antes=()):
                         '"clima": "..."}],')
         regra_extra = (f"\nANÁLISES (OBRIGATÓRIO): o vídeo está curto. Escreva {n_an} ANÁLISES em 'analises', somando "
                        f"~{palavras} palavras no total, cada uma de 70 a 100 palavras, comentando, explicando e opinando "
-                       "sobre o que acabou de ser mostrado no trecho (depois_do = número dele; pode repetir o mesmo trecho "
-                       "com outro ângulo). Imagens do jogo ficam na tela enquanto você fala. PROIBIDO inventar: só fatos "
+                       "sobre o que acabou de ser mostrado no trecho (depois_do = número dele; no máximo 2 por trecho, e a "
+                       "segunda com assunto e começo DIFERENTES da primeira — nunca repita frase, nem a manchete, nem o que "
+                       "você já disse em outra fala). Imagens do jogo ficam na tela enquanto você fala. PROIBIDO inventar: só fatos "
                        "dos trechos e do que já se sabe; vazamento é chamado de vazamento; opinião é opinião.")
     g = gemini_json([{"text": f"""Você narra o canal "{cfg['nome_canal']}", de {assunto}, {persona}. Os trechos, em ordem:
 {lista}
@@ -1243,6 +1284,7 @@ cite o programa e o canal). No fechamento, diga que os créditos de tudo que foi
                         "clima": x["clima"]} for i, x in enumerate(sel)],
              "fechamento": {"texto": "E aí, Massa, concorda? Comenta aí, deixa o like e se inscreve. Os créditos de tudo estão nos comentários e na descrição. Galo doido!", "clima": "comemorando"}}
     if falta_s > 0 and not g.get("analises"):
+        g["analises_sem_ia"] = True
         g["analises"] = analises_sem_ia(sel, cfg, min(40, max(2, int(falta_s * 2.6 * 1.3 / 60) + 1)), falta_s)
         log(f"   (sem IA: {len(g['analises'])} análise(s)-modelo com o que os próprios trechos dizem)")
     return g
@@ -1881,6 +1923,7 @@ def monta(sel, rot, cfg, pasta, tmp, saida):
             continue
         falas.append({"id": f"a{i + 1:02d}{k}", "texto": an["texto"], "clima": an.get("clima", "falando"), "depois": i})
     falas.append({"id": "f99", "texto": rot["fechamento"]["texto"], "clima": rot["fechamento"].get("clima", "comemorando")})
+    falas = sem_fala_repetida(falas)
     fj = tmp / "falas.json"
     grava_json(fj, falas)
     ref = pasta / cfg.get("voz_ref", "voz/minha_voz.wav")
@@ -3000,8 +3043,11 @@ def main():
             falta_real = piso + 10 - d
             log(f"ficou com {d / 60:.1f} min (piso {piso / 60:.0f}): peço mais ~{falta_real / 60:.1f} min de fala sua")
             cfg_r["fala_extra_s"] = float(cfg_r["fala_extra_s"]) + falta_real * 1.3 + 30
+            if rot.get("analises_sem_ia"):
+                log("sem IA de texto não dá para escrever mais fala SEM repetir; fico com o que tem")
+                break
             mais = roteiro(sel, cfg_r, titulos_antes)
-            if not mais.get("analises"):
+            if not mais.get("analises") or mais.get("analises_sem_ia"):
                 log("a IA não devolveu análises extras")
                 break
             rot["analises"] = mais["analises"]
@@ -3009,12 +3055,13 @@ def main():
             tmp.mkdir()
             video, abertura_s, marcas = monta(sel, rot, cfg_r, pasta, tmp, pronto / "video.mp4")
         d = dur_mp4(video)
-        if d < piso * 0.9:
+        if d < piso * (0.6 if rot.get("analises_sem_ia") else 0.9):
             log(f"NÃO RODEI: mesmo completando com fala sua o vídeo ficou com {d / 60:.1f} min (mínimo {piso / 60:.0f}). "
                 "Veja acima se a IA de texto respondeu.")
             return
         if d < piso:
-            log(f"AVISO: ficou com {d / 60:.1f} min, um pouco abaixo de {piso / 60:.0f}; entrego porque você mandou rodar")
+            log(f"AVISO: ficou com {d / 60:.1f} min, abaixo de {piso / 60:.0f}; entrego porque você mandou rodar"
+                + (" — NENHUMA IA de texto respondeu, então não completei com fala repetida" if rot.get("analises_sem_ia") else ""))
     antes_da_vinheta = dur_mp4(video)
     try:   # vinheta do canal DEPOIS da chamada de abertura (no segundo 0 ela quebrava a retenção)
         import vinheta as VIN

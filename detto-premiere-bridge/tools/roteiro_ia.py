@@ -269,9 +269,10 @@ def texto_gratis(prompt, json_mode=False, log=print):
         modelo = os.environ.get(env_modelo) or padrao
         # 429 (limite de tokens/min ou dia de UM modelo): os outros modelos do mesmo provedor têm cota própria
         reserva = [m for m in RESERVAS.get(env, []) if m != modelo]
-        for vez in range(2 + len(reserva)):
+        quer_json, tentou_modelo_grande = json_mode, False
+        for vez in range(4 + 2 * len(reserva)):
             corpo = {"model": modelo, "messages": [{"role": "user", "content": prompt}], "temperature": 0.5}
-            if json_mode:
+            if quer_json:
                 corpo["response_format"] = {"type": "json_object"}
             req = urllib.request.Request(f"{base}/chat/completions", data=json.dumps(corpo).encode(), method="POST",
                                          headers={"Authorization": f"Bearer {chave}", "Content-Type": "application/json",
@@ -284,21 +285,29 @@ def texto_gratis(prompt, json_mode=False, log=print):
                     return txt
             except urllib.error.HTTPError as e:
                 det = e.read().decode("utf-8", "ignore")[:160]
-                if vez == 0 and e.code in (400, 404) and "model" in det.lower():
+                quem = env.split("_")[0].title()
+                # 400 no MODO JSON (12/nov: "Failed to validate JSON" no gpt-oss-20b): o mesmo modelo responde sem o
+                # modo JSON — o pedido já diz "responda só JSON" e quem chama sabe extrair
+                if e.code == 400 and quer_json and "model" not in det.lower():
+                    quer_json = False
+                    continue
+                if e.code in (400, 404) and "model" in det.lower() and not tentou_modelo_grande:
+                    tentou_modelo_grande = True
                     novo = _modelo_grande(base, chave)
                     if novo and novo != modelo:
                         modelo = novo
                         continue
-                if vez == 0 and e.code == 400 and json_mode:
-                    json_mode = False  # IA sem modo JSON: pede só no texto
+                # cota (429), modelo fora do ar ou pedido grande demais: os outros modelos têm cota própria
+                if reserva and e.code in (400, 404, 413, 429, 500, 502, 503):
+                    log(f"   {quem}: {e.code} em {modelo}; tento {reserva[0]}")
+                    modelo, quer_json = reserva.pop(0), json_mode
                     continue
-                if e.code == 429 and reserva:
-                    log(f"   {env.split('_')[0].title()}: 429 em {modelo}; tento {reserva[0]}")
-                    modelo = reserva.pop(0)
-                    continue
-                log(f"   {env.split('_')[0].title()}: {e.code} {det}")
+                log(f"   {quem}: {e.code} {det}")
             except Exception as e:
                 log(f"   {env.split('_')[0].title()}: {str(e)[:120]}")
+                if reserva:
+                    modelo, quer_json = reserva.pop(0), json_mode
+                    continue
             break
     return None
 

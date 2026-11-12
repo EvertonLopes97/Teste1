@@ -262,7 +262,7 @@ def norm_txt(t):
     return "".join(c for c in unicodedata.normalize("NFD", str(t).lower()) if unicodedata.category(c) != "Mn").strip()
 
 
-def voicestudio_fala(texto, saida, voz="default", url=None, modelo="omnivoice", velocidade=1.0, instrucao=""):
+def _vs_uma(texto, saida, voz="default", url=None, modelo="omnivoice", velocidade=1.0, instrucao=""):
     """uma fala pelo VoiceStudio (open source, roda NO SEU PC — github.com/debpalash/VoiceStudio).
     Fala pela API local no padrão da OpenAI: POST /v1/audio/speech. Devolve wav 24 kHz mono."""
     import tempfile
@@ -297,6 +297,62 @@ def voicestudio_fala(texto, saida, voz="default", url=None, modelo="omnivoice", 
     tmp.unlink(missing_ok=True)
     if r.returncode != 0 or not Path(saida).exists():
         raise RuntimeError(f"VoiceStudio: o áudio não abriu ({r.stderr[-150:]})")
+
+
+def _dur_wav(p):
+    try:
+        r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(p)],
+                           capture_output=True, text=True)
+        return float(r.stdout.strip() or 0)
+    except (ValueError, OSError):
+        return 0.0
+
+
+def _fala_estranha(texto, wav, velocidade=1.0):
+    """a voz REPETIU ou embolou? Português falado ≈ 14 letras/s: áudio muito mais longo que o texto = o modelo ficou
+    preso repetindo o começo/uma frase (12/nov: "repete a mesma frase 3 a 4 vezes"); muito mais curto = cortou."""
+    esperado = max(1.0, len(texto) / 14.0 / max(0.5, float(velocidade or 1.0)))
+    d = _dur_wav(wav)
+    return d > esperado * 1.6 + 2.0 or d < esperado * 0.45
+
+
+def voicestudio_fala(texto, saida, voz="default", url=None, modelo="omnivoice", velocidade=1.0, instrucao=""):
+    """a fala inteira de uma vez (entonação melhor) e CONFERIDA pelo tamanho; saiu estranha (repetição/corte) →
+    refaz em pedaços de 1–2 frases, cada um conferido e refeito até 2x, e emenda."""
+    import tempfile
+    _vs_uma(texto, saida, voz, url, modelo, velocidade, instrucao)
+    if len(texto) < 40 or not _fala_estranha(texto, saida, velocidade):
+        return
+    print(f"voz (VoiceStudio): a fala saiu com {_dur_wav(saida):.0f}s para {len(texto)} letras (repetiu ou cortou); "
+          "refaço frase a frase", flush=True)
+    partes, atual = [], ""
+    for fr in re.split(r"(?<=[.!?…])\s+", texto.strip()):
+        if atual and len(atual) + len(fr) > 220:
+            partes.append(atual)
+            atual = fr
+        else:
+            atual = (atual + " " + fr).strip()
+    if atual:
+        partes.append(atual)
+    pasta = Path(tempfile.mkdtemp(prefix="detto_vs_"))
+    wavs = []
+    try:
+        for i, parte in enumerate(partes):
+            w = pasta / f"{i:03d}.wav"
+            for _ in range(3):
+                _vs_uma(parte, w, voz, url, modelo, velocidade, instrucao)
+                if not _fala_estranha(parte, w, velocidade):
+                    break
+            wavs.append(w)
+        lista = pasta / "lista.txt"
+        lista.write_text("".join(f"file '{w.as_posix()}'\n" for w in wavs), encoding="utf-8")
+        r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "concat", "-safe", "0", "-i", str(lista),
+                            "-ar", "24000", "-ac", "1", str(saida)], capture_output=True, text=True)
+        if r.returncode != 0:
+            raise RuntimeError(f"VoiceStudio: não emendei as frases ({r.stderr[-150:]})")
+    finally:
+        import shutil as _sh
+        _sh.rmtree(pasta, ignore_errors=True)
 
 
 def fish_modelo(ref, pasta, chave, log=print):
