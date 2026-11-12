@@ -815,6 +815,34 @@ def proximo_do_canal(pasta_canal, base, log=log):
     return ""
 
 
+def reacao_falando(pasta, wav, tmp, cfg, log=log):
+    """VOCÊ FALANDO A NARRAÇÃO (12/nov): um vídeo-base seu de `Narrados\\base_fala\\` (10–20 s olhando para a câmera) com a
+    boca sincronizada na narração (tools\\avatar\\lipsync.py, local e de graça). Sem pasta, sem instalação ou com erro
+    devolve "" e a reação provisória de sempre entra. `"lipsync": false` no config do narrado desliga."""
+    import random
+
+    if cfg.get("lipsync") is False:
+        return ""
+    d = Path(pasta) / "base_fala"
+    vids = [p for p in d.glob("*") if p.suffix.lower() in (".mp4", ".mov", ".m4v", ".mkv")] if d.is_dir() else []
+    if not vids:
+        return ""
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "avatar"))
+        import lipsync as LS
+    except Exception as e:   # noqa: BLE001
+        log(f"   sincronia labial indisponível ({str(e)[:80]})")
+        return ""
+    if not LS.instalado():
+        log("   você tem vídeo em base_fala\\, mas a sincronia labial não está instalada: "
+            "python tools\\avatar\\lipsync.py --instalar")
+        return ""
+    v = random.choice(vids)
+    log(f"   você falando: {v.name} + sincronia labial (pode levar alguns minutos)")
+    r = LS.sincroniza(v, wav, Path(tmp) / "reacao_falando.mp4", log)
+    return str(r) if r else ""
+
+
 def reacao_generica(pasta, total, tmp, log=log):
     """a reação PROVISÓRIA: um vídeo seu qualquer da pasta `reacoes` ou, sem vídeo, as fotos expressivas da pasta
     `fotos` trocando a cada ~2,5 s. Depois ele grava a reação de verdade e troca com --montar."""
@@ -929,7 +957,7 @@ def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log, t
         monta_tela_cheia(topo, dia / "completo.mp4", log)
     else:
         if not reacao and drive:
-            reacao = reacao_generica(Path(drive), dur(topo), tmp, log)
+            reacao = reacao_falando(Path(drive), wav, tmp, cfg, log) or reacao_generica(Path(drive), dur(topo), tmp, log)
         monta_completo(topo, reacao, dia / "completo.mp4", log)
     (dia / "post.txt").write_text(
         f"{rot['titulo']}\n\n{rot.get('legenda', '')}\n\n{' '.join(rot.get('tags', []))}\n", encoding="utf-8")

@@ -3,6 +3,16 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 12/nov — ELE FALANDO DE VERDADE NO REAGIR (sincronia labial local) — NÃO TESTADO NO PC DELE
+
+- Pedido: "eu aparecendo como se estivesse falando" (recusou o bonequinho; quer ele real = opção 2, e IA paga = opção 3).
+- `tools\avatar\lipsync.py` (Wav2Lip isolado em `<DETTO>\ferramentas\wav2lip\`: clone + venv próprio + PyTorch cu121 + pesos do
+  HF camenduru/Wav2Lip; `_remenda` conserta `librosa.filters.mel` e `torch.load`). `--instalar`, `--teste base.mp4 fala.wav`.
+  `sincroniza()` nunca derruba quem chama (devolve None). Remendos conferidos no código real do repo; inferência NÃO rodada (sem GPU/pesos aqui).
+- `narrado.reacao_falando`: vídeo-base de `Meu Drive\DETTO\Narrados\base_fala\` + narração → entra nos 30% de baixo no lugar da
+  reação provisória (`"lipsync": false` desliga). Sem base/instalação = tudo como antes.
+- Opção 3 (IA paga imagem→vídeo, ex. Seedance via muapi.ai) NÃO feita: falta ele escolher o serviço e a chave.
+
 ## 11/nov (18h20) — RETENÇÃO NOS VÍDEOS DE NOTÍCIA E GTA (roteiro)
 
 - `canal.roteiro`: bloco RETENÇÃO no prompt — 1ª frase da abertura = o fato mais forte com nome/número (sem "fala galera"),
