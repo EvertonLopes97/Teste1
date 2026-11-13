@@ -1224,6 +1224,8 @@ def roteiro(sel, cfg, titulos_antes=()):
                        "segunda com assunto e começo DIFERENTES da primeira — nunca repita frase, nem a manchete, nem o que "
                        "você já disse em outra fala). Imagens do jogo ficam na tela enquanto você fala. PROIBIDO inventar: só fatos "
                        "dos trechos e do que já se sabe; vazamento é chamado de vazamento; opinião é opinião.")
+    import fatos as F
+    _fatos_bloco = F.bloco(cfg.get("_pasta")).replace("material acima", "material dos trechos")
     g = gemini_json([{"text": f"""Você narra o canal "{cfg['nome_canal']}", de {assunto}, {persona}. Os trechos, em ordem:
 {lista}
 
@@ -1252,7 +1254,7 @@ combina, nunca nos primeiros 10 s nem nos últimos 10 s do trecho.
 
 {regra_titulo}
 {proibido_repetir}
-{regras_extra}{regra_extra}
+{regras_extra}{regra_extra}{_fatos_bloco}
 
 Uma fala antes de CADA trecho (antes_do = 1, 2, 3...). CADA fala DIZ DE ONDE VEM o trecho seguinte, pelo nome do programa/emissora
 da ORIGEM (ex.: "olha o que falaram no Globo Esporte Minas", "o pessoal do Jogo Aberto, da Band, comentou"; se for "via" um canal,
@@ -1283,6 +1285,14 @@ cite o programa e o canal). No fechamento, diga que os créditos de tudo que foi
              "falas": [{"antes_do": i + 1, "texto": f"Agora olha o que falaram no {origem_falada(x)}: {x['manchete'].lower()}.",
                         "clima": x["clima"]} for i, x in enumerate(sel)],
              "fechamento": {"texto": "E aí, Massa, concorda? Comenta aí, deixa o like e se inscreve. Os créditos de tudo estão nos comentários e na descrição. Galo doido!", "clima": "comemorando"}}
+    # CONFERÊNCIA DE NOME DESATUALIZADO (13/nov): frase SUA que cita quem está em "NÃO CITAR" do fatos.txt sai, salvo
+    # se algum trecho de hoje fala da pessoa
+    material = " ".join(f"{x.get('manchete', '')} {x.get('resumo', '')} {x.get('texto', '')}" for x in sel)
+    for bloco_f in ([g.get("abertura"), g.get("fechamento")] + list(g.get("falas") or []) + list(g.get("comentarios") or [])
+                    + list(g.get("analises") or [])):
+        if isinstance(bloco_f, dict) and bloco_f.get("texto"):
+            novo_t, _ = F.limpa(bloco_f["texto"], cfg.get("_pasta"), material, log)
+            bloco_f["texto"] = novo_t or "Olha só o que saiu."
     if falta_s > 0 and not g.get("analises"):
         g["analises_sem_ia"] = True
         g["analises"] = analises_sem_ia(sel, cfg, min(40, max(2, int(falta_s * 2.6 * 1.3 / 60) + 1)), falta_s)
@@ -3025,6 +3035,9 @@ def main():
         log(f"AVISO: só tem ~{total_estimado() / 60:.1f} min de notícia nova (menos de {cfg['duracao_alvo_min']}); monto assim porque você mandou")
     log(f"\nmontando: {len(sel)} trechos, {tot / 60:.1f} min de imprensa (~{total_estimado() / 60:.1f} min de vídeo)")
     cfg_r = dict(cfg)
+    cfg_r["_pasta"] = str(pasta)
+    if cfg.get("preset", "galo") == "galo":
+        __import__("fatos").le(pasta, criar=True)   # nasce o fatos.txt-modelo para ele preencher
     if falta > 0:
         cfg_r["fala_extra_s"] = falta
     rot = roteiro(sel, cfg_r, titulos_antes)

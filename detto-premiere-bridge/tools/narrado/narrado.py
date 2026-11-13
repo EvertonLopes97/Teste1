@@ -204,6 +204,8 @@ def ideias_virais(n, usados, log=log):
               "debates e opiniões polêmicas. Só assunto real e atual, que as pessoas estão comentando. Nada inventado, "
               "nada de tragédia, crime ou doença. "
               f"NÃO repita estes: {'; '.join(usados[-40:]) or 'nenhum'}.\n"
+              f"Hoje é {dt.date.today():%d/%m/%Y} e a sua memória de elencos e técnicos está DESATUALIZADA: não proponha "
+              "assunto que dependa de quem joga ou treina HOJE em cada clube, nem de jogo/rodada recente.\n"
               'Responda SÓ este JSON: {"ideias":["assunto 1","assunto 2"]}')
     d = gemini_json([{"text": pedido}], temperatura=0.95) or {}
     return [str(x).strip() for x in (d.get("ideias") or []) if str(x).strip()][:n]
@@ -237,6 +239,9 @@ def narracao_sem_ia(assunto, alvo):
     return " ".join(x for x in out if x.strip())
 
 
+PASTA_FATOS = {"v": None}   # pasta do canal de onde vem o fatos.txt (técnico atual, quem saiu…)
+
+
 def roteiro(assunto, segundos, log=log):
     from reels import gemini_json
 
@@ -244,8 +249,10 @@ def roteiro(assunto, segundos, log=log):
     regras = REGRAS_GTA if TEMA["v"] == "gta" else REGRAS_HISTORIA if TEMA["v"] == "historia" else REGRAS
     if TEMA["v"] == "gta" and assunto.upper().startswith("FUNCIONALIDADE"):
         regras += REGRAS_GTA_FUNCAO
-    pedido = (f"{regras}\n\nASSUNTO: {assunto}\n\nA narração tem de ter cerca de {alvo} palavras "
-              f"(o vídeo é de ~{segundos} segundos a {PALAVRAS_POR_MIN} palavras por minuto).")
+    import fatos as F
+    pedido = (f"{regras}\n\nASSUNTO (o material — tudo o que você pode afirmar está aqui): {assunto}\n\nA narração tem de "
+              f"ter cerca de {alvo} palavras (o vídeo é de ~{segundos} segundos a {PALAVRAS_POR_MIN} palavras por minuto)."
+              + F.bloco(PASTA_FATOS["v"]))
     d = gemini_json([{"text": pedido}], temperatura=0.8) or {}
     texto = re.sub(r"\s+", " ", (d.get("narracao") or "")).strip()
     for _ in range(2):
@@ -255,11 +262,12 @@ def roteiro(assunto, segundos, log=log):
             break
         log(f"   a narração veio com {n} palavras (pedi {alvo}); peço de novo, mais longa")
         d2 = gemini_json([{"text": pedido + f"\n\nATENÇÃO: a versão anterior tinha só {n} palavras. A narração "
-                                             f"PRECISA ter pelo menos {alvo} palavras — acrescente fatos e detalhes reais, "
-                                             "sem enrolação."}], temperatura=0.8) or {}
+                                             f"PRECISA ter pelo menos {alvo} palavras — desenvolva, "
+                                             "explique e opine sobre o que ESTÁ no assunto; NÃO acrescente fato de memória."}], temperatura=0.8) or {}
         t2 = re.sub(r"\s+", " ", (d2.get("narracao") or "")).strip()
         if len(t2.split()) > n:
             d, texto = d2, t2
+    texto, tirados = F.limpa(texto, PASTA_FATOS["v"], assunto, log)
     if len(texto.split()) < 20:
         # SEM NENHUMA IA (11/nov, "sempre tem como fazer vídeo"): narração-modelo montada só com o assunto real
         # (a manchete que o canal já coletou) + a contagem regressiva. Nada inventado.
@@ -887,7 +895,12 @@ def proximo_do_canal(pasta_canal, base, log=log):
         usados = set(json.loads(uf.read_text(encoding="utf-8")))
     except (OSError, ValueError):
         usados = set()
+    # NOTÍCIA VELHA NÃO VIRA SHORT (13/nov): acabando as de hoje, o próximo da fila era de dias atrás (jogo que já
+    # passou, jogador que já saiu). Só entra o que o canal coletou nos últimos 2 dias.
+    limite = (dt.date.today() - dt.timedelta(days=2)).isoformat()
     for t in sorted(trechos, key=lambda x: (x.get("data", ""), x.get("nota", 0)), reverse=True):
+        if str(t.get("data") or t.get("publicado") or "9999")[:10] < limite:
+            continue
         m = (t.get("manchete") or "").strip()
         k = norm(m)[:60]
         if not m or k in usados:
@@ -1219,6 +1232,11 @@ def main():
         if a.assunto:
             usados.append(a.assunto)
             uf.write_text(json.dumps(usados[-200:], ensure_ascii=False), encoding="utf-8")
+    # de onde vêm os FATOS ATUAIS (fatos.txt): o canal de origem; no futebol sem canal, o canal do Galo
+    import fatos as F
+    PASTA_FATOS["v"] = a.fonte_canal or (str(raiz() / "canal_galo") if a.tema == "futebol" and (raiz() / "canal_galo").is_dir() else None)
+    if PASTA_FATOS["v"] and "gta" not in Path(PASTA_FATOS["v"]).name.lower():
+        F.le(PASTA_FATOS["v"], criar=True)
     assunto = a.assunto or (proximo_do_canal(a.fonte_canal, base) if a.fonte_canal else "") or (assunto_quente() if a.quente and a.tema == "futebol" else "")
     if not assunto:
         sys.exit("diga o assunto: --assunto \"...\"  (ou --quente para pegar dos portais)")

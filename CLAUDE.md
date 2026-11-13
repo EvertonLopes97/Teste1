@@ -3,6 +3,17 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 13/nov — SHORT/NOTÍCIA COM INFORMAÇÃO VELHA ("falou do Cuca e de jogadores que já saíram do Galo")
+
+- Causa: a IA completava o tamanho pedido com MEMÓRIA dela (o pedido dizia "acrescente fatos e detalhes reais") e, acabando as
+  notícias do dia, `proximo_do_canal` pegava trecho de dias atrás. Eu NÃO vi o vídeo: é diagnóstico pelo código.
+- `tools\canal\fatos.py`: `bloco()` (data de hoje + proibição de citar de memória técnico/elenco/tabela + fatos dele) entra no
+  `narrado.roteiro` e no `canal.roteiro`; `<canal>\fatos.txt` (texto livre + linhas `NÃO CITAR: nomes`; nasce um modelo com "Cuca" no
+  canal do Galo); `limpa()` tira, DEPOIS da IA, a frase que cita nome de NÃO CITAR ausente do material do dia.
+- `proximo_do_canal`: só trechos dos últimos 2 dias. `ideias_virais`: não propor assunto que dependa de elenco/técnico atual.
+- NÃO resolve sozinho: nome de quem saiu que ele não puser no fatos.txt, e CLIPE antigo mostrando ex-jogador (a busca de vídeo
+  não filtra por data). Testado com IA falsa; não rodado no PC dele.
+
 ## 12/nov (13h20) — REAGIR: AVATAR FALANDO EM PARTES, FALA CONFERIDA, IMAGEM SEMPRE NA FALA
 
 - `narrado.narra_conferida` + `defeito_na_fala`: a narração é transcrita e comparada com o roteiro (<72% dito, repetição, fim
