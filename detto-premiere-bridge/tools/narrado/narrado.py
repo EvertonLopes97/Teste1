@@ -950,7 +950,7 @@ def avatar_em_partes(video, wav, palavras, pastas, tmp, cfg, log=log):
         return None
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "avatar"))
     import lipsync as LS
-    if not LS.instalado():
+    if not (LS.instalado() or LS._chave_fal()):
         log("   avatar falando: há vídeo em base_fala\\, mas falta instalar: python tools\\avatar\\lipsync.py --instalar")
         return None
     total = dur(video)
@@ -998,7 +998,7 @@ def reacao_falando(pasta, wav, tmp, cfg, log=log):
     except Exception as e:   # noqa: BLE001
         log(f"   sincronia labial indisponível ({str(e)[:80]})")
         return ""
-    if not LS.instalado():
+    if not (LS.instalado() or LS._chave_fal()):
         log("   você tem vídeo em base_fala\\, mas a sincronia labial não está instalada: "
             "python tools\\avatar\\lipsync.py --instalar")
         return ""

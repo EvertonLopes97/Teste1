@@ -86,7 +86,7 @@ def estado():
         "fotos_internet": bool(cfg.get("fotos_internet", True)),
         "ia_video": str(cfg.get("ia_video") or "desligado"), "ia_video_max": int(cfg.get("ia_video_max", 1)),
         "ia_video_s": int(cfg.get("ia_video_s", 5)),
-        "ia_chaves": {"seedance": bool(cfg.get("seedance_chave") or os.environ.get("SEEDANCE_API_KEY")),
+        "ia_chaves": {"fal": bool(cfg.get("fal_chave") or os.environ.get("FAL_KEY")), "seedance": bool(cfg.get("seedance_chave") or os.environ.get("SEEDANCE_API_KEY")),
                       "higgsfield": bool((cfg.get("hf_id") and cfg.get("hf_segredo"))
                                          or (os.environ.get("HF_API_KEY_ID") and os.environ.get("HF_API_KEY_SECRET")))},
         "narracao": bool(cfg.get("narracao", True)),
@@ -165,9 +165,9 @@ def acao(nome, d):
         for k in ("modo", "duracao", "cta", "arroba", "musica"):
             if k in d:
                 cfg[k] = d[k]
-        if d.get("ia_video") in ("desligado", "seedance", "higgsfield"):
+        if d.get("ia_video") in ("desligado", "seedance", "higgsfield", "fal"):
             cfg["ia_video"] = d["ia_video"]
-        for k in ("seedance_chave", "hf_id", "hf_segredo"):
+        for k in ("seedance_chave", "hf_id", "hf_segredo", "fal_chave"):
             if str(d.get(k) or "").strip():
                 cfg[k] = str(d[k]).strip()
         if "ia_video_max" in d:

@@ -33,7 +33,7 @@ UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like 
 PEDIDO = ("The product from @image1 in real use, handheld UGC style. Slow smooth camera push-in with slight natural hand "
           "movement and soft daylight. The product keeps EXACTLY the same shape, colors, label and text as the photo. "
           "No new text, no logos added, no faces, realistic, sharp focus on the product.")
-PROVEDORES = {"seedance": "Seedance (muapi.ai)", "higgsfield": "Higgsfield"}
+PROVEDORES = {"seedance": "Seedance (muapi.ai)", "higgsfield": "Higgsfield", "fal": "Wan aberto (fal.ai)"}
 
 
 def provedor(cfg):
@@ -43,6 +43,8 @@ def provedor(cfg):
 
 def poe_chaves(cfg):
     """as chaves podem vir do ambiente (painel avulso: chaves.json) ou do config do shop (painel principal)"""
+    if not os.environ.get("FAL_KEY") and str(cfg.get("fal_chave") or "").strip():
+        os.environ["FAL_KEY"] = str(cfg["fal_chave"]).strip()
     for env, k in (("SEEDANCE_API_KEY", "seedance_chave"), ("HF_API_KEY_ID", "hf_id"), ("HF_API_KEY_SECRET", "hf_segredo")):
         if not os.environ.get(env) and str(cfg.get(k) or "").strip():
             os.environ[env] = str(cfg[k]).strip()
@@ -53,6 +55,8 @@ def tem_chave(p):
         return bool(os.environ.get("SEEDANCE_API_KEY"))
     if p == "higgsfield":
         return bool(os.environ.get("HF_API_KEY_ID") and os.environ.get("HF_API_KEY_SECRET"))
+    if p == "fal":
+        return bool(os.environ.get("FAL_KEY"))
     return False
 
 
@@ -151,6 +155,21 @@ def _higgsfield(foto, pedido, seg, cfg, log):
     return _espera(pega, int(cfg.get("ia_video_prazo_s", 600)), log)
 
 
+def _fal(foto, pedido, seg, cfg, log):
+    """Wan (modelo ABERTO da Alibaba) rodando no fal.ai: a foto vai embutida (data URI), sem hospedar em lugar nenhum"""
+    import base64
+    import fal
+    tipo = mimetypes.guess_type(str(foto))[0] or "image/jpeg"
+    uri = f"data:{tipo};base64," + base64.b64encode(Path(foto).read_bytes()).decode()
+    entrada = {"prompt": pedido.replace("@image1", "the photo"), "image_url": uri, "aspect_ratio": "9:16",
+               "resolution": str(cfg.get("ia_video_resolucao") or "720p"), "num_frames": 81}
+    r = fal.roda(str(cfg.get("fal_modelo_video") or fal.MODELOS["video"]), entrada, int(cfg.get("ia_video_prazo_s", 900)), log)
+    url = (r.get("video") or {}).get("url")
+    if not url:
+        raise RuntimeError(f"o fal.ai não devolveu vídeo ({str(r)[:160]})")
+    return url
+
+
 def gera(fotos, nome, base, cfg, log=print):
     """→ lista de clipes .mp4 em 1080x1920 (pode vir vazia). `fotos` = fotos REAIS do produto."""
     p = provedor(cfg)
@@ -178,7 +197,7 @@ def gera(fotos, nome, base, cfg, log=print):
                 continue
             log(f"   movimento por IA ({PROVEDORES[p]}, {seg}s, 720p): gerando a partir de {Path(foto).name} — isto é PAGO")
             t0 = time.time()
-            url = (_seedance if p == "seedance" else _higgsfield)(foto, pedido, seg, cfg, log)
+            url = {"seedance": _seedance, "higgsfield": _higgsfield, "fal": _fal}[p](foto, pedido, seg, cfg, log)
             bruto = _baixa(url, pasta / f"{p}_{marca}_bruto.mp4")
             # no padrão dos outros clipes do Shop: 1080x1920, 30 fps, sem som
             r = subprocess.run(["ffmpeg", "-v", "error", "-i", str(bruto), "-an", "-vf",

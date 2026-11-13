@@ -115,12 +115,60 @@ def instala(log=print):
     return instalado(p)
 
 
+def _chave_fal():
+    """FAL_KEY do ambiente ou `fal_chave` do config do Shop (a mesma chave do painel)"""
+    if os.environ.get("FAL_KEY"):
+        return True
+    try:
+        import json
+        cfg = json.loads((raiz_detto() / "shop" / "config.json").read_text(encoding="utf-8"))
+        if str(cfg.get("fal_chave") or "").strip():
+            os.environ["FAL_KEY"] = str(cfg["fal_chave"]).strip()
+            return True
+    except Exception:   # noqa: BLE001
+        pass
+    return False
+
+
+def sincroniza_nuvem(base, wav, saida, log=print):
+    """LatentSync (modelo ABERTO, Apache-2.0, melhor que o Wav2Lip) rodando no fal.ai — para quem não tem placa grande.
+    Pago por uso. Devolve Path ou None (nunca derruba quem chamou)."""
+    if not _chave_fal():
+        return None
+    try:
+        tools = str(Path(__file__).resolve().parent.parent / "shop")
+        if tools not in sys.path:
+            sys.path.insert(0, tools)
+        import fal
+        import ia_video
+        tmp = Path(saida).parent / "lipsync_nuvem"
+        tmp.mkdir(parents=True, exist_ok=True)
+        pequeno, mp3 = tmp / "base.mp4", tmp / "fala.mp3"
+        subprocess.run(["ffmpeg", "-v", "error", "-i", str(base), "-t", "20", "-an", "-vf", "scale=720:-2,fps=25",
+                        "-c:v", "libx264", "-crf", "20", "-preset", "veryfast", "-y", str(pequeno)], check=True)
+        subprocess.run(["ffmpeg", "-v", "error", "-i", str(wav), "-ac", "1", "-b:a", "96k", "-y", str(mp3)], check=True)
+        log("   sincronia labial na nuvem (LatentSync, fal.ai — PAGO por uso)...")
+        t0 = time.time()
+        r = fal.roda(os.environ.get("DETTO_FAL_LIPSYNC") or fal.MODELOS["lipsync"],
+                     {"video_url": ia_video._link_publico(pequeno), "audio_url": ia_video._link_publico(mp3)}, 1200, log)
+        url = (r.get("video") or {}).get("url")
+        if not url:
+            raise RuntimeError(f"sem vídeo na resposta ({str(r)[:120]})")
+        ia_video._baixa(url, Path(saida))
+        shutil.rmtree(tmp, ignore_errors=True)
+        log(f"   sincronia labial (nuvem) pronta em {time.time() - t0:.0f}s")
+        return Path(saida)
+    except Exception as e:   # noqa: BLE001
+        log(f"   sincronia labial na nuvem falhou ({str(e)[:200]}); sigo sem ela")
+        return None
+
+
 def sincroniza(base, wav, saida, log=print, largura=1080, prazo=1500):
     """base (vídeo seu, rosto visível) + wav → saida.mp4 com a boca no que é falado. Devolve Path ou None (nunca derruba
     quem chamou: sem instalação, sem rosto ou erro = None e o chamador usa o vídeo sem sincronia)."""
     p = pasta()
-    if not instalado(p):
-        return None
+    if os.environ.get("DETTO_LIPSYNC") == "nuvem" or not instalado(p):
+        return sincroniza_nuvem(base, wav, saida, log)    # sem o Wav2Lip local: usa a nuvem, se houver chave
     saida = Path(saida)
     w2l = p / "Wav2Lip"
     tmp = saida.parent / "lipsync_tmp"
@@ -148,8 +196,8 @@ def sincroniza(base, wav, saida, log=print, largura=1080, prazo=1500):
     shutil.rmtree(tmp, ignore_errors=True)
     if r.returncode != 0 or not saida.exists() or saida.stat().st_size < 20000:
         erro = [l for l in (r.stderr or r.stdout or "").splitlines() if l.strip()]
-        log(f"   sincronia labial falhou ({(erro[-1] if erro else 'sem saída')[:160]}); sigo sem ela")
-        return None
+        log(f"   sincronia labial falhou ({(erro[-1] if erro else 'sem saída')[:160]}); tento a nuvem se houver chave")
+        return sincroniza_nuvem(base, wav, saida, log)
     log(f"   sincronia labial pronta em {time.time() - t0:.0f}s")
     return saida
 

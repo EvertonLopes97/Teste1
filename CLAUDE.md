@@ -3,6 +3,20 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 13/nov (tarde) — MODELOS ABERTOS (Wan, LatentSync, CatVTON) NA NUVEM DO fal.ai + LIPSYNC EM NUVEM — SEM TESTE COM CHAVE REAL
+
+- Pedido: "IA de código aberto, chinesa ou não, para vídeo, lipsync e troca de roupa". Existem (Wan 2.2/Alibaba, HunyuanVideo/Tencent, LTX,
+  LatentSync, MuseTalk/Tencent, CatVTON, Leffa), MAS a RTX 3050 de 4 GB dele não roda os bons (Wan 8–24 GB, LatentSync 8–18 GB, CatVTON ~8 GB).
+  Escolha dele: "os dois" = grátis local (Wav2Lip, LTX 2B do Video Studio) + nuvem paga por uso ligável.
+- `tools\shop\fal.py`: cliente da fila do fal.ai (`FAL_KEY` ou `fal_chave`; `roda(modelo, entrada)`). Testado com servidor falso local.
+  `ia_video.py`: provedor novo `"fal"` (Wan `fal-ai/wan-i2v`, 720p 9:16, 81 quadros, foto embutida em data URI; `fal_modelo_video` troca).
+  Painel (Shop): opção "Wan aberto (fal.ai)" + campo da chave. PAINEL_VERSAO/VERSAO_TELA 2026-11-13a.
+- `lipsync.sincroniza`: sem Wav2Lip instalado (ou se ele falhar) usa `sincroniza_nuvem` = LatentSync no fal.ai (`DETTO_FAL_LIPSYNC` troca o
+  modelo; `DETTO_LIPSYNC=nuvem` força). Vídeo/áudio sobem pelo Catbox. O NOME DOS CAMPOS (`video_url`/`audio_url`) do latentsync NÃO conferi
+  (página não abriu); os de wan-i2v e cat-vton conferi.
+- `tools\shop\provador.py`: troca de roupa (CatVTON). LICENÇA NÃO COMERCIAL (fal marca "research only") — avisado a ele; não ligado ao
+  pipeline do Shop, só CLI/`veste()`.
+
 ## 13/nov — SHORT/NOTÍCIA COM INFORMAÇÃO VELHA ("falou do Cuca e de jogadores que já saíram do Galo")
 
 - Causa: a IA completava o tamanho pedido com MEMÓRIA dela (o pedido dizia "acrescente fatos e detalhes reais") e, acabando as
