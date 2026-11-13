@@ -3,6 +3,13 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 13/nov (noite) — LIMPEZA DE DISCO: `python tools\limpar.py` (mostra) / `--apagar` (apaga)
+
+- Pedido: ver o que ocupa o disco e apagar vídeo já postado + temp. Sem acesso ao PC dele daqui, então virou ferramenta: lista as pastas
+  maiores de E:\DETTO e o que apagaria (temp com 1 dia+, `postar\postados` com vídeo, `canal_*\prontos` com post.json postado/descartado,
+  `shop\prontos` de dias anteriores, `canal_*\fontes` 3+ dias). Nunca toca voz, máscara, tokens, `entrada`, `celular`, `falhas`, `ia_video`,
+  nada mexido há <30 min. Padrão = só mostra. Testada numa árvore falsa (apagou só o certo); NÃO rodada no PC dele.
+
 ## 13/nov (tarde) — MODELOS ABERTOS (Wan, LatentSync, CatVTON) NA NUVEM DO fal.ai + LIPSYNC EM NUVEM — SEM TESTE COM CHAVE REAL
 
 - Pedido: "IA de código aberto, chinesa ou não, para vídeo, lipsync e troca de roupa". Existem (Wan 2.2/Alibaba, HunyuanVideo/Tencent, LTX,
