@@ -1,0 +1,94 @@
+YOUTUBE — capítulos, retenção e conferência de título
+=====================================================
+
+Três ferramentas que ENTRARAM no sistema (rodam sozinhas ou por um comando) + as 11 habilidades do
+youtube-agent-skill, que são para CONVERSAR comigo aqui no Claude.
+
+A diferença importa: as 11 habilidades NÃO rodam dentro do canal.py nem do editar.py. Elas são
+instruções de conversa. O que roda no seu sistema é o que está escrito abaixo em "JÁ ESTÁ LIGADO".
+
+
+JÁ ESTÁ LIGADO (não precisa fazer nada)
+---------------------------------------
+
+1) CAPÍTULOS  (capitulos.py)
+   A barrinha dividida por assunto embaixo do vídeo. Entra sozinho em todo vídeo do canal de
+   notícias e do GTA 6: cada notícia vira um capítulo com a MANCHETE dela, no segundo exato.
+   Por que vale: um vídeo de 16-25 min com 3 notícias é uma parede lisa. Com capítulos, quem só
+   quer a notícia do reforço PULA para ela em vez de fechar o vídeo — e o YouTube mostra os
+   títulos dos capítulos na busca.
+   O YouTube exige 3 capítulos, o primeiro em 0:00 e 10 s de mínimo em cada. Quando não dá para
+   cumprir isso, o vídeo sai SEM capítulos e o registro diz — um bloco inválido o YouTube ignora
+   em silêncio, o que é pior.
+   Desligar num canal: "capitulos": false no config.json da pasta dele.
+   Trocar o nome do primeiro: "capitulo_abertura": "O resumo de hoje".
+
+2) CONFERÊNCIA DO TÍTULO + THUMB  (titulo.py)
+   Roda no fim de cada vídeo do canal e escreve no registro a nota e o que está fraco. Ela AVISA,
+   nunca barra — título fraco é melhor que vídeo não postado.
+   Usa as regras MEDIDAS de 30/out (150 vídeos do Galo, 96 de GTA 6), não palpite: jornalista
+   famoso no título vale 1,36x, reforço 1,22x, programa 1,18x, e arbitragem rende MENOS (0,89x);
+   no GTA, "vazou" e terminar com "..." rendem 0,90x.
+   Na mão, para escolher entre vários títulos:
+      python tools\yt\titulo.py titulos.txt --nicho galo
+      python tools\yt\titulo.py --titulo "..." --thumb "PLANTÃO" --nicho gta6 --duracao-min 13
+
+
+VOCÊ RODA QUANDO QUISER (é o que estava faltando no sistema)
+------------------------------------------------------------
+
+3) RETENÇÃO  (retencao.py) — onde o público ABANDONA os SEUS vídeos
+   Hoje o sistema mede os CONCORRENTES e nunca os seus vídeos. Isto fecha o laço.
+
+   Onde pegar o arquivo:
+      YouTube Studio -> Analytics -> clique no vídeo -> Engajamento -> o gráfico
+      "Retenção do público" -> ícone de baixar -> "Retenção do público"
+
+   Rode assim (a duração em SEGUNDOS deixa os tempos exatos):
+      python tools\yt\retencao.py "C:\...\retencao.csv" --duracao 980
+
+   Melhor ainda, dizendo O QUE VOCÊ ESTAVA FALANDO em cada queda:
+      python tools\yt\retencao.py "retencao.csv" --duracao 980 --capitulos "E:\DETTO\canal_galo\prontos\<vídeo>\post.json"
+      python tools\yt\retencao.py "retencao.csv" --duracao 980 --words "E:\DETTO\edicao\<job>\words.json"
+
+   Sai separado em três problemas, porque são três consertos diferentes:
+      GANCHO     o que vazou nos primeiros 30 s   -> conserta-se a PRIMEIRA FRASE
+      PAREDÕES   os momentos em que foram embora  -> CORTA-SE aquele trecho
+      ESCORREGA  a sangria lenta do meio          -> é RITMO: encurta-se, não se reescreve
+
+   Me mande a saída aqui que eu digo o que mudar no roteiro.
+
+
+AS 11 HABILIDADES (para conversar comigo, não para rodar sozinhas)
+------------------------------------------------------------------
+Estão em tools\yt\skills\. Para ligar no Claude Code do seu PC, copie as pastas yt-* para
+%USERPROFILE%\.claude\skills\ — depois disso você as chama por /yt-plan, /yt-comment etc.
+
+   /yt-script     ideia -> 5 ganchos pontuados -> roteiro com as marcas de retenção
+   /yt-package    confere título + thumb juntos        (versão pt-BR já ligada: titulo.py)
+   /yt-edit       lista de cortes a partir da transcrição (o sistema já corta pausas sozinho)
+   /yt-comment    separa os comentários em 4 grupos e escreve as respostas na sua voz
+   /yt-plan       plano de publicação da semana pelas horas que você tem
+   /yt-viral      ranqueia vídeos do nicho pelo quanto bateram a mediana DO PRÓPRIO CANAL
+                  (já foi feito em 30/out, com dados reais — veja o CLAUDE.md)
+   /yt-retention  lê o CSV de retenção          (versão pt-BR já ligada: retencao.py)
+   /yt-shorts     acha candidatos a Short nos vídeos longos
+   /yt-seo        descrição, tags e buscas-alvo  (o canal.py já escreve descrição e tags)
+   /yt-chapters   capítulos pela transcrição     (versão pt-BR já ligada: capitulos.py)
+   /yt-audit      olha o canal todo e aponta UM conserto
+
+NÃO USE os .py que vêm dentro dessas pastas (hookscore.py, title.py, deadair.py, chapters.py,
+retention.py, swipe.py): eles são SÓ EM INGLÊS. O title.py procura "amazing/incredible/insane" e o
+hookscore.py procura "you/your", "lose/waste/quit" — no seu título em português eles dariam nota
+baixa para TODO vídeo e não veriam "ABSURDO", "INÉDITO", "OLHA ISSO". Por isso os três que valiam
+foram reescritos em pt-BR aqui fora (capitulos.py, retencao.py, titulo.py).
+
+
+CRÉDITO
+-------
+As ideias de separar gancho/paredão/escorrega na retenção, de achar a virada de capítulo pela pausa
++ troca de vocabulário, e de conferir título e thumb como UM par vêm do youtube-agent-skill de
+Jake Schincariol (github.com/Jakeschincariol/youtube-agent-skill), licença MIT — a licença está em
+tools\yt\skills\LICENSE. As habilidades em skills\ são as dele, sem alteração. Os três arquivos
+.py aqui fora são implementação própria, em português, com os limites e os pesos medidos no SEU
+nicho.

@@ -1,0 +1,24 @@
+# pip install -r requirements.txt   (Python 3.11)
+numpy
+opencv-python
+pillow
+scipy
+mediapipe>=0.10.30   # abaixo disso ele usa MessageFactory.GetPrototype, que saiu do protobuf novo:
+                     # o PoseLandmarker/ImageSegmenter morre despejando o grafo inteiro na tela
+faster-whisper
+yt-dlp
+yt-dlp-ejs
+curl_cffi
+google-api-python-client
+google-auth-oauthlib
+# opcionais
+# rembg            (recorte de fotos com fundo — Galo)
+# chatterbox-tts   (voz clonada — canal de notícias; baixa ~3 GB na 1ª vez)
+edge-tts>=7.0.0   # voz neural pt-BR de graça (degrau antes do Chatterbox)
+pyflakes          # o teste_rapido.py usa para achar nome que não existe DENTRO de uma função
+                  # (um `cheia` inexistente derrubou o canal depois de 24 min de transcrição)
+
+# catcher de virais (tools\viral): os dois são OPCIONAIS — sem eles o programa roda pelos caminhos
+# de reserva (XML na mão em vez do feedparser; sem aviso no celular em vez do requests)
+feedparser
+requests

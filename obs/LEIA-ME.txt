@@ -1,0 +1,30 @@
+DETTO REAGE — TEMPLATE DE LIVE NO OBS
+=====================================
+
+IMPORTAR (uma vez):
+1. Instale a fonte: abra  C:\Users\guebe\Teste1\detto-premiere-bridge\fonts\Anton-Regular.ttf  > Instalar.
+2. OBS > menu "Coleção de cenas" > "Importar" > em "Arquivo da coleção" escolha
+   C:\Users\guebe\Teste1\obs\DETTO_REAGE_cenas.json  > Importar.
+3. OBS > "Coleção de cenas" > clique em "DETTO REAGE".
+4. Na cena "DETTO REAGE • TOCANDO":
+   - clique duas vezes em "DR Câmera (escolha a câmera)" e escolha sua câmera;
+   - clique duas vezes em "DR Vídeo reagido (escolha a janela)" e escolha a janela do navegador
+     com o vídeo (use o navegador em tela cheia: F11);
+   - clique duas vezes em "DR Título" e escreva o título do react.
+   O áudio do vídeo vem do "Áudio da área de trabalho" do OBS.
+
+NA LIVE:
+- Vídeo rodando  → cena "DETTO REAGE • TOCANDO".
+- Pausou p/ falar → cena "DETTO REAGE • PAUSA (EU FALANDO)" (você em tela cheia).
+- Dica: OBS > Configurações > Atalhos: ponha uma tecla para cada cena (ex.: F1 e F2) e,
+  em Transições, use "Movimento" (ou "Desvanecer" 350 ms) para o efeito de zoom.
+
+SE A IMPORTAÇÃO NÃO FUNCIONAR: monte à mão com as posições do POSICOES.txt
+(clique com o direito na fonte > Transformar > Editar transformação).
+
+VERTICAL (live no TikTok, tela 1080x1920): use fundo_vertical.png, moldura_camera_vertical.png,
+pausa_vertical.png e as posições "VERTICAL" do POSICOES.txt.
+
+Com caricatura/patrocínio: deixe caricatura.png e patrocinio.png em E:\DETTO\marca e rode
+  python tools\react\obs_template.py
+(dentro de detto-premiere-bridge) para refazer as imagens.

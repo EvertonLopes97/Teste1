@@ -1,0 +1,397 @@
+{
+ "name": "DETTO REAGE",
+ "current_scene": "DETTO REAGE • TOCANDO",
+ "current_program_scene": "DETTO REAGE • TOCANDO",
+ "scene_order": [
+  {
+   "name": "DETTO REAGE • TOCANDO"
+  },
+  {
+   "name": "DETTO REAGE • PAUSA (EU FALANDO)"
+  }
+ ],
+ "sources": [
+  {
+   "id": "image_source",
+   "versioned_id": "image_source",
+   "name": "DR Fundo",
+   "uuid": "c770ec61-145d-45cc-9086-0755046c78ea",
+   "settings": {
+    "file": "C:/Users/guebe/Teste1/obs/fundo_horizontal.png"
+   },
+   "enabled": true,
+   "flags": 0,
+   "mixers": 0,
+   "muted": false,
+   "volume": 1.0,
+   "sync": 0,
+   "monitoring_type": 0,
+   "private_settings": {}
+  },
+  {
+   "id": "window_capture",
+   "versioned_id": "window_capture",
+   "name": "DR Vídeo reagido (escolha a janela)",
+   "uuid": "d2ca8553-ca6e-4492-838f-aab4eeac1847",
+   "settings": {
+    "method": 2,
+    "cursor": false
+   },
+   "enabled": true,
+   "flags": 0,
+   "mixers": 0,
+   "muted": false,
+   "volume": 1.0,
+   "sync": 0,
+   "monitoring_type": 0,
+   "private_settings": {}
+  },
+  {
+   "id": "dshow_input",
+   "versioned_id": "dshow_input",
+   "name": "DR Câmera (escolha a câmera)",
+   "uuid": "1b18e41e-e73b-472f-ad59-d46c6adba6a4",
+   "settings": {},
+   "enabled": true,
+   "flags": 0,
+   "mixers": 255,
+   "muted": false,
+   "volume": 1.0,
+   "sync": 0,
+   "monitoring_type": 0,
+   "private_settings": {}
+  },
+  {
+   "id": "image_source",
+   "versioned_id": "image_source",
+   "name": "DR Moldura da câmera",
+   "uuid": "371553df-c742-4e22-ac03-f3528fd48a5f",
+   "settings": {
+    "file": "C:/Users/guebe/Teste1/obs/moldura_camera_horizontal.png"
+   },
+   "enabled": true,
+   "flags": 0,
+   "mixers": 0,
+   "muted": false,
+   "volume": 1.0,
+   "sync": 0,
+   "monitoring_type": 0,
+   "private_settings": {}
+  },
+  {
+   "id": "text_gdiplus",
+   "versioned_id": "text_gdiplus",
+   "name": "DR Título",
+   "uuid": "f381e9c4-4afb-481f-b00a-79a6ccf9a3de",
+   "settings": {
+    "text": "TÍTULO DO REACT",
+    "font": {
+     "face": "Anton",
+     "size": 42,
+     "style": "Regular",
+     "flags": 0
+    },
+    "color": 4278847496,
+    "valign": "center"
+   },
+   "enabled": true,
+   "flags": 0,
+   "mixers": 0,
+   "muted": false,
+   "volume": 1.0,
+   "sync": 0,
+   "monitoring_type": 0,
+   "private_settings": {}
+  },
+  {
+   "id": "image_source",
+   "versioned_id": "image_source",
+   "name": "DR Selo da pausa",
+   "uuid": "1aac737f-6af6-499f-9486-888dcb0afe0e",
+   "settings": {
+    "file": "C:/Users/guebe/Teste1/obs/pausa_horizontal.png"
+   },
+   "enabled": true,
+   "flags": 0,
+   "mixers": 0,
+   "muted": false,
+   "volume": 1.0,
+   "sync": 0,
+   "monitoring_type": 0,
+   "private_settings": {}
+  },
+  {
+   "id": "scene",
+   "versioned_id": "scene",
+   "name": "DETTO REAGE • TOCANDO",
+   "uuid": "834b5ba5-9cb3-4754-bf32-9a3aa51128f6",
+   "settings": {
+    "id_counter": 5,
+    "custom_size": false,
+    "items": [
+     {
+      "name": "DR Fundo",
+      "source_uuid": "c770ec61-145d-45cc-9086-0755046c78ea",
+      "visible": true,
+      "locked": false,
+      "rot": 0.0,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0
+      },
+      "scale": {
+       "x": 1.0,
+       "y": 1.0
+      },
+      "align": 5,
+      "bounds_type": 0,
+      "bounds_align": 0,
+      "bounds_crop": false,
+      "bounds": {
+       "x": 0.0,
+       "y": 0.0
+      },
+      "crop_left": 0,
+      "crop_top": 0,
+      "crop_right": 0,
+      "crop_bottom": 0,
+      "id": 1,
+      "group_item_backup": false,
+      "scale_filter": "disable",
+      "blend_method": "default",
+      "blend_type": "normal"
+     },
+     {
+      "name": "DR Vídeo reagido (escolha a janela)",
+      "source_uuid": "d2ca8553-ca6e-4492-838f-aab4eeac1847",
+      "visible": true,
+      "locked": false,
+      "rot": 0.0,
+      "pos": {
+       "x": 60.0,
+       "y": 60.0
+      },
+      "scale": {
+       "x": 1.0,
+       "y": 1.0
+      },
+      "align": 5,
+      "bounds_type": 2,
+      "bounds_align": 0,
+      "bounds_crop": false,
+      "bounds": {
+       "x": 1240.0,
+       "y": 697.0
+      },
+      "crop_left": 0,
+      "crop_top": 0,
+      "crop_right": 0,
+      "crop_bottom": 0,
+      "id": 2,
+      "group_item_backup": false,
+      "scale_filter": "disable",
+      "blend_method": "default",
+      "blend_type": "normal"
+     },
+     {
+      "name": "DR Câmera (escolha a câmera)",
+      "source_uuid": "1b18e41e-e73b-472f-ad59-d46c6adba6a4",
+      "visible": true,
+      "locked": false,
+      "rot": 0.0,
+      "pos": {
+       "x": 1250.0,
+       "y": 640.0
+      },
+      "scale": {
+       "x": 1.0,
+       "y": 1.0
+      },
+      "align": 5,
+      "bounds_type": 3,
+      "bounds_align": 0,
+      "bounds_crop": true,
+      "bounds": {
+       "x": 610.0,
+       "y": 343.0
+      },
+      "crop_left": 0,
+      "crop_top": 0,
+      "crop_right": 0,
+      "crop_bottom": 0,
+      "id": 3,
+      "group_item_backup": false,
+      "scale_filter": "disable",
+      "blend_method": "default",
+      "blend_type": "normal"
+     },
+     {
+      "name": "DR Moldura da câmera",
+      "source_uuid": "371553df-c742-4e22-ac03-f3528fd48a5f",
+      "visible": true,
+      "locked": false,
+      "rot": 0.0,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0
+      },
+      "scale": {
+       "x": 1.0,
+       "y": 1.0
+      },
+      "align": 5,
+      "bounds_type": 0,
+      "bounds_align": 0,
+      "bounds_crop": false,
+      "bounds": {
+       "x": 0.0,
+       "y": 0.0
+      },
+      "crop_left": 0,
+      "crop_top": 0,
+      "crop_right": 0,
+      "crop_bottom": 0,
+      "id": 4,
+      "group_item_backup": false,
+      "scale_filter": "disable",
+      "blend_method": "default",
+      "blend_type": "normal"
+     },
+     {
+      "name": "DR Título",
+      "source_uuid": "f381e9c4-4afb-481f-b00a-79a6ccf9a3de",
+      "visible": true,
+      "locked": false,
+      "rot": 0.0,
+      "pos": {
+       "x": 310.0,
+       "y": 796.0
+      },
+      "scale": {
+       "x": 1.0,
+       "y": 1.0
+      },
+      "align": 5,
+      "bounds_type": 0,
+      "bounds_align": 0,
+      "bounds_crop": false,
+      "bounds": {
+       "x": 0.0,
+       "y": 0.0
+      },
+      "crop_left": 0,
+      "crop_top": 0,
+      "crop_right": 0,
+      "crop_bottom": 0,
+      "id": 5,
+      "group_item_backup": false,
+      "scale_filter": "disable",
+      "blend_method": "default",
+      "blend_type": "normal"
+     }
+    ]
+   },
+   "enabled": true,
+   "flags": 0,
+   "mixers": 0,
+   "muted": false,
+   "volume": 1.0,
+   "private_settings": {}
+  },
+  {
+   "id": "scene",
+   "versioned_id": "scene",
+   "name": "DETTO REAGE • PAUSA (EU FALANDO)",
+   "uuid": "0847b48c-647b-4e1d-842e-3da90ed2602c",
+   "settings": {
+    "id_counter": 2,
+    "custom_size": false,
+    "items": [
+     {
+      "name": "DR Câmera (escolha a câmera)",
+      "source_uuid": "1b18e41e-e73b-472f-ad59-d46c6adba6a4",
+      "visible": true,
+      "locked": false,
+      "rot": 0.0,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0
+      },
+      "scale": {
+       "x": 1.0,
+       "y": 1.0
+      },
+      "align": 5,
+      "bounds_type": 3,
+      "bounds_align": 0,
+      "bounds_crop": true,
+      "bounds": {
+       "x": 1920.0,
+       "y": 1080.0
+      },
+      "crop_left": 0,
+      "crop_top": 0,
+      "crop_right": 0,
+      "crop_bottom": 0,
+      "id": 1,
+      "group_item_backup": false,
+      "scale_filter": "disable",
+      "blend_method": "default",
+      "blend_type": "normal"
+     },
+     {
+      "name": "DR Selo da pausa",
+      "source_uuid": "1aac737f-6af6-499f-9486-888dcb0afe0e",
+      "visible": true,
+      "locked": false,
+      "rot": 0.0,
+      "pos": {
+       "x": 0.0,
+       "y": 0.0
+      },
+      "scale": {
+       "x": 1.0,
+       "y": 1.0
+      },
+      "align": 5,
+      "bounds_type": 0,
+      "bounds_align": 0,
+      "bounds_crop": false,
+      "bounds": {
+       "x": 0.0,
+       "y": 0.0
+      },
+      "crop_left": 0,
+      "crop_top": 0,
+      "crop_right": 0,
+      "crop_bottom": 0,
+      "id": 2,
+      "group_item_backup": false,
+      "scale_filter": "disable",
+      "blend_method": "default",
+      "blend_type": "normal"
+     }
+    ]
+   },
+   "enabled": true,
+   "flags": 0,
+   "mixers": 0,
+   "muted": false,
+   "volume": 1.0,
+   "private_settings": {}
+  }
+ ],
+ "groups": [],
+ "quick_transitions": [],
+ "transitions": [],
+ "saved_projectors": [],
+ "current_transition": "Fade",
+ "transition_duration": 350,
+ "preview_locked": false,
+ "scaling_enabled": false,
+ "scaling_level": 0,
+ "scaling_off_x": 0.0,
+ "scaling_off_y": 0.0,
+ "modules": {},
+ "version": 1
+}

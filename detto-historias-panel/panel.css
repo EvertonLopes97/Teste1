@@ -1,0 +1,25 @@
+:root { color-scheme: dark; --bg:#111313; --panel:#191d1c; --line:#303735; --text:#f4f5f2; --muted:#a6b0aa; --green:#8ce0a1; --green-dark:#193e28; }
+* { box-sizing:border-box; }
+body { margin:0; padding:16px; background:var(--bg); color:var(--text); font:13px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
+.top { padding:3px 0 15px; border-bottom:1px solid var(--line); margin-bottom:14px; }
+.eyebrow { font-size:9px; letter-spacing:1.5px; color:var(--green); font-weight:800; }
+h1 { font-size:23px; line-height:1.1; letter-spacing:-.6px; margin:8px 0; }
+h1 span { color:var(--green); }
+p { color:var(--muted); margin:0; }
+.notice { padding:10px 11px; border:1px solid #3b5945; background:#17221b; border-radius:8px; color:#c9d8cd; font-size:11px; margin-bottom:16px; }
+.notice strong { color:var(--green); }
+.section { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:12px; margin-bottom:13px; }
+label { display:block; font-size:10px; letter-spacing:1px; font-weight:800; color:var(--muted); margin:0 0 6px; }
+textarea, select { display:block; width:100%; color:var(--text); background:#101312; border:1px solid #353d39; border-radius:6px; padding:10px; font:12px/1.5 inherit; margin-bottom:13px; }
+textarea { resize:vertical; min-height:68px; }
+textarea:focus, select:focus { outline:1px solid var(--green); border-color:var(--green); }
+.two { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+button { width:100%; border-radius:7px; padding:11px 10px; font-weight:800; letter-spacing:.4px; font-size:11px; cursor:pointer; }
+.primary { border:0; background:var(--green); color:#102116; }
+.secondary { border:1px solid #4b5d51; background:var(--green-dark); color:#d9f4df; }
+.output-section { margin-bottom:12px; }
+.output-head { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+.output-head label { margin-bottom:6px; }
+#status { font-size:10px; color:var(--green); padding-bottom:6px; }
+#output { min-height:210px; }
+footer { padding:3px 2px 10px; color:#79837d; text-align:center; font-size:9px; }
