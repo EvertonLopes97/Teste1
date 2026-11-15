@@ -1285,6 +1285,12 @@ cite o programa e o canal). No fechamento, diga que os créditos de tudo que foi
              "falas": [{"antes_do": i + 1, "texto": f"Agora olha o que falaram no {origem_falada(x)}: {x['manchete'].lower()}.",
                         "clima": x["clima"]} for i, x in enumerate(sel)],
              "fechamento": {"texto": "E aí, Massa, concorda? Comenta aí, deixa o like e se inscreve. Os créditos de tudo estão nos comentários e na descrição. Galo doido!", "clima": "comemorando"}}
+    # IA que respondeu JSON incompleto (sem abertura/fechamento) não pode derrubar a montagem (KeyError 'fechamento', 15/nov)
+    if not isinstance(g.get("abertura"), dict) or not str(g["abertura"].get("texto", "")).strip():
+        g["abertura"] = {"texto": f"{sel[0]['manchete'].capitalize().rstrip('.')}. Olha só o que saiu hoje.", "clima": "falando"}
+    if not isinstance(g.get("fechamento"), dict) or not str(g["fechamento"].get("texto", "")).strip():
+        g["fechamento"] = {"texto": "E aí, o que você achou? Comenta aí, deixa o like e se inscreve. Os créditos de tudo estão nos comentários e na descrição.",
+                           "clima": "comemorando"}
     # CONFERÊNCIA DE NOME DESATUALIZADO (13/nov): frase SUA que cita quem está em "NÃO CITAR" do fatos.txt sai, salvo
     # se algum trecho de hoje fala da pessoa
     material = " ".join(f"{x.get('manchete', '')} {x.get('resumo', '')} {x.get('texto', '')}" for x in sel)
