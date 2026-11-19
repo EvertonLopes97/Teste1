@@ -119,7 +119,8 @@ def texto_capitulo(esb, k, palavras, extra=""):
     papel = ("É o PRIMEIRO capítulo: abre o vídeo com o gancho." if k == 0 else
              "É o ÚLTIMO capítulo: entrega a peça principal e termina com a pergunta para comentar." if k == len(caps) - 1
              else "Capítulo do meio: termine abrindo o próximo." + (" Peça a inscrição aqui, uma vez." if k == len(caps) // 2 else ""))
-    pedido = (f"{REGRAS_DOC}\n\nDOCUMENTÁRIO: {esb['titulo']}\nCAPÍTULOS:\n{lista}\n\nEscreva SÓ a narração do capítulo "
+    import glossario as G
+    pedido = (f"{REGRAS_DOC}{G.bloco()}\n\nDOCUMENTÁRIO: {esb['titulo']}\nCAPÍTULOS:\n{lista}\n\nEscreva SÓ a narração do capítulo "
               f"{k + 1} (\"{c['titulo']}\": {c.get('resumo', '')}). {papel} {extra}\nTem de ter cerca de {palavras} palavras "
               "(não menos). Números por extenso não são obrigatórios.\n"
               "CENAS: divida a narração em 3 a 4 partes pelo que APARECE na tela. Para cada parte: \"frase\" = as 3 "
@@ -140,6 +141,7 @@ def texto_capitulo(esb, k, palavras, extra=""):
         pedido += f"\n\nATENÇÃO: a versão anterior tinha {len(t.split())} palavras; precisa de pelo menos {palavras}."
     if len(melhor.split()) < 40:
         raise RuntimeError(f"a IA não escreveu o capítulo {k + 1}")
+    melhor = G.corrige(melhor)
     CENAS_DO_TEXTO[melhor] = cenas
     return melhor
 
@@ -312,6 +314,8 @@ def faz(pasta, cfg, assunto="", minutos=14, postar=True, teste=False):
     descricao = (str(esb.get("descricao") or "").strip() + ("\n\n" + bloco if bloco else "")
                  + "\n\nImagens: trailers oficiais da Rockstar Games e gameplays públicas, usadas para comentário e análise."
                  + ("\n\n" + cfg["assinatura"] if cfg.get("assinatura") else ""))
+    import glossario as G
+    titulo, descricao = G.corrige(titulo), G.corrige(descricao)
     post = {"titulo": titulo, "descricao": descricao, "tags": [str(x) for x in (esb.get("tags") or [])][:15],
             "video": "video.mp4", "thumb": th.name if th else "", "thumb_variante": "gta6", "shorts": [],
             "status": "aguardando", "criado": dt.datetime.now().isoformat(timespec="seconds"),

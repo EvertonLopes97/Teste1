@@ -250,9 +250,10 @@ def roteiro(assunto, segundos, log=log):
     if TEMA["v"] == "gta" and assunto.upper().startswith("FUNCIONALIDADE"):
         regras += REGRAS_GTA_FUNCAO
     import fatos as F
+    import glossario as G
     pedido = (f"{regras}\n\nASSUNTO (o material — tudo o que você pode afirmar está aqui): {assunto}\n\nA narração tem de "
               f"ter cerca de {alvo} palavras (o vídeo é de ~{segundos} segundos a {PALAVRAS_POR_MIN} palavras por minuto)."
-              + F.bloco(PASTA_FATOS["v"]))
+              + F.bloco(PASTA_FATOS["v"]) + G.bloco())
     d = gemini_json([{"text": pedido}], temperatura=0.8) or {}
     texto = re.sub(r"\s+", " ", (d.get("narracao") or "")).strip()
     for _ in range(2):
@@ -268,6 +269,7 @@ def roteiro(assunto, segundos, log=log):
         if len(t2.split()) > n:
             d, texto = d2, t2
     texto, tirados = F.limpa(texto, PASTA_FATOS["v"], assunto, log)
+    texto = G.corrige(texto)
     if len(texto.split()) < 20:
         # SEM NENHUMA IA (11/nov, "sempre tem como fazer vídeo"): narração-modelo montada só com o assunto real
         # (a manchete que o canal já coletou) + a contagem regressiva. Nada inventado.
@@ -291,7 +293,7 @@ def roteiro(assunto, segundos, log=log):
         if isinstance(c, dict) and str(c.get("frase", "")).strip() and str(c.get("busca", "")).strip():
             cenas.append({"frase": str(c["frase"]).strip(), "sujeito": str(c.get("sujeito") or sujeito).strip() or sujeito,
                           "pessoa": c.get("pessoa", True) is not False, "busca": str(c["busca"]).strip()[:90]})
-    return {"cenas": cenas[:6], "titulo": (d.get("titulo") or assunto)[:120], "narracao": texto,
+    return {"cenas": cenas[:6], "titulo": G.corrige(d.get("titulo") or assunto)[:120], "narracao": texto,
             "sujeito": sujeito, "sujeito_pessoa": d.get("sujeito_pessoa", True) is not False,
             "apelidos": [str(a) for a in (d.get("apelidos") or [])][:4],
             "buscas": [str(b)[:80] for b in buscas],

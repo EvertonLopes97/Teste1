@@ -1225,7 +1225,8 @@ def roteiro(sel, cfg, titulos_antes=()):
                        "você já disse em outra fala). Imagens do jogo ficam na tela enquanto você fala. PROIBIDO inventar: só fatos "
                        "dos trechos e do que já se sabe; vazamento é chamado de vazamento; opinião é opinião.")
     import fatos as F
-    _fatos_bloco = F.bloco(cfg.get("_pasta")).replace("material acima", "material dos trechos")
+    import glossario as G
+    _fatos_bloco = F.bloco(cfg.get("_pasta")).replace("material acima", "material dos trechos") + G.bloco()
     g = gemini_json([{"text": f"""Você narra o canal "{cfg['nome_canal']}", de {assunto}, {persona}. Os trechos, em ordem:
 {lista}
 
@@ -1298,7 +1299,10 @@ cite o programa e o canal). No fechamento, diga que os créditos de tudo que foi
                     + list(g.get("analises") or [])):
         if isinstance(bloco_f, dict) and bloco_f.get("texto"):
             novo_t, _ = F.limpa(bloco_f["texto"], cfg.get("_pasta"), material, log)
-            bloco_f["texto"] = novo_t or "Olha só o que saiu."
+            bloco_f["texto"] = G.corrige(novo_t) or "Olha só o que saiu."
+    for k_g in ("titulo", "thumb_texto", "thumb_destaque", "descricao"):
+        if isinstance(g.get(k_g), str):
+            g[k_g] = G.corrige(g[k_g])
     if falta_s > 0 and not g.get("analises"):
         g["analises_sem_ia"] = True
         g["analises"] = analises_sem_ia(sel, cfg, min(40, max(2, int(falta_s * 2.6 * 1.3 / 60) + 1)), falta_s)
@@ -1708,7 +1712,8 @@ def traduz_frases(frases, de_idioma, log=log):
     """as falas do trecho em PORTUGUÊS (Gemini → IAs grátis → Claude). Falhou, devolve o original."""
     if not frases:
         return []
-    g = gemini_json([{"text": "Traduza para PORTUGUÊS DO BRASIL, falado e natural (é legenda de vídeo sobre games), "
+    import glossario as G
+    g = gemini_json([{"text": G.bloco() + "\nTraduza para PORTUGUÊS DO BRASIL, falado e natural (é legenda de vídeo sobre games), "
                               f"estas {len(frases)} falas em {de_idioma}. Mantenha nomes próprios, números e siglas. "
                               "NÃO explique, NÃO junte nem divida: devolva exatamente a mesma quantidade, na ordem.\n"
                               "Responda SÓ JSON: {\"frases\": [\"<tradução 1>\", ...]}\n\n"
@@ -1717,7 +1722,7 @@ def traduz_frases(frases, de_idioma, log=log):
     if len(out) != len(frases):
         log(f"   tradução: a IA devolveu {len(out)} de {len(frases)} falas; fica o original onde faltou")
         out = (out + frases[len(out):])[:len(frases)]
-    return [str(x) for x in out]
+    return [G.corrige(str(x)) for x in out]
 
 
 def frases_do_trecho(words, ini, fim, por_frase=9):
