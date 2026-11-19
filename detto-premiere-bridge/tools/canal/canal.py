@@ -328,7 +328,8 @@ def videos_ytdlp(canal, quantos=12, pular=(), max_abrir=3):
                 "descricao": e.get("description") or "",
                 "canal_nome": e.get("channel") or e.get("uploader") or nome_canal,
                 "_dur": e.get("duration") or 0,
-                "_tipo": "live" if (e.get("live_status") or "") in ("is_live", "was_live", "post_live") else "video"}
+                "_tipo": "live" if (e.get("live_status") or "") in ("is_live", "was_live", "post_live") else "video",
+                "_gravada": (e.get("live_status") or "") == "was_live"}
 
     out, abrir = [], []
     for e in lista:
@@ -470,7 +471,11 @@ def coleta(cfg, hist):
         if f.get("max_videos") and sum(1 for x in novos if x["fonte"] == f.get("nome")) >= f["max_videos"]:
             return _nao(f, "teto do canal")
         durm = (dur_s or 0) / 60
-        if dur_s and (durm > f.get("max_min", cfg["max_min_fonte"]) or durm < 0.5):
+        # LIVE JÁ ENCERRADA (19/nov): no canal de GTA as lives gravadas (reação, análise de trailer, jogo) são matéria-prima;
+        # `aceita_live_gravada` liga e `max_min_live` é o teto (a de 6 h não entra). Live em andamento nunca.
+        _live_ok = bool(cfg.get("aceita_live_gravada") and v.get("_gravada"))
+        _teto = max(f.get("max_min", cfg["max_min_fonte"]), cfg.get("max_min_live", 150)) if _live_ok else f.get("max_min", cfg["max_min_fonte"])
+        if dur_s and (durm > _teto or durm < 0.5):
             return _nao(f, f"duração {durm:.0f} min")
         if f.get("filtro", "titulo") == "gta":
             # canal que fala de GTA o tempo todo (GameplayRJ, SaninPlay): "NOVAS IMAGENS DE GTA" não traz o "6"
@@ -489,9 +494,9 @@ def coleta(cfg, hist):
             return
         if any(re.search(rf"\b{re.escape(norm(x))}\b", norm(v["titulo"])) for x in cfg.get("fora", [])):
             return _nao(f, "título de react/ao vivo")  # não é notícia de imprensa
-        if any(s and s.lower() in (v["titulo"] or "").lower() for s in cfg.get("fora_sinais", [])):
+        if not _live_ok and any(s and s.lower() in (v["titulo"] or "").lower() for s in cfg.get("fora_sinais", [])):
             return _nao(f, "transmissão ao vivo")  # o download de um live não terminaria nunca
-        if (v.get("_tipo") or "") == "live":
+        if (v.get("_tipo") or "") == "live" and not _live_ok:
             return _nao(f, "live")
         novos.append({"id": v["id"], "url": f"https://www.youtube.com/watch?v={v['id']}", "titulo": v["titulo"],
                       "fonte": f.get("nome") or v.get("canal_nome") or f.get("canal", ""), "canal": f.get("canal", ""),
@@ -2500,7 +2505,9 @@ GTA6 = {
     "formatos_ativos": ["noticias"],
     "min_minutos_video": 12,
     "max_canais_busca": 5,
-    "fontes_versao": 9,   # 10/nov: só "noticias" + piso de 12 min; 06/nov: canais e buscas em inglês; 05/nov: filtro "gta" nos 2 canais de GTA; ids; barra de capítulo dos canais (feed em vez de yt-dlp) + bloco de outros games
+    "aceita_live_gravada": True,   # 19/nov: lives de GTA já encerradas viram matéria-prima (nunca live em andamento)
+    "max_min_live": 150,
+    "fontes_versao": 10,   # 10/nov: só "noticias" + piso de 12 min; 06/nov: canais e buscas em inglês; 05/nov: filtro "gta" nos 2 canais de GTA; ids; barra de capítulo dos canais (feed em vez de yt-dlp) + bloco de outros games
     "busca": ["gta 6 notícias", "gta 6 gameplay", "gta 6 trailer análise", "gta 6 novidades hoje",
               "grand theft auto 6 notícia", "gta 6 vazamento",
               "gta 6 news today", "gta 6 trailer 3", "gta 6 gameplay leak", "gta 6 rockstar new screenshots"],
@@ -2622,7 +2629,7 @@ def prepara(pasta, preset=""):
         if base is not CONFIG_PADRAO and seu.get("fontes_versao", 1) < base.get("fontes_versao", 1):
             for k_ in ("fontes", "fontes_versao", "busca", "fora", "campeonatos", "campeonatos_ligado",
                        "max_trechos_campeonato", "max_videos_campeonato", "bloco_extra_nome",
-                       "bloco_extra_aviso", "regra_titulo", "termos", "termos_nao", "barra_capitulo", "formato", "formatos_ativos", "min_minutos_video", "max_canais_busca", "parecido_max", "titulo_parecido_max", "dias_ja_postado", "max_min_busca"):
+                       "bloco_extra_aviso", "regra_titulo", "termos", "termos_nao", "barra_capitulo", "formato", "formatos_ativos", "min_minutos_video", "max_canais_busca", "aceita_live_gravada", "max_min_live", "parecido_max", "titulo_parecido_max", "dias_ja_postado", "max_min_busca"):
                 if k_ in base:
                     seu[k_] = base[k_]
             grava_json(cfg_f, seu)
