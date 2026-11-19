@@ -192,6 +192,13 @@ def estado():
             pf = p / "pautas.txt"
             x["pautas"] = [l.strip() for l in pf.read_text(encoding="utf-8").splitlines() if l.strip() and not l.startswith("#")] if pf.exists() else []
             x["feitas"] = _tail(p / "pautas_feitas.txt", 8)
+            try:
+                sys.path.insert(0, str(TOOLS / "canal"))
+                import fatos as _fatos
+                ff = p / "fatos.txt"
+                x["fatos"] = ff.read_text(encoding="utf-8-sig") if ff.exists() else _fatos.MODELO
+            except Exception:   # noqa: BLE001
+                x["fatos"] = ""
             x["mascaras"] = sorted(f.name for f in (p / "mascara").glob("*") if f.is_file()) if (p / "mascara").exists() else []
             x["voz"] = (p / "voz" / "minha_voz.wav").exists()
             # VoiceStudio (open source, no PC dele): está aberto? quais vozes tem?
@@ -472,6 +479,9 @@ def acao(nome, d):
                 x["privacidade"] = "public"
         cfg_de(c)
         grava_cfg(c, muda)
+    elif nome == "canal_fatos":
+        pasta(c).mkdir(parents=True, exist_ok=True)
+        (pasta(c) / "fatos.txt").write_text(str(d.get("texto", "")).rstrip() + "\n", encoding="utf-8")
     elif nome == "canal_pautas":
         f = pasta(c) / "pautas.txt"
         cfg_de(c)

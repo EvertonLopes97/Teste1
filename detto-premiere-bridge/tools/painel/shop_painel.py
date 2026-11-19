@@ -55,6 +55,14 @@ def _flow_mod():
     return flow_service
 
 
+def _seletores_txt(cfg):
+    try:
+        f = _flow_mod().pasta_flow(cfg) / "seletores.json"
+        return f.read_text(encoding="utf-8-sig") if f.exists() else ""
+    except Exception:   # noqa: BLE001
+        return ""
+
+
 def _flow_estado(cfg, forca=False):
     """saúde do Chrome do Flow (porta 9222) para o painel; guardada 8 s para o painel não ficar batendo na porta"""
     import time
@@ -66,7 +74,7 @@ def _flow_estado(cfg, forca=False):
         v = {"chrome": False, "flow_aberto": False, "logado": None, "msg": f"não consegui verificar ({str(e)[:80]})"}
     v.update({"modelo": str(cfg.get("flow_modelo") or ""), "duracao": int(cfg.get("flow_duracao") or 0), "avatar": str(cfg.get("flow_avatar") or ""),
               "usar_avatar": bool(cfg.get("flow_usar_avatar")), "max_dia": int(cfg.get("flow_max_dia", 40)),
-              "seguro_baixo": int(cfg.get("seguro_baixo") or 0), "projeto": str(cfg.get("flow_projeto_url") or "")})
+              "seletores": _seletores_txt(cfg), "seguro_baixo": int(cfg.get("seguro_baixo") or 0), "projeto": str(cfg.get("flow_projeto_url") or "")})
     _FLOW["t"], _FLOW["v"] = time.time(), v
     return v
 
@@ -226,6 +234,16 @@ def acao(nome, d):
         return {"ok": True}
     if nome == "shop_flow_status":
         return {"ok": True, **_flow_estado(S.prepara(base), forca=True)}
+    if nome == "shop_flow_seletores":
+        import json as _j
+        txt = str(d.get("texto") or "").strip()
+        try:
+            if txt:
+                _j.loads(txt)
+        except ValueError as e:
+            return {"ok": False, "erro": f"JSON inválido: {e}"}
+        (_flow_mod().pasta_flow(S.prepara(base)) / "seletores.json").write_text(txt or "{}", encoding="utf-8")
+        return {"ok": True}
     if nome == "shop_flow_abrir":
         bat = PONTE / "iniciar_chrome_flow.bat"
         if os.name != "nt" or not bat.exists():

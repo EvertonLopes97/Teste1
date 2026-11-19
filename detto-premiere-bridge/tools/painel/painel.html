@@ -532,7 +532,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-11-19a";
+const VERSAO_TELA = "2026-11-19b";
 // ---- Google Flow (19/nov): status do Chrome na porta 9222, abrir, preset "TikTok Shop (Produto Real)", foto do produto
 function flowCard(S){
   const F = S.flow || {};
@@ -560,6 +560,9 @@ function flowCard(S){
         <input type="text" id="fl_prod" placeholder="nome do produto" style="flex:1;min-width:200px">
         <input type="file" id="fl_foto" accept="image/*">
         <button class="mini" onclick="flowFoto()">Subir foto do produto</button>
+        <details style="width:100%"><summary>Nomes dos botões do Flow (só se a tela do Flow mudar)</summary>
+          <textarea id="fl_sel" rows="5" style="width:100%" placeholder='{"gerar": ["Criar"], "retrato": ["9:16"]}'>${esc(F.seletores||"")}</textarea>
+          <button class="mini" onclick="api('shop_flow_seletores',{texto:$('#fl_sel').value}).then(r=>toast(r.ok?'salvo':(r.erro||'JSON inválido')))">Salvar nomes</button></details>
         <small style="opacity:.7">A foto fica em produtos\\&lt;nome&gt;\\; depois é só «▶ Fazer» naquele produto.</small>
       </div>
     </details>
@@ -1220,6 +1223,11 @@ function cardCanal(c, x){
                         : `<span class="login off">✖ YouTube não conectado</span> <button class="mini pri" onclick="canLogin('${c}')" ${E.canais.segredo ? "" : "disabled"}>Conectar</button>`;
   let esp = travado;
   if(c === "noticias" || c === "gta6"){
+    esp += `<div class="chave" style="display:block"><b>Fatos atuais (a IA lê antes de escrever)</b> <small>O que é verdade HOJE: técnico atual, reforços, novidades que você viu. Linha <code>NÃO CITAR: Fulano, Beltrano</code> corta quem saiu. Linhas com # são comentário.</small>
+      <textarea id="fatos_${c}" rows="6">${esc(x.fatos || "")}</textarea>
+      <div class="linha"><button class="pri" onclick="canFatos('${c}')">Salvar fatos</button></div></div>`;
+  }
+  if(c === "noticias" || c === "gta6"){
     esp += `<div class="chave" style="display:block"><b>Pautas</b> <small>Outras notícias quando quiser: cole o LINK de um vídeo, o caminho de um arquivo do PC ou escreva o ASSUNTO (um por linha). Entram no próximo vídeo, na frente das notícias do dia.</small>
       <textarea id="pauta_${c}" rows="3" placeholder="https://youtube.com/watch?v=…&#10;Cruzeiro demite o técnico"></textarea>
       <div class="linha"><button class="pri" onclick="canPauta('${c}',false)">Pôr nas pautas</button><button onclick="canPauta('${c}',true)" ${x.rodando ? "disabled" : ""}>Pôr e fazer o vídeo agora</button></div>
@@ -1303,6 +1311,7 @@ async function canParar(c){ if(!confirm("Parar a montagem?")) return; await api(
 async function canAbrir(c, qual){ await api("canal_abrir", {c, qual}); toast("Abri a pasta no PC"); }
 async function canPauta(c, agora){ const t = $("#pauta_" + c).value; if(!t.trim()) return toast("Escreva a pauta", true);
   await api("canal_pautas", {c, texto: t, agora}); editando = false; toast(agora ? "Fazendo o vídeo com as pautas" : "Na lista de pautas"); carrega(true); }
+async function canFatos(c){ await api("canal_fatos", {c, texto: $("#fatos_" + c).value}); editando = false; toast("Fatos salvos"); carrega(true); }
 async function canTiraPauta(c, i){ await api("canal_tira_pauta", {c, linha: E.canais[c].pautas[i]}); carrega(true); }
 async function canRefazVlog(c, nome){ if(!confirm("Montar este vlog de novo?")) return; await api("canal_refazer_vlog", {c, nome}); toast("Vai ser montado na próxima rodada"); carrega(true); }
 function canVer(c, i, nome){ const p = E.canais[c].prontos[i];

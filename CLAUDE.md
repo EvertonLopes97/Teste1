@@ -3,6 +3,12 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 19/nov (tarde) — TUDO QUE ELE PREENCHE FICA NO PAINEL
+
+- Pedido: "deixe tudo que tiver de preencher ou colocar no painel". Canais Notícias/GTA 6: caixa **Fatos atuais** (grava `fatos.txt`, ação `canal_fatos`).
+  Aba Shop: chaves (fal/Seedance/Higgsfield), Flow (modelo, duração, teto/dia, área segura, avatar, link do projeto, foto do produto, nomes dos botões
+  = `seletores.json`, ação `shop_flow_seletores`). Painel 2026-11-19b.
+
 ## 19/nov — GOOGLE FLOW PELO CHROME REAL (branch `feat/flow-integracao`) — SELETORES NÃO CONFERIDOS NA CONTA DELE
 
 - Pedido: usar os créditos do Flow (assinatura Google AI) nos shorts/vídeos e no Shop, com o avatar que ele já criou lá. O Flow NÃO tem API
