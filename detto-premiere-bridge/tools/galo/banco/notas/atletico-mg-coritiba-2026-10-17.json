@@ -1,0 +1,96 @@
+{
+ "jogo": "Atlético-MG Coritiba",
+ "time": "Atlético Mineiro",
+ "quando": "2026-10-29",
+ "placar": {
+  "competicao": "Brasileirão",
+  "quando": "17/10",
+  "status": "Encerrado",
+  "casa": "Atlético-MG",
+  "fora": "Coritiba",
+  "gols_casa": "1",
+  "gols_fora": "0"
+ },
+ "notas": [
+  [
+   6.1,
+   "Thiago Borbas",
+   "T. Borbas"
+  ],
+  [
+   6.3,
+   "Kevin Castaño",
+   "K. Castaño"
+  ],
+  [
+   6.3,
+   "Renan Lodi",
+   "R. Lodi"
+  ],
+  [
+   6.4,
+   "Reinier",
+   "Reinier"
+  ],
+  [
+   6.5,
+   "Tomás Pérez",
+   "T. Pérez"
+  ],
+  [
+   6.6,
+   "Kauã Pascini",
+   "K. Pascini"
+  ],
+  [
+   6.7,
+   "Mamady Cissé",
+   "M. Cissé"
+  ],
+  [
+   6.9,
+   "Victor Hugo",
+   "Victor Hugo"
+  ],
+  [
+   7.0,
+   "Alan Minda",
+   "Minda"
+  ],
+  [
+   7.3,
+   "Tomás Cuello",
+   "T. Cuello"
+  ],
+  [
+   7.5,
+   "Vitor Hugo",
+   "Vitor Hugo"
+  ],
+  [
+   7.7,
+   "Léo Duarte",
+   "L. Duarte"
+  ],
+  [
+   7.9,
+   "Gabriel Delfim",
+   "G. Delfim"
+  ],
+  [
+   8.0,
+   "Alexsander",
+   "Alexsander"
+  ],
+  [
+   8.7,
+   "Igor Gomes",
+   "I. Gomes"
+  ],
+  [
+   8.7,
+   "Natanael",
+   "Natanael"
+  ]
+ ]
+}

@@ -1,0 +1,41 @@
+name: testes
+# a cada push/PR: testes do editor (roteiro, componentes, diretor) + teste visual do palco no Chromium
+on:
+  push:
+  pull_request:
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: detto-premiere-bridge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: detto-premiere-bridge/package-lock.json
+      # o PC do Everton usa Python 3.11: f-string com \ dentro das chaves quebra lá (aqui no 3.12+ passa)
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Python 3.11 lê todos os .py
+        run: python -m compileall -q tools
+      # nome que não existe (o `caminho` do painel), import errado, função renomeada que outro arquivo chama:
+      # é o que derrubava TUDO em silêncio no PC dele
+      - name: pyflakes (nome que não existe)
+        run: pip install pyflakes && python -m pyflakes tools | (grep -i "undefined" && exit 1 || exit 0)
+      - name: teste rápido (importa tudo + contrato entre os arquivos)
+        run: python tools/teste_rapido.py
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npm run check
+      - name: quadros que mudaram (teste visual)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-novos
+          path: detto-premiere-bridge/test/visual/novo_*.png
+          if-no-files-found: ignore

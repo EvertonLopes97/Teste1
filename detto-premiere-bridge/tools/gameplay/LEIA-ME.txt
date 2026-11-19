@@ -1,0 +1,86 @@
+GAMEPLAY NARRADA — a gravação bruta vira vídeo com a SUA voz contando
+=====================================================================
+
+    python tools\gameplay\gameplay.py --pasta "E:\DETTO\gameplay\zomboid dia 1" --jogo "Project Zomboid" --titulo "tentei sobreviver 7 dias sem sair de casa"
+
+1) Crie a pasta e jogue o mp4 da gravação dentro (pode ser mais de um).
+2) Rode o comando. Sai em `prontos\<data - título>\`: video.mp4, short_N.mp4, thumb_1.jpg,
+   post.txt (título + descrição + capítulos + tags) e post.json.
+
+
+ANTES DE GASTAR VOZ E RENDER, CONFIRA OS MOMENTOS
+-------------------------------------------------
+    python tools\gameplay\gameplay.py --pasta "<pasta>" --so-momentos
+
+Ele analisa e PARA, mostrando o que escolheu:
+
+    # 1   4.2min   22s  nota 1.80  (fala)  você falou: "caralho, morri de novo"
+    # 2  11.7min   31s  nota 1.52  (jogo)
+
+Não gostou? Mexa em `job\momentos.json` (ini/fim de cada um) e rode de novo sem `--so-momentos`.
+`--sem-voz` vai um passo além: escreve o roteiro em `job\roteiro.json` e para antes da voz.
+
+
+COMO ELE ACHA OS MOMENTOS (tools\gameplay\momentos.py)
+-------------------------------------------------------
+Três sinais, e nenhum deles com número fixo — o que vale é o que sai do normal DAQUELE vídeo
+(um Project Zomboid é quase todo silêncio, um CS é todo barulho; limite fixo acharia 300 momentos
+num e nenhum no outro):
+
+  VOLUME     pico de áudio do jogo: tiro, grito, música de morte, horda chegando
+  MOVIMENTO  a tela mudando muito: correria, perseguição, luta
+  SUA FALA   se você comentou jogando, a PALAVRA que você disse é o momento ("morri", "consegui",
+             "não acredito") — é o sinal mais confiável dos três, e por isso pesa mais
+
+Cada momento começa ~4 s ANTES do pico (a subida é o que prende) e vai até ~3,5 s depois (a reação).
+Depois o Gemini olha um quadro de cada e diz o que aconteceu, para a narração falar do que está na
+tela. Sem Gemini os momentos continuam valendo, só ficam sem nome.
+
+Grave COMENTANDO enquanto joga, mesmo que a narração final seja refeita pela IA: a sua reação ao
+vivo é o que marca os melhores momentos.
+
+
+O QUE FOI MEDIDO (01/nov, últimos 25 vídeos de cada canal)
+-----------------------------------------------------------
+  @thegusr  (Project Zomboid, 21 mil views medianos):  15-25 min = 1,30x  ·  8-15 min = 0,83x
+  @Felps    ("[Felps Editado]", 40,5 mil medianos):    15-25 min = 1,33x  ·  8-15 min = 0,94x
+
+  O melhor de cada um vende uma PREMISSA, não um resumo:
+     "I played Project Zomboid in third person!!"  (5,6x a mediana do canal)
+     "10 ANOS BEBENDO PETRÓLEO"                     (3,9x)
+  O PIOR do @thegusr é o único vídeo fora do formato (comprando jogos, 0,1x) — sair do formato mata.
+
+→ `duracao_alvo_min` 17 e a regra de título pede PREMISSA COM NÚMERO quando houver ("7 dias",
+  "100 zumbis"). No teste, tirar o número derrubava a nota do título de 67 para 23.
+
+
+AJUSTES (`config.json` na pasta, ou na linha de comando)
+---------------------------------------------------------
+  duracao_alvo_min  17     a faixa medida (15-25 min). `--minutos`
+  max_momentos      14     quantos pedaços entram
+  momento_min_s     8      momento curto demais não conta história
+  momento_max_s     45     momento longo demais vira enrolação
+  shorts            3      quantos Shorts 9:16 saem. `--shorts 0` desliga
+  volume_jogo       0.35   o jogo atrás da sua narração
+  abaixa_db         11     quanto o jogo abaixa enquanto você fala
+  jogo              ""     "CS2", "Project Zomboid", "eFootball"... entra no prompt. `--jogo`
+  vinheta_canal     gta6   a abertura entra DEPOIS da chamada, nunca no segundo 0
+  legendas          true   a narração escrita na tela
+  capitulos         true   a barrinha por assunto na descrição
+
+
+O QUE AINDA É SEU
+-----------------
+- A FOTO DA THUMB: ponha uma sua do peito para cima em `E:\DETTO\marca\eu.jpg`. Sem ela a thumb sai
+  só com texto, e é o rosto que faz a thumb de gameplay funcionar (veja VOZ-E-GESTO.md).
+- A SUA VOZ: abra o VoiceStudio com a sua voz clonada. Fechado, a narração sai na voz neural pt-BR,
+  que é natural mas não é você.
+
+
+O QUE EU AINDA NÃO SEI FAZER (honestamente)
+--------------------------------------------
+- Não entendo o JOGO: eu acho o momento por som, movimento e pela sua fala, e o Gemini descreve o
+  quadro. Ele não sabe ler o placar do CS nem o kill feed. Para isso teria que ser feito por jogo.
+- Testei com uma gravação SINTÉTICA (barras de cor com picos de som nos segundos 40, 95 e 150): ele
+  achou os três, com a subida antes de cada pico e nenhum falso positivo. Com gameplay DE VERDADE
+  ainda não rodou — mande a primeira e eu ajusto o que estiver errado.

@@ -1,0 +1,8 @@
+COR EXATA (igual ao CapCut)
+
+1) No CapCut: importe uma gravação do iPhone (aceite o aviso "HDR -> SDR"), NÃO mexa em nada e exporte em 1080p.
+2) python tools\cor_lut.py "IMG_7743.MOV" "IMG_7743 capcut.mp4"
+   -> grava aqui o referencia.cube (tabela de cor aprendida comparando os dois vídeos quadro a quadro).
+3) Pronto: toda gravação HDR do iPhone passa a sair com essa cor (master SDR, edição, reels, vlog, canais).
+   Os masters SDR antigos são refeitos sozinhos.
+Voltar ao de antes: apague o referencia.cube.

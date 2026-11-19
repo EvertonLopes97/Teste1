@@ -1,0 +1,24 @@
+{
+  "id": "com.detto.historias.series.panel",
+  "name": "DETTO — Histórias em Série",
+  "version": "0.1.0",
+  "manifestVersion": 5,
+  "main": "main.html",
+  "host": {
+    "app": "premierepro",
+    "minVersion": "25.6.0"
+  },
+  "entrypoints": [
+    {
+      "type": "panel",
+      "id": "dettoHistoriasPanel",
+      "label": { "default": "DETTO — Histórias em Série" },
+      "minimumSize": { "width": 300, "height": 440 },
+      "preferredDockedSize": { "width": 360, "height": 680 },
+      "preferredFloatingSize": { "width": 420, "height": 760 }
+    }
+  ],
+  "requiredPermissions": {
+    "clipboard": "readAndWrite"
+  }
+}

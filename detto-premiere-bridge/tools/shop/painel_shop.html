@@ -1,0 +1,311 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DETTO Shop</title>
+<style>
+:root{
+  --tinta:#14231f; --verde:#0f3d33; --etiqueta:#ffd23f; --oferta:#d8322a; --papel:#f3f5f1;
+  --folha:#ffffff; --linha:#d5dcd6; --mudo:#5c6b65; --ok:#1c7a4d;
+  --titulo:"Bahnschrift","DIN Alternate","Arial Narrow",Arial,sans-serif;
+  --texto:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--papel);color:var(--tinta);font:16px/1.5 var(--texto)}
+header{background:var(--verde);color:#fff;padding:18px 24px 20px;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap}
+header h1{font:700 34px/1 var(--titulo);letter-spacing:.5px;margin:0}
+header h1 span{background:var(--etiqueta);color:var(--tinta);padding:2px 10px 4px;border-radius:4px 14px 14px 4px;margin-left:6px}
+header p{margin:0;color:#cfe3db;font-size:14px;max-width:60ch}
+main{max-width:1180px;margin:0 auto;padding:20px 16px 60px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:20px}
+@media (max-width:900px){main{grid-template-columns:1fr}}
+section{background:var(--folha);border:1px solid var(--linha);border-radius:10px;padding:18px 18px 20px;margin-bottom:20px}
+h2{font:700 22px/1.15 var(--titulo);margin:0 0 4px}
+.sub{color:var(--mudo);font-size:14px;margin:0 0 14px;max-width:70ch}
+label{display:block;font-weight:600;font-size:14px;margin:12px 0 4px}
+input[type=text],input[type=password],input[type=number],select,textarea{
+  width:100%;padding:10px 12px;border:1.5px solid var(--linha);border-radius:8px;font:inherit;background:#fff;color:inherit}
+textarea{min-height:92px;resize:vertical}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,.modo input:focus-visible+div{outline:3px solid var(--etiqueta);outline-offset:2px}
+.linha{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:560px){.linha{grid-template-columns:1fr}}
+button{font:700 15px var(--texto);border:0;border-radius:8px;padding:11px 16px;cursor:pointer;background:var(--verde);color:#fff}
+button.principal{background:var(--oferta);font-size:17px;padding:14px 20px}
+button.leve{background:#e7ece8;color:var(--tinta)}
+button:disabled{opacity:.5;cursor:not-allowed}
+.modos{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media (max-width:700px){.modos{grid-template-columns:1fr}}
+.modo{position:relative;display:block;margin:0;font-weight:400}
+.modo input{position:absolute;opacity:0}
+.modo div{border:1.5px solid var(--linha);border-radius:10px;padding:12px 12px 14px;height:100%;cursor:pointer}
+.modo b{display:block;font:700 18px/1.2 var(--titulo);margin-bottom:4px}
+.modo small{color:var(--mudo);font-size:13px;line-height:1.4;display:block}
+.modo input:checked+div{border-color:var(--verde);background:#eef6f2;box-shadow:inset 0 0 0 1.5px var(--verde)}
+.chaves{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:6px}
+.chave{display:flex;align-items:center;gap:8px;font-weight:400;font-size:15px;margin:6px 0}
+.chave input{width:20px;height:20px;accent-color:var(--verde)}
+.abas{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 4px}
+.abas button{background:#e7ece8;color:var(--tinta);padding:8px 14px}
+.abas button[aria-selected=true]{background:var(--tinta);color:#fff}
+.aviso{background:#fff4d1;border:1.5px solid var(--etiqueta);border-radius:10px;padding:12px 14px;margin:0 0 20px;font-size:15px}
+.aviso ul{margin:6px 0 0;padding-left:20px}
+.estado{display:flex;align-items:center;gap:10px;font-weight:600;margin-bottom:10px}
+.bola{width:12px;height:12px;border-radius:50%;background:#b8c2bc;flex:none}
+.bola.viva{background:var(--oferta);animation:pisca 1.1s infinite}
+@keyframes pisca{50%{opacity:.25}}
+@media (prefers-reduced-motion:reduce){.bola.viva{animation:none}}
+pre{background:var(--tinta);color:#dcebe4;border-radius:8px;padding:12px;font:13px/1.45 Consolas,"Cascadia Mono",monospace;white-space:pre-wrap;word-break:break-word;max-height:300px;overflow:auto;margin:0}
+.video{border-top:1px solid var(--linha);padding:14px 0}
+.video:first-of-type{border-top:0}
+.video h3{font:600 15px/1.3 var(--texto);margin:0 0 8px;word-break:break-word}
+.video video{width:160px;aspect-ratio:9/16;background:#000;border-radius:8px;float:left;margin:0 14px 8px 0}
+.video p{font-size:14px;color:var(--mudo);margin:0 0 8px;white-space:pre-wrap}
+.video::after{content:"";display:block;clear:both}
+.acoes{display:flex;gap:8px;flex-wrap:wrap}
+.falho{font-size:14px;border-left:4px solid var(--oferta);padding:4px 0 4px 10px;margin:8px 0}
+.dica{font-size:13px;color:var(--mudo);margin:6px 0 0}
+a{color:var(--verde)}
+#msg{min-height:22px;font-weight:600;margin-top:10px}
+#msg.erro{color:var(--oferta)} #msg.bom{color:var(--ok)}
+details summary{cursor:pointer;font-weight:600;margin-top:10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>DETTO<span>Shop</span></h1>
+  <p>Vídeos de produto para o TikTok Shop. Escolha como quer o vídeo, diga qual é o produto e clique em Fazer o vídeo.</p>
+</header>
+<main>
+<div>
+  <div id="saude"></div>
+
+  <section>
+    <h2>Como quero o vídeo</h2>
+    <p class="sub">Vale para os próximos vídeos. Muda quando quiser.</p>
+    <div class="modos" role="radiogroup" aria-label="Tipo de vídeo">
+      <label class="modo"><input type="radio" name="modo" value="ia"><div><b>Autoral</b><small>Junta cenas de 3 ou mais vídeos do produto, tira quem aparece o rosto, roteiro e narração novos. É o mais original.</small></div></label>
+      <label class="modo"><input type="radio" name="modo" value="vendedor"><div><b>Cópia do link</b><small>Usa o vídeo do link que você colar, em 9:16, com a narração e os textos novos por cima. Menos original.</small></div></label>
+      <label class="modo"><input type="radio" name="modo" value="eu"><div><b>Minha gravação</b><small>O vídeo que você gravou com o produto (na pasta dele) é o principal. A sua voz fica.</small></div></label>
+    </div>
+    <div class="chaves">
+      <label class="chave"><input type="checkbox" id="narracao"> Narração</label>
+      <label class="chave"><input type="checkbox" id="legenda"> Legenda na tela</label>
+      <label class="chave"><input type="checkbox" id="clipes_internet"> Buscar vídeos do produto na internet</label>
+      <label class="chave"><input type="checkbox" id="fotos_internet"> Buscar fotos se faltar imagem</label>
+    </div>
+    <div class="linha">
+      <div><label for="ia_video">Movimento por IA na foto do produto (pago por clipe)</label>
+        <select id="ia_video"><option value="desligado">Desligado</option><option value="seedance">Ligado — Seedance (muapi.ai)</option><option value="higgsfield">Ligado — Higgsfield</option><option value="fal">Ligado — Wan aberto (fal.ai)</option></select></div>
+      <div><label for="ia_video_max">Clipes pagos por vídeo</label><input type="number" id="ia_video_max" min="1" max="4" step="1"></div>
+      <div><label for="ia_video_s">Segundos de cada clipe</label><select id="ia_video_s"><option value="5">5 s</option><option value="10">10 s</option></select></div>
+    </div>
+    <p class="dica">Sai em 720p vertical, a partir da foto real do produto. Cada clipe é cobrado na sua conta do serviço; o mesmo clipe nunca é cobrado duas vezes. Precisa da chave na aba Chaves.</p>
+    <div class="linha">
+      <div><label for="voz_neural">Voz da narração</label><select id="voz_neural"></select></div>
+      <div><label for="velocidade_voz">Velocidade da voz (1 = normal)</label><input type="number" id="velocidade_voz" min="0.8" max="1.5" step="0.05"></div>
+    </div>
+    <div class="linha">
+      <div><label for="duracao">Duração do vídeo (segundos)</label><input type="number" id="duracao" min="15" max="90" step="1"></div>
+      <div><label for="arroba">Seu @ no vídeo (opcional)</label><input type="text" id="arroba" placeholder="@seuperfil"></div>
+    </div>
+    <label for="cta">Frase final de compra</label>
+    <input type="text" id="cta" placeholder="LINK NA *VITRINE*">
+    <p class="dica">Palavra entre *asteriscos* sai em amarelo.</p>
+    <div class="acoes" style="margin-top:14px"><button id="salvar">Salvar opções</button></div>
+  </section>
+
+  <section>
+    <h2>Qual produto</h2>
+    <div class="abas" role="tablist">
+      <button role="tab" data-aba="nome" aria-selected="true">Pelo nome</button>
+      <button role="tab" data-aba="link" aria-selected="false">Por link</button>
+      <button role="tab" data-aba="lista" aria-selected="false">Vários links</button>
+      <button role="tab" data-aba="pasta" aria-selected="false">Produto que tenho em casa</button>
+    </div>
+    <div data-painel="nome">
+      <label for="p_nome">Nome do produto, com a marca</label>
+      <input type="text" id="p_nome" placeholder="Travesseiro Avanuv">
+      <p class="dica">Ele procura vídeos desse produto, corta as cenas sem rosto e monta um vídeo novo.</p>
+    </div>
+    <div data-painel="link" hidden>
+      <label for="p_link">Link do produto ou do vídeo dele</label>
+      <input type="text" id="p_link" placeholder="https://vt.tiktok.com/...">
+      <div class="linha">
+        <div><label for="p_nome_link">Nome do produto</label><input type="text" id="p_nome_link" placeholder="suporte de celular para mesa"></div>
+        <div><label for="p_preco">Preço (opcional)</label><input type="text" id="p_preco" placeholder="49,90"></div>
+      </div>
+      <p class="dica">Link de vitrine não traz nome nem foto (o TikTok barra robô), então escreva o nome. No modo Cópia do link, cole o link do vídeo.</p>
+    </div>
+    <div data-painel="lista" hidden>
+      <label for="p_links">Um link por linha. Pode pôr o nome e o preço depois do link, separados por |</label>
+      <textarea id="p_links" placeholder="https://vt.tiktok.com/AAAA | suporte de celular | 49,90"></textarea>
+      <div class="linha">
+        <div><label for="p_quantos">Quantos vídeos fazer agora</label><input type="number" id="p_quantos" min="1" max="20" value="3"></div>
+        <div style="align-self:end"><button class="leve" id="guardar_links">Guardar na lista</button></div>
+      </div>
+      <p class="dica" id="n_links"></p>
+    </div>
+    <div data-painel="pasta" hidden>
+      <p class="sub">Crie uma pasta com o nome do produto e ponha as fotos e os vídeos dele dentro. Arquivo com "eu", "review" ou "unbox" no nome é tratado como a sua gravação.</p>
+      <div class="acoes"><button class="leve" id="abrir_produtos">Abrir a pasta de produtos</button></div>
+      <label for="p_pasta">Produto</label>
+      <select id="p_pasta"></select>
+    </div>
+    <div class="acoes" style="margin-top:18px">
+      <button class="principal" id="fazer">Fazer o vídeo</button>
+      <button class="leve" id="parar" hidden>Parar</button>
+    </div>
+    <div id="msg" role="status"></div>
+  </section>
+
+  <section>
+    <h2>Chaves da IA que escreve o roteiro</h2>
+    <p class="sub">São grátis e ficam só neste computador. Com uma delas o roteiro é escrito para o produto; sem nenhuma sai um roteiro-modelo simples.</p>
+    <label for="GEMINI_API_KEY">Gemini <span id="tem_GEMINI_API_KEY"></span></label>
+    <input type="password" id="GEMINI_API_KEY" placeholder="cole a chave" autocomplete="off">
+    <p class="dica">Pegue em <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener">aistudio.google.com/apikey</a></p>
+    <label for="GROQ_API_KEY">Groq <span id="tem_GROQ_API_KEY"></span></label>
+    <input type="password" id="GROQ_API_KEY" placeholder="cole a chave" autocomplete="off">
+    <p class="dica">Pegue em <a href="https://console.groq.com/keys" target="_blank" rel="noopener">console.groq.com/keys</a></p>
+    <details><summary>Outras (opcional)</summary>
+      <label for="CEREBRAS_API_KEY">Cerebras <span id="tem_CEREBRAS_API_KEY"></span></label>
+      <input type="password" id="CEREBRAS_API_KEY" autocomplete="off">
+      <label for="MISTRAL_API_KEY">Mistral <span id="tem_MISTRAL_API_KEY"></span></label>
+      <input type="password" id="MISTRAL_API_KEY" autocomplete="off">
+      <label for="OPENROUTER_API_KEY">OpenRouter <span id="tem_OPENROUTER_API_KEY"></span></label>
+      <input type="password" id="OPENROUTER_API_KEY" autocomplete="off">
+    </details>
+    <h2 style="margin-top:22px">Chaves do movimento por IA (pago, opcional)</h2>
+    <p class="sub">Só são usadas quando "Movimento por IA" está ligado nas opções. Ficam só neste computador.</p>
+    <label for="SEEDANCE_API_KEY">Seedance — chave da muapi.ai <span id="tem_SEEDANCE_API_KEY"></span></label>
+    <input type="password" id="SEEDANCE_API_KEY" placeholder="cole a chave" autocomplete="off">
+    <p class="dica">Pegue em <a href="https://muapi.ai/access-keys" target="_blank" rel="noopener">muapi.ai/access-keys</a></p>
+    <label for="HF_API_KEY_ID">Higgsfield — API Key ID <span id="tem_HF_API_KEY_ID"></span></label>
+    <input type="password" id="HF_API_KEY_ID" placeholder="cole o ID" autocomplete="off">
+    <label for="HF_API_KEY_SECRET">Higgsfield — API Key Secret <span id="tem_HF_API_KEY_SECRET"></span></label>
+    <input type="password" id="HF_API_KEY_SECRET" placeholder="cole o segredo" autocomplete="off">
+    <p class="dica">Pegue em <a href="https://console.higgsfield.ai" target="_blank" rel="noopener">console.higgsfield.ai</a></p>
+    <div class="acoes" style="margin-top:14px"><button id="salvar_chaves">Salvar chaves</button></div>
+  </section>
+</div>
+
+<div>
+  <section>
+    <h2>Andamento</h2>
+    <div class="estado"><span class="bola" id="bola"></span><span id="estado_txt">Parado</span></div>
+    <pre id="log" aria-live="polite">Nada rodando.</pre>
+    <div id="falhos"></div>
+  </section>
+  <section>
+    <h2>Vídeos prontos</h2>
+    <p class="sub">A legenda do post vem junto. Poste pelo app ou pelo TikTok Studio.</p>
+    <div class="acoes"><button class="leve" id="abrir_prontos">Abrir a pasta dos vídeos</button></div>
+    <div id="prontos"></div>
+  </section>
+</div>
+</main>
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let aba = "nome", primeira = true, ultimoProntos = "";
+
+async function manda(acao, dados) {
+  const r = await fetch("/api/" + acao, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(dados || {})});
+  return r.json();
+}
+function fala(txt, tipo) { const m = $("msg"); m.textContent = txt || ""; m.className = tipo || ""; }
+
+document.querySelectorAll("[data-aba]").forEach((b) => b.addEventListener("click", () => {
+  aba = b.dataset.aba;
+  document.querySelectorAll("[data-aba]").forEach((x) => x.setAttribute("aria-selected", x === b ? "true" : "false"));
+  document.querySelectorAll("[data-painel]").forEach((p) => { p.hidden = p.dataset.painel !== aba; });
+}));
+
+function modoEscolhido() { const m = document.querySelector("input[name=modo]:checked"); return m ? m.value : "ia"; }
+function opcoes() {
+  return {modo: modoEscolhido(), narracao: $("narracao").checked, legenda: $("legenda").checked,
+    clipes_internet: $("clipes_internet").checked, fotos_internet: $("fotos_internet").checked,
+    ia_video: $("ia_video").value, ia_video_max: $("ia_video_max").value || 1, ia_video_s: $("ia_video_s").value || 5,
+    voz_neural: $("voz_neural").value, velocidade_voz: $("velocidade_voz").value || 1,
+    duracao: $("duracao").value || 34, arroba: $("arroba").value.trim(), cta: $("cta").value.trim()};
+}
+$("salvar").onclick = async () => { const r = await manda("cfg", opcoes()); fala(r.ok ? "Opções salvas" : r.erro, r.ok ? "bom" : "erro"); };
+$("salvar_chaves").onclick = async () => {
+  const d = {};
+  ["GEMINI_API_KEY","GROQ_API_KEY","CEREBRAS_API_KEY","MISTRAL_API_KEY","OPENROUTER_API_KEY","SEEDANCE_API_KEY","HF_API_KEY_ID","HF_API_KEY_SECRET"].forEach((k) => { if ($(k).value.trim()) d[k] = $(k).value.trim(); });
+  if (!Object.keys(d).length) { fala("Cole pelo menos uma chave", "erro"); return; }
+  const r = await manda("chaves", d);
+  if (r.ok) { Object.keys(d).forEach((k) => { $(k).value = ""; }); fala("Chaves salvas", "bom"); carrega(); } else fala(r.erro, "erro");
+};
+$("guardar_links").onclick = async () => {
+  const r = await manda("links", {links: $("p_links").value});
+  if (r.ok) { $("p_links").value = ""; fala(r.n + " link(s) guardado(s) na lista", "bom"); carrega(); } else fala(r.erro, "erro");
+};
+$("abrir_produtos").onclick = () => manda("abrir_pasta", {qual: "produtos"});
+$("abrir_prontos").onclick = () => manda("abrir_pasta", {qual: "prontos"});
+$("parar").onclick = async () => { await manda("parar"); fala("Parando"); };
+
+$("fazer").onclick = async () => {
+  await manda("cfg", opcoes());
+  const d = {modo: modoEscolhido()};
+  if (aba === "nome") {
+    d.nome = $("p_nome").value.trim();
+    if (!d.nome) return fala("Escreva o nome do produto", "erro");
+  } else if (aba === "link") {
+    d.link = $("p_link").value.trim(); d.nome_do_link = $("p_nome_link").value.trim(); d.preco = $("p_preco").value.trim();
+    if (!/^https?:\/\//.test(d.link)) return fala("Cole o link (começa com https://)", "erro");
+  } else if (aba === "lista") {
+    if ($("p_links").value.trim()) await manda("links", {links: $("p_links").value});
+    d.so_links = true; d.quantos = $("p_quantos").value || 1;
+  } else {
+    d.produto = $("p_pasta").value;
+    if (!d.produto) return fala("Ponha a pasta do produto em produtos e escolha aqui", "erro");
+  }
+  if (d.modo === "vendedor" && aba !== "link" && aba !== "lista") return fala("Cópia do link precisa de um link de vídeo: use a aba Por link", "erro");
+  const r = await manda("fazer", d);
+  fala(r.ok ? "Começou. Acompanhe ao lado." : r.erro, r.ok ? "bom" : "erro");
+  carrega();
+};
+
+function desenha(e) {
+  if (primeira) {
+    const m = document.querySelector('input[name=modo][value="' + (e.modo || "ia") + '"]'); if (m) m.checked = true;
+    ["narracao","legenda","clipes_internet","fotos_internet"].forEach((k) => { $(k).checked = !!e[k]; });
+    $("voz_neural").innerHTML = e.vozes.map((v) => '<option value="' + esc(v.id) + '">' + esc(v.nome) + "</option>").join("");
+    $("ia_video").value = e.ia_video || "desligado"; $("ia_video_max").value = e.ia_video_max || 1; $("ia_video_s").value = String(e.ia_video_s || 5);
+    $("voz_neural").value = e.voz_neural; $("velocidade_voz").value = e.velocidade_voz;
+    $("duracao").value = e.duracao; $("arroba").value = e.arroba || ""; $("cta").value = e.cta || "";
+    primeira = false;
+  }
+  $("saude").innerHTML = e.saude.length ? '<div class="aviso"><b>Falta para ficar completo</b><ul>' + e.saude.map((s) => "<li>" + esc(s) + "</li>").join("") + "</ul></div>" : "";
+  Object.keys(e.chaves).forEach((k) => { const el = $("tem_" + k); if (el) el.textContent = e.chaves[k] ? "(salva)" : ""; });
+  $("n_links").textContent = e.n_links ? e.n_links + " link(s) esperando na lista" : "A lista está vazia";
+  const sel = $("p_pasta"), antes = sel.value;
+  sel.innerHTML = e.produtos.length ? e.produtos.map((p) => '<option value="' + esc(p.pasta) + '">' + esc(p.nome) + " (" + p.fotos + " foto(s), " + p.videos + " vídeo(s))" + (p.feito ? ", feito em " + esc(p.feito) : "") + "</option>").join("") : '<option value="">nenhuma pasta ainda</option>';
+  if (antes) sel.value = antes;
+  $("bola").className = "bola" + (e.rodando ? " viva" : "");
+  $("estado_txt").textContent = e.rodando ? "Fazendo: " + (e.o_que || "vídeo") : "Parado";
+  $("fazer").disabled = e.rodando; $("parar").hidden = !e.rodando;
+  const log = $("log"), noFim = log.scrollTop + log.clientHeight >= log.scrollHeight - 30;
+  log.textContent = e.log.length ? e.log.join("\n") : "Nada rodando.";
+  if (noFim) log.scrollTop = log.scrollHeight;
+  $("falhos").innerHTML = e.falhos.length ? "<h2 style='margin-top:16px'>Não viraram vídeo</h2>" + e.falhos.map((f) => '<div class="falho"><b>' + esc(f.url) + "</b><br>" + esc(f.motivo) + "</div>").join("") : "";
+  const chave = JSON.stringify(e.prontos);
+  if (chave !== ultimoProntos) {   // só redesenha quando muda, para não reiniciar o vídeo que está tocando
+    ultimoProntos = chave;
+    $("prontos").innerHTML = e.prontos.length ? e.prontos.map((p) => {
+      const u = "/video?nome=" + encodeURIComponent(p.nome) + "&dia=" + encodeURIComponent(p.dia);
+      return '<div class="video"><h3>' + esc(p.dia) + " — " + esc(p.nome) + '</h3><video controls preload="none" src="' + u + '"></video><p>' + esc(p.legenda) + '</p><div class="acoes"><a href="' + u + '&baixar=1"><button class="leve">Baixar</button></a><button class="leve" data-copia="' + esc(p.legenda) + '">Copiar legenda</button></div></div>';
+    }).join("") : '<p class="sub" style="margin-top:12px">Nenhum vídeo ainda. O primeiro aparece aqui quando ficar pronto.</p>';
+    document.querySelectorAll("[data-copia]").forEach((b) => { b.onclick = () => { navigator.clipboard.writeText(b.dataset.copia); b.textContent = "Legenda copiada"; }; });
+  }
+}
+async function carrega() {
+  try { desenha(await (await fetch("/api/estado")).json()); }
+  catch (_) { $("estado_txt").textContent = "O painel foi fechado. Abra o ABRIR PAINEL.bat de novo."; }
+}
+carrega(); setInterval(carrega, 2500);
+</script>
+</body>
+</html>

@@ -1,0 +1,96 @@
+{
+ "jogo": "Atlético-MG Cruzeiro",
+ "time": "Atlético Mineiro",
+ "quando": "2026-10-29",
+ "placar": {
+  "competicao": "Brasileirão",
+  "quando": "29/10",
+  "status": "Encerrado",
+  "casa": "Atlético-MG",
+  "fora": "Cruzeiro",
+  "gols_casa": "0",
+  "gols_fora": "1"
+ },
+ "notas": [
+  [
+   6.0,
+   "Igor Gomes",
+   "I. Gomes"
+  ],
+  [
+   6.0,
+   "Reinier",
+   "Reinier"
+  ],
+  [
+   6.3,
+   "Alan Minda",
+   "Minda"
+  ],
+  [
+   6.3,
+   "Maycon",
+   "Maycon"
+  ],
+  [
+   6.4,
+   "Bernard",
+   "Bernard"
+  ],
+  [
+   6.4,
+   "Cauã Soares",
+   "C. Soares"
+  ],
+  [
+   6.4,
+   "Natanael",
+   "Natanael"
+  ],
+  [
+   6.4,
+   "Vitão",
+   "Vitão"
+  ],
+  [
+   6.5,
+   "Gustavo Scarpa",
+   "G. Scarpa"
+  ],
+  [
+   6.5,
+   "Léo Duarte",
+   "L. Duarte"
+  ],
+  [
+   6.5,
+   "Renan Lodi",
+   "R. Lodi"
+  ],
+  [
+   6.6,
+   "Lyanco",
+   "Lyanco"
+  ],
+  [
+   7.1,
+   "Alan Franco",
+   "A. Franco"
+  ],
+  [
+   7.1,
+   "Kevin Castaño",
+   "K. Castaño"
+  ],
+  [
+   7.4,
+   "Victor Hugo",
+   "Victor Hugo"
+  ],
+  [
+   7.7,
+   "Gabriel Delfim",
+   "G. Delfim"
+  ]
+ ]
+}

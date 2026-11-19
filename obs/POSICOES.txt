@@ -1,0 +1,17 @@
+DETTO REAGE — posições das fontes no OBS (pixels da tela base)
+
+HORIZONTAL (1920x1080)
+  1. Imagem  fundo_horizontal.png ............ X 0, Y 0 (tela toda)
+  2. Vídeo reagido (janela do navegador) .. X 60, Y 60, caixa 1240 x 697 (Ajustar à caixa)
+  3. Câmera ............................... X 1250, Y 640, caixa 610 x 343 (Cobrir e cortar)
+  4. Imagem  moldura_camera_horizontal.png .... X 0, Y 0 (por cima da câmera)
+  5. Texto do título (fonte Anton, preto) . X 310, Y 798, altura 54
+  PAUSA: câmera na tela toda + imagem pausa_horizontal.png por cima
+
+VERTICAL (1080x1920)
+  1. Imagem  fundo_vertical.png ............ X 0, Y 0 (tela toda)
+  2. Vídeo reagido (janela do navegador) .. X 40, Y 300, caixa 1000 x 562 (Ajustar à caixa)
+  3. Câmera ............................... X 40, Y 990, caixa 1000 x 563 (Cobrir e cortar)
+  4. Imagem  moldura_camera_vertical.png .... X 0, Y 0 (por cima da câmera)
+  5. Texto do título (fonte Anton, preto) . X 290, Y 888, altura 54
+  PAUSA: câmera na tela toda + imagem pausa_vertical.png por cima

@@ -1,0 +1,522 @@
+{
+  "titulo": "O PREDIO DO 12 ANDAR",
+  "marca": "@detto.historias",
+  "emoji": "🔌",
+  "cenas": [
+    {
+      "narracao": "Se a luz cair e o seu prédio tiver gerador, não desça para o subsolo.",
+      "cenario": "predio",
+      "andar": 12,
+      "andares": 15,
+      "luz": "noite",
+      "plano": "geral",
+      "movimento": "sobe",
+      "ate": 4.2,
+      "sfx": "riser",
+      "sfx_palavra": "gerador",
+      "objetos": []
+    },
+    {
+      "narracao": "É lá que quase todo mundo erra, e o Lucas quase errou também.",
+      "cenario": "predio",
+      "andar": 12,
+      "andares": 15,
+      "luz": "noite",
+      "plano": "medio",
+      "movimento": "zoom",
+      "foco": {
+        "x": 0.5,
+        "y": 0.42
+      },
+      "ate": 7.6,
+      "sfx": "tick"
+    },
+    {
+      "narracao": "Seis e quarenta da manhã, décimo segundo andar, e o celular dele apita sozinho.",
+      "cenario": "quarto",
+      "luz": "alerta",
+      "plano": "medio",
+      "movimento": "direita",
+      "relogio": "06:40",
+      "ate": 12.4,
+      "sfx": "mensagem",
+      "sfx_palavra": "apita",
+      "pessoas": [
+        {
+          "quem": "Lucas",
+          "x": 0.42,
+          "y": 0.78,
+          "pose": "olhando",
+          "cara": "assustado",
+          "falando": false
+        }
+      ],
+      "objetos": [
+        {
+          "tipo": "celular",
+          "x": 0.72,
+          "y": 0.6,
+          "s": 1.15,
+          "alerta": true,
+          "extra": "ALERTA: NAO SAIA DE CASA"
+        }
+      ]
+    },
+    {
+      "narracao": "A mensagem é curta: não saia de casa.",
+      "cenario": "quarto",
+      "luz": "alerta",
+      "plano": "close",
+      "foco": {
+        "x": 0.7,
+        "y": 0.52
+      },
+      "movimento": "zoom",
+      "ate": 15.2,
+      "sfx": "ding",
+      "objetos": [
+        {
+          "tipo": "celular",
+          "x": 0.5,
+          "y": 0.58,
+          "s": 1.35,
+          "alerta": true,
+          "extra": "ALERTA: NAO SAIA DE CASA"
+        }
+      ]
+    },
+    {
+      "narracao": "Ele ainda estava lendo quando a luz do corredor piscou duas vezes e morreu.",
+      "cenario": "corredor",
+      "luz": "noite",
+      "plano": "medio",
+      "movimento": "esquerda",
+      "escurece": true,
+      "ate": 19.8,
+      "sfx": "click",
+      "sfx_palavra": "morreu",
+      "objetos": [
+        {
+          "tipo": "lampada",
+          "x": 0.5,
+          "y": 0.3,
+          "s": 1.9,
+          "apagado": true
+        }
+      ],
+      "pessoas": [
+        {
+          "quem": "Lucas",
+          "x": 0.44,
+          "y": 0.8,
+          "pose": "olhando",
+          "cara": "assustado"
+        }
+      ]
+    },
+    {
+      "narracao": "O gerador do prédio ligou no subsolo, e foi aí que o prédio inteiro desceu para ver.",
+      "cenario": "garagem",
+      "luz": "escuro",
+      "plano": "geral",
+      "movimento": "zoom",
+      "ate": 25.0,
+      "sfx": "motor",
+      "sfx_palavra": "gerador",
+      "objetos": [
+        {
+          "tipo": "gerador",
+          "x": 0.5,
+          "y": 0.68,
+          "s": 1.9
+        }
+      ],
+      "silhuetas": [
+        {
+          "x": 0.16,
+          "y": 0.74,
+          "alt": 420
+        },
+        {
+          "x": 0.27,
+          "y": 0.76,
+          "alt": 400
+        },
+        {
+          "x": 0.84,
+          "y": 0.75,
+          "alt": 430
+        }
+      ]
+    },
+    {
+      "narracao": "Primeira regra: gerador de prédio não alimenta a sua tomada.",
+      "cenario": "garagem",
+      "luz": "escuro",
+      "plano": "close",
+      "foco": {
+        "x": 0.52,
+        "y": 0.62
+      },
+      "movimento": "afasta",
+      "ate": 29.0,
+      "sfx": "boom",
+      "objetos": [
+        {
+          "tipo": "gerador",
+          "x": 0.5,
+          "y": 0.66,
+          "s": 1.5
+        }
+      ],
+      "regra": 1
+    },
+    {
+      "narracao": "Ele segura o elevador e a bomba de água por mais ou menos oito horas, e acabou.",
+      "cenario": "garagem",
+      "luz": "escuro",
+      "plano": "medio",
+      "movimento": "direita",
+      "contador": "8 HORAS",
+      "contador_sub": "o que o gerador aguenta",
+      "ate": 34.2,
+      "sfx": "tick",
+      "objetos": [
+        {
+          "tipo": "gerador",
+          "x": 0.44,
+          "y": 0.68,
+          "s": 1.35
+        }
+      ],
+      "silhuetas": [
+        {
+          "x": 0.82,
+          "y": 0.78,
+          "alt": 420
+        }
+      ]
+    },
+    {
+      "narracao": "Segunda regra: enche tudo de água nos primeiros vinte minutos.",
+      "cenario": "banheiro",
+      "luz": "escuro",
+      "plano": "medio",
+      "movimento": "zoom",
+      "ate": 38.4,
+      "sfx": "agua",
+      "sfx_palavra": "água",
+      "objetos": [
+        {
+          "tipo": "torneira",
+          "x": 0.64,
+          "y": 0.46,
+          "s": 1.8
+        },
+        {
+          "tipo": "banheira",
+          "x": 0.46,
+          "y": 0.72,
+          "s": 1.5,
+          "enchendo": true,
+          "desde": 0
+        }
+      ],
+      "regra": 2
+    },
+    {
+      "narracao": "Sem energia a bomba para, e a caixa do prédio dura cerca de um dia.",
+      "cenario": "banheiro",
+      "luz": "escuro",
+      "plano": "close",
+      "foco": {
+        "x": 0.56,
+        "y": 0.5
+      },
+      "movimento": "esquerda",
+      "ate": 42.6,
+      "sfx": "pop",
+      "objetos": [
+        {
+          "tipo": "balde",
+          "x": 0.38,
+          "y": 0.64,
+          "s": 2.2,
+          "enchendo": true,
+          "desde": 0
+        },
+        {
+          "tipo": "garrafa",
+          "x": 0.68,
+          "y": 0.66,
+          "s": 1.9
+        }
+      ]
+    },
+    {
+      "narracao": "Terceira regra: geladeira fechada segura o frio por quatro horas.",
+      "cenario": "quarto",
+      "luz": "escuro",
+      "plano": "medio",
+      "movimento": "sobe",
+      "contador": "4 HORAS",
+      "contador_sub": "geladeira fechada",
+      "ate": 46.8,
+      "sfx": "porta",
+      "pessoas": [
+        {
+          "quem": "Lucas",
+          "x": 0.46,
+          "y": 0.78,
+          "pose": "parado",
+          "cara": "serio"
+        }
+      ],
+      "regra": 3,
+      "objetos": [
+        {
+          "tipo": "porta",
+          "x": 0.74,
+          "y": 0.68,
+          "s": 1.5
+        }
+      ]
+    },
+    {
+      "narracao": "Toda vez que você abre, cai para uma.",
+      "cenario": "quarto",
+      "luz": "escuro",
+      "plano": "close",
+      "foco": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "movimento": "zoom",
+      "ate": 49.4,
+      "sfx": "click",
+      "objetos": [
+        {
+          "tipo": "porta",
+          "x": 0.5,
+          "y": 0.66,
+          "s": 1.9,
+          "batendo": true
+        }
+      ],
+      "onomatopeia": "TUM!",
+      "ono_x": 0.2,
+      "ono_y": 0.3
+    },
+    {
+      "narracao": "De manhã ele ouviu um rádio de pilha pela porta da vizinha, e entendeu o tamanho da coisa.",
+      "cenario": "corredor",
+      "luz": "escuro",
+      "plano": "medio",
+      "movimento": "direita",
+      "ate": 55.2,
+      "sfx": "mensagem",
+      "sfx_palavra": "rádio",
+      "pessoas": [
+        {
+          "quem": "Dona Alzira",
+          "x": 0.68,
+          "y": 0.78,
+          "pose": "olhando",
+          "cara": "serio"
+        },
+        {
+          "quem": "Lucas",
+          "x": 0.3,
+          "y": 0.78,
+          "pose": "olhando",
+          "cara": "assustado"
+        }
+      ],
+      "objetos": [
+        {
+          "tipo": "radio",
+          "x": 0.5,
+          "y": 0.56,
+          "s": 1.1,
+          "ligado": true
+        }
+      ]
+    },
+    {
+      "narracao": "Não era o prédio, não era o bairro, não era a cidade: era o país inteiro.",
+      "cenario": "corredor",
+      "luz": "escuro",
+      "plano": "close",
+      "foco": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "movimento": "zoom",
+      "tremor": true,
+      "ate": 60.4,
+      "sfx": "boom",
+      "sfx_palavra": "país",
+      "objetos": [
+        {
+          "tipo": "radio",
+          "x": 0.5,
+          "y": 0.62,
+          "s": 1.5,
+          "ligado": true
+        }
+      ]
+    },
+    {
+      "narracao": "Quarta regra: celular no modo avião rende três dias.",
+      "cenario": "quarto",
+      "luz": "escuro",
+      "plano": "close",
+      "foco": {
+        "x": 0.52,
+        "y": 0.5
+      },
+      "movimento": "afasta",
+      "contador": "3 DIAS",
+      "contador_sub": "bateria no modo aviao",
+      "ate": 64.6,
+      "sfx": "ding",
+      "objetos": [
+        {
+          "tipo": "celular",
+          "x": 0.5,
+          "y": 0.6,
+          "s": 1.35
+        }
+      ],
+      "regra": 4
+    },
+    {
+      "narracao": "Procurando sinal, ele morre em meia tarde.",
+      "cenario": "quarto",
+      "luz": "escuro",
+      "plano": "close",
+      "foco": {
+        "x": 0.52,
+        "y": 0.5
+      },
+      "movimento": "zoom",
+      "ate": 67.0,
+      "sfx": "glitch",
+      "objetos": [
+        {
+          "tipo": "celular",
+          "x": 0.5,
+          "y": 0.6,
+          "s": 1.35,
+          "apagado": true
+        }
+      ]
+    },
+    {
+      "narracao": "Sem sinal nenhum, chegou outra mensagem no aparelho dele.",
+      "cenario": "quarto",
+      "luz": "alerta",
+      "plano": "medio",
+      "movimento": "zoom",
+      "tremor": true,
+      "ate": 71.4,
+      "sfx": "mensagem",
+      "sfx_palavra": "mensagem",
+      "pessoas": [
+        {
+          "quem": "Lucas",
+          "x": 0.4,
+          "y": 0.78,
+          "pose": "olhando",
+          "cara": "assustado"
+        }
+      ],
+      "objetos": [
+        {
+          "tipo": "celular",
+          "x": 0.72,
+          "y": 0.58,
+          "s": 1.2,
+          "alerta": true,
+          "extra": "FIQUE LONGE DAS JANELAS"
+        }
+      ]
+    },
+    {
+      "narracao": "Quinta regra: no escuro, a escada de doze andares é onde as pessoas se machucam.",
+      "cenario": "escadaria",
+      "luz": "escuro",
+      "plano": "geral",
+      "movimento": "desce",
+      "ate": 77.0,
+      "sfx": "passos",
+      "silhuetas": [
+        {
+          "x": 0.35,
+          "y": 0.72,
+          "alt": 300
+        },
+        {
+          "x": 0.6,
+          "y": 0.86,
+          "alt": 320
+        }
+      ],
+      "regra": 5
+    },
+    {
+      "narracao": "E foi quando ele olhou pela janela.",
+      "cenario": "janela",
+      "luz": "escuro",
+      "plano": "medio",
+      "movimento": "zoom",
+      "ate": 80.0,
+      "sfx": "riser",
+      "pessoas": [
+        {
+          "quem": "Lucas",
+          "x": 0.42,
+          "y": 0.8,
+          "pose": "olhando",
+          "cara": "assustado"
+        }
+      ],
+      "objetos": [
+        {
+          "tipo": "lampada",
+          "x": 0.78,
+          "y": 0.3,
+          "s": 1.4,
+          "apagado": true
+        }
+      ]
+    },
+    {
+      "narracao": "O mercadinho da esquina já estava saqueado, com as portas abertas e ninguém olhando.",
+      "cenario": "mercado",
+      "saqueado": true,
+      "luz": "escuro",
+      "plano": "geral",
+      "movimento": "direita",
+      "ate": 85.6,
+      "sfx": "vidro",
+      "sfx_palavra": "saqueado"
+    },
+    {
+      "narracao": "O Lucas tem água para dois dias e a escada está cheia. Ele desce agora para o mercado, ou tranca a porta e espera?",
+      "cenario": "predio",
+      "andar": 12,
+      "andares": 15,
+      "luz": "escuro",
+      "plano": "geral",
+      "movimento": "afasta",
+      "ate": 92.0,
+      "sfx": "tick",
+      "escolha": {
+        "pergunta": "O QUE O LUCAS FAZ?",
+        "a": "DESCE PARA O MERCADO AGORA",
+        "b": "TRANCA A PORTA E ESPERA"
+      }
+    }
+  ]
+}
