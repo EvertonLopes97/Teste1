@@ -532,7 +532,47 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-11-13a";
+const VERSAO_TELA = "2026-11-19a";
+// ---- Google Flow (19/nov): status do Chrome na porta 9222, abrir, preset "TikTok Shop (Produto Real)", foto do produto
+function flowCard(S){
+  const F = S.flow || {};
+  const cor = F.chrome ? (F.logado === false ? "#e0a800" : "#2e9e5b") : "#d9534f";
+  return `<div class="card" style="margin:8px 0;border-left:4px solid ${cor}">
+    <b>Google Flow (Meus Créditos)</b>
+    <small style="display:block;opacity:.8;margin:4px 0">${esc(F.msg || "sem verificação ainda")}</small>
+    <div class="linha" style="gap:8px;flex-wrap:wrap">
+      <button class="mini" onclick="api('shop_flow_abrir').then(r=>{toast(r.ok?'abrindo o Chrome do Flow...':(r.erro||'não deu'));setTimeout(()=>carrega(true),4000)})">Abrir Chrome do Flow</button>
+      <button class="mini" onclick="api('shop_flow_status').then(r=>{toast(r.msg||'ok');carrega(true)})">Verificar conexão</button>
+      <button class="mini" onclick="api('shop_preset_real').then(()=>{toast('Preset TikTok Shop (Produto Real) ligado');carrega(true)})">Preset: TikTok Shop (Produto Real)</button>
+    </div>
+    <details style="margin-top:8px"><summary>Ajustes do Flow, foto do produto e avatar</summary>
+      <div class="linha" style="gap:8px;flex-wrap:wrap;margin-top:8px">
+        <input type="text" id="fl_modelo" value="${esc(F.modelo||"")}" placeholder="modelo (ex.: Veo 3.1 Fast; vazio = o que está na tela)" style="flex:1;min-width:220px">
+        <select id="fl_dur"><option value="0" ${!F.duracao?"selected":""}>duração padrão</option><option value="4" ${F.duracao==4?"selected":""}>4 s</option><option value="6" ${F.duracao==6?"selected":""}>6 s</option><option value="8" ${F.duracao==8?"selected":""}>8 s</option></select>
+        <input type="number" id="fl_max" value="${F.max_dia||40}" min="1" max="200" style="width:90px" title="teto de gerações por dia">
+        <input type="number" id="fl_seg" value="${F.seguro_baixo||0}" min="0" max="700" style="width:90px" title="área segura embaixo, em px (480 = acima do card laranja)">
+        <input type="text" id="fl_avatar" value="${esc(F.avatar||"")}" placeholder="nome do seu avatar no Flow" style="flex:1;min-width:200px">
+        <label><input type="checkbox" id="fl_usar" ${F.usar_avatar?"checked":""}> usar o avatar nos clipes</label>
+        <input type="text" id="fl_proj" value="${esc(F.projeto||"")}" placeholder="link do seu projeto no Flow (opcional)" style="flex:1;min-width:260px">
+        <button class="mini" onclick="api('shop_cfg',{flow_modelo:$('#fl_modelo').value,flow_duracao:+$('#fl_dur').value,flow_max_dia:+$('#fl_max').value,seguro_baixo:+$('#fl_seg').value,flow_avatar:$('#fl_avatar').value,flow_usar_avatar:$('#fl_usar').checked,flow_projeto_url:$('#fl_proj').value}).then(()=>{toast('salvo');carrega(true)})">Salvar</button>
+      </div>
+      <div class="linha" style="gap:8px;flex-wrap:wrap;margin-top:8px">
+        <input type="text" id="fl_prod" placeholder="nome do produto" style="flex:1;min-width:200px">
+        <input type="file" id="fl_foto" accept="image/*">
+        <button class="mini" onclick="flowFoto()">Subir foto do produto</button>
+        <small style="opacity:.7">A foto fica em produtos\\&lt;nome&gt;\\; depois é só «▶ Fazer» naquele produto.</small>
+      </div>
+    </details>
+  </div>`;
+}
+async function flowFoto(){
+  const nome = ($('#fl_prod').value||"").trim(), f = ($('#fl_foto').files||[])[0];
+  if(!nome || !f){ toast("ponha o nome do produto e escolha a foto"); return; }
+  const b64 = await new Promise(ok => { const r = new FileReader(); r.onload = () => ok(r.result); r.readAsDataURL(f); });
+  const r = await api('shop_foto',{produto:nome,arquivo:f.name,b64});
+  toast(r.ok ? "foto salva em produtos\\"+r.pasta : (r.erro||"não deu")); carrega(true);
+}
+
 async function reinicia(){
   if(!confirm("Fechar e abrir o painel para pegar o código novo?\n\nSe você abriu pelo atalho/tarefa do Windows ele volta sozinho em alguns segundos; senão abra o INICIAR de novo.")) return;
   let ok = true;
@@ -981,8 +1021,9 @@ function shop(){
       <a class="mini" href="/shop_arquivo?nome=${encodeURIComponent(v.nome)}&dia=${esc(v.dia)}&baixar=1">Baixar</a></span>
     </div>`).join("") : `<div class="info">Nada hoje ainda. Cada vídeo pronto já entra na fila de postagem.</div>`}
     <div class="chave"><span><b>Buscar vídeos do produto na internet</b><small>${S.clipes_internet ? "Baixa review/unboxing do produto, corta em pedaços e DESCARTA os que mostram a cara de alguém — o vídeo sai com o produto em uso, não com foto parada" : "Desligado: só as fotos"}</small></span><label class="sw"><input type="checkbox" ${S.clipes_internet ? "checked" : ""} onchange="api('shop_cfg',{clipes_internet:this.checked}).then(()=>{toast('salvo');carrega(true)})"><span></span></label></div>
-    <div class="chave"><span><b>Movimento por IA na foto do produto (PAGO por clipe)</b><small>${S.ia_video && S.ia_video !== "desligado" ? "LIGADO: a foto real do produto vira um clipe de " + S.ia_video_s + " s em 720p (" + S.ia_video_max + " por vídeo), cobrado na sua conta do serviço" : "Desligado: nada é cobrado"}${S.ia_video === "seedance" && !(S.ia_chaves||{}).seedance ? " — FALTA a chave da muapi.ai" : ""}${S.ia_video === "fal" && !(S.ia_chaves||{}).fal ? " — FALTA a chave do fal.ai" : ""}${S.ia_video === "higgsfield" && !(S.ia_chaves||{}).higgsfield ? " — FALTAM o ID e o segredo do Higgsfield" : ""}</small></span>
-      <select onchange="api('shop_cfg',{ia_video:this.value}).then(()=>{toast('salvo');carrega(true)})"><option value="desligado" ${!S.ia_video || S.ia_video === "desligado" ? "selected" : ""}>Desligado</option><option value="seedance" ${S.ia_video === "seedance" ? "selected" : ""}>Seedance</option><option value="higgsfield" ${S.ia_video === "higgsfield" ? "selected" : ""}>Higgsfield</option><option value="fal" ${S.ia_video === "fal" ? "selected" : ""}>Wan aberto (fal.ai)</option></select></div>
+    <div class="chave"><span><b>Movimento por IA na foto do produto (PAGO por clipe)</b><small>${S.ia_video && S.ia_video !== "desligado" ? "LIGADO: a foto real do produto vira um clipe de " + S.ia_video_s + " s em 720p (" + S.ia_video_max + " por vídeo), cobrado na sua conta do serviço" : "Desligado: nada é cobrado"}${S.ia_video === "seedance" && !(S.ia_chaves||{}).seedance ? " — FALTA a chave da muapi.ai" : ""}${S.ia_video === "fal" && !(S.ia_chaves||{}).fal ? " — FALTA a chave do fal.ai" : ""}${S.ia_video === "flow" ? " — usa os créditos da sua assinatura no Chrome do Flow (não cobra dinheiro)" : ""}${S.ia_video === "higgsfield" && !(S.ia_chaves||{}).higgsfield ? " — FALTAM o ID e o segredo do Higgsfield" : ""}</small></span>
+      <select onchange="api('shop_cfg',{ia_video:this.value}).then(()=>{toast('salvo');carrega(true)})"><option value="desligado" ${!S.ia_video || S.ia_video === "desligado" ? "selected" : ""}>Desligado</option><option value="seedance" ${S.ia_video === "seedance" ? "selected" : ""}>Seedance</option><option value="higgsfield" ${S.ia_video === "higgsfield" ? "selected" : ""}>Higgsfield</option><option value="fal" ${S.ia_video === "fal" ? "selected" : ""}>Wan aberto (fal.ai)</option><option value="flow" ${S.ia_video === "flow" ? "selected" : ""}>Google Flow (Meus Créditos)</option></select></div>
+    ${flowCard(S)}
     <details style="margin:6px 0 10px"><summary>Chaves e ajustes do movimento por IA</summary>
       <div class="linha" style="gap:8px;flex-wrap:wrap;margin-top:8px">
         <input type="password" id="ia_fal" placeholder="Wan/LatentSync/CatVTON: chave do fal.ai ${(S.ia_chaves||{}).fal ? "(já salva)" : ""}" autocomplete="off" style="flex:1;min-width:220px">

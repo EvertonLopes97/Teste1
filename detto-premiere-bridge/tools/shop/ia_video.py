@@ -23,6 +23,7 @@ import json
 import mimetypes
 import os
 import subprocess
+import sys
 import time
 import urllib.error
 import urllib.request
@@ -33,7 +34,7 @@ UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like 
 PEDIDO = ("The product from @image1 in real use, handheld UGC style. Slow smooth camera push-in with slight natural hand "
           "movement and soft daylight. The product keeps EXACTLY the same shape, colors, label and text as the photo. "
           "No new text, no logos added, no faces, realistic, sharp focus on the product.")
-PROVEDORES = {"seedance": "Seedance (muapi.ai)", "higgsfield": "Higgsfield", "fal": "Wan aberto (fal.ai)"}
+PROVEDORES = {"seedance": "Seedance (muapi.ai)", "higgsfield": "Higgsfield", "fal": "Wan aberto (fal.ai)", "flow": "Google Flow (Meus Créditos)"}
 
 
 def provedor(cfg):
@@ -57,7 +58,15 @@ def tem_chave(p):
         return bool(os.environ.get("HF_API_KEY_ID") and os.environ.get("HF_API_KEY_SECRET"))
     if p == "fal":
         return bool(os.environ.get("FAL_KEY"))
+    if p == "flow":      # sem chave: usa o Chrome logado (porta 9222) — a "chave" é o Chrome estar aberto
+        return _flow().chrome_aberto()
     return False
+
+
+def _flow():
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "flow"))
+    import flow_service
+    return flow_service
 
 
 def _json(url, corpo=None, cab=None, metodo=None, prazo=60):
@@ -177,7 +186,8 @@ def gera(fotos, nome, base, cfg, log=print):
         return []
     poe_chaves(cfg)
     if not tem_chave(p):
-        log(f"   movimento por IA ({PROVEDORES[p]}): ligado, mas sem a chave — cole no painel (Chaves). Sigo sem ele.")
+        msg = "o Chrome do Flow está fechado — abra iniciar_chrome_flow.bat (ou o botão no painel)" if p == "flow" else "sem a chave — cole no painel (Chaves)"
+        log(f"   movimento por IA ({PROVEDORES[p]}): ligado, mas {msg}. Sigo sem ele.")
         return []
     quantos = max(1, min(4, int(cfg.get("ia_video_max", 1))))
     seg = int(cfg.get("ia_video_s", 5))
@@ -188,6 +198,12 @@ def gera(fotos, nome, base, cfg, log=print):
     pasta.mkdir(parents=True, exist_ok=True)
     feitos = []
     for foto in list(fotos)[:quantos]:
+        if p == "flow":   # Flow: no Chrome logado, gasta crédito da assinatura (não dinheiro); cache e normalização ficam no flow_service
+            avatar = str(cfg.get("flow_avatar") or "").strip() if cfg.get("flow_usar_avatar") else None
+            clipe = _flow().gera_clipe(pedido.replace("@image1", "the uploaded photo"), imagem=foto, avatar=avatar or None, cfg=cfg, log=log)
+            if clipe:
+                feitos.append(str(clipe))
+            continue
         try:
             marca = hashlib.md5(Path(foto).read_bytes() + f"{p}|{seg}|{pedido}".encode()).hexdigest()[:16]
             pronto = pasta / f"{p}_{marca}.mp4"

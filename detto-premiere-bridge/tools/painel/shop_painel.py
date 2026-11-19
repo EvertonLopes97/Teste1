@@ -44,6 +44,38 @@ def _linhas(f, n=10):
         return []
 
 
+_FLOW = {"t": 0.0, "v": None}
+
+
+def _flow_mod():
+    p = str(TOOLS / "flow")
+    if p not in sys.path:
+        sys.path.insert(0, p)
+    import flow_service
+    return flow_service
+
+
+def _flow_estado(cfg, forca=False):
+    """saúde do Chrome do Flow (porta 9222) para o painel; guardada 8 s para o painel não ficar batendo na porta"""
+    import time
+    if not forca and _FLOW["v"] is not None and time.time() - _FLOW["t"] < 8:
+        return _FLOW["v"]
+    try:
+        v = _flow_mod().saude(cfg)
+    except Exception as e:   # noqa: BLE001
+        v = {"chrome": False, "flow_aberto": False, "logado": None, "msg": f"não consegui verificar ({str(e)[:80]})"}
+    v.update({"modelo": str(cfg.get("flow_modelo") or ""), "duracao": int(cfg.get("flow_duracao") or 0), "avatar": str(cfg.get("flow_avatar") or ""),
+              "usar_avatar": bool(cfg.get("flow_usar_avatar")), "max_dia": int(cfg.get("flow_max_dia", 40)),
+              "seguro_baixo": int(cfg.get("seguro_baixo") or 0), "projeto": str(cfg.get("flow_projeto_url") or "")})
+    _FLOW["t"], _FLOW["v"] = time.time(), v
+    return v
+
+
+PEDIDO_REAL = ("The product from the uploaded photo as a premium commercial shot: slow orbital camera move around the product, "
+               "soft studio lighting with gentle highlights, clean background, shallow depth of field. The product keeps EXACTLY "
+               "the same shape, colors, label and printed text as the photo. No people, no extra text, no logos added, realistic.")
+
+
 def estado():
     S = _s()
     base = pasta()
@@ -86,6 +118,7 @@ def estado():
         "fotos_internet": bool(cfg.get("fotos_internet", True)),
         "ia_video": str(cfg.get("ia_video") or "desligado"), "ia_video_max": int(cfg.get("ia_video_max", 1)),
         "ia_video_s": int(cfg.get("ia_video_s", 5)),
+        "flow": _flow_estado(cfg),
         "ia_chaves": {"fal": bool(cfg.get("fal_chave") or os.environ.get("FAL_KEY")), "seedance": bool(cfg.get("seedance_chave") or os.environ.get("SEEDANCE_API_KEY")),
                       "higgsfield": bool((cfg.get("hf_id") and cfg.get("hf_segredo"))
                                          or (os.environ.get("HF_API_KEY_ID") and os.environ.get("HF_API_KEY_SECRET")))},
@@ -165,7 +198,7 @@ def acao(nome, d):
         for k in ("modo", "duracao", "cta", "arroba", "musica"):
             if k in d:
                 cfg[k] = d[k]
-        if d.get("ia_video") in ("desligado", "seedance", "higgsfield", "fal"):
+        if d.get("ia_video") in ("desligado", "seedance", "higgsfield", "fal", "flow"):
             cfg["ia_video"] = d["ia_video"]
         for k in ("seedance_chave", "hf_id", "hf_segredo", "fal_chave"):
             if str(d.get(k) or "").strip():
@@ -174,7 +207,13 @@ def acao(nome, d):
             cfg["ia_video_max"] = max(1, min(4, int(float(d["ia_video_max"] or 1))))
         if "ia_video_s" in d:
             cfg["ia_video_s"] = 10 if int(float(d["ia_video_s"] or 5)) >= 8 else 5
-        for k in ("clipes_internet", "fotos_internet", "narracao", "legenda", "auto"):
+        for k in ("flow_modelo", "flow_avatar", "flow_projeto_url", "ia_video_pedido"):
+            if k in d:
+                cfg[k] = str(d[k] or "").strip()
+        for k, a, b in (("flow_duracao", 0, 10), ("flow_max_dia", 1, 200), ("seguro_baixo", 0, 700)):
+            if k in d:
+                cfg[k] = max(a, min(b, int(float(d[k] or 0))))
+        for k in ("clipes_internet", "fotos_internet", "narracao", "legenda", "auto", "flow_usar_avatar"):
             if k in d:
                 cfg[k] = bool(d[k])
         if "clipes_quantos" in d:
@@ -185,6 +224,43 @@ def acao(nome, d):
             cfg["postar"] = ["todas"] if d["postar"] in (True, "todas") else (d["postar"] or [])
         S.grava_json(base / "config.json", cfg)
         return {"ok": True}
+    if nome == "shop_flow_status":
+        return {"ok": True, **_flow_estado(S.prepara(base), forca=True)}
+    if nome == "shop_flow_abrir":
+        bat = PONTE / "iniciar_chrome_flow.bat"
+        if os.name != "nt" or not bat.exists():
+            return {"ok": False, "erro": f"só no Windows; arquivo: {bat}"}
+        subprocess.Popen(["cmd", "/c", "start", "", str(bat)], cwd=str(PONTE), creationflags=0x00000008)
+        return {"ok": True}
+    if nome == "shop_preset_real":
+        # TikTok Shop (Produto Real): a foto REAL do produto anima no Flow (crédito da assinatura) + texto acima do card laranja
+        cfg = S.prepara(base)
+        cfg.update({"ia_video": "flow", "ia_video_max": 1, "ia_video_s": 5, "seguro_baixo": 480, "flow_usar_avatar": False,
+                    "ia_video_pedido": str(d.get("pedido") or "").strip() or PEDIDO_REAL, "modo": "ia", "fotos_internet": False})
+        S.grava_json(base / "config.json", cfg)
+        _FLOW["v"] = None
+        return {"ok": True}
+    if nome == "shop_foto":
+        # sobe a foto do produto (base64) para produtos\<nome>\
+        import base64
+        import re as _re
+        nm = _re.sub(r"[^\w .-]", "", str(d.get("produto") or "").strip())[:60]
+        arq = _re.sub(r"[^\w.-]", "_", str(d.get("arquivo") or "foto.jpg"))[:80]
+        if not nm or Path(arq).suffix.lower() not in FOTO_EXT:
+            return {"ok": False, "erro": "informe o nome do produto e uma foto (jpg/png/webp)"}
+        try:
+            dados = base64.b64decode(str(d.get("b64") or "").split(",")[-1])
+        except Exception:   # noqa: BLE001
+            return {"ok": False, "erro": "a foto não chegou direito"}
+        if not 1000 < len(dados) < 25_000_000:
+            return {"ok": False, "erro": "foto vazia ou grande demais (máx. 25 MB)"}
+        dest = base / "produtos" / nm
+        dest.mkdir(parents=True, exist_ok=True)
+        (dest / arq).write_bytes(dados)
+        info = dest / "produto.json"
+        if not info.exists():
+            S.grava_json(info, {"nome": str(d.get("produto")).strip()})
+        return {"ok": True, "pasta": nm}
     return {"ok": False, "erro": f"ação desconhecida: {nome}"}
 
 

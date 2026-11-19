@@ -768,7 +768,7 @@ def cartelas(rot, produto, cfg, cenas, legendas, tmp, log=log):
         pecas.append({"saida": f"leg{i:03d}.png", "legenda": b["txt"]})
         tempos.append((f"leg{i:03d}.png", b["ini"], b["fim"]))
     pedido = tmp / "cartelas.json"
-    grava_json(pedido, {"largura": W, "altura": H, "pecas": pecas})
+    grava_json(pedido, {"largura": W, "altura": H, "pecas": pecas, "seguro_baixo": int(cfg.get("seguro_baixo") or 0)})
     roda(["node", str(AQUI / "cartelas.js"), str(pedido)], "cartelas")
     return [(tmp / n, a, b) for n, a, b in tempos if (tmp / n).exists()]
 

@@ -3,6 +3,25 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 19/nov — GOOGLE FLOW PELO CHROME REAL (branch `feat/flow-integracao`) — SELETORES NÃO CONFERIDOS NA CONTA DELE
+
+- Pedido: usar os créditos do Flow (assinatura Google AI) nos shorts/vídeos e no Shop, com o avatar que ele já criou lá. O Flow NÃO tem API
+  para crédito de assinatura; a única via é automatizar a interface num Chrome logado (CDP, porta 9222). Frágil (a tela muda) e pode ir contra
+  os termos do Google — por isso: 1 geração por vez (Lock + arquivo de trava), pausa 25 s, teto `flow_max_dia` (40), cache por pedido+foto.
+- `iniciar_chrome_flow.bat` (Chrome real, perfil `chrome_flow_profile` ignorado no git). `tools/flow/flow_service.py`: `--saude`, `--abrir`,
+  `--descobrir`, `--teste "pedido" [--imagem foto] [--avatar]`, `--importar` (vídeos baixados na mão em `<flow>\entrada\`). Captura do mp4: DOM `<video>`
+  (inclui blob:), resposta de rede `video/*`, botão baixar. Tudo vira 1080x1920/30 fps/sar 1/yuv420p (fundo desfocado se não for 9:16).
+- Falha → captura de tela + lista de botões em `<flow>\flow_debug\`; nomes dos botões trocáveis em `<flow>\seletores.json`.
+- Ligação: `ia_video = "flow"` em `tools/shop/ia_video.py`; painel (aba Shop): status do Chrome, botões Abrir/Verificar, preset **TikTok Shop (Produto Real)**
+  (foto real + pedido comercial orbital + `seguro_baixo` 480 px: legenda/CTA/@ ficam acima do card laranja — `cartelas.js`), subir foto do produto, avatar.
+- Testado aqui só contra página FALSA (conexão CDP, 9:16, upload, captura direta e blob, trava entre 2 processos, cache, diagnóstico). NÃO testado na conta real.
+
+## 19/nov — GLOSSÁRIO (erros de escrita) E LIVES GRAVADAS DE GTA
+
+- `tools/canal/glossario.py`: "6 estrelas de procura" → "6 estrelas de PROCURADO" etc. (tradução literal de *wanted level*, nomes de GTA 6, termos de jogo). Bloco no prompt
+  (`bloco()`) + correção por regra (`corrige()`) em título, thumb, descrição, narração, roteiros do canal, narrado e documentário.
+- Lives: live encerrada (`was_live`) agora entra como fonte quando o preset tem `aceita_live_gravada` (GTA 6: sim, até `max_min_live` 150 min).
+
 ## 13/nov (noite) — LIMPEZA DE DISCO: `python tools\limpar.py` (mostra) / `--apagar` (apaga)
 
 - Pedido: ver o que ocupa o disco e apagar vídeo já postado + temp. Sem acesso ao PC dele daqui, então virou ferramenta: lista as pastas

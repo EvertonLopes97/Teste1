@@ -64,6 +64,12 @@ async function main() {
   const pagina = await navegador.newPage({ viewport: { width: W, height: H }, deviceScaleFactor: 1 });
   await pagina.goto(pathToFileURL(path.join(AQUI, "palco", "shop.html")).href);
   await pagina.addStyleTag({ content: `html,body,#palco{width:${W}px;height:${H}px}` });
+  // ÁREA SEGURA do TikTok Shop (19/nov): o card laranja de compra cobre ~25% de baixo (480 px). Com "seguro_baixo" no pedido,
+  // legenda, CTA e @ sobem para ficar ACIMA dele.
+  const seguro = Number(pedido.seguro_baixo || 0);
+  if (seguro > 0) {
+    await pagina.addStyleTag({ content: `.legenda{bottom:${seguro + 190}px !important}.cta,.cta.baixo{bottom:${seguro + 10}px !important}.fim .arroba{bottom:${seguro + 40}px !important}` });
+  }
 
   let n = 0;
   for (const p of pecas) {

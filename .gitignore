@@ -2,3 +2,12 @@
 # saida do doutor.py (cada PC tem a sua)
 detto-premiere-bridge/tools/diagnostico.txt
 detto-premiere-bridge/sface.onnx
+
+# GOOGLE FLOW (19/nov): perfil do Chrome logado (cookies!) e saídas/depuração nunca vão para o Git
+chrome_flow_profile/
+detto-premiere-bridge/chrome_flow_profile/
+**/chrome_flow_profile/
+**/flow_debug/
+**/flow_saida/
+**/flow_downloads/
+**/flow_tmp/
