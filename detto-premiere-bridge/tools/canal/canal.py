@@ -1713,21 +1713,67 @@ def enc():
     return [*_ENC, "-pix_fmt", "yuv420p", "-r", str(FPS), "-c:a", "aac", "-b:a", "160k", "-ar", "48000", "-ac", "2"]
 
 
+_PT_SW = set("de da do das dos que não nao com uma para por mais mas como foi ele ela isso esse essa então tá né aí já vai muito tem são está pra você voce nós aqui bem só também quando mesmo ser eu meu minha seu sua os as um em na no se ao".split())
+_EN_SW = set("the and you that this with for are was not have just but they what your from will can it's i'm don't is of to in on we he she his her there out all one get got like about would going".split())
+_ES_SW = set("el la los las que de en es un una por con para pero como muy esto está estoy tiene hay también más cuando si yo tú lo se su sus al del esa ese esta".split())
+
+
+def lingua_do_texto(textos):
+    """"pt" / "en" / "es" / "?" pelas palavras mais comuns de cada língua (o whisper adivinha pelos 30 s do começo e erra
+    com música ou nomes em inglês; a legenda do YouTube diz a faixa, não a fala). `textos` = lista de str ou str."""
+    ws = re.findall(r"[a-zà-ú']+", (" ".join(textos) if isinstance(textos, (list, tuple)) else str(textos)).lower())
+    if len(ws) < 6:
+        return "?"
+    n = {"pt": sum(w in _PT_SW for w in ws), "en": sum(w in _EN_SW for w in ws), "es": sum(w in _ES_SW for w in ws)}
+    melhor = max(n, key=n.get)
+    if n[melhor] / len(ws) < 0.12:
+        return "?"
+    outros = sorted(n.values())[-2]
+    return melhor if n[melhor] >= 1.3 * max(outros, 1) else "?"
+
+
+def idioma_certo(words, dito):
+    """o idioma do vídeo conferido pelo TEXTO: português de verdade fica "pt" (não traduz), fala gringa nunca fica "pt" """
+    try:
+        txt = [w["w"] for w in words[:900]]
+    except (TypeError, KeyError):
+        return dito
+    achado = lingua_do_texto(txt)
+    if achado == "?":
+        return dito
+    if achado != (dito or "pt"):
+        print(f"   idioma: o vídeo diz {str(dito).upper()} mas o texto é {achado.upper()} — vale o texto")
+    return achado
+
+
 def traduz_frases(frases, de_idioma, log=log):
-    """as falas do trecho em PORTUGUÊS (Gemini → IAs grátis → Claude). Falhou, devolve o original."""
+    """as falas do trecho em PORTUGUÊS (em lotes de 20, 2 tentativas por lote). O que já é português NÃO é traduzido.
+    Se um lote não vier, fica o original e avisa no registro."""
     if not frases:
         return []
     import glossario as G
-    g = gemini_json([{"text": G.bloco() + "\nTraduza para PORTUGUÊS DO BRASIL, falado e natural (é legenda de vídeo sobre games), "
-                              f"estas {len(frases)} falas em {de_idioma}. Mantenha nomes próprios, números e siglas. "
+    ja_pt = [lingua_do_texto(f) == "pt" for f in frases]
+    falta = [i for i, f in enumerate(frases) if not ja_pt[i]]
+    out = list(frases)
+    for ini in range(0, len(falta), 20):
+        idx = falta[ini:ini + 20]
+        lote = [frases[i] for i in idx]
+        for tent in range(2):
+            g = gemini_json([{"text": G.bloco() + "\nTraduza para PORTUGUÊS DO BRASIL, falado e natural (é legenda de vídeo sobre games), "
+                              f"estas {len(lote)} falas em {de_idioma}. Mantenha nomes próprios, números e siglas. "
+                              "Risada (haha, lol) vira \"kkk\". Fala que já está em português fica igual. "
                               "NÃO explique, NÃO junte nem divida: devolva exatamente a mesma quantidade, na ordem.\n"
                               "Responda SÓ JSON: {\"frases\": [\"<tradução 1>\", ...]}\n\n"
-                              + json.dumps(frases, ensure_ascii=False)}])
-    out = (g or {}).get("frases") or []
-    if len(out) != len(frases):
-        log(f"   tradução: a IA devolveu {len(out)} de {len(frases)} falas; fica o original onde faltou")
-        out = (out + frases[len(out):])[:len(frases)]
-    return [G.corrige(str(x)) for x in out]
+                              + json.dumps(lote, ensure_ascii=False)}])
+            res = (g or {}).get("frases") or []
+            if len(res) == len(lote):
+                for i, r in zip(idx, res):
+                    out[i] = G.corrige(str(r))
+                break
+            log(f"   tradução: a IA devolveu {len(res)} de {len(lote)} falas (tentativa {tent + 1}/2)")
+        else:
+            log(f"   ⚠ tradução: um lote de {len(lote)} falas NÃO foi traduzido — ficou no original")
+    return out
 
 
 def frases_do_trecho(words, ini, fim, por_frase=9):
@@ -2228,6 +2274,7 @@ def pautas(pasta, cfg, hist, log=log):
                 v.update(titulo=info.get("title") or linha, fonte=info.get("channel") or info.get("uploader") or "vídeo",
                          canal=(info.get("channel_url") or "").split("/")[-1])
             words, lin = transcreve(arq, cfg.get("idioma_fontes", "pt"))
+            lin = idioma_certo(words, lin)
             v["idioma"] = lin
             tr = acha_trechos(words, v, cfg, assunto="*" if link else linha)
             log(f"   {len(tr)} trecho(s) da pauta")
@@ -2823,6 +2870,7 @@ def main():
         if words is None:
             log(f"transcrevendo: {Path(v['arquivo']).name}")
             words, lin = transcreve(v["arquivo"], cfg.get("idioma_fontes", "pt"))
+        lin = idioma_certo(words, lin)
         v["idioma"] = lin
         if lin != "pt":
             log(f"   esse vídeo está em {lin.upper()}: vou traduzir e LEGENDAR o trecho em português")

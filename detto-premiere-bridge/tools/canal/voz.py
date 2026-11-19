@@ -89,10 +89,19 @@ def ordinal(n):
     return por_extenso(n)
 
 
+RISADA = re.compile(r"(?<![\w])(?:[kK]{2,}|(?:[hH][aAeEiI]){2,}[hH]?|(?:[rR][sS]){2,}|[kK](?:[aA][kK]){2,}[aA]?)(?![\w])[!?.,…]*")
+
+
+def sem_risada(texto):
+    """"kkkk", "KKK", "haha", "rsrs" NÃO são lidos (a voz soletrava "cá cá cá"): somem da fala; a legenda na tela pode ficar"""
+    t = RISADA.sub(" ", str(texto))
+    return re.sub(r"\s+([,.!?;:])", r"\1", re.sub(r"\s{2,}", " ", t)).strip()
+
+
 def pronuncia(texto):
     """o texto do jeito que tem que ser FALADO: siglas soletradas (CBF → cê bê éfe), números por extenso, placar
     "2 x 1" → "dois a um", "6º" → "sexto", "8,3" → "oito vírgula três", "33'" → "trinta e três minutos", "R$ 10 milhões"."""
-    t = f" {texto} "
+    t = f" {sem_risada(texto)} "
     t = re.sub(r"(\d+)\s*[xX×]\s*(\d+)", lambda m: f"{m.group(1)} a {m.group(2)}", t)
     # HORA: "20h30" → "oito e meia da noite"/"vinte e trinta"; "8h" → "oito horas" (a voz lia "vinte agá trinta")
     def _hora(m):

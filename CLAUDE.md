@@ -3,6 +3,13 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 19/nov (fim da tarde) — TRADUÇÃO E RISADA (kkk)
+
+- Bugs dele: vídeo gringo de GTA sem tradução; fala em português sendo "traduzida"; "kkk" lido como "cá cá cá" (a sigla KKK era soletrada).
+- `voz.sem_risada()` (dentro de `pronuncia`): kkk/haha/rsrs somem da FALA (a legenda pode ficar). `canal.lingua_do_texto/idioma_certo`: o idioma do vídeo é
+  conferido pelo TEXTO (palavras comuns pt/en/es), não só pelo whisper/faixa do YouTube — português nunca vira "gringo", gringo nunca passa por "pt".
+  `traduz_frases`: lotes de 20, 2 tentativas, não traduz frase já em português, avisa "⚠ NÃO foi traduzido" no registro. Não testado com vídeo real.
+
 ## 19/nov (tarde) — TUDO QUE ELE PREENCHE FICA NO PAINEL
 
 - Pedido: "deixe tudo que tiver de preencher ou colocar no painel". Canais Notícias/GTA 6: caixa **Fatos atuais** (grava `fatos.txt`, ação `canal_fatos`).
