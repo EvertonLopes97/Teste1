@@ -532,7 +532,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-11-19b";
+const VERSAO_TELA = "2026-11-20a";
 // ---- Google Flow (19/nov): status do Chrome na porta 9222, abrir, preset "TikTok Shop (Produto Real)", foto do produto
 function flowCard(S){
   const F = S.flow || {};
@@ -1222,6 +1222,12 @@ function cardCanal(c, x){
   const login = x.login ? `<span class="login">✔ ${esc(x.canal_yt || "YouTube conectado")}</span> <button class="mini" onclick="canLogin('${c}')">Trocar</button>`
                         : `<span class="login off">✖ YouTube não conectado</span> <button class="mini pri" onclick="canLogin('${c}')" ${E.canais.segredo ? "" : "disabled"}>Conectar</button>`;
   let esp = travado;
+  if(c === "gta6"){
+    esp += `<div class="chave" style="display:block"><b>Temas de GTA 6 (pesquisa automática)</b> <small>Cole links de vídeos que bombaram (TikTok, YouTube, Instagram): a IA copia o ESTILO e o tipo de assunto, nunca o texto. Também pesquisa Reddit, Google Notícias e YouTube. Os shorts e o documentário do dia pegam o próximo tema da fila.</small>
+      <textarea id="temas_${c}" rows="3" placeholder="https://vt.tiktok.com/…&#10;https://youtube.com/…">${esc(x.temas_links || "")}</textarea>
+      <div class="linha"><button class="pri" onclick="canTemas('${c}')">Pesquisar temas agora</button></div>
+      ${(x.temas||[]).length ? `<div class="lista">${x.temas.map(t => `<div class="l"><span>${t.tipo === "longo" ? "🎬" : "📱"} ${t.rumor ? "[rumor] " : ""}${esc(t.tema)}</span></div>`).join("")}</div>` : `<div class="info">Fila vazia: clique em pesquisar.</div>`}</div>`;
+  }
   if(c === "noticias" || c === "gta6"){
     esp += `<div class="chave" style="display:block"><b>Fatos atuais (a IA lê antes de escrever)</b> <small>O que é verdade HOJE: técnico atual, reforços, novidades que você viu. Linha <code>NÃO CITAR: Fulano, Beltrano</code> corta quem saiu. Linhas com # são comentário.</small>
       <textarea id="fatos_${c}" rows="6">${esc(x.fatos || "")}</textarea>
@@ -1312,6 +1318,7 @@ async function canAbrir(c, qual){ await api("canal_abrir", {c, qual}); toast("Ab
 async function canPauta(c, agora){ const t = $("#pauta_" + c).value; if(!t.trim()) return toast("Escreva a pauta", true);
   await api("canal_pautas", {c, texto: t, agora}); editando = false; toast(agora ? "Fazendo o vídeo com as pautas" : "Na lista de pautas"); carrega(true); }
 async function canFatos(c){ await api("canal_fatos", {c, texto: $("#fatos_" + c).value}); editando = false; toast("Fatos salvos"); carrega(true); }
+async function canTemas(c){ const r = await api("canal_temas", {c, links: $("#temas_" + c).value}); editando = false; toast(r.msg || "Pesquisando", 8000); setTimeout(() => carrega(true), 60000); }
 async function canTiraPauta(c, i){ await api("canal_tira_pauta", {c, linha: E.canais[c].pautas[i]}); carrega(true); }
 async function canRefazVlog(c, nome){ if(!confirm("Montar este vlog de novo?")) return; await api("canal_refazer_vlog", {c, nome}); toast("Vai ser montado na próxima rodada"); carrega(true); }
 function canVer(c, i, nome){ const p = E.canais[c].prontos[i];

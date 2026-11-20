@@ -3,6 +3,18 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 20/nov — TEMAS DE GTA 6 PESQUISADOS + SHORTS COM UMA CENA POR FRASE
+
+- Pedido: ele mandou 4 links de TikTok (NÃO abriram aqui: robots do TikTok; só o yt-dlp do PC dele lê) e quer vídeos longos e shorts do dia sobre assuntos assim,
+  pesquisados em fóruns/sites/vídeos, com a narração dele, legenda viral e cada frase numa cena do GTA VI.
+- `tools/canal/temas_gta.py`: junta os links dele (título, descrição, hashtags, views e a fala por whisper), Reddit r/GTA6 e r/GrandTheftAutoVI, Google Notícias (pt/en)
+  e títulos do YouTube → a IA faz a FILA `<canal_gta6>\temas_gta.json` (tipo curto/longo, gancho, rumor sim/não; glossário aplicado). Rumor entra como "RUMOR (ainda NÃO
+  confirmado…)". Links em `temas_links.txt` (lidos 1x). `proximo(pasta, tipo)` pega o próximo e pesquisa de novo se a fila acabar (máx. 1x/h).
+- Ligação: `narrado --tema gta --viral` (metade dos shorts do auto) usa a fila, senão cai nas funcionalidades de antes; `documentario.faz` sem assunto pega tema "longo".
+  Shorts GTA: `REGRAS_GTA_VIRAL` (gancho ≤12 palavras, frases curtas, 6–9 cenas = 1 cena por 1–2 frases com busca do trailer/gameplay do que a frase diz, sem kkk, legenda do post com pergunta).
+- Painel (card GTA 6): caixa "Temas de GTA 6" (cola links + "Pesquisar temas agora" + fila). Painel 2026-11-20a.
+- Testado com rede/IA falsas (fila, rumor, glossário). NÃO testado: Reddit/YouTube/TikTok reais (pode dar 403), yt-dlp em TikTok, vídeo completo. Imagem vem de trailer/gameplay do YouTube (Content ID possível).
+
 ## 19/nov (fim da tarde) — TRADUÇÃO E RISADA (kkk)
 
 - Bugs dele: vídeo gringo de GTA sem tradução; fala em português sendo "traduzida"; "kkk" lido como "cá cá cá" (a sigla KKK era soletrada).

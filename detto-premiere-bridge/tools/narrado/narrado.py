@@ -171,6 +171,28 @@ REGRAS_GTA_FUNCAO = (
     'trailer/gameplay DAQUELA funcionalidade ("GTA 6 trailer carros gameplay", "GTA 6 trailer animais").')
 
 
+def _tema_da_fila(pasta_canal, tipo):
+    """próximo tema pesquisado (Reddit, notícias, YouTube e os links dele); "" se não houver / falhar"""
+    if not pasta_canal:
+        return ""
+    try:
+        import temas_gta as T
+        return T.proximo(pasta_canal, tipo, log=log)
+    except Exception as e:   # noqa: BLE001
+        log(f"temas: fila indisponível ({str(e)[:90]})")
+        return ""
+
+
+REGRAS_GTA_VIRAL = (
+    "\n\nMODO VIRAL (GTA 6): a PRIMEIRA frase é o gancho (pergunta ou número, até 12 palavras, nada de 'fala galera'). "
+    "Frases CURTAS (6 a 12 palavras), cada uma com UM fato; a legenda vai aparecer 2 palavras por vez, então escreva para ser LIDO. "
+    "Risada nunca em texto (sem kkk). Rumor/vazamento é chamado de RUMOR. O fim volta ao gancho com uma pergunta para comentar. "
+    "Termos certos: nível de procurado (nunca 'estrelas de procura'), Vice City, Leonida. "
+    "CENAS: UMA cena para cada 1 ou 2 frases (6 a 9 cenas); cada cena escolhe o trecho de trailer/gameplay do GTA 6 que MOSTRA "
+    "exatamente o que a frase diz (ex.: frase sobre carro → 'GTA 6 trailer carros'; sobre a Lucia → 'GTA 6 Lucia Caminos trailer'; "
+    "sobre o mapa → 'GTA 6 mapa Leonida'). Em 'legenda' (do post) ponha um texto curto e forte, com 1 emoji e a pergunta final.")
+
+
 def ideias_funcoes_gta(n, usados, log=log):
     """funcionalidades do GTA 6 já mostradas/confirmadas (carros, armas, animais, barcos, pesca...), sem repetir"""
     from reels import gemini_json
@@ -246,7 +268,7 @@ def roteiro(assunto, segundos, log=log):
     from reels import gemini_json
 
     alvo = int(segundos * PALAVRAS_POR_MIN / 60)
-    regras = REGRAS_GTA if TEMA["v"] == "gta" else REGRAS_HISTORIA if TEMA["v"] == "historia" else REGRAS
+    regras = (REGRAS_GTA + REGRAS_GTA_VIRAL) if TEMA["v"] == "gta" else REGRAS_HISTORIA if TEMA["v"] == "historia" else REGRAS
     if TEMA["v"] == "gta" and assunto.upper().startswith("FUNCIONALIDADE"):
         regras += REGRAS_GTA_FUNCAO
     import fatos as F
@@ -1213,7 +1235,8 @@ def main():
             usados = json.loads(uf.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             usados = []
-        ideia = (ideias_funcoes_gta(1, usados) or [""])[0]
+        a.assunto = _tema_da_fila(a.fonte_canal, "curto")      # pesquisado em fóruns/sites/vídeos (temas_gta.py)
+        ideia = "" if a.assunto else (ideias_funcoes_gta(1, usados) or [""])[0]
         if ideia:
             a.assunto = "FUNCIONALIDADE: " + ideia
             usados.append(ideia)

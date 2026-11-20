@@ -192,6 +192,10 @@ def estado():
             pf = p / "pautas.txt"
             x["pautas"] = [l.strip() for l in pf.read_text(encoding="utf-8").splitlines() if l.strip() and not l.startswith("#")] if pf.exists() else []
             x["feitas"] = _tail(p / "pautas_feitas.txt", 8)
+            if c == "gta6":
+                tf = comum.le(p / "temas_gta.json", []) or []
+                x["temas"] = [{"tema": t.get("tema", ""), "tipo": t.get("tipo", ""), "rumor": bool(t.get("rumor"))} for t in tf if not t.get("usado")][:12]
+                x["temas_links"] = (p / "temas_links.txt").read_text(encoding="utf-8") if (p / "temas_links.txt").exists() else ""
             try:
                 sys.path.insert(0, str(TOOLS / "canal"))
                 import fatos as _fatos
@@ -479,6 +483,15 @@ def acao(nome, d):
                 x["privacidade"] = "public"
         cfg_de(c)
         grava_cfg(c, muda)
+    elif nome == "canal_temas":
+        # pesquisa temas (links dele + Reddit + notícias + YouTube) em segundo plano
+        exe, extra = py()
+        pasta(c).mkdir(parents=True, exist_ok=True)
+        links = " ".join(str(d.get("links", "")).split())
+        logf = open(pasta(c) / "temas.log", "a", encoding="utf-8")
+        subprocess.Popen([exe, "-u", str(TOOLS / "canal" / "temas_gta.py"), "--pasta", str(pasta(c)), "--links", links],
+                         stdout=logf, stderr=subprocess.STDOUT, cwd=str(PONTE), env={**os.environ, "PYTHONIOENCODING": "utf-8"}, **extra)
+        return {"ok": True, "msg": "Pesquisando temas (1 a 3 min). Recarregue o painel depois."}
     elif nome == "canal_fatos":
         pasta(c).mkdir(parents=True, exist_ok=True)
         (pasta(c) / "fatos.txt").write_text(str(d.get("texto", "")).rstrip() + "\n", encoding="utf-8")

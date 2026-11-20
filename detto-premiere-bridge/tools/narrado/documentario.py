@@ -180,6 +180,8 @@ def faz(pasta, cfg, assunto="", minutos=14, postar=True, teste=False):
     piso = float(cfg.get("min_minutos_video", 12)) * 60
     if teste:
         minutos, piso = 2, 60
+    if not assunto:
+        assunto = N._tema_da_fila(str(pasta), "longo")
     log(f"DOCUMENTÁRIO GTA 6: tipo {tipo}, alvo {minutos} min (mínimo {piso / 60:.0f})")
     esb = esboco(assunto, tipo, minutos, contexto(pasta, cfg), usados)
     log(f"   título: {esb.get('titulo')} · {len(esb['capitulos'])} capítulos")
