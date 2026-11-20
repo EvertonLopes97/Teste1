@@ -3,6 +3,12 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 20/nov (01h) — SHORT DE GTA: TÍTULO SEM CAIXA VERMELHA, MAIS DETALHE, TRILHA + EFEITOS
+
+- Feedback dele na prévia: "título vermelho não está legal, mais detalhes, vídeos demonstrando bem, efeitos sonoros e trilha". `narrado.faixa_titulo_gta` (só tema gta): Anton gigante branco + última linha amarela, contorno preto + sombra, sem caixa, no topo, 4,5 s.
+- `narrado.som_do_short` (só gta): voz -14 LUFS + TRILHA (música da pasta `<DETTO>\musicas\gta|viral|raiz`, `DETTO_MUSICAS` troca; sem nenhuma, batida sintetizada pelo FFmpeg) abaixando na fala (sidechain) + EFEITOS: impacto no gancho, whoosh em cada troca de cena (≥1,3 s entre eles), pop em "mil/dólares/reais". Usa sons.json dele se existir. Falhou = segue só com a voz.
+- `REGRAS_GTA_VIRAL`: cada frase com fato CONCRETO (nome, número, lugar, valor, passo). Prévia v2 refeita (cortes de ~3 s, 16 cenas) com voz Piper; trilha sintetizada, não a que ele usa. NÃO testado: pasta de músicas real dele, render completo no PC.
+
 ## 20/nov (00h20) — "NÃO QUERO SÓ GUIAS: QUERO CURIOSIDADES E COISAS ENGRAÇADAS"
 
 - Ele mandou 4 vídeos (eram guias de loot do início do GTA 6) e disse que quer curiosidades/humor ("o cara malhou a Lucia até virar o Ramon Dino"). `temas_gta.py`:

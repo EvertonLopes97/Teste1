@@ -185,7 +185,8 @@ def _tema_da_fila(pasta_canal, tipo):
 
 REGRAS_GTA_VIRAL = (
     "\n\nMODO VIRAL (GTA 6): a PRIMEIRA frase é o gancho (pergunta ou número, até 12 palavras, nada de 'fala galera'). "
-    "Frases CURTAS (6 a 12 palavras), cada uma com UM fato; a legenda vai aparecer 2 palavras por vez, então escreva para ser LIDO. "
+    "Frases CURTAS (6 a 12 palavras), cada uma com UM fato CONCRETO e específico (nome, número, lugar, valor, passo exato) — nada vago "
+    "tipo 'tem várias armas'; diga qual, onde e quanto. Quanto mais detalhe verdadeiro do material, melhor; a legenda vai aparecer 2 palavras por vez, então escreva para ser LIDO. "
     "Risada nunca em texto (sem kkk). Rumor/vazamento é chamado de RUMOR. O fim volta ao gancho com uma pergunta para comentar. "
     "Termos certos: nível de procurado (nunca 'estrelas de procura'), Vice City, Leonida. "
     "CENAS: UMA cena para cada 1 ou 2 frases (6 a 9 cenas); cada cena escolhe o trecho de trailer/gameplay do GTA 6 que MOSTRA "
@@ -742,6 +743,8 @@ def faixa_titulo(texto, saida, largura=W):
     caixa alta, até 2 linhas, centralizada"""
     from PIL import Image, ImageDraw, ImageFont
 
+    if TEMA["v"] == "gta":
+        return faixa_titulo_gta(texto, saida, largura)
     alt = 190
     img = Image.new("RGBA", (largura, alt), (0, 0, 0, 0))
     d = ImageDraw.Draw(img)
@@ -772,6 +775,53 @@ def faixa_titulo(texto, saida, largura=W):
         d.text(((largura - d.textlength(l, font=f)) / 2, y), l, font=f, fill=(255, 255, 255, 255),
                stroke_width=2, stroke_fill=(0, 0, 0, 255))
         y += lh
+    img.save(saida)
+    return saida
+
+
+def faixa_titulo_gta(texto, saida, largura=W):
+    """TÍTULO DO SHORT DE GTA (20/nov, "o título vermelho não está legal"): sem caixa. Letra branca gigante com contorno
+    preto grosso e sombra, a última linha em amarelo, no TOPO do conteúdo (a legenda fica no meio)."""
+    from PIL import Image, ImageDraw, ImageFilter, ImageFont
+
+    caminho = FONTES / "Anton-Regular.ttf"
+    if not caminho.exists():
+        caminho = FONTES / "Inter-ExtraBold.otf"
+    if not caminho.exists():
+        caminho = FONTES / "Inter-Bold.otf"
+    alt = 330
+    img = Image.new("RGBA", (largura, alt), (0, 0, 0, 0))
+    d = ImageDraw.Draw(img)
+    t = " ".join(texto.upper().split())[:70]
+    tam = 118
+    while True:
+        f = ImageFont.truetype(str(caminho), tam)
+        linhas, atual = [], ""
+        for pal in t.split():
+            teste = (atual + " " + pal).strip()
+            if d.textlength(teste, font=f) <= largura - 90:
+                atual = teste
+            else:
+                linhas.append(atual)
+                atual = pal
+        linhas.append(atual)
+        if (len(linhas) <= 2 and all(d.textlength(l, font=f) <= largura - 90 for l in linhas)) or tam <= 52:
+            break
+        tam -= 6
+    linhas = linhas[:2]
+    lh = int(tam * 1.08)
+    y0 = (alt - lh * len(linhas)) / 2
+    sombra = Image.new("RGBA", (largura, alt), (0, 0, 0, 0))
+    ds = ImageDraw.Draw(sombra)
+    for i, l in enumerate(linhas):
+        x = (largura - d.textlength(l, font=f)) / 2
+        ds.text((x + 4, y0 + i * lh + 8), l, font=f, fill=(0, 0, 0, 230), stroke_width=10, stroke_fill=(0, 0, 0, 230))
+    img = Image.alpha_composite(img, sombra.filter(ImageFilter.GaussianBlur(5)))
+    d = ImageDraw.Draw(img)
+    for i, l in enumerate(linhas):
+        x = (largura - d.textlength(l, font=f)) / 2
+        cor = (255, 214, 10, 255) if (i == len(linhas) - 1 and len(linhas) > 1) else (255, 255, 255, 255)
+        d.text((x, y0 + i * lh), l, font=f, fill=cor, stroke_width=9, stroke_fill=(0, 0, 0, 255))
     img.save(saida)
     return saida
 
@@ -1103,6 +1153,115 @@ def monta_completo(topo, reacao, saida, log=log):
 
 
 # ------------------------------------------------------------------ o caminho inteiro
+# ------------------------------------------------------------------ SOM: EFEITOS + TRILHA
+def _sintetiza(filtro, destino, dur_s):
+    r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-f", "lavfi", "-i", filtro, "-t", f"{dur_s:.2f}",
+                        "-af", "aformat=channel_layouts=stereo,aresample=48000", str(destino)], capture_output=True, text=True)
+    return destino if r.returncode == 0 and Path(destino).exists() else None
+
+
+def trilha_do_short(total, tmp):
+    """TRILHA: uma música da pasta dele (`<DETTO>\\musicas\\gta`, `musicas\\viral`, `musicas`) — a que ele já usa nos
+    vídeos, sem direitos. Sem nenhuma, o FFmpeg sintetiza uma batida (bumbo a 120 bpm, chimbau e um acorde grave)."""
+    base = Path(os.environ.get("DETTO_MUSICAS") or r"E:\DETTO\musicas")
+    for pasta in (base / "gta", base / "viral", base):
+        try:
+            achados = sorted(p for p in pasta.glob("*") if p.suffix.lower() in (".mp3", ".wav", ".m4a", ".ogg"))
+        except OSError:
+            achados = []
+        if achados:
+            ini = hash(str(total)) % len(achados)
+            return achados[ini], True
+    kick = "0.9*sin(2*PI*(52+90*exp(-30*mod(t,0.5)))*mod(t,0.5))*exp(-9*mod(t,0.5))"
+    baixo = "0.22*sin(2*PI*55*t)*(0.6+0.4*sin(2*PI*0.25*t))+0.10*sin(2*PI*82.4*t)+0.07*sin(2*PI*110*t)"
+    f = f"aevalsrc='{kick}+{baixo}':s=48000:d={total + 1:.2f}"
+    kk = _sintetiza(f, tmp / "m_base.wav", total + 1)
+    hat = _sintetiza(f"anoisesrc=d={total + 1:.2f}:c=white:a=0.5,highpass=f=7000,tremolo=f=8:d=1", tmp / "m_hat.wav", total + 1)
+    if not kk:
+        return None, False
+    saida = tmp / "trilha.wav"
+    if hat:
+        r = subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", str(kk), "-i", str(hat), "-filter_complex",
+                            "[1:a]volume=0.18[h];[0:a][h]amix=inputs=2:normalize=0", str(saida)], capture_output=True, text=True)
+        if r.returncode == 0:
+            return saida, False
+    return kk, False
+
+
+EFEITOS_SINT = {
+    "whoosh": "anoisesrc=d=0.55:c=pink:a=0.8,highpass=f=500,lowpass=f=7000,afade=t=in:d=0.22,afade=t=out:st=0.22:d=0.33",
+    "impacto": "aevalsrc='0.95*sin(2*PI*(45+120*exp(-14*t))*t)*exp(-4*t)+0.35*(random(0)-0.5)*exp(-18*t)':s=48000:d=0.8",
+    "pop": "aevalsrc='0.7*sin(2*PI*880*t)*exp(-26*t)':s=48000:d=0.25",
+    "riser": "aevalsrc='0.5*sin(2*PI*(220+900*t)*t)*t':s=48000:d=1.1",
+}
+
+
+def efeitos_do_short(clipes, palavras, total, tmp, log=log):
+    """onde cada efeito entra: IMPACTO no gancho (0,05 s), WHOOSH em cada troca de cena (mín. 1,3 s entre eles, nunca nos
+    últimos 0,6 s) e POP nas palavras de número/valor ('mil', 'dólares', 'por cento'). Pasta dele (sons.json) primeiro."""
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+        from biblioteca_sons import arquivo as arq_dele
+    except Exception:  # noqa: BLE001
+        arq_dele = None
+    marcas, t = [(0.05, "impacto")], 0.0
+    for p in clipes[:-1]:
+        t += float(p.get("dur", 0))
+        if t < total - 0.6 and t - marcas[-1][0] >= 1.3:
+            marcas.append((round(t - 0.12, 2), "whoosh"))
+    gatilho = re.compile(r"^(mil|milh|dolar|reais|real|porcento|segundos|minutos)", re.I)
+    for w in palavras or []:
+        pal = norm(w.get("w", ""))
+        if gatilho.match(pal) and float(w.get("s", 0)) - marcas[-1][0] >= 1.0 and float(w.get("s", 0)) < total - 0.8:
+            marcas.append((round(float(w["s"]) - 0.05, 2), "pop"))
+    marcas.sort()
+    arqs = []
+    for i, (tt, cat) in enumerate(marcas[:22]):
+        f = None
+        if arq_dele:
+            try:
+                f = arq_dele({"impacto": "boom", "pop": "pop", "whoosh": "whoosh"}.get(cat, cat), i)
+            except Exception:  # noqa: BLE001
+                f = None
+        if not f:
+            f = _sintetiza(EFEITOS_SINT[cat], tmp / f"sfx_{cat}.wav", 1.2) if not (tmp / f"sfx_{cat}.wav").exists() else tmp / f"sfx_{cat}.wav"
+        if f:
+            arqs.append((tt, cat, f))
+    return arqs
+
+
+def som_do_short(wav, clipes, palavras, total, tmp, saida_wav, log=log):
+    """a mixagem do short de GTA: VOZ (-14 LUFS) + TRILHA que abaixa quando ele fala (sidechain) + EFEITOS nas trocas de cena.
+    Devolve o .wav pronto ou None (aí o chamador segue só com a voz)."""
+    efs = efeitos_do_short(clipes, palavras, total, tmp, log)
+    mus, da_pasta = trilha_do_short(total, tmp)
+    entradas = ["-i", str(wav)]
+    partes = ["[0:a]loudnorm=I=-14:TP=-1.5:LRA=11,aformat=channel_layouts=stereo,aresample=48000,asplit=2[vz][vsc]"]
+    rotulos = ["[vz]"]
+    n = 1
+    if mus:
+        entradas += ["-stream_loop", "-1", "-i", str(mus)]
+        ganho = "volume=-6dB" if da_pasta else "volume=-10dB"
+        partes.append(f"[{n}:a]atrim=0:{total:.2f},aformat=channel_layouts=stereo,aresample=48000,loudnorm=I=-24:TP=-4,{ganho},"
+                      f"afade=t=in:d=0.4,afade=t=out:st={max(0.1, total - 1.2):.2f}:d=1.2[mus]")
+        partes.append("[mus][vsc]sidechaincompress=threshold=0.03:ratio=8:attack=15:release=350[musd]")
+        rotulos.append("[musd]")
+        n += 1
+    for tt, cat, f in efs:
+        entradas += ["-i", str(f)]
+        ms = int(max(0, tt) * 1000)
+        g = {"impacto": -9, "whoosh": -14, "pop": -15, "riser": -14}.get(cat, -14)
+        partes.append(f"[{n}:a]aformat=channel_layouts=stereo,aresample=48000,volume={g}dB,adelay={ms}|{ms}[e{n}]")
+        rotulos.append(f"[e{n}]")
+        n += 1
+    partes.append("".join(rotulos) + f"amix=inputs={len(rotulos)}:normalize=0:duration=first,alimiter=limit=0.95[a]")
+    roda(["ffmpeg", "-v", "error", *entradas, "-filter_complex", ";".join(partes), "-map", "[a]", "-t", f"{total:.2f}",
+          "-y", str(saida_wav)], "mixagem")
+    log(f"   som: voz + {'trilha da pasta dele' if mus and da_pasta else ('trilha sintetizada' if mus else 'sem trilha')}"
+        f" + {len(efs)} efeito(s) nas trocas de cena")
+    return saida_wav
+
+
 def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log, tela_cheia=False, fila=False, drive="", canal_yt=""):
     global LOG_F
     base = Path(base)
@@ -1145,13 +1304,24 @@ def faz(assunto, base, cfg, segundos=60, reacao="", usar_clipes=True, log=log, t
     tit = faixa_titulo(rot["titulo"], tmp / "titulo.png")
     com_tit = tmp / "topo_mudo.mp4"
     roda(["ffmpeg", "-v", "error", "-i", str(com_leg), "-i", str(tit),
-          "-filter_complex", f"[0:v][1:v]overlay=0:{H_TOPO - 200}:enable='lt(t,6)'",
+          "-filter_complex", f"[0:v][1:v]overlay=0:{70 if TEMA['v'] == 'gta' else H_TOPO - 200}:enable='lt(t,{4.5 if TEMA['v'] == 'gta' else 6})'",
           "-c:v", "libx264", "-crf", "19", "-preset", "veryfast", "-pix_fmt", "yuv420p",
           "-y", str(com_tit)], "titulo")
     topo = tmp / "topo.mp4"
-    roda(["ffmpeg", "-v", "error", "-i", str(com_tit), "-i", str(wav),
-          "-filter_complex", "[1:a]loudnorm=I=-14:TP=-1.5:LRA=11[a]", "-map", "0:v", "-map", "[a]",
-          "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", "-y", str(topo)], "som")
+    audio_final = wav
+    if TEMA["v"] == "gta":
+        try:
+            audio_final = som_do_short(wav, clipes, palavras, total, tmp, tmp / "mix.wav", log)
+        except Exception as e:  # noqa: BLE001
+            log(f"   trilha/efeitos falharam ({str(e)[:100]}); sigo só com a voz")
+            audio_final = wav
+    if audio_final is wav:
+        roda(["ffmpeg", "-v", "error", "-i", str(com_tit), "-i", str(wav),
+              "-filter_complex", "[1:a]loudnorm=I=-14:TP=-1.5:LRA=11[a]", "-map", "0:v", "-map", "[a]",
+              "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", "-y", str(topo)], "som")
+    else:
+        roda(["ffmpeg", "-v", "error", "-i", str(com_tit), "-i", str(audio_final), "-map", "0:v", "-map", "1:a",
+              "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-shortest", "-y", str(topo)], "som")
 
     shutil.copyfile(topo, dia / "topo.mp4")
     if tela_cheia:
