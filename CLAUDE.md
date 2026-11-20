@@ -3,6 +3,13 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 20/nov (00h20) — "NÃO QUERO SÓ GUIAS: QUERO CURIOSIDADES E COISAS ENGRAÇADAS"
+
+- Ele mandou 4 vídeos (eram guias de loot do início do GTA 6) e disse que quer curiosidades/humor ("o cara malhou a Lucia até virar o Ramon Dino"). `temas_gta.py`:
+  cada tema tem `categoria` (curiosidade, engracado, desafio, easter_egg, comparacao, bug, rumor, noticia, guia) e no máx. 1 em 4 pode ser guia.
+  `narrado.REGRAS_GTA_CURIOSIDADE` (assunto "CURIOSIDADE (...)"): história curta contada como amigo, gancho absurdo, fecho com piada/pergunta, sem inventar que algo "aconteceu".
+  `auto.reels_gta_meta`: 2 de cada 3 shorts do GTA vêm da fila de temas (antes 1 de 2). Prévia feita aqui com voz Piper (não é a dele) + trechos dos vídeos dele; roteiro do longo à parte.
+
 ## 20/nov — TEMAS DE GTA 6 PESQUISADOS + SHORTS COM UMA CENA POR FRASE
 
 - Pedido: ele mandou 4 links de TikTok (NÃO abriram aqui: robots do TikTok; só o yt-dlp do PC dele lê) e quer vídeos longos e shorts do dia sobre assuntos assim,

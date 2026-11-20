@@ -193,6 +193,14 @@ REGRAS_GTA_VIRAL = (
     "sobre o mapa → 'GTA 6 mapa Leonida'). Em 'legenda' (do post) ponha um texto curto e forte, com 1 emoji e a pergunta final.")
 
 
+REGRAS_GTA_CURIOSIDADE = (
+    "\n\nMODO CURIOSIDADE / DIVERSÃO (GTA 6): não é guia nem notícia — é HISTÓRIA curta e engraçada, contada como um amigo contando o que viu. "
+    "Gancho absurdo na 1ª frase (ex.: \"Ele malhou a Lucia até ela virar o Ramon Dino.\"). Depois: o que a pessoa fez, o que aconteceu de "
+    "inesperado, o detalhe que ninguém esperava e um fecho com piada ou pergunta (\"qual a pior coisa que você já fez no jogo?\"). "
+    "Humor brasileiro, leve, sem ofender ninguém real. Descreva SÓ o que o assunto traz ou o que é possível no jogo — nada de inventar que "
+    "'aconteceu' algo que o material não diz; se for hipótese, diga 'imagina se'. Sem kkk escrito. Cenas: gameplay do GTA 6 que ilustre cada parte.")
+
+
 def ideias_funcoes_gta(n, usados, log=log):
     """funcionalidades do GTA 6 já mostradas/confirmadas (carros, armas, animais, barcos, pesca...), sem repetir"""
     from reels import gemini_json
@@ -271,6 +279,8 @@ def roteiro(assunto, segundos, log=log):
     regras = (REGRAS_GTA + REGRAS_GTA_VIRAL) if TEMA["v"] == "gta" else REGRAS_HISTORIA if TEMA["v"] == "historia" else REGRAS
     if TEMA["v"] == "gta" and assunto.upper().startswith("FUNCIONALIDADE"):
         regras += REGRAS_GTA_FUNCAO
+    elif TEMA["v"] == "gta" and assunto.upper().startswith("CURIOSIDADE"):
+        regras += REGRAS_GTA_CURIOSIDADE
     import fatos as F
     import glossario as G
     pedido = (f"{regras}\n\nASSUNTO (o material — tudo o que você pode afirmar está aqui): {assunto}\n\nA narração tem de "
