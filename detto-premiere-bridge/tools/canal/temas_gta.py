@@ -214,6 +214,19 @@ def _acha_links(texto):
     return out
 
 
+def _temas_dele(texto):
+    """`tema: <assunto>` (vários) escritos na caixa do painel; termina no próximo tema:/modelo/link."""
+    return [m.group(1).strip(" .;") for m in re.finditer(r"tema:\s*(.+?)(?=\s+(?:tema:|modelo:?\s|https?://)|$)", texto, re.I | re.S) if m.group(1).strip()]
+
+
+def _com_molde(t, pasta):
+    """põe a estrutura do formato-modelo no tema (se já existe molde.json)"""
+    m = _le(Path(pasta) / "molde.json", {})
+    if m.get("molde") and not t.get("modelo"):
+        t["modelo"] = m["molde"]
+    return t
+
+
 def fala_do_video(url, pasta, limite=12000):
     """a FALA inteira do vídeo: legenda do YouTube (rápida) e, sem ela, o whisper. (nome, canal, duração, texto)"""
     from reels import ytdlp
@@ -291,6 +304,8 @@ def temas_do_modelo(url, pasta, texto=None, titulo_arq=""):
                       + str(j.get("estrutura", ""))[:1300] + "\nFATOS QUE O MODELO USA (confira; o que está marcado '(teoria)' diga que é teoria):\n"
                       + str(j.get("fatos", ""))[:1600] + EDICAO_MODELO}
     tema = G.corrige(str(j["assunto"])[:110]) if G else str(j["assunto"])[:110]
+    _grava(Path(pasta) / "molde.json", {"molde": "ESTRUTURA DO FORMATO-MODELO (siga a ORDEM e o RITMO; palavras NOSSAS; só afirme fatos do assunto, "
+                                        "marque teoria como teoria):\n" + str(j.get("estrutura", ""))[:1300] + EDICAO_MODELO, "de": titulo})
     return [dict(base, tema=tema, tipo="longo"), dict(base, tema=tema, tipo="curto"), dict(base, tema=tema + " (versão rápida)", tipo="curto")]
 
 
@@ -304,6 +319,7 @@ def atualiza(pasta, n=12, links=None, log=log):
         ja = arq_links.read_text(encoding="utf-8").splitlines() if arq_links.exists() else []
         arq_links.write_text("\n".join(ja + [l for l in novos if l not in ja]) + "\n", encoding="utf-8")
     todos = _acha_links(arq_links.read_text(encoding="utf-8")) if arq_links.exists() else []
+    meus = _temas_dele(" ".join(links or []))
     lidos = _le(pasta / "temas_links_lidos.json", {})
     pend = [l for l in todos if l not in lidos]
     modelos = [l.split(None, 1)[1] for l in pend if l.startswith("modelo ")]
@@ -329,6 +345,11 @@ def atualiza(pasta, n=12, links=None, log=log):
                 lidos.pop(chave, None)
                 log(f"   ⚠ modelo {arq.name} não lido: {str(e)[:120]}")
     _grava(pasta / "temas_links_lidos.json", lidos)
+    for assunto in meus:   # temas que ELE escreveu: vão para a FRENTE, no formato-modelo (um longo + um curto)
+        for tipo in ("longo", "curto"):
+            fila0.insert(0, _com_molde({"tema": assunto[:110], "tipo": tipo, "gancho": "", "rumor": False, "categoria": "curiosidade",
+                                        "origem": "DELE", "usado": False, "criado": dt.date.today().isoformat()}, pasta))
+            entrou_modelo += 1
     for url in modelos:
         try:
             for t in temas_do_modelo(url, pasta):
@@ -353,6 +374,9 @@ def atualiza(pasta, n=12, links=None, log=log):
     fila = _le(pasta / "temas_gta.json", [])
     usados = [t["tema"] for t in fila]
     novos_t = gera_temas(material, n, usados)
+    for t in novos_t:    # todo LONGO pesquisado já sai no formato-modelo (ele pediu 1 por dia assim)
+        if t.get("tipo") == "longo":
+            _com_molde(t, pasta)
     vistos = {re.sub(r"\W+", "", t["tema"].lower())[:50] for t in fila}
     add = [t for t in novos_t if re.sub(r"\W+", "", t["tema"].lower())[:50] not in vistos]
     corte = (dt.date.today() - dt.timedelta(days=10)).isoformat()

@@ -3,6 +3,11 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 24/nov (11h30) — FORMATO-MODELO PARA QUALQUER TEMA: DELE OU PESQUISADO, 1 LONGO POR DIA
+
+- `temas_do_modelo` grava `<canal_gta6>\molde.json` (estrutura + edição, SEM os fatos do modelo). Todo LONGO pesquisado (Reddit/notícias/YouTube) sai com o molde; o documentário diário (`auto.documentario_meta`, 1/dia) pega o próximo longo → formato-modelo todo dia.
+- Painel, caixa "Temas de GTA 6": `tema: <assunto>` (vários na caixa) → 1 longo + 1 curto no topo da fila com o molde. Primeiro da fila de hoje: 7 finais (modelo). Testado com IA falsa; render real não.
+
 ## 24/nov (11h) — MODELO POR TRANSCRIÇÃO (.txt) + CENA EXATA POR FRASE
 
 - Ele colou a transcrição do vídeo-modelo (7 finais do GTA 6). `temas_gta.atualiza` agora lê `*.txt` de `<canal_gta6>\modelos\` e de `tools/canal/modelos/` (1x cada) → `temas_do_modelo(texto=...)` (sem YouTube). A transcrição já vem no repo: `modelos/final_gta6_7_finais.txt`.
