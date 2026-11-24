@@ -262,10 +262,19 @@ Tarefa: extraia a ESTRUTURA e o JEITO (não copie frases!). Responda SÓ JSON:
   "fatos":"<os FATOS e afirmações concretas que o modelo usa (nomes, cenas, números), um por linha, marcando '(teoria)' no que é teoria/interpretação do autor e '(fato)' no que é mostrado no jogo/trailer. Máx. 1500 letras>"}}"""
 
 
-def temas_do_modelo(url, pasta):
-    """vídeo-modelo → temas na fila: 1 LONGO + 2 CURTOS com a mesma estrutura, escritos com palavras nossas."""
+EDICAO_MODELO = ("\nEDIÇÃO DO MODELO (copie o JEITO): cada frase tem uma cena que MOSTRA exatamente o que ela diz (a frase fala da ponte → cena da ponte; "
+                 "da Lucia → a Lucia; do botão/letreiro → o botão/letreiro na tela), buscas ESPECÍFICAS com nome/lugar/momento; destaque na tela "
+                 "(número, nome, letreiro) quando a frase cita; fecho pede o número do final/opção nos comentários e inscrição.")
+
+
+def temas_do_modelo(url, pasta, texto=None, titulo_arq=""):
+    """vídeo-modelo → temas na fila: 1 LONGO + 2 CURTOS com a mesma estrutura, escritos com palavras nossas.
+    `texto` = transcrição já em mãos (arquivo na pasta modelos\\); sem ele lê o vídeo pelo link."""
     from reels import gemini_json
-    titulo, canal, dur, fala = fala_do_video(url, pasta)
+    if texto:
+        titulo, canal, dur, fala = titulo_arq or "modelo", "", 0, re.sub(r"\s+", " ", texto).strip()[:12000]
+    else:
+        titulo, canal, dur, fala = fala_do_video(url, pasta)
     if len(fala.split()) < 60:
         raise RuntimeError("não consegui a fala do vídeo (sem legenda e o whisper não rodou)")
     log(f"   modelo lido: {titulo[:70]} ({canal}, {dur}s, {len(fala.split())} palavras)")
@@ -280,7 +289,7 @@ def temas_do_modelo(url, pasta):
             "usado": False, "criado": dt.date.today().isoformat(),
             "modelo": "ESTRUTURA DO VÍDEO-MODELO (siga a ORDEM e o RITMO; frases e exemplos com palavras NOSSAS, nada copiado):\n"
                       + str(j.get("estrutura", ""))[:1300] + "\nFATOS QUE O MODELO USA (confira; o que está marcado '(teoria)' diga que é teoria):\n"
-                      + str(j.get("fatos", ""))[:1600]}
+                      + str(j.get("fatos", ""))[:1600] + EDICAO_MODELO}
     tema = G.corrige(str(j["assunto"])[:110]) if G else str(j["assunto"])[:110]
     return [dict(base, tema=tema, tipo="longo"), dict(base, tema=tema, tipo="curto"), dict(base, tema=tema + " (versão rápida)", tipo="curto")]
 
@@ -306,6 +315,20 @@ def atualiza(pasta, n=12, links=None, log=log):
     _grava(pasta / "temas_links_lidos.json", lidos)
     fila0 = _le(pasta / "temas_gta.json", [])
     entrou_modelo = 0
+    for pm in [pasta / "modelos", Path(__file__).parent / "modelos"]:    # transcrições prontas (.txt): a da pasta do canal e as do código
+        for arq in sorted(pm.glob("*.txt")) if pm.exists() else []:
+            chave = "arquivo " + arq.name
+            if chave in lidos:
+                continue
+            lidos[chave] = dt.date.today().isoformat()
+            try:
+                for t in temas_do_modelo("", pasta, texto=arq.read_text(encoding="utf-8", errors="ignore"), titulo_arq=arq.stem):
+                    fila0.insert(0, t)
+                    entrou_modelo += 1
+            except Exception as e:   # noqa: BLE001
+                lidos.pop(chave, None)
+                log(f"   ⚠ modelo {arq.name} não lido: {str(e)[:120]}")
+    _grava(pasta / "temas_links_lidos.json", lidos)
     for url in modelos:
         try:
             for t in temas_do_modelo(url, pasta):

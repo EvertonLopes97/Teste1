@@ -3,6 +3,11 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 24/nov (11h) — MODELO POR TRANSCRIÇÃO (.txt) + CENA EXATA POR FRASE
+
+- Ele colou a transcrição do vídeo-modelo (7 finais do GTA 6). `temas_gta.atualiza` agora lê `*.txt` de `<canal_gta6>\modelos\` e de `tools/canal/modelos/` (1x cada) → `temas_do_modelo(texto=...)` (sem YouTube). A transcrição já vem no repo: `modelos/final_gta6_7_finais.txt`.
+- `EDICAO_MODELO` entra no tema: cada frase = cena que MOSTRA o que ela diz (busca específica), destaque de número/nome/letreiro, fecho com número nos comentários. Os FATOS (finais, escolhas) são do autor do modelo, NÃO conferidos: ele confere no jogo. VFX novos (letreiro/aro por cena) NÃO feitos.
+
 ## 24/nov (tarde) — VÍDEO-MODELO: "GERE VÍDEOS COMO ESTE, ROTEIRO BEM PARECIDO"
 
 - Ele mandou youtu.be/O8_VxysOmTA. Aqui o YouTube bloqueia (só título/canal: "Você NÃO Entendeu o Final VERDADEIRO do GTA 6...", GTA 6 Explicado) — NÃO vi o vídeo. Então o PC dele lê.
