@@ -203,23 +203,119 @@ def gera_temas(material, n, usados):
     return out
 
 
+def _acha_links(texto):
+    """links http do texto; os marcados com a palavra `modelo` (ex.: `modelo https://youtu.be/...`) voltam como "modelo <url>"."""
+    out = []
+    for m in re.finditer(r"(modelo:?\s+)?(https?://\S+)", texto, re.I):
+        url = m.group(2).rstrip(".,;)")
+        item = ("modelo " + url) if m.group(1) else url
+        if item not in out:
+            out.append(item)
+    return out
+
+
+def fala_do_video(url, pasta, limite=12000):
+    """a FALA inteira do vídeo: legenda do YouTube (rápida) e, sem ela, o whisper. (nome, canal, duração, texto)"""
+    from reels import ytdlp
+    r = ytdlp(["--skip-download", "--dump-json", url], timeout=120)
+    info = json.loads((r.stdout or "").strip().splitlines()[-1])
+    tmp = Path(pasta) / "temas_links_tmp"
+    tmp.mkdir(parents=True, exist_ok=True)
+    texto = ""
+    try:
+        ytdlp(["--skip-download", "--write-subs", "--write-auto-subs", "--sub-langs", "pt.*,pt,en.*,en", "--sub-format", "json3",
+               "-o", str(tmp / "modelo.%(ext)s"), url], timeout=180)
+        for f in sorted(tmp.glob("modelo*.json3")):
+            d = json.loads(f.read_text(encoding="utf-8"))
+            texto = " ".join("".join(sg.get("utf8", "") for sg in ev.get("segs", [])).strip() for ev in d.get("events", []) if ev.get("segs"))
+            texto = re.sub(r"\s+", " ", texto).strip()
+            if len(texto.split()) > 80:
+                break
+    except Exception as e:   # noqa: BLE001
+        log(f"   sem legenda do modelo ({str(e)[:80]})")
+    for f in tmp.glob("modelo*"):
+        f.unlink(missing_ok=True)
+    if len(texto.split()) <= 80:
+        from reels import baixa
+        from transcrever import transcrever
+        arq, _ = baixa(url, tmp, timeout=900)
+        if arq:
+            ps = transcrever(str(arq), "base", "cpu", idioma=None)
+            ps = ps[0] if isinstance(ps, tuple) else ps
+            texto = " ".join(p["w"] for p in ps)
+            Path(arq).unlink(missing_ok=True)
+    return info.get("title") or "", info.get("channel") or info.get("uploader") or "", int(info.get("duration") or 0), texto[:limite]
+
+
+PEDIDO_MODELO = """Você é roteirista de um canal brasileiro de GTA 6. O dono mandou um vídeo MODELO (que ele quer que a gente
+faça um parecido, NOSSO). Abaixo está a fala do modelo.
+
+Título do modelo: {titulo}  |  canal: {canal}  |  duração: {dur} s
+
+FALA DO MODELO:
+{fala}
+
+Tarefa: extraia a ESTRUTURA e o JEITO (não copie frases!). Responda SÓ JSON:
+{{"assunto":"<o assunto do vídeo em até 110 letras, português do Brasil>",
+  "gancho":"<nossa PRIMEIRA frase, no mesmo estilo do gancho do modelo, mas com palavras NOSSAS, até 14 palavras>",
+  "estrutura":"<a ordem dos blocos do modelo numerada (1. gancho..., 2. ..., 3. ...), cada bloco em 1 linha: o que ele faz e como (revelação, pergunta, prova, 'você sabia', virada, fecho). Inclua o ritmo (frases curtas/longas) e o tipo de fecho. Máx. 1200 letras>",
+  "fatos":"<os FATOS e afirmações concretas que o modelo usa (nomes, cenas, números), um por linha, marcando '(teoria)' no que é teoria/interpretação do autor e '(fato)' no que é mostrado no jogo/trailer. Máx. 1500 letras>"}}"""
+
+
+def temas_do_modelo(url, pasta):
+    """vídeo-modelo → temas na fila: 1 LONGO + 2 CURTOS com a mesma estrutura, escritos com palavras nossas."""
+    from reels import gemini_json
+    titulo, canal, dur, fala = fala_do_video(url, pasta)
+    if len(fala.split()) < 60:
+        raise RuntimeError("não consegui a fala do vídeo (sem legenda e o whisper não rodou)")
+    log(f"   modelo lido: {titulo[:70]} ({canal}, {dur}s, {len(fala.split())} palavras)")
+    j = gemini_json([{"text": PEDIDO_MODELO.format(titulo=titulo, canal=canal, dur=dur, fala=fala)}], temperatura=0.6) or {}
+    try:
+        import glossario as G
+    except Exception:   # noqa: BLE001
+        G = None
+    if not isinstance(j, dict) or not str(j.get("assunto", "")).strip():
+        raise RuntimeError("a IA não devolveu a estrutura do modelo")
+    base = {"gancho": str(j.get("gancho", ""))[:160], "rumor": False, "categoria": "curiosidade", "origem": "MODELO " + (canal or "")[:24],
+            "usado": False, "criado": dt.date.today().isoformat(),
+            "modelo": "ESTRUTURA DO VÍDEO-MODELO (siga a ORDEM e o RITMO; frases e exemplos com palavras NOSSAS, nada copiado):\n"
+                      + str(j.get("estrutura", ""))[:1300] + "\nFATOS QUE O MODELO USA (confira; o que está marcado '(teoria)' diga que é teoria):\n"
+                      + str(j.get("fatos", ""))[:1600]}
+    tema = G.corrige(str(j["assunto"])[:110]) if G else str(j["assunto"])[:110]
+    return [dict(base, tema=tema, tipo="longo"), dict(base, tema=tema, tipo="curto"), dict(base, tema=tema + " (versão rápida)", tipo="curto")]
+
+
 def atualiza(pasta, n=12, links=None, log=log):
     """pesquisa tudo e põe temas novos na fila. Devolve quantos entraram."""
     pasta = Path(pasta)
     pasta.mkdir(parents=True, exist_ok=True)
     arq_links = pasta / "temas_links.txt"
-    novos = [l.strip() for l in (links or []) if l.strip().startswith("http")]
+    novos = _acha_links(" ".join(links or []))
     if novos:
         ja = arq_links.read_text(encoding="utf-8").splitlines() if arq_links.exists() else []
         arq_links.write_text("\n".join(ja + [l for l in novos if l not in ja]) + "\n", encoding="utf-8")
-    todos = [l.strip() for l in arq_links.read_text(encoding="utf-8").splitlines() if l.strip().startswith("http")] if arq_links.exists() else []
+    todos = _acha_links(arq_links.read_text(encoding="utf-8")) if arq_links.exists() else []
     lidos = _le(pasta / "temas_links_lidos.json", {})
     pend = [l for l in todos if l not in lidos]
-    log(f"temas: {len(pend)} link(s) seu(s) novo(s) para ler")
-    material = list(analisa_links(pend, pasta))
+    modelos = [l.split(None, 1)[1] for l in pend if l.startswith("modelo ")]
+    pend_comuns = [l for l in pend if not l.startswith("modelo ")]
+    log(f"temas: {len(pend_comuns)} link(s) seu(s) novo(s) para ler; {len(modelos)} vídeo(s)-MODELO")
+    material = list(analisa_links(pend_comuns, pasta))
     for l in pend:     # marca como lido mesmo se não abriu (senão tenta de novo toda hora)
         lidos[l] = dt.date.today().isoformat()
     _grava(pasta / "temas_links_lidos.json", lidos)
+    fila0 = _le(pasta / "temas_gta.json", [])
+    entrou_modelo = 0
+    for url in modelos:
+        try:
+            for t in temas_do_modelo(url, pasta):
+                fila0.insert(0, t)
+                entrou_modelo += 1
+        except Exception as e:   # noqa: BLE001
+            log(f"   ⚠ modelo não lido ({url}): {str(e)[:120]}")
+    if entrou_modelo:
+        _grava(pasta / "temas_gta.json", fila0)
+        log(f"temas: {entrou_modelo} tema(s) feitos a partir do(s) vídeo(s)-modelo (vão para a FRENTE da fila)")
     for nome, fn in (("reddit", reddit), ("notícias", noticias), ("youtube", youtube)):
         try:
             r = fn()
@@ -258,7 +354,8 @@ def proximo(pasta, tipo="curto", log=log, atualizar=True):
                 if cat in CATEGORIAS_DIVERTIDAS and not t.get("rumor"):
                     pre = "CURIOSIDADE (" + cat + "): "
                 log(f"tema da fila ({t.get('origem')}): {t['tema']}")
-                return pre + t["tema"] + (f". Comece a narração assim: \"{t['gancho']}\"" if t.get("gancho") else "")
+                return (pre + t["tema"] + (f". Comece a narração assim: \"{t['gancho']}\"" if t.get("gancho") else "")
+                        + ("\n" + t["modelo"] if t.get("modelo") else ""))
         marca = pasta / ".temas_pesquisou"
         recente = marca.exists() and (dt.datetime.now().timestamp() - marca.stat().st_mtime) < 3600
         if tentativa or recente or not atualizar:

@@ -3,6 +3,12 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 24/nov (tarde) — VÍDEO-MODELO: "GERE VÍDEOS COMO ESTE, ROTEIRO BEM PARECIDO"
+
+- Ele mandou youtu.be/O8_VxysOmTA. Aqui o YouTube bloqueia (só título/canal: "Você NÃO Entendeu o Final VERDADEIRO do GTA 6...", GTA 6 Explicado) — NÃO vi o vídeo. Então o PC dele lê.
+- Painel, caixa "Temas de GTA 6": colar `modelo <link>` → "Pesquisar temas agora". `temas_gta.temas_do_modelo`: legenda (yt-dlp) ou whisper → IA extrai assunto, gancho, ESTRUTURA e fatos → 1 longo + 2 curtos no TOPO da fila, com a estrutura anexada (`proximo` junta ao assunto). Palavras nossas, nada copiado; teoria marcada.
+- Testado com leitura/IA falsas. NÃO testado: YouTube/whisper reais. Fatos e "final verdadeiro" ele confere no jogo.
+
 ## 24/nov — GTA JÁ LANÇOU: HIGHLIGHT COMENTADO + FILA SEM NOTÍCIA/RUMOR (pedido: "nosso estilo" depois da pesquisa)
 
 - Pesquisa (guia "Estilo viral DETTO" no Claude Docs): jogo saiu 19/11; notícia/rumor/contagem perderam a busca; gameplay sem voz/rosto dele é fraco e arriscado na monetização; quem bomba tem pessoa reagindo/jogando.
