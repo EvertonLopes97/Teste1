@@ -3,6 +3,13 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 24/nov — GTA JÁ LANÇOU: HIGHLIGHT COMENTADO + FILA SEM NOTÍCIA/RUMOR (pedido: "nosso estilo" depois da pesquisa)
+
+- Pesquisa (guia "Estilo viral DETTO" no Claude Docs): jogo saiu 19/11; notícia/rumor/contagem perderam a busca; gameplay sem voz/rosto dele é fraco e arriscado na monetização; quem bomba tem pessoa reagindo/jogando.
+- `auto.reels_gta_meta`: TODO short de GTA vem da fila de temas (`viral`); 1 de cada 3 é HIGHLIGHT (`highlight`: sem `--tela-cheia`, jogo 70% + espaço da reação dele embaixo, vai para `Meu Drive\\DETTO\\Narrados` como "(topo p-reagir)"; `highlight_gta` false desliga, `highlight_seg` 35). Ele grava a reação e usa Montar no painel (aba Reagir).
+- `temas_gta.PEDIDO`: jogo já saiu (sem contagem/pré-load), rumor+notícia ≤ 1 em 6, categoria `highlight` (1 em 4 curtos). `narrado.REGRAS_GTA_HIGHLIGHT`: narração curta, abre o momento e deixa espaço.
+- Galo: já existe o Reagir (`narrados_meta`, 5/dia com reação provisória dele). Testado só com fila falsa; render real não rodado aqui.
+
 ## 20/nov (01h) — SHORT DE GTA: TÍTULO SEM CAIXA VERMELHA, MAIS DETALHE, TRILHA + EFEITOS
 
 - Feedback dele na prévia: "título vermelho não está legal, mais detalhes, vídeos demonstrando bem, efeitos sonoros e trilha". `narrado.faixa_titulo_gta` (só tema gta): Anton gigante branco + última linha amarela, contorno preto + sombra, sem caixa, no topo, 4,5 s.

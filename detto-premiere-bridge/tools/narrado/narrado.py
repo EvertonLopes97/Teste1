@@ -194,6 +194,12 @@ REGRAS_GTA_VIRAL = (
     "sobre o mapa → 'GTA 6 mapa Leonida'). Em 'legenda' (do post) ponha um texto curto e forte, com 1 emoji e a pergunta final.")
 
 
+REGRAS_GTA_HIGHLIGHT = (
+    "\n\nMODO HIGHLIGHT COMENTADO (GTA 6): este vídeo mostra um MOMENTO de gameplay e o dono vai REAGIR em cima, ao vivo, na parte de baixo. "
+    "A narração é CURTA (até 35 s): 1ª frase = o gancho do momento; depois só 2 a 4 frases que preparam o olhar ('olha o que vem agora', o que "
+    "está acontecendo) e deixam espaço; termine com uma pergunta para ele reagir. Sem inventar o que não está no assunto.")
+
+
 REGRAS_GTA_CURIOSIDADE = (
     "\n\nMODO CURIOSIDADE / DIVERSÃO (GTA 6): não é guia nem notícia — é HISTÓRIA curta e engraçada, contada como um amigo contando o que viu. "
     "Gancho absurdo na 1ª frase (ex.: \"Ele malhou a Lucia até ela virar o Ramon Dino.\"). Depois: o que a pessoa fez, o que aconteceu de "
@@ -280,6 +286,8 @@ def roteiro(assunto, segundos, log=log):
     regras = (REGRAS_GTA + REGRAS_GTA_VIRAL) if TEMA["v"] == "gta" else REGRAS_HISTORIA if TEMA["v"] == "historia" else REGRAS
     if TEMA["v"] == "gta" and assunto.upper().startswith("FUNCIONALIDADE"):
         regras += REGRAS_GTA_FUNCAO
+    elif TEMA["v"] == "gta" and assunto.upper().startswith("CURIOSIDADE (HIGHLIGHT"):
+        regras += REGRAS_GTA_HIGHLIGHT
     elif TEMA["v"] == "gta" and assunto.upper().startswith("CURIOSIDADE"):
         regras += REGRAS_GTA_CURIOSIDADE
     import fatos as F

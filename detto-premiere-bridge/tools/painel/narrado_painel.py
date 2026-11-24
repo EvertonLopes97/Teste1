@@ -127,7 +127,7 @@ def acao(nome, d):
             args += ["--drive", str(d["drive"])]
         if d.get("tema") in ("gta", "historia"):
             args += ["--tema", d["tema"]]
-        if d.get("tema") == "gta" or d.get("tela_cheia"):
+        if (d.get("tema") == "gta" and not d.get("highlight")) or d.get("tela_cheia"):
             args += ["--tela-cheia"] + ([] if d.get("drive") else ["--fila"])
         if d.get("fonte_canal"):
             args += ["--fonte-canal", str(d["fonte_canal"])]
