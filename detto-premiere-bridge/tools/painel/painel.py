@@ -296,7 +296,7 @@ SUBIU_EM = time.time()
 # Versão do PYTHON que está rodando. O painel.html é lido do disco a cada acesso, então depois de um `git pull` o
 # navegador recebe a tela NOVA enquanto o Python continua o VELHO (foi o que aconteceu: a aba Histórias apareceu
 # vazia e o Instagram continuou no caminho antigo). A tela compara esta versão com a dela e avisa.
-PAINEL_VERSAO = "2026-11-26b"
+PAINEL_VERSAO = "2026-11-26c"
 
 
 def codigo_novo():
@@ -343,9 +343,9 @@ def claude_estado():
 # Groq no limite, login do Claude vencido. O painel agora mostra qual está viva, guarda as chaves grátis e testa.
 CHAVES_IA = {
     "GEMINI_API_KEY": ("Gemini (Google)", "https://aistudio.google.com/apikey", "vídeo, foto e texto — o principal"),
-    "GROQ_API_KEY": ("Groq", "https://console.groq.com/keys", "texto, grátis, rápido (cota por modelo)"),
+    "GROQ_API_KEY": ("Groq", "https://console.groq.com/keys", "texto e FOTOS (Llama 4), grátis — é o que separa pessoa/lance nos reels sem Gemini"),
     "CEREBRAS_API_KEY": ("Cerebras", "https://cloud.cerebras.ai", "texto, grátis, cota diária grande"),
-    "OPENROUTER_API_KEY": ("OpenRouter", "https://openrouter.ai/keys", "texto, modelos :free"),
+    "OPENROUTER_API_KEY": ("OpenRouter", "https://openrouter.ai/keys", "texto e fotos, modelos :free"),
     "MISTRAL_API_KEY": ("Mistral", "https://console.mistral.ai/api-keys", "texto, plano grátis"),
 }
 IA_TESTE = {"quando": "", "res": {}, "rodando": False}

@@ -536,6 +536,99 @@ def claude_partes_json(partes, log=print, quadros=4, de=""):
         shutil.rmtree(pasta, ignore_errors=True)
 
 
+# ------------------------------------------------------------------ VISÃO GRÁTIS (26/nov)
+# O erro de verdade dos reels (status.json 26/11): "NÃO FIZ: não achei onde está a outra pessoa e onde está o lance".
+# Separar pessoa × lance precisa de alguém OLHANDO as fotos — e o Gemini estava sem cota no mês e o login do Claude
+# vencido, então nada olhava. O Groq e o OpenRouter têm modelos que ENXERGAM foto, de graça, com a mesma chave.
+VISAO_PREF = ("llama-4-scout", "llama-4-maverick", "vision", "-vl", "qwen2.5-vl", "qwen3-vl", "gemma-3", "pixtral",
+              "llava", "kimi-vl", "omni")
+VISAO_RESERVA = {
+    "GROQ_API_KEY": ["meta-llama/llama-4-scout-17b-16e-instruct", "meta-llama/llama-4-maverick-17b-128e-instruct"],
+    "OPENROUTER_API_KEY": ["meta-llama/llama-4-scout:free", "qwen/qwen2.5-vl-72b-instruct:free", "google/gemma-3-27b-it:free"],
+    "MISTRAL_API_KEY": ["pixtral-12b-2409"],
+}
+
+
+def _modelos_visao(env, base, chave):
+    lista = [m for m in _todos_os_modelos(base, chave) if any(x in m.lower() for x in VISAO_PREF)]
+    escolhido = os.environ.get(env.replace("_API_KEY", "_VISAO_MODEL"))
+    return list(dict.fromkeys(([escolhido] if escolhido else []) + lista + VISAO_RESERVA.get(env, [])))
+
+
+def partes_em_conteudo(partes, quadros=4, log=print):
+    """Gemini (text/inline_data) → conteúdo do padrão OpenAI (text + image_url em data URI). Vídeo vira QUADROS."""
+    import base64
+    import tempfile
+    cont = []
+    pasta = Path(tempfile.mkdtemp(prefix="detto_visao_"))
+    try:
+        for k, p_ in enumerate(partes):
+            if "text" in p_:
+                cont.append({"type": "text", "text": p_["text"]})
+                continue
+            d = p_.get("inline_data") or {}
+            mime, dado = d.get("mime_type", ""), d.get("data", "")
+            if mime.startswith("image/"):
+                cont.append({"type": "image_url", "image_url": {"url": f"data:{mime};base64,{dado}"}})
+            elif mime.startswith("video/"):
+                v = pasta / f"v{k}.mp4"
+                v.write_bytes(base64.b64decode(dado))
+                r = subprocess.run(["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(v)],
+                                   capture_output=True, text=True)
+                try:
+                    dur = float(r.stdout.strip())
+                except ValueError:
+                    dur = 10.0
+                cont.append({"type": "text", "text": f"[VÍDEO de {dur:.1f}s em {quadros} quadros, em ordem:]"})
+                for q in range(quadros):
+                    t = dur * (q + 0.5) / quadros
+                    f = pasta / f"v{k}_{q}.jpg"
+                    subprocess.run(["ffmpeg", "-v", "error", "-y", "-ss", f"{t:.2f}", "-i", str(v), "-frames:v", "1",
+                                    "-vf", "scale=-2:480", "-q:v", "5", str(f)], check=False)
+                    if f.exists():
+                        cont.append({"type": "text", "text": f"({t:.1f}s)"})
+                        cont.append({"type": "image_url", "image_url": {
+                            "url": "data:image/jpeg;base64," + base64.b64encode(f.read_bytes()).decode()}})
+        return cont
+    finally:
+        shutil.rmtree(pasta, ignore_errors=True)
+
+
+def visao_gratis(partes, log=print):
+    """a mesma pergunta com FOTO/VÍDEO, feita às IAs grátis que enxergam (Groq Llama 4, OpenRouter :free, Pixtral).
+    Devolve o JSON (dict) ou None. Máx. 5 fotos por pedido (limite do Groq): sobra → uma em cada N."""
+    cont = partes_em_conteudo(partes, log=log)
+    fotos = [i for i, c in enumerate(cont) if c["type"] == "image_url"]
+    if not fotos:
+        return None
+    if len(fotos) > 5:          # Groq aceita até 5 imagens: fica uma em cada N, sempre a primeira e a última
+        passo = (len(fotos) - 1) / 4
+        manter = {fotos[round(i * passo)] for i in range(5)}
+        cont = [c for i, c in enumerate(cont) if c["type"] != "image_url" or i in manter]
+    cont.append({"type": "text", "text": "Responda SOMENTE com o JSON pedido, sem explicação e sem ```."})
+    for env, base, _m, _p in PROVEDORES:
+        chave = os.environ.get(env)
+        if not chave or env == "CEREBRAS_API_KEY":      # Cerebras não enxerga imagem
+            continue
+        for modelo in _modelos_visao(env, base, chave)[:4]:
+            corpo = {"model": modelo, "messages": [{"role": "user", "content": cont}], "temperature": 0.2}
+            req = urllib.request.Request(f"{base}/chat/completions", data=json.dumps(corpo).encode(), method="POST",
+                                         headers={"Authorization": f"Bearer {chave}", "Content-Type": "application/json",
+                                                  "User-Agent": UA_NAVEGADOR, "Accept": "application/json"})
+            try:
+                r = json.loads(urllib.request.urlopen(req, timeout=180).read())
+                txt = r["choices"][0]["message"]["content"] or ""
+                m = re.search(r"\{.*\}", txt, re.S)
+                if m:
+                    log(f"   (respondido por {env.split('_')[0].title()} — {modelo}, olhando as fotos, grátis)")
+                    return json.loads(m.group(0))
+            except urllib.error.HTTPError as e:
+                log(f"   {env.split('_')[0].title()} (fotos): {e.code} em {modelo}; {e.read().decode('utf-8', 'ignore')[:100]}")
+            except Exception as e:  # noqa: BLE001
+                log(f"   {env.split('_')[0].title()} (fotos): {str(e)[:100]}")
+    return None
+
+
 def _mmss(t):
     return f"{int(t // 60):02d}:{int(t % 60):02d}"
 

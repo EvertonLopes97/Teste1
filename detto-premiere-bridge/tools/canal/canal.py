@@ -328,7 +328,8 @@ def videos_ytdlp(canal, quantos=12, pular=(), max_abrir=3):
                 "descricao": e.get("description") or "",
                 "canal_nome": e.get("channel") or e.get("uploader") or nome_canal,
                 "_dur": e.get("duration") or 0,
-                "_tipo": "live" if (e.get("live_status") or "") in ("is_live", "was_live", "post_live") else "video",
+                # estreia/live AGENDADA também é live: baixar dá "This live event will begin in a few moments" (26/nov)
+                "_tipo": "live" if (e.get("live_status") or "") in ("is_live", "was_live", "post_live", "is_upcoming") else "video",
                 "_gravada": (e.get("live_status") or "") == "was_live"}
 
     out, abrir = [], []

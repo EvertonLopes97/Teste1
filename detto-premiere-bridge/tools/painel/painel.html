@@ -586,7 +586,7 @@ function iaCard(){
 }
 async function iaSalva(env){ const v = $("#ia_" + env).value.trim(); if(!v){ toast("cole a chave primeiro", true); return; }
   const r = await api("ia_chave", {nome: env, valor: v}); $("#ia_" + env).value = ""; editando = false; toast(r.msg, 5000); carrega(true); }
-const VERSAO_TELA = "2026-11-26b";
+const VERSAO_TELA = "2026-11-26c";
 // ---- Google Flow (19/nov): status do Chrome na porta 9222, abrir, preset "TikTok Shop (Produto Real)", foto do produto
 function flowCard(S){
   const F = S.flow || {};
@@ -896,7 +896,7 @@ function reels(){
     <div class="info">${r.rodando ? "⏳ Fazendo reels agora…" : "Mande começos novos em “Enviar vídeos” → “Começo de reel”."}</div>
     ${r.inicios.length ? `<details data-d="r-ini"><summary>Seus começos</summary><div class="tags">${r.inicios.map(n => `<span class="tag">${esc(n)}</span>`).join("")}</div></details>` : `<div class="info alerta">Ainda não tem nenhum começo gravado.</div>`}
     ${r.links.length ? `<details data-d="r-links" open><summary>Na lista para fazer (${r.n_links})</summary><div class="lista">${r.links.map((l, li) => `<div class="l"><span>${esc(l)}</span><button class="mini" title="Tirar da lista" onclick="tiraLink(${li})">✕</button></div>`).join("")}</div></details>` : ""}
-    ${r.falhos && r.falhos.length ? `<details data-d="r-falhos" open><summary>⚠ Links que NÃO viraram reels (${r.falhos.length})</summary><div class="lista">${r.falhos.map(f => `<div class="l"><span>${esc(f.quando)} · ${esc(f.url)}<br><small>${esc(f.motivo)}</small></span></div>`).join("")}</div></details>` : ""}
+    ${r.falhos && r.falhos.length ? `<details data-d="r-falhos" open><summary>⚠ Links que NÃO viraram reels (${r.falhos.length})</summary><div class="lista">${r.falhos.map(f => `<div class="l"><span>${esc(f.quando)} · ${esc(f.url)}<br><small>${esc(f.motivo)}</small></span><button class="mini" title="Pôr na lista de novo" data-u="${esc(f.url)}" onclick="api('reels_link',{url:this.dataset.u}).then(()=>{toast('Voltou para a lista');carrega(true)})">↻</button></div>`).join("")}</div></details>` : ""}
     ${r.travado && !r.rodando ? `<div class="info alerta">⏳ Outro reels.py está com a trava${r.dono ? ` (${esc(r.dono)})` : ""} — os links da lista e os pedidos esperam a vez. Se faz tempo que está assim, ele travou: <button class="mini" onclick="destravaReels()">Destravar</button></div>` : ""}
     ${r.pendentes && r.pendentes.length ? `<div class="info">🕒 Esperando a vez (${r.pendentes.length}): ${r.pendentes.map(esc).join(" · ")}</div>` : ""}
     ${(() => { const ruim = [...r.log].reverse().find(l => /NÃO FIZ|NÃO TERMINEI|Traceback|Error|ERRO|falhou|não baixou/i.test(l));

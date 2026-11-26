@@ -3,6 +3,14 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 26/nov (16h20) — O ERRO REAL DOS REELS: "NÃO ACHEI ONDE ESTÁ A OUTRA PESSOA E ONDE ESTÁ O LANCE" (painel 2026-11-26c)
+
+- Lido no status.json novo (bloco `reels`): o link (modo troca) morria porque separar pessoa × lance precisa de alguém OLHANDO os quadros — Gemini 429 "monthly spending cap", Claude "OAuth session expired" — e o `acha_virada` saía na hora sem Gemini. Último link: 24/11 21:51.
+- `roteiro_ia.visao_gratis` (+ `partes_em_conteudo`): a pergunta com foto/vídeo vai às IAs grátis que enxergam (Groq Llama 4 Scout/Maverick, OpenRouter :free, Pixtral; máx. 5 fotos por pedido, vídeo vira quadros) ANTES do Claude, no `reels.gemini_json` (também nas conferências não essenciais).
+- `reels.virada_sem_ia` quando nenhuma IA responde: 1) onde começa o GRAMADO até o fim (verde HSV), 2) rosto grande antes / sem rosto depois, 3) maior troca de imagem entre 10% e 75%; pessoa ≥0,8 s e lance ≥1,5 s/10%. Medido nos vídeos dele: o meme do "primeiro lance" deu 14,9 s (a cena real troca em 14,9–15,3 s); os 3 vídeos que não são meme devolveram 0 (recusa certa). A 1ª versão (só rosto) errava: a pessoa do meme estava SEM rosto visível.
+- Painel: ↻ em cada link que falhou (volta para a lista); cartão IA diz que o Groq também vê FOTOS. canal.py: estreia/live AGENDADA (`is_upcoming`) é live — não tenta baixar ("This live event will begin").
+- Testado: `virada_sem_ia` em 4 vídeos dele, `visao_gratis` contra Groq falso (5 fotos, modelo de visão escolhido da lista), teste_rapido, 3.11 ast, screenshot do painel. NÃO testado: Groq de verdade com foto (sem chave aqui). Disco dele: 6,3 GB livres.
+
 ## 26/nov (15h) — REVISÃO DO PAINEL: REELS QUE "SEMPRE DÃO ERRO", ROTEIRO EM CADA LUGAR, IA DE TEXTO (painel 2026-11-26b)
 
 - **Reels** (o registro deles NÃO ia para o Drive; não vi o erro exato dele): rodei o reels.py aqui com vídeo dele (troca e modo novo) e monta. Consertos: `le_texto_duplo` prefere a leitura da TELA (o OCR punha lixo no texto e no nome do arquivo); `relogio_da_rodada` (`max_minutos_rodada` 90; importar 20) — reels.py preso não segura mais a trava para sempre; link que trava 3x sai com motivo (`tentativas_links.json`); `--clip` (pedido explícito) não é mais pulado calado por "já usado". Painel: pedido com os reels ocupados ENTRA NA FILA (`reels_roda`, `reels_pendentes`) em vez de erro; botão **Destravar** (`reels_destravar`, mata o dono da trava); "Último problema no registro" em destaque; links da lista andam mesmo com a POSTAGEM pausada (antes paravam). `status.json` ganhou `reels` (últimas 25 linhas, falhos, trava, prontos) e `ia` (quais chaves existem, Claude parado) — é por aí que se vê o erro de verdade.

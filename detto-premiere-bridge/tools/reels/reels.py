@@ -408,7 +408,7 @@ def gemini_json(partes, temperatura=0.8, essencial=True):
     para não gastar o seu Claude)."""
     global GEMINI_FORA
     sys.path.insert(0, str(TOOLS))
-    from roteiro_ia import claude_partes_json, gerar, texto_gratis
+    from roteiro_ia import claude_partes_json, gerar, texto_gratis, visao_gratis
 
     if os.environ.get("GEMINI_API_KEY") and not GEMINI_FORA:
         corpo = json.dumps({"contents": [{"parts": partes}], "generationConfig": {"temperature": temperatura, "responseMimeType": "application/json"}}).encode()
@@ -429,8 +429,13 @@ def gemini_json(partes, temperatura=0.8, essencial=True):
                 return json.loads(m.group(0))
             except ValueError:
                 pass
-    elif not essencial:
-        return None  # conferência extra com imagem: sem Gemini, fica só a dos pixels (não gasta o Claude)
+    else:
+        # FOTO/VÍDEO sem Gemini: as IAs grátis que enxergam (Groq Llama 4 / OpenRouter) antes do Claude (26/nov)
+        g = visao_gratis(partes, log=log)
+        if g is not None:
+            return g
+        if not essencial:
+            return None  # conferência extra com imagem: sem IA de visão, fica só a dos pixels (não gasta o Claude)
     g = claude_partes_json(partes, log=log)
     if g is not None:
         log("   (respondido pelo Claude da sua assinatura)")
@@ -1079,8 +1084,6 @@ def acha_virada(clip, passo=0.8, max_q=14):
 
     import cv2
 
-    if not os.environ.get("GEMINI_API_KEY"):
-        return 0.0
     d = dur(clip)
     if d < 2:
         return 0.0
@@ -1099,15 +1102,86 @@ def acha_virada(clip, passo=0.8, max_q=14):
         partes.append({"inline_data": {"mime_type": "image/jpeg", "data": _b64.b64encode(jpg.tobytes()).decode()}})
     g = gemini_json(partes, temperatura=0) or {}
     if g.get("tem_pessoa") is False:
-        log("   o Gemini diz que NÃO tem pessoa no começo (é só o lance): esse link pede o modo novo")
+        log("   a IA diz que NÃO tem pessoa no começo (é só o lance): esse link pede o modo novo")
         return 0.0
     try:
         s = float(g.get("segundo") or 0)
     except (TypeError, ValueError):
-        return 0.0
+        s = 0.0
     if 0.6 < s < d - 0.8:
-        log(f"   virada pessoa→lance pelo Gemini: {s:.1f}s")
+        log(f"   virada pessoa→lance pela IA: {s:.1f}s")
         return round(s, 2)
+    return virada_sem_ia(clip)
+
+
+def virada_sem_ia(clip, n=32):
+    """SEM NENHUMA IA (26/nov — Gemini sem cota no mês, Claude com login vencido, e o link morria em "não achei onde
+    está a pessoa e onde está o lance"). O meme tem duas caras que dá para MEDIR: a pessoa se gravando = rosto GRANDE
+    e perto da câmera; o lance = gramado/transmissão (muito verde) ou cena sem rosto grande. Procura o segundo que
+    melhor separa "antes pessoa / depois lance"; não dando, a maior troca de imagem entre 10% e 75% do vídeo."""
+    import cv2
+    import numpy as np
+    d = dur(clip)
+    if d < 2:
+        return 0.0
+    tempos = [d * (i + 0.5) / n for i in range(n)]
+    pessoa, verdes, minis = [], [], []
+    for t in tempos:
+        q = _quadro_cor(clip, t)
+        if q is None or q.size == 0:
+            pessoa.append(0.5)
+            verdes.append(0.0)
+            minis.append(None)
+            continue
+        q = cv2.resize(q, (270, 480))
+        hsv = cv2.cvtColor(q, cv2.COLOR_BGR2HSV)
+        verde = float(((hsv[:, :, 0] >= 35) & (hsv[:, :, 0] <= 85) & (hsv[:, :, 1] > 60) & (hsv[:, :, 2] > 40)).mean())
+        verdes.append(verde)
+        rc = _rosto_caixa(q)
+        grande = bool(rc and rc[2] >= 0.10)
+        pessoa.append(1.0 if (grande and verde < 0.25) else (0.0 if (verde >= 0.30 or not rc) else 0.4))
+        g = cv2.cvtColor(cv2.resize(q, (32, 56)), cv2.COLOR_BGR2GRAY).astype(np.float32)
+        minis.append((g - g.mean()) / (g.std() + 1e-3))
+
+    def cabe(t):   # a pessoa tem pelo menos 0,8 s e o lance pelo menos 1,5 s (e 10% do vídeo)
+        return 0.8 <= t <= d - max(1.5, 0.10 * d)
+    # 1) o GRAMADO: lance de futebol é verde. A virada é onde começa o trecho verde que vai até o fim
+    #    (a pessoa do meme pode estar de costas ou sem rosto — o verde não depende disso)
+    for k in range(1, n):
+        antes, depois = verdes[:k], verdes[k:]
+        if (sum(v >= 0.25 for v in depois) >= 0.7 * len(depois) and sum(v < 0.25 for v in antes) >= 0.8 * len(antes)
+                and verdes[k] >= 0.25):
+            t0 = (tempos[k - 1] + tempos[k]) / 2
+            if cabe(t0):
+                log(f"   virada pessoa→lance SEM IA (começa o gramado): {t0:.1f}s")
+                return round(t0, 2)
+            break
+    # 2) rosto grande antes, sem rosto/jogo depois
+    melhor, k_m = -1.0, 0
+    for k in range(1, n):
+        acordo = sum(pessoa[:k]) + sum(1 - x for x in pessoa[k:])
+        if acordo > melhor:
+            melhor, k_m = acordo, k
+    t1 = (tempos[k_m - 1] + tempos[k_m]) / 2
+    if melhor >= 0.78 * n and sum(pessoa[:k_m]) / k_m >= 0.6 and cabe(t1):
+        log(f"   virada pessoa→lance SEM IA (rosto grande antes, jogo/sem rosto depois): {t1:.1f}s "
+            f"({melhor / n:.0%} dos quadros concordam) — confira")
+        return round(t1, 2)
+    # 2) a maior troca de imagem (corte suave/zoom que o detector de cena não pegou)
+    difs = []
+    for i in range(1, n):
+        a, b = minis[i - 1], minis[i]
+        difs.append(float(np.abs(a - b).mean()) if a is not None and b is not None else 0.0)
+    if difs:
+        med = float(np.median(difs)) + 1e-3
+        cand = [(v, i) for i, v in enumerate(difs, start=1) if 0.10 * d <= tempos[i] <= 0.75 * d]
+        if cand:
+            v, i = max(cand)
+            t2 = (tempos[i - 1] + tempos[i]) / 2
+            if v >= 2.5 * med and cabe(t2):
+                log(f"   virada SEM IA pela maior troca de imagem: {t2:.1f}s (troca {v / med:.1f}x a normal) — confira")
+                return round(t2, 2)
+    log("   sem IA não deu para achar a virada (o vídeo não muda de cara entre a pessoa e o lance)")
     return 0.0
 
 
