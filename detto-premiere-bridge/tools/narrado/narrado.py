@@ -149,6 +149,7 @@ Responda SÓ este JSON:
  "legenda":"legenda do post, 1 a 2 linhas","tags":["#tag1","#tag2","#tag3","#tag4","#tag5"]}"""
 
 
+TEXTO_PRONTO = {"v": ""}   # narração escrita por ele (--texto-arquivo): a IA só acha cenas/buscas/título, o texto fica IGUAL
 TEMA = {"v": "futebol"}   # "futebol" (o de sempre) | "gta" (reels de GTA 6 do dia do lançamento)
 
 REGRAS_GTA = REGRAS.replace("notícia de futebol", "notícia de GTA 6 / games").replace(
@@ -295,9 +296,18 @@ def roteiro(assunto, segundos, log=log):
     pedido = (f"{regras}\n\nASSUNTO (o material — tudo o que você pode afirmar está aqui): {assunto}\n\nA narração tem de "
               f"ter cerca de {alvo} palavras (o vídeo é de ~{segundos} segundos a {PALAVRAS_POR_MIN} palavras por minuto)."
               + F.bloco(PASTA_FATOS["v"]) + G.bloco())
+    if TEXTO_PRONTO["v"]:
+        pedido += ("\n\nA NARRAÇÃO JÁ ESTÁ ESCRITA PELO DONO (abaixo). Devolva em \"narracao\" EXATAMENTE este texto, sem mudar nada, e preencha o resto "
+                   "(titulo, sujeito, buscas, cenas, legenda, tags). 'cenas': UMA por trecho do texto (8 a 12), cada uma com a frase inicial e uma busca "
+                   "ESPECÍFICA do que ela fala (jogador citado + 'gols e jogadas'/'entrevista'/'chegada'), na ordem em que são ditas.\n\nTEXTO:\n"
+                   + TEXTO_PRONTO["v"])
     d = gemini_json([{"text": pedido}], temperatura=0.8) or {}
     texto = re.sub(r"\s+", " ", (d.get("narracao") or "")).strip()
+    if TEXTO_PRONTO["v"]:
+        texto = re.sub(r"\s+", " ", TEXTO_PRONTO["v"]).strip()
     for _ in range(2):
+        if TEXTO_PRONTO["v"]:
+            break
         # VÍDEO MAIS CURTO QUE O MÍNIMO (10/nov): a IA costuma devolver metade das palavras pedidas
         n = len(texto.split())
         if n >= alvo * 0.85 or n < 20:
@@ -309,8 +319,9 @@ def roteiro(assunto, segundos, log=log):
         t2 = re.sub(r"\s+", " ", (d2.get("narracao") or "")).strip()
         if len(t2.split()) > n:
             d, texto = d2, t2
-    texto, tirados = F.limpa(texto, PASTA_FATOS["v"], assunto, log)
-    texto = G.corrige(texto)
+    if not TEXTO_PRONTO["v"]:
+        texto, tirados = F.limpa(texto, PASTA_FATOS["v"], assunto, log)
+        texto = G.corrige(texto)
     if len(texto.split()) < 20:
         # SEM NENHUMA IA (11/nov, "sempre tem como fazer vídeo"): narração-modelo montada só com o assunto real
         # (a manchete que o canal já coletou) + a contagem regressiva. Nada inventado.
@@ -334,7 +345,7 @@ def roteiro(assunto, segundos, log=log):
         if isinstance(c, dict) and str(c.get("frase", "")).strip() and str(c.get("busca", "")).strip():
             cenas.append({"frase": str(c["frase"]).strip(), "sujeito": str(c.get("sujeito") or sujeito).strip() or sujeito,
                           "pessoa": c.get("pessoa", True) is not False, "busca": str(c["busca"]).strip()[:90]})
-    return {"cenas": cenas[:6], "titulo": G.corrige(d.get("titulo") or assunto)[:120], "narracao": texto,
+    return {"cenas": cenas[:12 if TEXTO_PRONTO["v"] else 6], "titulo": G.corrige(d.get("titulo") or assunto)[:120], "narracao": texto,
             "sujeito": sujeito, "sujeito_pessoa": d.get("sujeito_pessoa", True) is not False,
             "apelidos": [str(a) for a in (d.get("apelidos") or [])][:4],
             "buscas": [str(b)[:80] for b in buscas],
@@ -1392,6 +1403,7 @@ def main():
     ap = argparse.ArgumentParser(description="vídeo narrado de notícia para você reagir por baixo")
     ap.add_argument("--montar", default="", help="pasta de um pronto: só junta a sua reação ao topo.mp4 que já existe")
     ap.add_argument("--assunto", default="")
+    ap.add_argument("--texto-arquivo", default="", help="a narração JÁ escrita por você (.txt): ela é narrada igual e as cenas seguem o que ela diz")
     ap.add_argument("--quente", action="store_true", help="pega a notícia mais quente dos portais")
     ap.add_argument("--segundos", type=int, default=60)
     ap.add_argument("--reacao", default="", help="o vídeo da sua reação (vai embaixo)")
@@ -1414,6 +1426,8 @@ def main():
             cfg = json.loads(cfg_f.read_text(encoding="utf-8-sig"))
         except ValueError:
             cfg = {}
+    if a.texto_arquivo:
+        TEXTO_PRONTO["v"] = Path(a.texto_arquivo).read_text(encoding="utf-8-sig").strip()
     if a.montar:
         monta_depois(a.montar, a.reacao)
         return

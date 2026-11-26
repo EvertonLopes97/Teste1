@@ -3,6 +3,11 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 25/nov (noite) — NARRAÇÃO PRONTA DELE: `narrado.py --texto-arquivo`
+
+- Ele mandou o roteiro do Neymar loiro no Santos (~100 palavras) e pediu ≥1:10 com imagens/vídeos dos jogadores. `--texto-arquivo x.txt` (+ `TEXTO_PRONTO`): o texto é narrado IGUAL (sem `F.limpa`/glossário, sem reescrita), a IA só devolve título, buscas e até 12 cenas na ordem da fala. Roteiro ampliado (~235 palavras, sem fato novo, só opinião/pergunta) em `tools/narrado/roteiros/neymar_loiro_santos.txt`.
+- NÃO conferi na web que Gabigol/Coutinho estão platinados (só achei notícias do Neymar mudando o visual no Santos): fato é do roteiro dele. Render real não rodado aqui.
+
 ## 24/nov (11h30) — FORMATO-MODELO PARA QUALQUER TEMA: DELE OU PESQUISADO, 1 LONGO POR DIA
 
 - `temas_do_modelo` grava `<canal_gta6>\molde.json` (estrutura + edição, SEM os fatos do modelo). Todo LONGO pesquisado (Reddit/notícias/YouTube) sai com o molde; o documentário diário (`auto.documentario_meta`, 1/dia) pega o próximo longo → formato-modelo todo dia.
