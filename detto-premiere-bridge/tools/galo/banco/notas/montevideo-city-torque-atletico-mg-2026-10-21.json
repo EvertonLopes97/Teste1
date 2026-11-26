@@ -1,0 +1,91 @@
+{
+ "jogo": "Montevideo City Torque Atlético-MG",
+ "time": "Atlético Mineiro",
+ "quando": "2026-10-29",
+ "placar": {
+  "competicao": "Copa Sudamericana",
+  "quando": "21/10",
+  "status": "Encerrado",
+  "casa": "Montevideo City Torque",
+  "fora": "Atlético-MG",
+  "gols_casa": "2",
+  "gols_fora": "0"
+ },
+ "notas": [
+  [
+   5.9,
+   "Alan Franco",
+   "A. Franco"
+  ],
+  [
+   5.9,
+   "Lyanco",
+   "Lyanco"
+  ],
+  [
+   5.9,
+   "Natanael",
+   "Natanael"
+  ],
+  [
+   6.0,
+   "Alexsander",
+   "Alexsander"
+  ],
+  [
+   6.1,
+   "Vitor Hugo",
+   "Vitor Hugo"
+  ],
+  [
+   6.4,
+   "Victor Hugo",
+   "Victor Hugo"
+  ],
+  [
+   6.4,
+   "Vitão",
+   "Vitão"
+  ],
+  [
+   6.5,
+   "Gabriel Delfim",
+   "G. Delfim"
+  ],
+  [
+   6.5,
+   "Mamady Cissé",
+   "M. Cissé"
+  ],
+  [
+   6.6,
+   "Maycon",
+   "Maycon"
+  ],
+  [
+   6.8,
+   "Bernard",
+   "Bernard"
+  ],
+  [
+   6.8,
+   "Kevin Castaño",
+   "K. Castaño"
+  ],
+  [
+   6.8,
+   "Reinier",
+   "Reinier"
+  ],
+  [
+   6.9,
+   "Renan Lodi",
+   "R. Lodi"
+  ],
+  [
+   6.9,
+   "Tomás Cuello",
+   "T. Cuello"
+  ]
+ ]
+}

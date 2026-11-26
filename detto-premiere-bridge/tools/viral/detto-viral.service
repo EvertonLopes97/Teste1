@@ -1,0 +1,14 @@
+[Unit]
+Description=DETTO catcher de virais + lista de produtos Shop
+After=network-online.target
+
+[Service]
+WorkingDirectory=/opt/Teste1/detto-premiere-bridge
+Environment=TELEGRAM_TOKEN=COLOQUE_AQUI
+Environment=TELEGRAM_CHAT=COLOQUE_AQUI
+ExecStart=/usr/bin/python3 tools/viral/servidor.py
+Restart=always
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
