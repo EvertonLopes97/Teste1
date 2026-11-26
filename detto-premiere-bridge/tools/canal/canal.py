@@ -1151,6 +1151,36 @@ def analises_sem_ia(sel, cfg, n, falta_s=0.0):
     return out
 
 
+def _curto(m, n=7):
+    """manchete resumida em poucas palavras, para NOMEAR a novidade na fala."""
+    pal = re.sub(r"\s+", " ", str(m)).strip(" .!?:-—").split()
+    return " ".join(pal[:n]).lower()
+
+
+def abertura_com_nomes(sel, lanc=""):
+    """abertura sem IA: a quantidade EXATA e o NOME de cada novidade (nunca 'mais N novidades' soltas)."""
+    nomes = [_curto(x["manchete"]) for x in sel[:5]]
+    n = len(nomes)
+    if n == 1:
+        return f"{nomes[0].capitalize()}.{lanc} Fica até o fim que eu explico."
+    meio = ", ".join(nomes[:-1]) + " e " + nomes[-1]
+    return f"São {n} novidades do GTA 6 hoje: {meio}.{lanc} A mais forte vem no fim, fica até lá."
+
+
+def abertura_nomeia(g, sel):
+    """confere o texto da IA: se não NOMEIA ao menos metade das novidades, troca pela abertura com nomes (canal de assunto único)."""
+    t = str(g.get("abertura", {}).get("texto", "")).lower()
+    tolo = {"gta", "vai", "com", "para", "novo", "nova", "mais", "como", "sobre", "após", "que"}
+    cit = 0
+    for x in sel[:5]:
+        ws = [w for w in re.findall(r"\w+", _curto(x["manchete"], 8)) if len(w) >= 3 and w not in tolo]
+        if any(w in t for w in ws):
+            cit += 1
+    if cit < max(1, (min(len(sel), 5) + 1) // 2):
+        g["abertura"]["texto"] = abertura_com_nomes(sel)
+    return g
+
+
 def roteiro(sel, cfg, titulos_antes=()):
     # o nome do BLOCO SECUNDÁRIO vem do canal: no Galo é "a volta pelo mundo" (os outros campeonatos), no
     # canal de games é "o resto dos games" (05/nov). O mecanismo é o mesmo; só a redação muda.
@@ -1276,9 +1306,7 @@ cite o programa e o canal). No fechamento, diga que os créditos de tudo que foi
                 pass
         g = {"titulo": sel[0]["manchete"].upper()[:95], "thumb_texto": "", "thumb_destaque": "",
              "descricao": f"As notícias de hoje sobre {cfg['assunto']}.", "tags": [t for t in (cfg.get("termos") or [])[:12]],
-             "abertura": {"texto": f"{sel[0]['manchete'].capitalize().rstrip('.')}. E não é só isso: tem mais {max(1, len(sel) - 1)} "
-                                   f"novidade(s) hoje.{lanc} E no final, {sel[-1]['manchete'].lower().rstrip('.')} — fica até o fim.",
-                          "clima": "falando"},
+             "abertura": {"texto": abertura_com_nomes(sel, lanc), "clima": "falando"},
              "falas": [{"antes_do": i + 1, "texto": f"Agora olha o que saiu no {origem_falada(x)}: {x['manchete'].lower()}.",
                         "clima": x["clima"]} for i, x in enumerate(sel)],
              "fechamento": {"texto": "E aí, o que você achou? Comenta aí, deixa o like e se inscreve. Os créditos de tudo estão nos comentários e na descrição.",
@@ -1291,6 +1319,8 @@ cite o programa e o canal). No fechamento, diga que os créditos de tudo que foi
              "falas": [{"antes_do": i + 1, "texto": f"Agora olha o que falaram no {origem_falada(x)}: {x['manchete'].lower()}.",
                         "clima": x["clima"]} for i, x in enumerate(sel)],
              "fechamento": {"texto": "E aí, Massa, concorda? Comenta aí, deixa o like e se inscreve. Os créditos de tudo estão nos comentários e na descrição. Galo doido!", "clima": "comemorando"}}
+    if cfg.get("assunto") and isinstance(g.get("abertura"), dict) and sel:
+        g = abertura_nomeia(g, sel)
     # IA que respondeu JSON incompleto (sem abertura/fechamento) não pode derrubar a montagem (KeyError 'fechamento', 15/nov)
     if not isinstance(g.get("abertura"), dict) or not str(g["abertura"].get("texto", "")).strip():
         g["abertura"] = {"texto": f"{sel[0]['manchete'].capitalize().rstrip('.')}. Olha só o que saiu hoje.", "clima": "falando"}
@@ -2522,7 +2552,11 @@ GTA6 = {
         "Duval, em Leonida/Vice City.\n"
         "- Números por extenso na narração (a voz LÊ o que você escrever) e nada de siglas soletradas erradas: escreva "
         "\"gê tê á seis\" como \"GTA seis\" e o narrador fala certo.\n"
-        "- Na abertura, diga quantos dias faltam para o lançamento quando essa informação for dada abaixo."),
+        "- Na abertura, diga quantos dias faltam para o lançamento quando essa informação for dada abaixo.\n"
+        "- NOVIDADE É NOME, NÃO NÚMERO SOLTO: PROIBIDO dizer \"mais N novidades\", \"tem muita coisa\" ou \"uma novidade que muda tudo\" sem dizer QUAL. "
+        "A abertura diz a quantidade EXATA de novidades do vídeo e NOMEIA cada uma em poucas palavras (\"são três: o tamanho do jogo, "
+        "o mapa e o trailer novo\"). Cada fala antes de um trecho diz o NOME da novidade dele na 1ª frase.\n"
+        "- FALAS CURTAS: cada fala até 25 palavras, 1 ideia, sem enrolação, sem repetir a manchete, sem \"galera\"/\"gente\"."),
     "time": "GTA",
     # os canais que ELE acompanha (29/out, pedido dele). Canal que não existir/404 é pulado sozinho, e a BUSCA
     # POR DATA continua trazendo o resto — então acrescentar canal aqui nunca derruba a rodada.

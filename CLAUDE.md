@@ -3,6 +3,12 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 26/nov (tarde) — GTA: "MAIS N NOVIDADES" SEM DIZER QUAIS
+
+- Causa: `GTA6["regras_roteiro"]` não obrigava nomear, e o roteiro-modelo sem IA (IA fora do ar: Gemini sem cota, Groq 429, Claude OAuth vencido) dizia "tem mais N novidade(s) hoje" sem nome.
+- Consertos (`canal.py`): regra nova no preset (abertura diz a quantidade EXATA e NOMEIA cada novidade; falas ≤25 palavras, nome da novidade na 1ª frase); `abertura_com_nomes` (fallback sem IA nomeia cada manchete); `abertura_nomeia` confere o texto da IA: se não cita ao menos metade das novidades, troca pela abertura com nomes.
+- Testado com manchetes falsas + teste_rapido. NÃO resolvido: documentário ("a IA não escreveu o capítulo 2") continua dependendo de IA de texto no ar — no PC dele: `claude` no terminal (refaz login) e/ou GROQ_API_KEY/CEREBRAS_API_KEY. Prévia em vídeo feita aqui com voz Piper e gameplay de teste dele (marca d'água), só para ver o formato.
+
 ## 26/nov — ROTEIRO COLADO NO PAINEL + PRIORIDADE NAS FILAS (painel 2026-11-26a)
 
 - Aba Reagir: caixa **Meu roteiro** (assunto + texto) → `narrado_roteiro` grava `Narrados\\roteiros\\*.txt` e põe na `lista.txt` como `ROTEIRO: <arq> | <assunto>`; o `auto.narrados_meta` roda com `--texto-arquivo` (narra IGUAL, 90 s no máx.). Caixa de prioridade: linha com `!` na frente = PRIORIDADE.
