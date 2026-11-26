@@ -454,6 +454,13 @@ def acao(nome, d):
         return pega_cookies(bool(d.get("atualizar")))
     if nome == "canal_destravar":
         return destrava(c)
+    if nome == "canal_prioridade":     # passa para o 1º lugar da fila de espera
+        with TRAVA:
+            item = next((x for x in ESPERA if x["c"] == c), None)
+            if item:
+                ESPERA.remove(item)
+                ESPERA.insert(0, item)
+        return {"ok": True, "msg": f"{CANAIS[c]['nome']} passou para o 1º da fila" if item else "não estava na fila"}
     if nome == "canal_sair_da_fila":
         with TRAVA:
             antes = len(ESPERA)
@@ -605,6 +612,14 @@ def na_espera(c):
     return 0
 
 
+def _prio_reagir():
+    try:
+        import narrado_painel as NAR
+        return NAR.prioridade()
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def _enfileira(c, forcar, teste, quem_roda):
     """põe na fila em vez de recusar o clique (o laço começa assim que o pesado atual terminar)"""
     with TRAVA:
@@ -732,7 +747,7 @@ def laco(log=print, edicao_ocupada=lambda: False):
                 log(f"canal {CANAIS[c]['nome']}: rodada terminou ({'ok' if p.returncode == 0 else 'com erro'})")
                 PESADO.update(id=None, p=None, o_que="")
             # 3) a FILA DE ESPERA vem primeiro: o que VOCÊ pediu na mão passa na frente do automático
-            if not ocupado() and not edicao_ocupada() and ESPERA:
+            if not ocupado() and not edicao_ocupada() and ESPERA and not _prio_reagir():
                 with TRAVA:
                     pedido = ESPERA.pop(0) if ESPERA else None
                 if pedido:

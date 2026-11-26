@@ -532,7 +532,7 @@ function avisos(){
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
   $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-11-20a";
+const VERSAO_TELA = "2026-11-26a";
 // ---- Google Flow (19/nov): status do Chrome na porta 9222, abrir, preset "TikTok Shop (Produto Real)", foto do produto
 function flowCard(S){
   const F = S.flow || {};
@@ -952,9 +952,18 @@ function reagir(){
       <small style="display:block;opacity:.65;margin:2px 0 6px">Cada vídeo vai para ${esc(N.destino||"")} já com a reação provisória (vídeos/fotos suas das pastas <b>reacoes</b> e <b>fotos</b>). Linha com # é ignorada.</small>
       <textarea id="narrLista" rows="5" style="width:100%" placeholder="Estêvão na Copa de 2030&#10;Neymar ainda tem lugar na Seleção?&#10;Final da Copa do Brasil: Grêmio x Palmeiras"></textarea>
       <div class="linha" style="margin-top:6px">
-        <button class="mini" onclick="api('narrado_lista',{texto:$('#narrLista').value}).then(()=>{$('#narrLista').value='';carrega(true)})">▶ Adicionar à fila e fazer todos</button>
+        <button class="mini" onclick="api('narrado_lista',{texto:$('#narrLista').value,prioridade:$('#narrPrio').checked}).then(()=>{$('#narrLista').value='';carrega(true)})">▶ Adicionar à fila e fazer todos</button>
         <button class="mini" onclick="if(confirm('Limpar a fila de assuntos?'))api('narrado_lista',{texto:'',substituir:true}).then(()=>carrega(true))">Limpar fila</button>
-        <span style="opacity:.7">${(N.lista||[]).length ? "Na fila ("+N.lista.length+"): "+esc(N.lista.slice(0,5).join(" · ")) : "Fila vazia"}</span>
+        <label style="margin-left:8px"><input type="checkbox" id="narrPrio"> ⏫ Prioridade (vai assim que o que está rodando terminar)</label>
+      </div>
+      <div style="margin-top:6px">${(N.lista||[]).length ? (N.lista.slice(0,8).map((l,i)=>`<div style="display:flex;gap:6px;align-items:center;opacity:.9">${l.startsWith("!")?"⏫":(i+1)+"."} <span style="flex:1">${esc(l.replace(/^!/,"").replace(/^ROTEIRO:\s*.*\|\s*/i,"📝 roteiro: "))}</span>${l.startsWith("!")?"":`<button class="mini" data-l="${esc(l)}" onclick="api('narrado_prioridade',{linha:this.dataset.l}).then(r=>{toast(r.erro||'passou na frente');carrega(true)})">⏫ na frente</button>`}</div>`).join("")) : "<span style='opacity:.7'>Fila vazia</span>"}</div>
+    </div>
+    <div style="margin-top:12px"><b>Meu roteiro</b> — cole a narração pronta; ela é narrada <b>igual</b> e cada frase ganha a imagem/vídeo do que diz
+      <small style="display:block;opacity:.65;margin:2px 0 6px">Ideal 190–230 palavras (≈ 1 min a 1:15). Entra na fila acima; marque Prioridade para ir logo depois do que está rodando.</small>
+      <input type="text" id="narrRotAssunto" placeholder="assunto/título (ex.: Neymar loiro no Santos)" style="width:100%;margin-bottom:6px">
+      <textarea id="narrRot" rows="7" style="width:100%" placeholder="Cole aqui o roteiro (só a fala)"></textarea>
+      <div class="linha" style="margin-top:6px">
+        <button class="mini" onclick="api('narrado_roteiro',{assunto:$('#narrRotAssunto').value,texto:$('#narrRot').value,prioridade:$('#narrPrio').checked}).then(r=>{if(r.ok){$('#narrRot').value='';$('#narrRotAssunto').value='';toast('roteiro na fila')}else toast(r.erro||'erro');carrega(true)})">▶ Criar vídeo com este roteiro</button>
       </div>
     </div>
     ${N.rodando ? `<div class="info" style="margin-top:8px">Fazendo: <b>${esc(N.o_que)}</b></div>` : ""}
@@ -1289,7 +1298,7 @@ function cardCanal(c, x){
       </div></div>`; }).join("");
   return `<div class="card can">
     <div class="topo"><span class="titulo">${esc(x.nome)}</span>${x.rodando ? `<span class="st montando">montando…</span><button class="mini" onclick="canParar('${c}')">Parar</button>`
-      : x.na_espera ? `<span class="st aguardando">${x.na_espera}º na fila de espera</span><button class="mini" onclick="api('canal_sair_da_fila',{c:'${c}'}).then(r=>{toast(r.msg||'ok');carrega(true)})">Sair da fila</button>`
+      : x.na_espera ? `<span class="st aguardando">${x.na_espera}º na fila de espera</span><button class="mini" onclick="api('canal_prioridade',{c:'${c}'}).then(r=>{toast(r.msg||'ok');carrega(true)})">⏫ Passar na frente</button><button class="mini" onclick="api('canal_sair_da_fila',{c:'${c}'}).then(r=>{toast(r.msg||'ok');carrega(true)})">Sair da fila</button>`
       : `<button class="mini" onclick="canRodar('${c}')">Rodar agora</button>${c === "noticias" ? `<button class="mini" title="monta um vídeo com voz de computador, sem postar — para ver a edição antes da sua voz e das máscaras" onclick="canTeste('${c}')">Teste</button>` : ""}`}</div>
     ${x.na_espera ? `<div class="info">⏳ Na fila de espera (${x.na_espera}º)${E.canais.montando ? ` — <b>${esc(E.canais.montando)}</b> está montando agora` : ""}. Começa sozinho quando a vez chegar.</div>` : ""}
     <div class="linha">${login}</div>

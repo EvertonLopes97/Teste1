@@ -47,6 +47,14 @@ def lista_linhas():
         return []
 
 
+def prioridade():
+    """há na lista algo marcado com `!` (prioridade)? Então canais/Shop/automáticos esperam e esse vai assim que o atual terminar."""
+    try:
+        return any(l.strip().startswith("!") for l in (destino() / "lista.txt").read_text(encoding="utf-8-sig").splitlines())
+    except OSError:
+        return False
+
+
 def rodando():
     return PROC["p"] is not None and PROC["p"].poll() is None
 
@@ -137,6 +145,8 @@ def acao(nome, d):
         args += ["--segundos", str(max(20, min(90, seg)))]
         if d.get("sem_clipes"):
             args += ["--sem-clipes"]
+        if d.get("texto_arquivo") and Path(str(d["texto_arquivo"])).exists():
+            args += ["--texto-arquivo", str(d["texto_arquivo"])]
         reacao = str(d.get("reacao", "")).strip()
         if reacao and Path(reacao).exists():
             args += ["--reacao", reacao]
@@ -158,10 +168,44 @@ def acao(nome, d):
         try:
             f.parent.mkdir(parents=True, exist_ok=True)
             antigas = [] if d.get("substituir") else [l for l in lista_linhas()]
+            if d.get("prioridade"):    # passa na frente: `!` no começo (tira o ! se já tinha)
+                novas = ["!" + l.lstrip("!") for l in novas]
+                antigas = novas + antigas
+                novas = []
             f.write_text("\n".join(antigas + novas) + "\n", encoding="utf-8")
         except OSError as e:
             return {"ok": False, "erro": f"não consegui gravar a lista ({str(e)[:100]})"}
         return {"ok": True, "n": len(novas)}
+    if nome == "narrado_roteiro":
+        # o roteiro (a narração) COLADO por ele: grava em Narrados\\roteiros\\ e põe na lista como `ROTEIRO: <arquivo> | <assunto>`
+        texto = str(d.get("texto", "")).strip()
+        assunto = " ".join(str(d.get("assunto", "")).split())[:110] or " ".join(texto.split()[:8])
+        if len(texto.split()) < 20:
+            return {"ok": False, "erro": "cole o roteiro inteiro (pelo menos 20 palavras)"}
+        import re
+        nome_arq = re.sub(r"[^\w-]+", "_", assunto.lower())[:50] or "roteiro"
+        pasta_r = destino() / "roteiros"
+        try:
+            pasta_r.mkdir(parents=True, exist_ok=True)
+            arq = pasta_r / (dt.datetime.now().strftime("%d%H%M") + "_" + nome_arq + ".txt")
+            arq.write_text(texto + "\n", encoding="utf-8")
+        except OSError as e:
+            return {"ok": False, "erro": f"não consegui gravar o roteiro ({str(e)[:100]})"}
+        linha = ("!" if d.get("prioridade") else "") + f"ROTEIRO: {arq} | {assunto}"
+        return acao("narrado_lista", {"texto": linha}) if not d.get("prioridade") else acao("narrado_lista", {"texto": linha.lstrip("!"), "prioridade": True})
+    if nome == "narrado_prioridade":
+        # passa um item da lista para a frente (e marca prioridade)
+        alvo = str(d.get("linha", "")).strip().lstrip("!")
+        f = destino() / "lista.txt"
+        linhas = lista_linhas()
+        resto = [l for l in linhas if l.lstrip("!") != alvo]
+        if len(resto) == len(linhas):
+            return {"ok": False, "erro": "não achei esse item na lista"}
+        try:
+            f.write_text("\n".join(["!" + alvo] + resto) + "\n", encoding="utf-8")
+        except OSError as e:
+            return {"ok": False, "erro": str(e)[:100]}
+        return {"ok": True}
     if nome == "narrado_parar":
         if rodando():
             PROC["p"].terminate()

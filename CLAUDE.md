@@ -3,6 +3,12 @@
 **VOZ, GESTO E FOTO DA THUMB (o que só ele pode fazer): `VOZ-E-GESTO.md`** · **SOCORRO: `SOCORRO.md`** · **MAPA DO PROJETO: `MAPA.md`** (áreas, onde mexer em cada uma, qual registro ler, quem depende de quem).
 Ele diz "mexe só nos REELS" e eu mexo só ali.
 
+## 26/nov — ROTEIRO COLADO NO PAINEL + PRIORIDADE NAS FILAS (painel 2026-11-26a)
+
+- Aba Reagir: caixa **Meu roteiro** (assunto + texto) → `narrado_roteiro` grava `Narrados\\roteiros\\*.txt` e põe na `lista.txt` como `ROTEIRO: <arq> | <assunto>`; o `auto.narrados_meta` roda com `--texto-arquivo` (narra IGUAL, 90 s no máx.). Caixa de prioridade: linha com `!` na frente = PRIORIDADE.
+- Prioridade: `narrado_painel.prioridade()`; `auto.tudo_parado` fica falso (nenhum automático/atualização começa) e `canais` não começa a fila de espera; o item `!` entra assim que o que roda TERMINA (nunca derruba o que está rodando; `livre_para_prioridade` ignora a ESPERA dos canais). Botão "⏫ na frente" em cada item da lista e "⏫ Passar na frente" na fila de espera dos canais (`canal_prioridade`).
+- Testado: ações com pasta falsa, teste_rapido, pyflakes. Não rodado: painel aberto/vídeo real. Prioridade não interrompe trabalho em andamento (decisão).
+
 ## 25/nov (noite) — NARRAÇÃO PRONTA DELE: `narrado.py --texto-arquivo`
 
 - Ele mandou o roteiro do Neymar loiro no Santos (~100 palavras) e pediu ≥1:10 com imagens/vídeos dos jogadores. `--texto-arquivo x.txt` (+ `TEXTO_PRONTO`): o texto é narrado IGUAL (sem `F.limpa`/glossário, sem reescrita), a IA só devolve título, buscas e até 12 cenas na ordem da fala. Roteiro ampliado (~235 palavras, sem fato novo, só opinião/pergunta) em `tools/narrado/roteiros/neymar_loiro_santos.txt`.

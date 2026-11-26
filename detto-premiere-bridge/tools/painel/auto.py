@@ -183,9 +183,23 @@ def acompanha_rodadas(CAN):
             RODADA.pop(c, None)
 
 
+def _prio_narrado():
+    try:
+        import narrado_painel as NAR
+        return NAR.prioridade()
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def tudo_parado(CAN, SHP, EDI):
+    # item da lista do Reagir com PRIORIDADE (!): nada novo começa antes dele (só ele passa por `livre_para_prioridade`)
     return not (CAN.ocupado() or CAN.ESPERA or SHP.rodando() or CAN.POSTANDO["fila"]
-                or (EDI.PROC["p"] and EDI.PROC["p"].poll() is None))
+                or (EDI.PROC["p"] and EDI.PROC["p"].poll() is None) or _prio_narrado())
+
+
+def livre_para_prioridade(CAN, SHP, EDI):
+    """o que está rodando terminou? (a fila de espera dos canais NÃO conta: o pedido com prioridade passa na frente dela)"""
+    return not (CAN.ocupado() or SHP.rodando() or CAN.POSTANDO["fila"] or (EDI.PROC["p"] and EDI.PROC["p"].poll() is None))
 
 
 def atualiza_se_preciso(CAN, SHP, EDI, log=print):
@@ -378,7 +392,7 @@ def narrados_meta(CAN, SHP, EDI, cp, drive_raiz, log=print):
         return
     agora = dt.datetime.now()
     import narrado_painel as NAR
-    if not tudo_parado(CAN, SHP, EDI) or NAR.rodando():
+    if NAR.rodando() or not (livre_para_prioridade(CAN, SHP, EDI) if NAR.prioridade() else tudo_parado(CAN, SHP, EDI)):
         return
     # a LISTA dele roda a qualquer hora; os 5 automáticos só das 7h às 22h
     if not (7 <= agora.hour <= 22) and not NAR.lista_linhas():
@@ -432,11 +446,18 @@ def narrados_meta(CAN, SHP, EDI, cp, drive_raiz, log=print):
     d = {"drive": str(destino), "segundos": int(cp.get("narrados_seg", 55))}
     est["da_lista"] = ""
     if pend_lista:
-        item = pend_lista[0].strip()
-        d["assunto"] = item
+        item = next((l.strip() for l in pend_lista if l.strip().startswith("!")), pend_lista[0].strip())   # prioridade primeiro
         est["da_lista"] = item
+        item = item.lstrip("!").strip()
+        if item.upper().startswith("ROTEIRO:"):       # roteiro colado por ele: narra IGUAL e monta as cenas em cima
+            arq_r, _, assunto_r = item[8:].partition("|")
+            d["texto_arquivo"] = arq_r.strip()
+            d["assunto"] = assunto_r.strip() or "roteiro"
+            d["segundos"] = 90
+        else:
+            d["assunto"] = item
         resto = list(linhas)
-        resto.remove(next(l for l in resto if l.strip() == item))
+        resto.remove(next(l for l in resto if l.strip() == est["da_lista"]))
         try:
             lista_f.write_text("\n".join(resto) + "\n", encoding="utf-8")
         except OSError:
