@@ -88,6 +88,60 @@ def _ultima_linha_ruim(linhas):
     return ""
 
 
+REELS_PASTA = {"p": None}   # o painel diz onde fica a pasta dos reels (E:\\DETTO\\reels)
+
+
+def status_reels():
+    """os REELS AUTOMÁTICOS no relatório (26/nov): "não está criando mais, sempre dá erro" e o status.json não dizia
+    nada dos reels — o registro deles ficava só no PC. Agora vão as últimas linhas, os links que falharam e quem
+    está com a trava."""
+    b = REELS_PASTA["p"]
+    if not b:
+        return {}
+    b = Path(b)
+    r = {}
+    try:
+        linhas = (b / "painel_reels.log").read_text(encoding="utf-8", errors="replace").splitlines()
+        r["ultimas_linhas"] = [l[:220] for l in linhas if l.strip()][-25:]
+    except OSError:
+        r["ultimas_linhas"] = []
+    try:
+        r["links_na_lista"] = len([l for l in (b / "links.txt").read_text(encoding="utf-8").splitlines() if l.strip().startswith("http")])
+    except OSError:
+        r["links_na_lista"] = 0
+    try:
+        r["falhos"] = (b / "links_falhos.txt").read_text(encoding="utf-8", errors="replace").splitlines()[-6:]
+    except OSError:
+        r["falhos"] = []
+    try:
+        r["trava"] = (b / ".reels_rodando").read_text(encoding="utf-8", errors="replace").strip()[:80]
+    except OSError:
+        r["trava"] = ""
+    try:
+        dia = b / "prontos" / dt.date.today().isoformat()
+        r["prontos_hoje"] = len(list(dia.glob("*.mp4"))) if dia.is_dir() else 0
+    except OSError:
+        r["prontos_hoje"] = -1
+    return r
+
+
+def status_ia():
+    """que IA de texto o PC tem (só se a chave EXISTE, nunca o valor) e se o Claude parou — é a causa nº 1 de vídeo
+    que não sai (10/nov, 11/nov, 26/nov)"""
+    chaves = [k for k in ("GEMINI_API_KEY", "GROQ_API_KEY", "CEREBRAS_API_KEY", "MISTRAL_API_KEY", "OPENROUTER_API_KEY")
+              if os.environ.get(k)]
+    r = {"chaves": chaves}
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+        import roteiro_ia
+        u = roteiro_ia.le_uso_claude()
+        r["claude"] = {"parado": bool(u.get("parado")), "motivo": str(u.get("motivo", ""))[:160],
+                       "hoje": u.get("n", 0), "falhas": u.get("falhas", 0)}
+    except Exception as e:  # noqa: BLE001
+        r["claude"] = {"erro": str(e)[:100]}
+    return r
+
+
 def monta_status(CAN, SHP, EDI, versao):
     """o retrato do sistema para o assistente ler (tudo texto simples)"""
     rc, head = _git("rev-parse", "--short", "HEAD", tempo=15)
@@ -142,6 +196,14 @@ def monta_status(CAN, SHP, EDI, versao):
         s["cookies"] = CAN.cookies_info()
     except Exception:   # noqa: BLE001
         s["cookies"] = "?"
+    try:
+        s["reels"] = status_reels()
+    except Exception as e:   # noqa: BLE001
+        s["reels"] = {"erro_ao_ler": str(e)[:150]}
+    try:
+        s["ia"] = status_ia()
+    except Exception as e:   # noqa: BLE001
+        s["ia"] = {"erro_ao_ler": str(e)[:150]}
     return s
 
 
@@ -152,6 +214,15 @@ def texto_do_status(s):
     for c, x in s["canais"].items():
         L.append(f"[{c}] ligado={x.get('ligado')} rodando={x.get('rodando')} ({x.get('rodando_ha_min', 0)} min) "
                  f"último={x.get('ultimo')} problema={x.get('ultimo_problema_no_log') or '-'} erro_botao={x.get('erro_botao') or '-'}")
+    rl = s.get("reels") or {}
+    if rl:
+        L.append(f"[reels] prontos hoje={rl.get('prontos_hoje')} links na lista={rl.get('links_na_lista')} "
+                 f"trava={rl.get('trava') or '-'} última linha={(rl.get('ultimas_linhas') or ['-'])[-1][:160]}")
+    ia_ = s.get("ia") or {}
+    if ia_:
+        cl = ia_.get("claude") or {}
+        L.append(f"[ia] chaves={', '.join(ia_.get('chaves') or []) or 'NENHUMA'} · claude parado={cl.get('parado')} "
+                 f"{cl.get('motivo') or ''}")
     L.append("atualização: " + (s.get("ultima_atualizacao") or "-"))
     return "\n".join(L) + "\n"
 
@@ -449,11 +520,9 @@ def narrados_meta(CAN, SHP, EDI, cp, drive_raiz, log=print):
         item = next((l.strip() for l in pend_lista if l.strip().startswith("!")), pend_lista[0].strip())   # prioridade primeiro
         est["da_lista"] = item
         item = item.lstrip("!").strip()
-        if item.upper().startswith("ROTEIRO:"):       # roteiro colado por ele: narra IGUAL e monta as cenas em cima
-            arq_r, _, assunto_r = item[8:].partition("|")
-            d["texto_arquivo"] = arq_r.strip()
-            d["assunto"] = assunto_r.strip() or "roteiro"
-            d["segundos"] = 90
+        dr = NAR.args_do_roteiro(item, CAN.pasta("gta6"))
+        if dr:       # roteiro colado por ele: narra IGUAL e monta as cenas em cima (no formato que ele escolheu)
+            d.update(dr)   # o short vai para a fila/canal E fica uma cópia no Drive (é por ela que o auto sabe que saiu)
         else:
             d["assunto"] = item
         resto = list(linhas)
@@ -478,19 +547,40 @@ def documentario_meta(CAN, SHP, EDI, cp, log=print):
     """DOCUMENTÁRIO DIÁRIO DO GTA 6 (10/nov, pedido dele): 1 por dia, 12+ min, ele narrando (narrado/documentario.py).
     Roda como a montagem do card GTA 6 (CAN.PESADO): enquanto isso canal, Shop, edição e shorts esperam.
     `doc_gta_auto: false` desliga; até 6 tentativas por dia (30 min entre elas); das 8h às 22h."""
-    if not cp.get("doc_gta_auto", True):
-        return
     p = DOC["p"]
     if p is not None and p.poll() is None:
         return
     DOC["p"] = None
     agora = dt.datetime.now()
-    if not (8 <= agora.hour <= 22) or not tudo_parado(CAN, SHP, EDI):
+    pasta = CAN.pasta("gta6")
+    # O ROTEIRO DELE primeiro (26/nov, card GTA 6 → Meu roteiro → Documentário): a qualquer hora, com o PC livre,
+    # mesmo que o documentário automático do dia já tenha saído
+    pend = sorted((pasta / "roteiros_doc").glob("*.txt")) if (pasta / "roteiros_doc").is_dir() else []
+    if pend and tudo_parado(CAN, SHP, EDI):
+        import narrado_painel as NAR
+        if NAR.rodando():
+            return
+        usados = pasta / "roteiros_doc" / "usados"
+        usados.mkdir(exist_ok=True)
+        arq = usados / pend[0].name
+        shutil.move(str(pend[0]), str(arq))
+        exe, extra = CAN.py()
+        logf = open(pasta / "documentario.log", "a", encoding="utf-8")
+        logf.write(f"\n===== {agora:%d/%m %H:%M} documentário com o SEU roteiro ({arq.name}) =====\n")
+        logf.flush()
+        proc = subprocess.Popen([exe, "-u", str(Path(__file__).resolve().parent.parent / "narrado" / "documentario.py"),
+                                 "--pasta", str(pasta), "--texto-arquivo", str(arq)], stdout=logf, stderr=subprocess.STDOUT,
+                                cwd=str(Path(__file__).resolve().parent.parent.parent),
+                                env={**os.environ, "PYTHONIOENCODING": "utf-8", "PYTHONUNBUFFERED": "1"}, **extra)
+        DOC["p"] = proc
+        CAN.PESADO.update(id="gta6", p=proc, o_que="documentário com o seu roteiro")
+        log(f"auto: documentário com o SEU roteiro começou ({arq.name})")
+        return
+    if not cp.get("doc_gta_auto", True) or not (8 <= agora.hour <= 22) or not tudo_parado(CAN, SHP, EDI):
         return
     import narrado_painel as NAR
     if NAR.rodando():
         return
-    pasta = CAN.pasta("gta6")
     hoje = dt.date.today().isoformat()
     try:
         if (pasta / "documentario_feito.txt").read_text(encoding="utf-8").strip() == hoje:

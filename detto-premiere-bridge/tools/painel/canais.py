@@ -196,6 +196,9 @@ def estado():
                 tf = comum.le(p / "temas_gta.json", []) or []
                 x["temas"] = [{"tema": t.get("tema", ""), "tipo": t.get("tipo", ""), "rumor": bool(t.get("rumor"))} for t in tf if not t.get("usado")][:12]
                 x["temas_links"] = (p / "temas_links.txt").read_text(encoding="utf-8") if (p / "temas_links.txt").exists() else ""
+            # os roteiros dele que ainda vão virar vídeo (falas do próximo vídeo de notícias / documentários)
+            x["roteiro_proximo"] = (p / "roteiro_proximo.txt").exists()
+            x["docs_pendentes"] = sorted(f.stem for f in (p / "roteiros_doc").glob("*.txt")) if (p / "roteiros_doc").is_dir() else []
             try:
                 sys.path.insert(0, str(TOOLS / "canal"))
                 import fatos as _fatos
@@ -263,6 +266,42 @@ def arquivo(c, pid, nome):
     if not f.exists():
         raise ValueError("não achei")
     return f
+
+
+def roteiro_do_canal(c, d):
+    """MEU ROTEIRO em cada card de canal (26/nov, "deixe poder colocar roteiro em cada lugar para vídeo"):
+    - noticias: as FALAS dele no próximo vídeo de notícias (`roteiro_proximo.txt`, o canal.py usa e arquiva);
+    - doc (GTA 6): um DOCUMENTÁRIO longo narrado com o texto dele (`roteiros_doc\\*.txt`; o automático faz o
+      próximo assim que o PC estiver livre, mesmo que o documentário do dia já tenha saído);
+    - short / short_gta / highlight_gta / reagir: vai para a fila do narrado (aba Reagir), no formato escolhido."""
+    import re
+    tipo = str(d.get("tipo") or "").strip().lower()
+    texto = str(d.get("texto", "")).strip()
+    assunto = " ".join(str(d.get("assunto", "")).split())[:110]
+    if len(texto.split()) < 15:
+        return {"ok": False, "erro": "cole o roteiro inteiro (pelo menos 15 palavras)"}
+    if re.search(r"\[[^\]\n]{3,}\]", texto):
+        return {"ok": False, "erro": "ainda tem [colchetes] do modelo no roteiro — troque pelo seu texto"}
+    p = pasta(c)
+    p.mkdir(parents=True, exist_ok=True)
+    if tipo == "noticias":
+        (p / "roteiro_proximo.txt").write_text(texto + "\n", encoding="utf-8")
+        return {"ok": True, "msg": "Salvo: as suas falas entram no PRÓXIMO vídeo deste canal (clique em Rodar agora para já)."}
+    if tipo == "doc":
+        if c != "gta6":
+            return {"ok": False, "erro": "o documentário longo é do canal de GTA 6"}
+        if len(texto.split()) < 300:
+            return {"ok": False, "erro": f"documentário precisa de texto longo: {len(texto.split())} palavras "
+                                         "(12 min ≈ 2.000 palavras; com menos ele sai curto)"}
+        pr = p / "roteiros_doc"
+        pr.mkdir(parents=True, exist_ok=True)
+        nome = dt.datetime.now().strftime("%d%H%M") + "_" + (re.sub(r"[^\w-]+", "_", (assunto or "documentario").lower())[:40])
+        (pr / f"{nome}.txt").write_text((f"TÍTULO: {assunto}\n\n" if assunto else "") + texto + "\n", encoding="utf-8")
+        return {"ok": True, "msg": "Documentário na fila: começa assim que o PC estiver livre (acompanhe no registro do GTA 6)."}
+    import narrado_painel as NAR
+    formato = tipo if tipo in NAR.FORMATOS_ROTEIRO else ("short_gta" if c == "gta6" else "short")
+    return NAR.acao("narrado_roteiro", {"assunto": assunto, "texto": texto, "formato": formato,
+                                        "prioridade": bool(d.get("prioridade"))})
 
 
 def _mata(pid):
@@ -499,6 +538,14 @@ def acao(nome, d):
         subprocess.Popen([exe, "-u", str(TOOLS / "canal" / "temas_gta.py"), "--pasta", str(pasta(c)), "--links", links],
                          stdout=logf, stderr=subprocess.STDOUT, cwd=str(PONTE), env={**os.environ, "PYTHONIOENCODING": "utf-8"}, **extra)
         return {"ok": True, "msg": "Pesquisando temas (1 a 3 min). Recarregue o painel depois."}
+    elif nome == "canal_roteiro":
+        return roteiro_do_canal(c, d)
+    elif nome == "canal_tira_roteiro":
+        alvo = str(d.get("qual", ""))
+        if alvo == "proximo":
+            (pasta(c) / "roteiro_proximo.txt").unlink(missing_ok=True)
+        elif alvo:
+            (pasta(c) / "roteiros_doc" / (Path(alvo).name + ".txt")).unlink(missing_ok=True)
     elif nome == "canal_fatos":
         pasta(c).mkdir(parents=True, exist_ok=True)
         (pasta(c) / "fatos.txt").write_text(str(d.get("texto", "")).rstrip() + "\n", encoding="utf-8")

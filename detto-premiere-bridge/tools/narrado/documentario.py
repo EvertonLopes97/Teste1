@@ -146,6 +146,104 @@ def texto_capitulo(esb, k, palavras, extra=""):
     return melhor
 
 
+# ------------------------------------------------------------------ o ROTEIRO DELE (26/nov)
+PALAVRAS_FRACAS = set("""a o as os um uma uns umas de do da dos das no na nos nas em por para pra com sem que se e é ou mas
+como mais menos muito muita já não sim isso esse essa este esta aqui ali lá ele ela eles elas eu você vocês a gente
+seu sua seus suas meu minha tem ter vai vão foi era são está estão quando onde porque então também até só ainda
+gta 6 vi jogo game""".split())
+
+
+def capitulos_do_texto(texto):
+    """o texto dele → título + capítulos. Capítulo = linha "## título" ou "CAPÍTULO N — título"; sem nenhuma
+    marca, os parágrafos são juntados em 6 capítulos de tamanho parecido. A 1ª linha "TÍTULO: ..." é o título."""
+    linhas = texto.strip().splitlines()
+    titulo = ""
+    if linhas and re.match(r"\s*T[ÍI]TULO\s*:", linhas[0], re.I):
+        titulo = linhas.pop(0).split(":", 1)[1].strip()
+    corpo = "\n".join(linhas).strip()
+    marca = re.compile(r"^\s*(?:#{1,3}\s*|CAP[ÍI]TULO\s*\d+\s*[:\-—.]?\s*)(.*)$", re.I | re.M)
+    caps = []
+    if marca.search(corpo):
+        pedacos = marca.split(corpo)
+        # split com 1 grupo: [antes, titulo1, texto1, titulo2, texto2, ...]
+        if pedacos[0].strip():
+            caps.append({"titulo": "Introdução", "texto": pedacos[0]})
+        for i in range(1, len(pedacos) - 1, 2):
+            caps.append({"titulo": pedacos[i].strip(" -—:") or f"Parte {len(caps) + 1}", "texto": pedacos[i + 1]})
+    else:
+        pars = [p for p in re.split(r"\n\s*\n", corpo) if p.strip()] or [corpo]
+        if len(pars) == 1:   # um bloco só: corta por frases
+            frases = re.split(r"(?<=[.!?])\s+", corpo)
+            n = max(1, len(frases) // 6)
+            pars = [" ".join(frases[i:i + n]) for i in range(0, len(frases), n)]
+        n = max(1, round(len(pars) / 6))
+        for i in range(0, len(pars), n):
+            bloco = " ".join(pars[i:i + n])
+            caps.append({"titulo": " ".join(bloco.split()[:5]).rstrip(".,!?:"), "texto": bloco})
+    for c in caps:
+        c["texto"] = " ".join(c["texto"].split())
+    caps = [c for c in caps if len(c["texto"].split()) >= 8]
+    if not titulo and caps:
+        titulo = " ".join(caps[0]["texto"].split()[:12]).rstrip(".,!?:")
+    return titulo, caps
+
+
+def buscas_da_frase(frase, n=2):
+    """sem IA: as palavras "fortes" da frase (nomes, lugares, coisas) viram a busca do trecho do jogo"""
+    fracas = {N.norm(x) for x in PALAVRAS_FRACAS} | {"enquanto", "sobre", "depois", "antes", "agora", "entao", "that", "the",
+                                                      "certa", "certo", "tudo", "nada", "cada", "outro", "outra", "pode"}
+    brutas = frase.split()
+    nomes, fortes = [], []
+    for i, w0 in enumerate(brutas):
+        w = w0.strip(".,!?:;\"'()")
+        if len(w) <= 3 or N.norm(w) in fracas:
+            continue
+        inicio_de_frase = i == 0 or brutas[i - 1].endswith((".", "!", "?", ":"))
+        alvo = nomes if (w[:1].isupper() and not inicio_de_frase) else fortes
+        if N.norm(w) not in {N.norm(x) for x in nomes + fortes}:
+            alvo.append(w)
+    escolha = (nomes + fortes)[:3]
+    return [f"GTA 6 {' '.join(escolha)}".strip()] if escolha else ["GTA 6 gameplay"]
+
+
+def cenas_do_capitulo(texto, partes=3):
+    """divide o capítulo em 3–4 partes (pelas frases) e dá a cada uma a busca do que ela fala"""
+    frases = [f for f in re.split(r"(?<=[.!?])\s+", texto) if f.strip()]
+    if len(frases) < 2:
+        return []
+    passo = max(1, len(frases) // partes)
+    cenas = []
+    for i in range(0, len(frases), passo):
+        grupo = " ".join(frases[i:i + passo])
+        cenas.append({"frase": " ".join(frases[i].split()[:3]), "busca": buscas_da_frase(grupo)[0]})
+    return cenas[:4]
+
+
+def esboco_do_texto(texto):
+    """o esboço do documentário a partir do texto DELE (a IA, se responder, só melhora título/thumb e as buscas)"""
+    titulo, caps = capitulos_do_texto(texto)
+    if len(caps) < 2:
+        raise RuntimeError("o seu roteiro precisa de pelo menos 2 partes (separe com uma linha \"## título\" ou com parágrafos)")
+    esb = {"assunto": titulo, "titulo": titulo.upper()[:90], "thumb_texto": " ".join(titulo.split()[:3]).upper(),
+           "thumb_destaque": "", "descricao": " ".join(caps[0]["texto"].split()[:45]), "tags": ["gta 6", "gta vi", "grand theft auto vi"],
+           "capitulos": [{"titulo": c["titulo"][:48], "resumo": "", "buscas": buscas_da_frase(c["texto"], 2), "texto_dele": c["texto"]}
+                         for c in caps[:12]]}
+    try:
+        lista = "\n".join(f"{i + 1}. {c['titulo']}: {c['texto_dele'][:400]}" for i, c in enumerate(esb["capitulos"]))
+        d = ia(f"{REGRAS_DOC}\n\nO roteiro já está ESCRITO pelo criador (não reescreva nada). Capítulos:\n{lista}\n\n"
+               'Devolva SÓ JSON: {"titulo":"<até 90 letras, MAIÚSCULAS, com número se houver>","thumb_texto":"<2 a 4 palavras>",'
+               '"thumb_destaque":"<1 palavra>","descricao":"<3 frases>","tags":["..."],"buscas":[["<busca do YouTube que acha '
+               'trailer/gameplay do capítulo 1, com GTA 6>","..."],["<capítulo 2>"]]}', temp=0.5)
+        if d.get("titulo"):
+            esb.update({k: d[k] for k in ("titulo", "thumb_texto", "thumb_destaque", "descricao", "tags") if d.get(k)})
+        for c, b in zip(esb["capitulos"], d.get("buscas") or []):
+            if isinstance(b, list) and b:
+                c["buscas"] = [str(x) for x in b][:3] + c["buscas"]
+    except Exception as e:  # noqa: BLE001
+        log(f"   (sem IA para melhorar título/buscas: {str(e)[:80]}; sigo com o seu texto)")
+    return esb
+
+
 def cartela_capitulo(n, titulo, saida):
     """etiqueta do capítulo, embaixo à esquerda (4,5 s) — o espectador sabe onde está e o que vem"""
     from PIL import Image, ImageDraw, ImageFont
@@ -171,7 +269,7 @@ def fim_da_primeira_frase(palavras, minimo=8.0):
     return 15.0
 
 
-def faz(pasta, cfg, assunto="", minutos=14, postar=True, teste=False):
+def faz(pasta, cfg, assunto="", minutos=14, postar=True, teste=False, texto_dele=""):
     pasta = Path(pasta)
     cfg_voz = {**le(N.raiz() / "narrado" / "config.json", {}), **{k: v for k, v in cfg.items() if k in ("voz_narrado", "velocidade_voz")}}
     usados_f = pasta / "documentarios_usados.json"
@@ -180,10 +278,16 @@ def faz(pasta, cfg, assunto="", minutos=14, postar=True, teste=False):
     piso = float(cfg.get("min_minutos_video", 12)) * 60
     if teste:
         minutos, piso = 2, 60
-    if not assunto:
-        assunto = N._tema_da_fila(str(pasta), "longo")
-    log(f"DOCUMENTÁRIO GTA 6: tipo {tipo}, alvo {minutos} min (mínimo {piso / 60:.0f})")
-    esb = esboco(assunto, tipo, minutos, contexto(pasta, cfg), usados)
+    if texto_dele:
+        # O ROTEIRO DELE: narrado IGUAL, capítulo por capítulo; o tamanho é o do texto dele (não sobe capítulo extra)
+        esb = esboco_do_texto(texto_dele)
+        log(f"DOCUMENTÁRIO GTA 6 com o SEU roteiro: {len(esb['capitulos'])} capítulos, "
+            f"{sum(len(c['texto_dele'].split()) for c in esb['capitulos'])} palavras")
+    else:
+        if not assunto:
+            assunto = N._tema_da_fila(str(pasta), "longo")
+        log(f"DOCUMENTÁRIO GTA 6: tipo {tipo}, alvo {minutos} min (mínimo {piso / 60:.0f})")
+        esb = esboco(assunto, tipo, minutos, contexto(pasta, cfg), usados)
     log(f"   título: {esb.get('titulo')} · {len(esb['capitulos'])} capítulos")
     tmp = pasta / "tmp_doc"
     shutil.rmtree(tmp, ignore_errors=True)
@@ -193,7 +297,11 @@ def faz(pasta, cfg, assunto="", minutos=14, postar=True, teste=False):
     k = 0
     while k < len(esb["capitulos"]):
         c = esb["capitulos"][k]
-        texto = texto_capitulo(esb, k, alvo_pal)
+        if c.get("texto_dele"):
+            texto = c["texto_dele"]
+            CENAS_DO_TEXTO[texto] = cenas_do_capitulo(texto)
+        else:
+            texto = texto_capitulo(esb, k, alvo_pal)
         wav = tmp / f"voz_{k:02d}.wav"
         N.narra(texto, wav, cfg_voz, log)
         d = N.dur(wav)
@@ -202,7 +310,7 @@ def faz(pasta, cfg, assunto="", minutos=14, postar=True, teste=False):
         log(f"   capítulo {k + 1}: {d / 60:.1f} min ({len(texto.split())} palavras) — total {total / 60:.1f} min")
         k += 1
         # FALTOU TEMPO? (a voz dele a 1,25x come o texto): um capítulo a mais, até 2 vezes
-        if k == len(esb["capitulos"]) and total < piso + 20 and len(esb["capitulos"]) < 10:
+        if k == len(esb["capitulos"]) and total < piso + 20 and len(esb["capitulos"]) < 10 and not texto_dele:
             log(f"   {total / 60:.1f} min é menos que o mínimo; acrescento um capítulo")
             esb["capitulos"].insert(k - 1, {"titulo": "O que ainda não sabemos", "resumo":
                                             "as perguntas em aberto e o que dá para projetar a partir do que já foi mostrado",
@@ -210,7 +318,10 @@ def faz(pasta, cfg, assunto="", minutos=14, postar=True, teste=False):
             ultimo = caps.pop()          # o último capítulo (com a pergunta final) volta para o fim
             total -= ultimo["dur"]
             k -= 1
-    if total < piso:
+    if total < piso and texto_dele:
+        log(f"   AVISO: com o seu roteiro o vídeo deu {total / 60:.1f} min (o canal rende mais com 12+ min). Entrego "
+            "assim porque o texto é seu; escreva mais para passar de 12 min.")
+    elif total < piso:
         raise RuntimeError(f"NÃO RODEI: o documentário deu só {total / 60:.1f} min (mínimo {piso / 60:.0f}). Nada foi postado.")
 
     # ---- imagem: trailer/gameplay do que cada capítulo fala (1920x1080)
@@ -350,13 +461,15 @@ def main():
     ap.add_argument("--minutos", type=float, default=0)
     ap.add_argument("--nao-postar", action="store_true")
     ap.add_argument("--teste", action="store_true", help="2 min, sem postar (para conferir o caminho todo)")
+    ap.add_argument("--texto-arquivo", help="o roteiro DELE (.txt): narrado igual; '## título' separa os capítulos")
     a = ap.parse_args()
     pasta = Path(a.pasta)
     cfg = le(pasta / "config.json", {})
     N.LOG_F = pasta / "documentario.log"
     minutos = a.minutos or float(cfg.get("doc_minutos", 14))
     try:
-        faz(pasta, cfg, a.assunto, minutos, postar=not a.nao_postar, teste=a.teste)
+        texto_dele = Path(a.texto_arquivo).read_text(encoding="utf-8-sig") if a.texto_arquivo else ""
+        faz(pasta, cfg, a.assunto, minutos, postar=not a.nao_postar, teste=a.teste, texto_dele=texto_dele)
     except Exception as e:  # noqa: BLE001
         log(f"NÃO RODEI: {str(e)[:300]}")
         sys.exit(1)

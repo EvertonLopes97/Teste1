@@ -94,6 +94,7 @@ def estado():
             if len(prontos) >= 12:
                 break
     return {"pasta": str(base), "lista": lista_linhas(), "destino": str(destino()), "rodando": rodando(), "o_que": PROC["o_que"],
+            "formatos": FORMATOS_ROTEIRO,
             "log": PROC["log"][-14:], "prontos": prontos[:12]}
 
 
@@ -121,6 +122,34 @@ def _roda(args, o_que=""):
     return {"ok": True}
 
 
+FORMATOS_ROTEIRO = {
+    "reagir": "Reagir (notícia em cima, sua reação embaixo — vai para o Drive)",
+    "short": "Short tela cheia (Galo) — vai para a fila de postagem",
+    "short_gta": "Short do GTA 6 — sobe no canal do GTA",
+    "highlight_gta": "Highlight do GTA 6 — jogo em cima, espaço para a sua reação",
+}
+
+
+def args_do_roteiro(item, pasta_gta=None):
+    """`ROTEIRO[formato]: <arquivo> | <assunto>` → o que o narrado_fazer precisa (formato, arquivo, assunto)"""
+    import re
+    m = re.match(r"\s*ROTEIRO(?:\[(\w+)\])?\s*:\s*(.*)$", item, re.I)
+    if not m:
+        return None
+    formato = (m.group(1) or "reagir").lower()
+    arq_r, _, assunto_r = m.group(2).partition("|")
+    d = {"texto_arquivo": arq_r.strip(), "assunto": assunto_r.strip() or "roteiro", "segundos": 90}
+    if formato == "short":
+        d.update(tela_cheia=True, fila=True)
+    elif formato == "short_gta":
+        d.update(tema="gta", tela_cheia=True, fila=True)
+        if pasta_gta:
+            d["fonte_canal"] = str(pasta_gta)
+    elif formato == "highlight_gta":
+        d.update(tema="gta", highlight=True)
+    return d
+
+
 def acao(nome, d):
     if nome == "narrado_fazer":
         assunto = str(d.get("assunto", "")).strip()
@@ -137,6 +166,8 @@ def acao(nome, d):
             args += ["--tema", d["tema"]]
         if (d.get("tema") == "gta" and not d.get("highlight")) or d.get("tela_cheia"):
             args += ["--tela-cheia"] + ([] if d.get("drive") else ["--fila"])
+        if d.get("fila") and "--fila" not in args:      # short do roteiro dele: vai para a fila (e o de GTA sobe no canal)
+            args += ["--fila"]
         if d.get("fonte_canal"):
             args += ["--fonte-canal", str(d["fonte_canal"])]
         if not d.get("drive") and not str(d.get("reacao", "")).strip():
@@ -183,6 +214,8 @@ def acao(nome, d):
         if len(texto.split()) < 20:
             return {"ok": False, "erro": "cole o roteiro inteiro (pelo menos 20 palavras)"}
         import re
+        if re.search(r"\[[^\]\n]{3,}\]", texto):     # o modelo com [colchetes] ainda no texto: a voz leria isso
+            return {"ok": False, "erro": "ainda tem [colchetes] do modelo no roteiro — troque pelo seu texto"}
         nome_arq = re.sub(r"[^\w-]+", "_", assunto.lower())[:50] or "roteiro"
         pasta_r = destino() / "roteiros"
         try:
@@ -191,7 +224,14 @@ def acao(nome, d):
             arq.write_text(texto + "\n", encoding="utf-8")
         except OSError as e:
             return {"ok": False, "erro": f"não consegui gravar o roteiro ({str(e)[:100]})"}
-        linha = ("!" if d.get("prioridade") else "") + f"ROTEIRO: {arq} | {assunto}"
+        # FORMATO (26/nov, "deixe poder colocar roteiro em cada lugar"): o mesmo roteiro vira Reagir (reação embaixo,
+        # Drive), short em tela cheia do Galo (fila de postagem), short do GTA 6 (sobe no canal do GTA) ou highlight
+        # do GTA (espaço da reação embaixo).
+        formato = str(d.get("formato") or "reagir").strip().lower()
+        if formato not in FORMATOS_ROTEIRO:
+            formato = "reagir"
+        marca = "ROTEIRO" if formato == "reagir" else f"ROTEIRO[{formato}]"
+        linha = ("!" if d.get("prioridade") else "") + f"{marca}: {arq} | {assunto}"
         return acao("narrado_lista", {"texto": linha}) if not d.get("prioridade") else acao("narrado_lista", {"texto": linha.lstrip("!"), "prioridade": True})
     if nome == "narrado_prioridade":
         # passa um item da lista para a frente (e marca prioridade)

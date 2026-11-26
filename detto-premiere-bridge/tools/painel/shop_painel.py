@@ -190,6 +190,16 @@ def acao(nome, d):
             args += ["--modo", d["modo"]]
         if d.get("nao_postar"):
             args += ["--nao-postar"]
+        rot = str(d.get("roteiro") or "").strip()
+        if rot:   # o roteiro DELE para este produto (cada frase vira uma cena, narrada igual)
+            import re as _re
+            if _re.search(r"\[[^\]\n]{3,}\]", rot):
+                return {"ok": False, "erro": "ainda tem [colchetes] do modelo no roteiro — troque pelo seu texto"}
+            pr = base / "roteiros"
+            pr.mkdir(parents=True, exist_ok=True)
+            arq = pr / (dt.datetime.now().strftime("%d%H%M%S") + ".txt")
+            arq.write_text(rot + "\n", encoding="utf-8")
+            args += ["--roteiro-arquivo", str(arq)]
         return _roda(args, d.get("nome") or d.get("link") or d.get("produto") or d.get("categoria") or "a lista")
     if nome == "shop_parar":
         if rodando():

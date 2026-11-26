@@ -95,6 +95,11 @@ summary{cursor:pointer;color:var(--mut);font-size:13px}
 .lista .l span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 /* reels / config */
 .duas{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+#canCards{display:block;columns:2 520px;column-gap:14px}
+#canCards>.card{break-inside:avoid;margin:0 0 14px;display:block}
+.chave>summary,details.bloco>summary{cursor:pointer;font-weight:700}
+details.bloco{background:var(--card2, rgba(255,255,255,.03));border-radius:10px;padding:10px 12px;margin:8px 0}
+details.bloco>summary small{font-weight:400;opacity:.65;margin-left:6px}
 .campos{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .linha{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
 pre.log{background:#090b0a;border:1px solid var(--line);border-radius:10px;padding:10px;font:12px/1.45 Consolas,monospace;max-height:300px;overflow:auto;white-space:pre-wrap;margin:0;color:#b9c7be}
@@ -159,8 +164,10 @@ section.aba.on{display:block}
 .st.descartado{color:var(--mut)}
 .can .topo{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .can .titulo{font-weight:800;font-size:18px;flex:1}
-.can .chave{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--card2);border-radius:10px;padding:8px 10px;margin-top:8px}
-.can .chave small{color:var(--mut);display:block;font-size:12px}
+.chave{display:flex;justify-content:space-between;align-items:center;gap:10px;background:var(--card2);border-radius:10px;padding:8px 10px;margin-top:8px}
+.chave small{color:var(--mut);display:block;font-size:12px}
+.chave>span{flex:1;min-width:0}
+.chave>select,.chave>input{width:auto;flex:none;max-width:45%}
 .pr{background:var(--card2);border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:6px}
 .pr .t{display:flex;gap:8px;align-items:center;justify-content:space-between}
 .pr .t b{font-size:14px;overflow:hidden;text-overflow:ellipsis}
@@ -246,6 +253,7 @@ section.aba.on{display:block}
         <div data-so="roteiro" style="margin-top:10px"><label>O roteiro (opcional — sem roteiro o Gemini escreve)</label>
           <label class="mini-drop" id="edDropR"><input type="file" id="edRoteiro" accept=".txt,.md,.docx" hidden><span>Arraste o roteiro (.txt ou .docx)</span></label>
           <textarea id="edRoteiroTxt" rows="4" placeholder="…ou cole o roteiro aqui" style="margin-top:6px"></textarea>
+          <div class="linha"><button class="mini" type="button" onclick="modeloRoteiro('edicao', '#edRoteiroTxt')">Usar modelo (gancho → blocos → cortes 9:16)</button></div>
         </div>
         <div data-so="roteiro" style="margin-top:10px"><label>Imagens (opcional): camisa = nome do time (Vasco.jpg); foto de apoio = o que buscaria (Santos 1997.jpg)</label>
           <label class="mini-drop" id="edDropI"><input type="file" id="edImgs" accept="image/*" multiple hidden><span>Arraste as imagens</span></label>
@@ -313,7 +321,13 @@ section.aba.on{display:block}
         <select id="linkInicio" style="width:auto;flex:1"><option value="">Começo: o Gemini escolhe</option></select>
         <select id="linkModo" style="width:auto"><option value="troca">Igual ao original (troca)</option><option value="novo">Texto novo</option></select>
       </div>
-      <div class="linha"><button class="pri" id="btLink">Pôr na lista</button><button id="btLinkJa" title="Só o primeiro link, com o começo e o modo escolhidos">Fazer o 1º agora</button></div>
+      <details data-d="r-texto"><summary>Meu texto (opcional) — o roteiro do meme para o “Fazer o 1º agora”</summary>
+        <input id="linkTexto" placeholder="texto da tela, ex.: Quando o zagueiro do seu time tenta sair jogando…" maxlength="160">
+        <textarea id="linkLegenda" rows="2" placeholder="legenda do post (vazio = a IA escreve; sem IA, vai o texto da tela)"></textarea>
+        <div class="linha"><button class="mini" type="button" onclick="modeloRoteiro('meme', '#linkTexto')">Usar modelo</button>
+        <small style="opacity:.65">No modo “Igual ao original” o texto do original continua; o seu texto vale no modo “Texto novo”.</small></div>
+      </details>
+      <div class="linha"><button class="pri" id="btLink">Pôr na lista</button><button id="btLinkJa" title="Só o primeiro link, com o começo, o modo e o seu texto">Fazer o 1º agora</button></div>
       <div class="linha"><label class="dest" id="lbAuto"><input type="checkbox" id="autoLinks"> Fazer os links da lista sozinho (um atrás do outro, já entram na fila)</label></div>
       <div class="linha">
         <label>Fazer</label>
@@ -407,6 +421,8 @@ section.aba.on{display:block}
     </details>
   </div>
 
+  <div class="card" id="iaCard" style="margin-top:14px"></div>
+
   <h2>Registro</h2>
   <pre class="log" id="log"></pre>
   </section>
@@ -483,7 +499,14 @@ function desenha(){
   // mantém aberto o que você abriu (o painel se redesenha a cada 8 s)
   const abertos = {}; document.querySelectorAll("details[data-d]").forEach(d => abertos[d.dataset.d] = d.open);
   const rolagem = [...document.querySelectorAll(".fila")].map(f => f.scrollTop);
-  avisos(); destinos(); contas(); reels(); configs(); edicao(); canais(); historias(); shop(); reagir(); clipes();
+  // O QUE VOCÊ ESTAVA ESCREVENDO NÃO SOME (26/nov): as abas se redesenham a cada 8 s e um roteiro colado (sem o
+  // cursor na caixa) era apagado no redesenho. Guarda os campos que têm id e devolve depois.
+  const rascunho = {};
+  document.querySelectorAll("section.aba textarea[id], section.aba input[type=text][id], section.aba input:not([type])[id]")
+    .forEach(x => { if(x.value) rascunho[x.id] = x.value; });
+  avisos(); destinos(); contas(); reels(); configs(); iaCard(); edicao(); canais(); historias(); shop(); reagir(); clipes();
+  Object.entries(rascunho).forEach(([id, v]) => { const x = document.getElementById(id);
+    if(x && !x.value){ x.value = v; x.dispatchEvent(new Event("input", {bubbles: true})); } });
   document.querySelectorAll("details[data-d]").forEach(d => { if(d.dataset.d in abertos) d.open = abertos[d.dataset.d]; });
   document.querySelectorAll(".fila").forEach((f, i) => f.scrollTop = rolagem[i] || 0);
   const lg = $("#log"), fim = lg.scrollTop + lg.clientHeight >= lg.scrollHeight - 10;
@@ -530,9 +553,40 @@ function avisos(){
       🔄 <b>Código atualizado no PC</b> (${E.codigo_novo.map(esc).join(", ")}${E.codigo_novo.length >= 6 ? "…" : ""}), mas o painel
       ainda está rodando o antigo. <b>Reinicie para valer.</b>
       <button class="mini pri" onclick="reinicia()">Reiniciar o painel</button></div>` : "";
-  $("#avisos").innerHTML = novo + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
+  $("#avisos").innerHTML = novo + iaAviso() + (a.length ? `<div class="aviso">⚠ ${a.map(esc).join(" ")} <button class="mini" onclick="abreCfg()">Configurar</button></div>` : "") + claudeAviso();
 }
-const VERSAO_TELA = "2026-11-26a";
+// NENHUMA IA DE TEXTO VIVA = vídeo fraco ou que não sai (roteiro-modelo, documentário parado). Aviso no topo.
+function iaAviso(){
+  const I = E.ia || {}, ch = I.chaves || {}, res = (I.teste || {}).res || {};
+  const temChave = Object.values(ch).some(x => x.tem);
+  const testou = Object.keys(res).length, viva = Object.values(res).some(x => x.ok);
+  if(temChave && (!testou || viva)) return "";
+  const msg = !temChave ? "Nenhuma chave de IA de texto no painel." : "Nenhuma IA de texto respondeu no último teste (" + esc((I.teste||{}).quando || "") + ").";
+  return `<div class="aviso" style="background:#3a1410;border-color:#8c2f22">🤖 <b>${msg}</b> Sem IA os vídeos saem com texto-modelo e o documentário não roda.
+    <button class="mini pri" onclick="aba('config');setTimeout(()=>$('#iaCard').scrollIntoView({behavior:'smooth'}),100)">Resolver</button></div>`;
+}
+function iaCard(){
+  const I = E.ia || {}, ch = I.chaves || {}, T = I.teste || {}, res = T.res || {};
+  const box = $("#iaCard"); if(!box) return;
+  const k = JSON.stringify(I); if(box.dataset.k === k) return; box.dataset.k = k;
+  const linha = (env, x) => { const r = res[env];
+    return `<div class="l"><span><b>${esc(x.nome)}</b> <small style="opacity:.7">${esc(x.para)}</small><br>
+      ${x.tem ? "🔑 chave salva" : `<a href="${esc(x.link)}" target="_blank" rel="noopener">pegar chave grátis ↗</a>`}
+      ${r ? (r.ok ? ' · <span style="color:var(--lima)">✔ respondeu</span>' : ` · <span style="color:#ff7a6b">✖ ${esc(r.msg)}</span>`) : ""}</span>
+      <span style="display:flex;gap:6px;align-items:center"><input type="password" id="ia_${env}" placeholder="${x.tem ? "trocar (vazio = mantém)" : "cole a chave"}" style="width:220px">
+      <button class="mini" onclick="iaSalva('${env}')">Salvar</button>${x.tem ? `<button class="mini" title="Apagar a chave" onclick="if(confirm('Apagar a chave?'))api('ia_chave',{nome:'${env}',valor:''}).then(()=>carrega(true))">✕</button>` : ""}</span></div>`; };
+  const cl = res.CLAUDE;
+  box.innerHTML = `<b>🤖 IA de texto (roteiros, títulos, narração)</b>
+    <div class="info">A ordem é Gemini → as grátis (Cerebras, Groq, Mistral, OpenRouter) → o Claude da sua assinatura. Com UMA delas funcionando os vídeos saem completos. Ter duas grátis evita parar quando a cota de uma acaba.</div>
+    <div class="lista">${Object.entries(ch).map(([env, x]) => linha(env, x)).join("")}
+      <div class="l"><span><b>Claude (assinatura)</b> <small style="opacity:.7">reserva final; login no terminal</small><br>
+      ${cl ? (cl.ok ? '<span style="color:var(--lima)">✔ respondeu</span>' : `<span style="color:#ff7a6b">✖ ${esc(cl.msg)}</span>`) : "ainda não testado"}</span></div></div>
+    <div class="linha"><button class="pri" onclick="api('ia_testar').then(r=>{toast(r.msg,5000);setTimeout(()=>carrega(true),20000);setTimeout(()=>carrega(true),60000)})" ${T.rodando ? "disabled" : ""}>${T.rodando ? "Testando…" : "Testar as IAs agora"}</button>
+      ${T.quando ? `<small style="opacity:.65">último teste: ${esc(T.quando)}</small>` : ""}</div>`;
+}
+async function iaSalva(env){ const v = $("#ia_" + env).value.trim(); if(!v){ toast("cole a chave primeiro", true); return; }
+  const r = await api("ia_chave", {nome: env, valor: v}); $("#ia_" + env).value = ""; editando = false; toast(r.msg, 5000); carrega(true); }
+const VERSAO_TELA = "2026-11-26b";
 // ---- Google Flow (19/nov): status do Chrome na porta 9222, abrir, preset "TikTok Shop (Produto Real)", foto do produto
 function flowCard(S){
   const F = S.flow || {};
@@ -843,10 +897,13 @@ function reels(){
     ${r.inicios.length ? `<details data-d="r-ini"><summary>Seus começos</summary><div class="tags">${r.inicios.map(n => `<span class="tag">${esc(n)}</span>`).join("")}</div></details>` : `<div class="info alerta">Ainda não tem nenhum começo gravado.</div>`}
     ${r.links.length ? `<details data-d="r-links" open><summary>Na lista para fazer (${r.n_links})</summary><div class="lista">${r.links.map((l, li) => `<div class="l"><span>${esc(l)}</span><button class="mini" title="Tirar da lista" onclick="tiraLink(${li})">✕</button></div>`).join("")}</div></details>` : ""}
     ${r.falhos && r.falhos.length ? `<details data-d="r-falhos" open><summary>⚠ Links que NÃO viraram reels (${r.falhos.length})</summary><div class="lista">${r.falhos.map(f => `<div class="l"><span>${esc(f.quando)} · ${esc(f.url)}<br><small>${esc(f.motivo)}</small></span></div>`).join("")}</div></details>` : ""}
-    ${r.travado ? `<div class="info">⏳ Outro reels.py está rodando (a tarefa do Windows) — os links da lista esperam a vez.</div>` : ""}
+    ${r.travado && !r.rodando ? `<div class="info alerta">⏳ Outro reels.py está com a trava${r.dono ? ` (${esc(r.dono)})` : ""} — os links da lista e os pedidos esperam a vez. Se faz tempo que está assim, ele travou: <button class="mini" onclick="destravaReels()">Destravar</button></div>` : ""}
+    ${r.pendentes && r.pendentes.length ? `<div class="info">🕒 Esperando a vez (${r.pendentes.length}): ${r.pendentes.map(esc).join(" · ")}</div>` : ""}
+    ${(() => { const ruim = [...r.log].reverse().find(l => /NÃO FIZ|NÃO TERMINEI|Traceback|Error|ERRO|falhou|não baixou/i.test(l));
+      return ruim && !r.rodando ? `<div class="info alerta">Último problema no registro: <b>${esc(ruim.trim().slice(0, 220))}</b></div>` : ""; })()}
     ${r.feitos.length ? `<details data-d="r-feitos"><summary>Links já feitos</summary><div class="lista">${r.feitos.map(f => `<div class="l"><span>${f.ok ? "✔" : "✖"} ${esc(f.dia)} · ${esc(f.url)}</span></div>`).join("")}</div></details>` : ""}`;
   $("#autoLinks").checked = !!r.auto_links; $("#lbAuto").classList.toggle("sel", !!r.auto_links);
-  $("#btReels").disabled = r.rodando; $("#btLinkJa").disabled = r.rodando; $("#btReelsParar").style.display = r.rodando ? "" : "none";
+  $("#btReelsParar").style.display = r.rodando ? "" : "none";
   const li = $("#linkInicio"), kI = JSON.stringify(r.inicios);
   if(li.dataset.k !== kI){ const v = li.value; li.dataset.k = kI;
     li.innerHTML = `<option value="">Começo: o Gemini escolhe</option>` + r.inicios.map(n => `<option>${esc(n)}</option>`).join(""); li.value = v; }
@@ -870,10 +927,61 @@ $("#autoLinks").onchange = async e => { await api("reels_auto", {on: e.target.ch
 async function tiraLink(li){ await api("reels_tira_link", {url: E.reels.links[li]}); carrega(true); }
 $("#btLinkJa").onclick = async () => {
   const u = ($("#link").value.match(/https?:\/\/\S+/) || [""])[0];
-  await api("reels_um", {url: u, inicio: $("#linkInicio").value, modo: $("#linkModo").value});
-  $("#link").value = ""; toast("Fazendo o reel — ele entra na fila de postagem quando ficar pronto"); carrega(true);
+  const r = await api("reels_um", {url: u, inicio: $("#linkInicio").value, modo: $("#linkModo").value,
+                                    texto: $("#linkTexto").value, legenda: $("#linkLegenda").value});
+  $("#link").value = ""; toast(r.msg || "Fazendo o reel — ele entra na fila de postagem quando ficar pronto", 5000); carrega(true);
 };
-$("#btReels").onclick = async () => { await api("reels_gerar", {quantos: +$("#quantos").value}); toast("Começou — pode demorar alguns minutos por reel"); carrega(true); };
+/* ROTEIROS-BASE (26/nov): cada caixa de roteiro tem "Usar modelo". O método é o de sempre: o 1º segundo já é o fato
+   forte (nome/número), sem "fala galera"; missões que abrem uma pergunta e respondem; loop aberto na virada; CTA só
+   DEPOIS de uma recompensa; fecha com UMA pergunta para comentar. Troque tudo que está [entre colchetes]. */
+const MODELOS_ROTEIRO = {
+  meme: "Quando [a situação que todo torcedor já viveu] e [o que acontece no lance]",
+  reagir: "[O FATO mais forte, com nome e número — ex.: Fulano fez 3 gols em 20 minutos].\n" +
+    "E o que quase ninguém percebeu é [o detalhe que muda tudo].\n" +
+    "Pensa comigo: [por que isso importa para quem assiste].\n" +
+    "Primeiro, [o dado/lance 1, concreto].\n" +
+    "Depois, [o dado/lance 2, concreto]. E é aqui que fica estranho:\n" +
+    "[a virada — a resposta que você prometeu no começo].\n" +
+    "[Sua opinião, em uma frase curta].\n" +
+    "E você, [pergunta específica para comentar]?",
+  short_gta: "[Fato do GTA 6 com número ou nome — ex.: Dá pra ganhar 1 milhão no primeiro dia].\n" +
+    "[Onde/como — o lugar, a missão ou o passo exato].\n" +
+    "[Detalhe 1 que aparece na tela].\n" +
+    "[Detalhe 2 que aparece na tela].\n" +
+    "Mas tem um porém: [o que quase ninguém sabe].\n" +
+    "Você já [pergunta para comentar]?",
+  doc: "## [Título do capítulo 1 — o gancho]\n[A pergunta/promessa mais forte do vídeo, com número. O que a pessoa ganha ficando até o fim.]\n\n" +
+    "## [Título do capítulo 2]\n[Explicação 1. Termine abrindo o próximo: \"e é aí que entra...\"]\n\n" +
+    "## [Título do capítulo 3]\n[Explicação 2. No meio do vídeo: peça a inscrição ligada a um benefício.]\n\n" +
+    "## [Título do capítulo 4]\n[Explicação 3, a que mais surpreende]\n\n" +
+    "## [Título do capítulo final]\n[A entrega da promessa do começo + UMA pergunta para comentar.]",
+  noticias: "ABERTURA: [o fato mais forte de hoje, com nome/número]. [O que mais vem no vídeo]. [Prometa o detalhe do fim].\n\n" +
+    "FALA: [antes da 1ª notícia — de onde vem + sua opinião em 1 frase + por que ver o trecho]\n\n" +
+    "FALA: [antes da 2ª notícia]\n\n" +
+    "FALA: [antes da 3ª notícia — entregue o que prometeu no começo]\n\n" +
+    "FECHAMENTO: [sua opinião final] + [UMA pergunta específica] + like e inscrição.",
+  edicao: "=====================================================================\n 0. GANCHO (0:00 – 0:20)\n=====================================================================\n\n" +
+    "[0:00 – 0:08]  MODO: [CAM]\nFALA: \"o fato mais forte do vídeo, com nome ou número\"\nTELA: \"3 A 4 PALAVRAS\"\nEFEITO: punch-in na palavra forte\n\n" +
+    "[0:08 – 0:20]  MODO: [CAM+MG]\nFALA: \"o que a pessoa ganha ficando até o fim\"\nMG: card com o dado que você citou\n\n" +
+    "=====================================================================\n 1. PRIMEIRA MISSÃO (0:20 – 2:00)\n=====================================================================\n\n" +
+    "[0:20 – 0:40]  MODO: [MG+VO]\nFALA: \"a pergunta da missão\"\nMG: placar/tabela/foto do assunto\n\n" +
+    "[0:40 – 1:00]  MODO: [CAM]\nFALA: \"a resposta + sua opinião [IMPROVISO]\"\nTELA: \"COMENTA AÍ\"\n\n" +
+    "=====================================================================\n CORTES VERTICAIS (9:16) PRA TIKTOK / REELS / SHORTS\n=====================================================================\n" +
+    "1. \"TEMA\" — [0:00 – 1:00]. Gancho na tela: \"FRASE DO GANCHO\"",
+  shop: "[O problema de quem assiste, em 1 frase — ex.: minha mesa vivia bagunçada].\n" +
+    "Até que eu achei [o produto].\n" +
+    "[Vantagem 1 com número].\n[Vantagem 2 com número].\n[Vantagem 3 com número].\n" +
+    "Parece [a objeção], mas [a resposta].\n" +
+    "[Preço, se souber]. O link está na minha vitrine."
+};
+function modeloRoteiro(tipo, sel){
+  const x = document.querySelector(sel); if(!x) return;
+  if(x.value.trim() && !confirm("Trocar o que está escrito pelo modelo?")) return;
+  x.value = MODELOS_ROTEIRO[tipo] || ""; x.focus();
+  toast("Troque tudo que está [entre colchetes] pelo seu texto", 4000);
+}
+async function destravaReels(){ const r = await api("reels_destravar", {}); toast(r.msg || "Destravado", 5000); carrega(true); }
+$("#btReels").onclick = async () => { const r = await api("reels_gerar", {quantos: +$("#quantos").value}); toast(r.msg || "Começou — pode demorar alguns minutos por reel", 5000); carrega(true); };
 $("#btReelsParar").onclick = async () => { await api("reels_parar"); carrega(true); };
 
 
@@ -956,14 +1064,19 @@ function reagir(){
         <button class="mini" onclick="if(confirm('Limpar a fila de assuntos?'))api('narrado_lista',{texto:'',substituir:true}).then(()=>carrega(true))">Limpar fila</button>
         <label style="margin-left:8px"><input type="checkbox" id="narrPrio"> ⏫ Prioridade (vai assim que o que está rodando terminar)</label>
       </div>
-      <div style="margin-top:6px">${(N.lista||[]).length ? (N.lista.slice(0,8).map((l,i)=>`<div style="display:flex;gap:6px;align-items:center;opacity:.9">${l.startsWith("!")?"⏫":(i+1)+"."} <span style="flex:1">${esc(l.replace(/^!/,"").replace(/^ROTEIRO:\s*.*\|\s*/i,"📝 roteiro: "))}</span>${l.startsWith("!")?"":`<button class="mini" data-l="${esc(l)}" onclick="api('narrado_prioridade',{linha:this.dataset.l}).then(r=>{toast(r.erro||'passou na frente');carrega(true)})">⏫ na frente</button>`}</div>`).join("")) : "<span style='opacity:.7'>Fila vazia</span>"}</div>
+      <div style="margin-top:6px">${(N.lista||[]).length ? (N.lista.slice(0,8).map((l,i)=>`<div style="display:flex;gap:6px;align-items:center;opacity:.9">${l.startsWith("!")?"⏫":(i+1)+"."} <span style="flex:1">${esc(l.replace(/^!/,"").replace(/^ROTEIRO(\[(\w+)\])?:\s*.*\|\s*/i,(m,a,f)=>"📝 roteiro" + (f ? " ("+f.replace("_"," ")+")" : "") + ": "))}</span>${l.startsWith("!")?"":`<button class="mini" data-l="${esc(l)}" onclick="api('narrado_prioridade',{linha:this.dataset.l}).then(r=>{toast(r.erro||'passou na frente');carrega(true)})">⏫ na frente</button>`}</div>`).join("")) : "<span style='opacity:.7'>Fila vazia</span>"}</div>
     </div>
     <div style="margin-top:12px"><b>Meu roteiro</b> — cole a narração pronta; ela é narrada <b>igual</b> e cada frase ganha a imagem/vídeo do que diz
       <small style="display:block;opacity:.65;margin:2px 0 6px">Ideal 190–230 palavras (≈ 1 min a 1:15). Entra na fila acima; marque Prioridade para ir logo depois do que está rodando.</small>
-      <input type="text" id="narrRotAssunto" placeholder="assunto/título (ex.: Neymar loiro no Santos)" style="width:100%;margin-bottom:6px">
+      <div class="linha" style="margin-bottom:6px">
+        <input type="text" id="narrRotAssunto" placeholder="assunto/título (ex.: Neymar loiro no Santos)" style="flex:1;min-width:240px">
+        <select id="narrRotFormato" style="width:auto">${Object.entries(N.formatos||{reagir:"Reagir"}).map(([k,v])=>`<option value="${k}">${esc(v)}</option>`).join("")}</select>
+      </div>
       <textarea id="narrRot" rows="7" style="width:100%" placeholder="Cole aqui o roteiro (só a fala)"></textarea>
       <div class="linha" style="margin-top:6px">
-        <button class="mini" onclick="api('narrado_roteiro',{assunto:$('#narrRotAssunto').value,texto:$('#narrRot').value,prioridade:$('#narrPrio').checked}).then(r=>{if(r.ok){$('#narrRot').value='';$('#narrRotAssunto').value='';toast('roteiro na fila')}else toast(r.erro||'erro');carrega(true)})">▶ Criar vídeo com este roteiro</button>
+        <button class="mini" onclick="api('narrado_roteiro',{assunto:$('#narrRotAssunto').value,texto:$('#narrRot').value,formato:$('#narrRotFormato').value,prioridade:$('#narrPrio').checked}).then(r=>{if(r.ok){$('#narrRot').value='';$('#narrRotAssunto').value='';toast('roteiro na fila')}else toast(r.erro||'erro',true);carrega(true)})">▶ Criar vídeo com este roteiro</button>
+        <button class="mini" type="button" onclick="modeloRoteiro($('#narrRotFormato').value.includes('gta') ? 'short_gta' : 'reagir', '#narrRot')">Usar modelo</button>
+        <small id="narrRotConta" style="opacity:.65"></small>
       </div>
     </div>
     ${N.rodando ? `<div class="info" style="margin-top:8px">Fazendo: <b>${esc(N.o_que)}</b></div>` : ""}
@@ -996,8 +1109,13 @@ function shop(){
         <small style="display:block;opacity:.7;margin:4px 0 6px">Ex.: <b>Travesseiro Avanuv</b>. Acho pelo menos 3 vídeos desse produto, tiro as pessoas e monto um vídeo novo, em cortes rápidos. Sem vídeo do produto certo ele NÃO faz (não inventa imagem).</small>
         <div class="linha">
           <input type="text" id="shopNome" placeholder="nome do produto" style="flex:1">
-          <button class="mini" onclick="api('shop_fazer',{nome:$('#shopNome').value}).then(()=>carrega(true))" ${S.rodando?"disabled":""}>▶ Montar</button>
+          <button class="mini" onclick="api('shop_fazer',{nome:$('#shopNome').value,roteiro:$('#shopRot').value}).then(r=>{if(r.ok===false)toast(r.erro||'erro',true);else $('#shopRot').value='';carrega(true)})" ${S.rodando?"disabled":""}>▶ Montar</button>
         </div>
+        <details data-d="shop-rot" style="margin-top:6px"><summary>📝 Meu roteiro (opcional) — narrado igual, cada frase vira uma cena</summary>
+          <textarea id="shopRot" rows="5" style="width:100%" placeholder="Cole o roteiro do produto (vazio = a IA escreve)"></textarea>
+          <div class="linha"><button class="mini" type="button" onclick="modeloRoteiro('shop', '#shopRot')">Usar modelo</button>
+          <small style="opacity:.65">Vale para o “Montar” pelo nome. Nada é acrescentado ao seu texto.</small></div>
+        </details>
       </div>
       <div style="flex:1;min-width:280px">
         <b>3. Achar o que está vendendo</b>
@@ -1016,7 +1134,7 @@ function shop(){
   </div>`;
 
   const prod = `<div class="card">
-    <b>2. Produtos que chegaram em casa</b>
+    <b>4. Produtos que chegaram em casa</b>
     <small style="display:block;opacity:.7;margin:4px 0 8px">Pasta <code>${esc(S.pasta)}\\produtos\\&lt;nome&gt;\\</code> com as fotos/vídeos e um <code>produto.json</code> ({"nome","preco","link","sobre"}). A gravação com "eu" ou "review" no nome vira o modo <b>eu</b>.</small>
     ${(S.produtos||[]).length ? (S.produtos||[]).map(p => `<div class="l">
       <span><b>${esc(p.nome)}</b> ${p.preco?`· R$ ${esc(p.preco)}`:""} <small style="opacity:.7">${p.fotos} foto(s), ${p.videos} vídeo(s)${p.feito?` · feito em ${esc(p.feito)}`:""}</small></span>
@@ -1222,6 +1340,8 @@ function canais(){
   const box = $("#canCards"), k = JSON.stringify(C);
   if(box.dataset.k === k) return; box.dataset.k = k;
   const abertos = {}; box.querySelectorAll("details[data-d]").forEach(d => abertos[d.dataset.d] = d.open);
+  const ordemCan = ["noticias", "gta6", "vlogs"];
+  canaisIds.sort((a, b) => (ordemCan.indexOf(a) + 1 || 9) - (ordemCan.indexOf(b) + 1 || 9));
   box.innerHTML = canaisIds.map(c => cardCanal(c, C[c])).join("");
   box.querySelectorAll("details[data-d]").forEach(d => { if(d.dataset.d in abertos) d.open = abertos[d.dataset.d]; });
 }
@@ -1232,22 +1352,37 @@ function cardCanal(c, x){
                         : `<span class="login off">✖ YouTube não conectado</span> <button class="mini pri" onclick="canLogin('${c}')" ${E.canais.segredo ? "" : "disabled"}>Conectar</button>`;
   let esp = travado;
   if(c === "gta6"){
-    esp += `<div class="chave" style="display:block"><b>Temas de GTA 6 (pesquisa automática)</b> <small>Cole links de vídeos que bombaram (TikTok, YouTube, Instagram): a IA copia o ESTILO e o tipo de assunto, nunca o texto. Também pesquisa Reddit, Google Notícias e YouTube. Os shorts e o documentário do dia pegam o próximo tema da fila.</small>
+    esp += `<details class="bloco" data-d="temas-${c}"><summary>🔎 Temas de GTA 6 <small>${(x.temas||[]).length} na fila · pesquisa automática</small></summary><div style="margin-top:6px"><small>Cole links de vídeos que bombaram (TikTok, YouTube, Instagram): a IA copia o ESTILO e o tipo de assunto, nunca o texto. Também pesquisa Reddit, Google Notícias e YouTube. Os shorts e o documentário do dia pegam o próximo tema da fila.</small>
       <textarea id="temas_${c}" rows="3" placeholder="https://vt.tiktok.com/…&#10;https://youtube.com/…">${esc(x.temas_links || "")}</textarea>
       <div class="linha"><button class="pri" onclick="canTemas('${c}')">Pesquisar temas agora</button></div>
-      ${(x.temas||[]).length ? `<div class="lista">${x.temas.map(t => `<div class="l"><span>${t.tipo === "longo" ? "🎬" : "📱"} ${t.rumor ? "[rumor] " : ""}${esc(t.tema)}</span></div>`).join("")}</div>` : `<div class="info">Fila vazia: clique em pesquisar.</div>`}</div>`;
+      ${(x.temas||[]).length ? `<div class="lista">${x.temas.map(t => `<div class="l"><span>${t.tipo === "longo" ? "🎬" : "📱"} ${t.rumor ? "[rumor] " : ""}${esc(t.tema)}</span></div>`).join("")}</div>` : `<div class="info">Fila vazia: clique em pesquisar.</div>`}</div></details>`;
   }
   if(c === "noticias" || c === "gta6"){
-    esp += `<div class="chave" style="display:block"><b>Fatos atuais (a IA lê antes de escrever)</b> <small>O que é verdade HOJE: técnico atual, reforços, novidades que você viu. Linha <code>NÃO CITAR: Fulano, Beltrano</code> corta quem saiu. Linhas com # são comentário.</small>
+    esp += `<details class="bloco" data-d="fatos-${c}"><summary>📌 Fatos atuais <small>a IA lê antes de escrever</small></summary><div style="margin-top:6px"><small>O que é verdade HOJE: técnico atual, reforços, novidades que você viu. Linha <code>NÃO CITAR: Fulano, Beltrano</code> corta quem saiu. Linhas com # são comentário.</small>
       <textarea id="fatos_${c}" rows="6">${esc(x.fatos || "")}</textarea>
-      <div class="linha"><button class="pri" onclick="canFatos('${c}')">Salvar fatos</button></div></div>`;
+      <div class="linha"><button class="pri" onclick="canFatos('${c}')">Salvar fatos</button></div></div></details>`;
   }
   if(c === "noticias" || c === "gta6"){
-    esp += `<div class="chave" style="display:block"><b>Pautas</b> <small>Outras notícias quando quiser: cole o LINK de um vídeo, o caminho de um arquivo do PC ou escreva o ASSUNTO (um por linha). Entram no próximo vídeo, na frente das notícias do dia.</small>
+    const ops = c === "gta6"
+      ? [["short_gta","Short do GTA 6 (até 90 s, sobe no canal)"],["doc","Documentário longo (12+ min, narrado por você)"],["noticias","Minhas falas no próximo vídeo de notícias"],["highlight_gta","Highlight (jogo em cima, sua reação embaixo)"]]
+      : [["noticias","Minhas falas no próximo vídeo de notícias"],["short","Short tela cheia (vai para a fila de postagem)"],["reagir","Reagir (notícia em cima, sua reação embaixo)"]];
+    const pend = (x.roteiro_proximo ? `<div class="l"><span>📝 suas falas esperando o próximo vídeo</span><button class="mini" onclick="canTiraRot('${c}','proximo')">✕</button></div>` : "")
+      + (x.docs_pendentes||[]).map(n => `<div class="l"><span>🎬 documentário: ${esc(n.replace(/^\d+_/, "").replace(/_/g, " "))}</span><button class="mini" onclick="canTiraRot('${c}','${esc(n)}')">✕</button></div>`).join("");
+    esp += `<details class="bloco" data-d="rot-${c}" open><summary>📝 Meu roteiro <small>${pend ? "tem roteiro esperando" : "o seu texto vira o vídeo"}</small></summary><div style="margin-top:6px"><small>Escreva ou cole o seu texto e escolha o que ele vira. A voz narra IGUAL ao que você escreveu; as imagens seguem cada frase. “Usar modelo” traz um roteiro-base para preencher.</small>
+      <div class="linha"><select id="rotTipo_${c}" style="width:auto;flex:1">${ops.map(([k, v]) => `<option value="${k}">${esc(v)}</option>`).join("")}</select>
+        <input type="text" id="rotAssunto_${c}" placeholder="assunto / título" style="flex:1;min-width:200px"></div>
+      <textarea id="rot_${c}" rows="6" placeholder="Cole aqui o roteiro"></textarea>
+      <div class="linha"><button class="pri" onclick="canRoteiro('${c}')">Criar com este roteiro</button>
+        <button class="mini" type="button" onclick="const t=$('#rotTipo_${c}').value; modeloRoteiro(t==='doc'?'doc':t==='noticias'?'noticias':(t.includes('gta')?'short_gta':'reagir'), '#rot_${c}')">Usar modelo</button>
+        <small style="opacity:.65" id="rotConta_${c}"></small></div>
+      ${pend ? `<div class="lista">${pend}</div>` : ""}</div></details>`;
+  }
+  if(c === "noticias" || c === "gta6"){
+    esp += `<details class="bloco" data-d="pautas-${c}" ${x.pautas.length ? "open" : ""}><summary>🗞️ Pautas <small>${x.pautas.length ? x.pautas.length + " esperando" : "notícias que você quer no próximo vídeo"}</small></summary><div style="margin-top:6px"><small>Outras notícias quando quiser: cole o LINK de um vídeo, o caminho de um arquivo do PC ou escreva o ASSUNTO (um por linha). Entram no próximo vídeo, na frente das notícias do dia.</small>
       <textarea id="pauta_${c}" rows="3" placeholder="https://youtube.com/watch?v=…&#10;Cruzeiro demite o técnico"></textarea>
       <div class="linha"><button class="pri" onclick="canPauta('${c}',false)">Pôr nas pautas</button><button onclick="canPauta('${c}',true)" ${x.rodando ? "disabled" : ""}>Pôr e fazer o vídeo agora</button></div>
       ${x.pautas.length ? `<div class="lista">${x.pautas.map((l, i) => `<div class="l"><span>${esc(l)}</span><button class="mini" onclick="canTiraPauta('${c}',${i})">✕</button></div>`).join("")}</div>` : ""}
-      ${x.feitas.length ? `<details data-d="pf"><summary>Pautas já feitas</summary><div class="lista">${x.feitas.map(l => `<div class="l"><span>${esc(l)}</span></div>`).join("")}</div></details>` : ""}</div>
+      ${x.feitas.length ? `<details data-d="pf-${c}"><summary>Pautas já feitas</summary><div class="lista">${x.feitas.map(l => `<div class="l"><span>${esc(l)}</span></div>`).join("")}</div></details>` : ""}</div></details>
     <details data-d="cfg-${c}"><summary>Ajustes do canal ${c === "gta6" ? "de GTA 6" : "de notícias"}</summary><div class="campos" style="margin-top:8px">
       <div><label>Nome do canal (na tela)</label><input type="text" value="${esc(x.nome_canal)}" onchange="canCfg('${c}',{nome_canal:this.value})"></div>
       <div><label>Duração do vídeo (min)</label><input type="number" min="3" value="${x.duracao}" onchange="canCfg('${c}',{duracao_alvo_min:this.value})"></div>
@@ -1326,6 +1461,19 @@ async function canParar(c){ if(!confirm("Parar a montagem?")) return; await api(
 async function canAbrir(c, qual){ await api("canal_abrir", {c, qual}); toast("Abri a pasta no PC"); }
 async function canPauta(c, agora){ const t = $("#pauta_" + c).value; if(!t.trim()) return toast("Escreva a pauta", true);
   await api("canal_pautas", {c, texto: t, agora}); editando = false; toast(agora ? "Fazendo o vídeo com as pautas" : "Na lista de pautas"); carrega(true); }
+async function canRoteiro(c){
+  const r = await api("canal_roteiro", {c, tipo: $("#rotTipo_" + c).value, assunto: $("#rotAssunto_" + c).value, texto: $("#rot_" + c).value});
+  if(r.ok === false){ toast(r.erro || "erro", true); return; }
+  $("#rot_" + c).value = ""; $("#rotAssunto_" + c).value = ""; editando = false; toast(r.msg || "Roteiro na fila", 6000); carrega(true);
+}
+async function canTiraRot(c, qual){ if(!confirm("Tirar este roteiro da fila?")) return; await api("canal_tira_roteiro", {c, qual}); carrega(true); }
+// contador de palavras/tempo nas caixas de roteiro (≈190 palavras por minuto na voz a 1,25x)
+document.addEventListener("input", e => {
+  const x = e.target; if(!x.matches("textarea[id^=rot_], #narrRot")) return;
+  const n = (x.value.match(/\S+/g) || []).length, seg = Math.round(n / 190 * 60);
+  const alvo = x.id === "narrRot" ? $("#narrRotConta") : document.getElementById("rotConta_" + x.id.slice(4));
+  if(alvo) alvo.textContent = n ? `${n} palavras ≈ ${seg >= 60 ? Math.floor(seg/60) + " min " + (seg%60) + " s" : seg + " s"} de fala` : "";
+});
 async function canFatos(c){ await api("canal_fatos", {c, texto: $("#fatos_" + c).value}); editando = false; toast("Fatos salvos"); carrega(true); }
 async function canTemas(c){ const r = await api("canal_temas", {c, links: $("#temas_" + c).value}); editando = false; toast(r.msg || "Pesquisando", 8000); setTimeout(() => carrega(true), 60000); }
 async function canTiraPauta(c, i){ await api("canal_tira_pauta", {c, linha: E.canais[c].pautas[i]}); carrega(true); }

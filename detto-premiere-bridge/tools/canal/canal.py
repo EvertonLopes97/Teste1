@@ -1151,6 +1151,72 @@ def analises_sem_ia(sel, cfg, n, falta_s=0.0):
     return out
 
 
+def roteiro_dele(pasta):
+    """`<pasta>\\roteiro_proximo.txt` (o painel grava): ABERTURA:/FALA:/FECHAMENTO: marcados, ou parágrafos soltos
+    (o 1º vira a abertura, o último o fechamento, os do meio as falas antes de cada trecho, em ordem)."""
+    if not pasta:
+        return None
+    f = Path(pasta) / "roteiro_proximo.txt"
+    try:
+        texto = f.read_text(encoding="utf-8-sig").strip()
+    except OSError:
+        return None
+    if len(texto.split()) < 10:
+        return None
+    partes = {"abertura": "", "falas": [], "fechamento": ""}
+    marcados = re.findall(r"(?im)^\s*(ABERTURA|FALA|FECHAMENTO)\s*\d*\s*[:\-—]\s*(.+?)(?=^\s*(?:ABERTURA|FALA|FECHAMENTO)\b|\Z)",
+                          texto, re.S)
+    if marcados:
+        for k, t in marcados:
+            t = " ".join(t.split())
+            if k.upper() == "ABERTURA":
+                partes["abertura"] = t
+            elif k.upper() == "FECHAMENTO":
+                partes["fechamento"] = t
+            else:
+                partes["falas"].append(t)
+    else:
+        blocos = [" ".join(b.split()) for b in re.split(r"\n\s*\n", texto) if b.strip()]
+        if len(blocos) == 1:
+            blocos = [" ".join(b.split()) for b in texto.splitlines() if b.strip()]
+        if blocos:
+            partes["abertura"] = blocos[0]
+        if len(blocos) >= 2:
+            partes["fechamento"] = blocos[-1]
+            partes["falas"] = blocos[1:-1]
+    return {"texto": texto, "arquivo": str(f), **partes}
+
+
+def aplica_roteiro_dele(g, rd, sel):
+    """o texto DELE vence o da IA (e é o vídeo inteiro quando nenhuma IA respondeu)"""
+    if rd.get("abertura"):
+        g["abertura"] = {"texto": rd["abertura"], "clima": (g.get("abertura") or {}).get("clima", "falando")}
+    falas = list(g.get("falas") or [])
+    for i, t in enumerate(rd.get("falas") or []):
+        if i >= len(sel):
+            break
+        k = next((j for j, x in enumerate(falas) if int(x.get("antes_do", 0) or 0) == i + 1), None)
+        if k is None:
+            falas.append({"antes_do": i + 1, "texto": t, "clima": sel[i].get("clima", "falando")})
+        else:
+            falas[k]["texto"] = t
+    g["falas"] = sorted(falas, key=lambda x: int(x.get("antes_do", 0) or 0))
+    if rd.get("fechamento"):
+        g["fechamento"] = {"texto": rd["fechamento"], "clima": (g.get("fechamento") or {}).get("clima", "comemorando")}
+    log(f"roteiro: usei o SEU texto (abertura, {len(rd.get('falas') or [])} fala(s), fechamento)")
+    return g
+
+
+def arquiva_roteiro_dele(cfg):
+    """o roteiro virou vídeo: sai de roteiro_proximo.txt e fica guardado em roteiros_usados\\"""
+    a = cfg.get("_roteiro_dele_arq")
+    if not a or not Path(a).exists():
+        return
+    d = Path(a).parent / "roteiros_usados"
+    d.mkdir(exist_ok=True)
+    shutil.move(a, d / f"{dt.datetime.now():%Y-%m-%d_%H%M}.txt")
+
+
 def _curto(m, n=7):
     """manchete resumida em poucas palavras, para NOMEAR a novidade na fala."""
     pal = re.sub(r"\s+", " ", str(m)).strip(" .!?:-—").split()
@@ -1262,6 +1328,12 @@ def roteiro(sel, cfg, titulos_antes=()):
     import fatos as F
     import glossario as G
     _fatos_bloco = F.bloco(cfg.get("_pasta")).replace("material acima", "material dos trechos") + G.bloco()
+    # O ROTEIRO DELE (26/nov, painel → card do canal → Meu roteiro → "Minhas falas no próximo vídeo")
+    rot_dele = roteiro_dele(cfg.get("_pasta"))
+    if rot_dele:
+        regra_extra += ("\nO ROTEIRO DELE (as falas JÁ ESCRITAS por ele — use o texto dele quase palavra por palavra, na ordem; "
+                        "só complete o que faltar para ligar com os trechos; não troque fatos nem opinião dele):\n"
+                        + rot_dele["texto"][:6000])
     g = gemini_json([{"text": f"""Você narra o canal "{cfg['nome_canal']}", de {assunto}, {persona}. Os trechos, em ordem:
 {lista}
 
@@ -1319,7 +1391,10 @@ cite o programa e o canal). No fechamento, diga que os créditos de tudo que foi
              "falas": [{"antes_do": i + 1, "texto": f"Agora olha o que falaram no {origem_falada(x)}: {x['manchete'].lower()}.",
                         "clima": x["clima"]} for i, x in enumerate(sel)],
              "fechamento": {"texto": "E aí, Massa, concorda? Comenta aí, deixa o like e se inscreve. Os créditos de tudo estão nos comentários e na descrição. Galo doido!", "clima": "comemorando"}}
-    if cfg.get("assunto") and isinstance(g.get("abertura"), dict) and sel:
+    if rot_dele:
+        g = aplica_roteiro_dele(g, rot_dele, sel)
+        cfg["_roteiro_dele_arq"] = rot_dele["arquivo"]
+    elif cfg.get("assunto") and isinstance(g.get("abertura"), dict) and sel:
         g = abertura_nomeia(g, sel)
     # IA que respondeu JSON incompleto (sem abertura/fechamento) não pode derrubar a montagem (KeyError 'fechamento', 15/nov)
     if not isinstance(g.get("abertura"), dict) or not str(g["abertura"].get("texto", "")).strip():
@@ -3255,6 +3330,10 @@ def main():
             "shorts": shorts, "formato": cfg.get("_formato", "noticias"), "status": "aguardando", "criado": dt.datetime.now().isoformat(timespec="seconds"),
             "trechos": [{"fonte": x["fonte"], "manchete": x["manchete"], "pauta": x.get("pauta", "")} for x in sel]}
     comum.grava(pronto / "post.json", post)
+    try:
+        arquiva_roteiro_dele(cfg_r)
+    except OSError as e:
+        log(f"roteiro: não consegui arquivar o seu roteiro ({e}); apague roteiro_proximo.txt na mão")
     reg = {"data": hoje, "quando": dt.datetime.now().isoformat(timespec="seconds"), "titulo": rot["titulo"], "pasta": str(pronto)}
     if a.nao_postar or not cfg.get("auto_postar"):
         log(f"PRONTO, esperando você aprovar (painel → Canais): {pronto}")

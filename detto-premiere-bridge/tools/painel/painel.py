@@ -43,7 +43,7 @@ VIDEO_EXT = P.VIDEO_EXT
 REELS = None  # pasta dos reels (E:\DETTO\reels)
 BASE = None  # pasta da postagem (E:\DETTO\postar)
 CACHE = {"pendentes": {}, "limite": {}, "quando": 0, "erro": {}}
-TRABALHO = {"postando": "", "reels": None, "login": None}
+TRABALHO = {"postando": "", "reels": None, "login": None, "reels_pendentes": []}
 TRAVA_CFG = threading.Lock()
 
 
@@ -272,7 +272,8 @@ def estado_painel():
         "instagram": {"chaves": bool(c_["instagram"].get("app_id") and c_["instagram"].get("app_secret"))},
         "reels": {"prontos_hoje": len(prontos), "inicios": inicios, "links": links[:30], "n_links": len(links),
                   "auto_links": rcfg.get("auto_links", True), "feitos": feitos_links(), "falhos": links_falhos(),
-                  "travado": reels_rodando(),
+                  "travado": reels_rodando(), "dono": reels_dono()[0] if reels_rodando() else "",
+                  "pendentes": [x.get("o_que", "") for x in TRABALHO["reels_pendentes"]],
                   "rodando": bool(t and t.poll() is None), "postar": rcfg.get("postar", ["todas"]),
                   "log": [l.rstrip() for l in rlog]},
         "log": [l.rstrip() for l in log], "disco": tam_txt(livre), "disco_pouco": livre < 15 * 1024 ** 3,
@@ -285,7 +286,7 @@ def estado_painel():
         "shop": SHP.estado(),
         "narrado": NAR.estado(),
         "studio": STU.estado(),
-        "claude": claude_estado(),
+        "claude": claude_estado(), "ia": ia_estado(),
         "codigo_novo": codigo_novo(),
         "versao": PAINEL_VERSAO,
     }
@@ -295,7 +296,7 @@ SUBIU_EM = time.time()
 # Versão do PYTHON que está rodando. O painel.html é lido do disco a cada acesso, então depois de um `git pull` o
 # navegador recebe a tela NOVA enquanto o Python continua o VELHO (foi o que aconteceu: a aba Histórias apareceu
 # vazia e o Instagram continuou no caminho antigo). A tela compara esta versão com a dela e avisa.
-PAINEL_VERSAO = "2026-11-26a"
+PAINEL_VERSAO = "2026-11-26b"
 
 
 def codigo_novo():
@@ -335,6 +336,106 @@ def claude_estado():
             "motivo": u.get("motivo", ""), "repetindo": repetindo if repetindo >= 3 else 0,
             "ultimas": [{"hora": dt.datetime.fromtimestamp(x["t"]).strftime("%H:%M"), "ok": x["ok"], "de": x["de"],
                          "s": x.get("s", 0), "erro": x.get("erro", "")} for x in ult[-8:]][::-1]}
+
+
+# ------------------------------------------------------------------ IA de texto (26/nov)
+# A causa nº 1 de vídeo que não sai (10/nov, 11/nov, 26/nov): NENHUMA IA de texto respondendo — Gemini sem cota,
+# Groq no limite, login do Claude vencido. O painel agora mostra qual está viva, guarda as chaves grátis e testa.
+CHAVES_IA = {
+    "GEMINI_API_KEY": ("Gemini (Google)", "https://aistudio.google.com/apikey", "vídeo, foto e texto — o principal"),
+    "GROQ_API_KEY": ("Groq", "https://console.groq.com/keys", "texto, grátis, rápido (cota por modelo)"),
+    "CEREBRAS_API_KEY": ("Cerebras", "https://cloud.cerebras.ai", "texto, grátis, cota diária grande"),
+    "OPENROUTER_API_KEY": ("OpenRouter", "https://openrouter.ai/keys", "texto, modelos :free"),
+    "MISTRAL_API_KEY": ("Mistral", "https://console.mistral.ai/api-keys", "texto, plano grátis"),
+}
+IA_TESTE = {"quando": "", "res": {}, "rodando": False}
+
+
+def carrega_chaves_ia():
+    """as chaves salvas pelo painel entram no ambiente do painel (e de todo programa que ele abre)"""
+    try:
+        ch = (P.le_json(BASE / "config.json", {}).get("painel") or {}).get("chaves_ia") or {}
+    except Exception:  # noqa: BLE001
+        return
+    for k, v in ch.items():
+        if k in CHAVES_IA and v and not os.environ.get(k):
+            os.environ[k] = str(v)
+
+
+def salva_chave_ia(nome, valor):
+    if nome not in CHAVES_IA:
+        raise ValueError("chave desconhecida")
+    valor = str(valor or "").strip()
+    if valor and not re.fullmatch(r"[\w\-.:]{16,200}", valor):
+        raise ValueError("essa chave não parece certa (copie a chave inteira, sem espaços)")
+    c_ = P.le_json(BASE / "config.json", {})
+    pn = c_.setdefault("painel", {})
+    ch = pn.setdefault("chaves_ia", {})
+    if valor:
+        ch[nome] = valor
+        os.environ[nome] = valor
+    else:
+        ch.pop(nome, None)
+        os.environ.pop(nome, None)
+    P.grava_json(BASE / "config.json", c_)
+    if os.name == "nt":   # também no Windows, para o canal/reels rodados fora do painel (tarefa agendada, terminal)
+        try:
+            subprocess.run(["setx", nome, valor or ""], capture_output=True, timeout=20)
+        except Exception:  # noqa: BLE001
+            pass
+    return {"ok": True, "msg": f"{CHAVES_IA[nome][0]}: {'chave salva' if valor else 'chave apagada'}. Clique em Testar."}
+
+
+def testa_ias():
+    """pergunta 'responda ok' a cada IA que tem chave (e ao Claude), uma por uma; o resultado aparece no painel"""
+    if IA_TESTE["rodando"]:
+        return
+    IA_TESTE["rodando"] = True
+    res = {}
+    try:
+        sys.path.insert(0, str(TOOLS))
+        import roteiro_ia as R
+        for env, base, env_m, padrao in R.PROVEDORES:
+            if not os.environ.get(env):
+                continue
+            salvo = R.PROVEDORES
+            try:
+                R.PROVEDORES = [(env, base, env_m, padrao)]
+                linhas = []
+                t = R.texto_gratis('Responda só JSON: {"ok": true}', json_mode=True, log=linhas.append)
+                res[env] = {"ok": bool(t), "msg": ("respondeu" if t else (linhas[-1].strip() if linhas else "não respondeu"))[:160]}
+            finally:
+                R.PROVEDORES = salvo
+        if os.environ.get("GEMINI_API_KEY"):
+            try:
+                corpo = json.dumps({"contents": [{"parts": [{"text": "responda ok"}]}]}).encode()
+                r = R.gerar(corpo, log=lambda *_: None)
+                res["GEMINI_API_KEY"] = {"ok": bool(r), "msg": "respondeu"}
+            except Exception as e:  # noqa: BLE001
+                m = str(e)
+                res["GEMINI_API_KEY"] = {"ok": False, "msg": ("sem cota (limite de gasto do mês ou do dia)" if "429" in m else m)[:160]}
+        try:
+            exe_c = shutil.which("claude")       # no Windows é claude.cmd: sem o which o subprocess não acha
+            if not exe_c:
+                raise FileNotFoundError
+            r = subprocess.run([exe_c, "-p", "responda só: ok"], capture_output=True, text=True, timeout=90,
+                               encoding="utf-8", errors="replace", **({"creationflags": 0x08000000} if os.name == "nt" else {}))
+            saida = (r.stdout + r.stderr).strip()
+            ok = r.returncode == 0 and "ok" in saida.lower() and "authenticate" not in saida.lower()
+            res["CLAUDE"] = {"ok": ok, "msg": "respondeu" if ok else ("o login venceu: abra o terminal e rode  claude  (entre de novo)"
+                                                                     if "auth" in saida.lower() or "login" in saida.lower() else saida[:160] or "não respondeu")}
+        except FileNotFoundError:
+            res["CLAUDE"] = {"ok": False, "msg": "Claude Code não está instalado neste PC"}
+        except Exception as e:  # noqa: BLE001
+            res["CLAUDE"] = {"ok": False, "msg": str(e)[:160]}
+    finally:
+        IA_TESTE.update(quando=dt.datetime.now().strftime("%d/%m %H:%M"), res=res, rodando=False)
+        P.log("IA de texto: " + ", ".join(f"{k.split('_')[0].title()} {'✔' if v['ok'] else '✖'}" for k, v in res.items()))
+
+
+def ia_estado():
+    return {"chaves": {k: {"nome": v[0], "link": v[1], "para": v[2], "tem": bool(os.environ.get(k))} for k, v in CHAVES_IA.items()},
+            "teste": IA_TESTE}
 
 
 # ------------------------------------------------------------------ ações
@@ -488,6 +589,11 @@ def acao(nome, d):
             n += 1
         P.grava_json(BASE / "estado.json", est)
         return {"ok": True, "n": n}
+    elif nome == "ia_chave":
+        return salva_chave_ia(str(d.get("nome", "")), d.get("valor", ""))
+    elif nome == "ia_testar":
+        threading.Thread(target=testa_ias, daemon=True).start()
+        return {"ok": True, "msg": "Testando as IAs (até 1 min)…"}
     elif nome == "claude_parar":
         sys.path.insert(0, str(TOOLS))
         from roteiro_ia import grava_uso_claude, le_uso_claude
@@ -557,21 +663,15 @@ def acao(nome, d):
         p = TRABALHO["login"]
         return {"rodando": bool(p and p.poll() is None), "texto": f.read_text(encoding="utf-8", errors="replace")[-1500:] if f.exists() else ""}
     elif nome == "reels_gerar":
-        t = TRABALHO["reels"]
-        if t and t.poll() is None:
-            raise ValueError("os reels já estão sendo feitos")
-        if reels_rodando():
-            raise ValueError("outro reels.py está rodando agora (a tarefa do Windows) — espere ele terminar")
         n = max(1, min(20, int(d.get("quantos", 5))))
-        logf = log_reels()
-        exe, extra = py_filho()
-        cmd = [exe, "-u", str(TOOLS / "reels" / "reels.py"), "--pasta", str(REELS), "--quantos", str(n)]
-        TRABALHO["reels"] = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT, text=True, cwd=str(TOOLS.parent),
-                                             env={**os.environ, "PYTHONIOENCODING": "utf-8"}, **extra)
+        return reels_roda(["--quantos", str(n)], f"{n} reel(s) dos virais")
     elif nome == "reels_parar":
         t = TRABALHO["reels"]
         if t and t.poll() is None:
             t.terminate()
+        TRABALHO["reels_pendentes"] = []
+    elif nome == "reels_destravar":
+        return reels_destrava()
     elif nome == "reels_link":
         # um ou vários links (um por linha, ou separados por espaço): vão para a lista e são feitos sozinhos
         novos = re.findall(r"https?://\S+", str(d.get("url", "")))
@@ -650,21 +750,19 @@ def acao(nome, d):
         threading.Thread(target=lambda: atualiza_views(cfg(), True), daemon=True).start()
     elif nome == "reels_um":
         # um reel já, deste link (modo TROCA: igual ao original, só a pessoa vira você)
-        t = TRABALHO["reels"]
-        if t and t.poll() is None:
-            raise ValueError("os reels já estão sendo feitos; espere terminar")
-        if reels_rodando():
-            raise ValueError("outro reels.py está rodando agora (a tarefa do Windows) — espere ele terminar")
         url = str(d.get("url", "")).strip()
         if not re.match(r"https?://\S+$", url):
             raise ValueError("cole um link (https://...)")
-        exe, extra = py_filho()
-        cmd = [exe, "-u", str(TOOLS / "reels" / "reels.py"), "--pasta", str(REELS), "--clip", url, "--modo", d.get("modo") if d.get("modo") in ("troca", "novo") else "troca"]
+        args = ["--clip", url, "--modo", d.get("modo") if d.get("modo") in ("troca", "novo") else "troca"]
         if d.get("inicio"):
-            cmd += ["--inicio", str(d["inicio"])]
-        logf = log_reels()
-        TRABALHO["reels"] = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT, text=True, cwd=str(TOOLS.parent),
-                                             env={**os.environ, "PYTHONIOENCODING": "utf-8"}, **extra)
+            args += ["--inicio", str(d["inicio"])]
+        texto = " ".join(str(d.get("texto", "")).split())[:160]
+        if texto:   # o TEXTO DA TELA escrito por ele (o roteiro do meme)
+            args += ["--texto", texto]
+        legenda = str(d.get("legenda", "")).strip()[:600]
+        if legenda:
+            args += ["--legenda", legenda]
+        return reels_roda(args, url[:60])
     elif nome.startswith("ed_"):
         fn = {"ed_drive": EDI.drive_pastas, "ed_novo": EDI.novo, "ed_caminho": EDI.de_caminho, "ed_iniciar": EDI.iniciar, "ed_roteiro": EDI.roteiro,
               "ed_refazer": EDI.refazer, "ed_cancelar": EDI.cancelar, "ed_apagar": EDI.apagar, "ed_postar": ed_postar}.get(nome)
@@ -1201,6 +1299,72 @@ def reels_rodando():
         g.close()
 
 
+def reels_roda(args, o_que=""):
+    """começa um reels.py JÁ, ou — se já tem um trabalhando — põe o pedido na fila e ele começa sozinho quando o
+    atual terminar. Antes o botão respondia ERRO ("os reels já estão sendo feitos", "outro reels.py está rodando")
+    toda vez que a importação dos começos (de 10 em 10 min) ou um link da lista estava rodando (26/nov)."""
+    t = TRABALHO["reels"]
+    if (t and t.poll() is None) or reels_rodando():
+        TRABALHO["reels_pendentes"].append({"args": list(args), "o_que": o_que})
+        n = len(TRABALHO["reels_pendentes"])
+        return {"ok": True, "msg": f"os reels estão ocupados agora; o seu pedido é o {n}º da fila e começa sozinho "
+                                   "assim que o atual terminar"}
+    exe, extra = py_filho()
+    cmd = [exe, "-u", str(TOOLS / "reels" / "reels.py"), "--pasta", str(REELS), *args]
+    logf = log_reels()
+    logf.write(f"\n===== {dt.datetime.now():%d/%m %H:%M} {o_que or ' '.join(args)[:80]} =====\n")
+    logf.flush()
+    TRABALHO["reels"] = subprocess.Popen(cmd, stdout=logf, stderr=subprocess.STDOUT, text=True, cwd=str(TOOLS.parent),
+                                         env={**os.environ, "PYTHONIOENCODING": "utf-8"}, **extra)
+    return {"ok": True, "msg": "começou — acompanhe no registro abaixo"}
+
+
+def reels_dono():
+    """quem está com a trava dos reels (pid e desde quando), pelo que o reels.py escreveu nela"""
+    try:
+        txt = (REELS / ".reels_rodando").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return "", 0
+    m = re.search(r"pid=(\d+)", txt)
+    return txt.strip()[:80], (int(m.group(1)) if m else 0)
+
+
+def reels_destrava():
+    """DESTRAVAR OS REELS (26/nov): um reels.py preso segurava a fila inteira. Encerra o dono da trava (e o filho
+    do painel, se for ele) e limpa a fila de pedidos parados."""
+    mortos = []
+    t = TRABALHO["reels"]
+    if t and t.poll() is None:
+        try:
+            if os.name == "nt":
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(t.pid)], capture_output=True, timeout=20)
+            else:
+                t.kill()
+            mortos.append(t.pid)
+        except Exception:  # noqa: BLE001
+            pass
+    quem, pid = reels_dono()
+    if pid and pid not in mortos and reels_rodando():
+        try:
+            if os.name == "nt":
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True, timeout=20)
+            else:
+                os.kill(pid, 9)
+            mortos.append(pid)
+        except Exception:  # noqa: BLE001
+            pass
+    time.sleep(1.5)
+    if reels_rodando():
+        raise ValueError(f"não consegui soltar a trava ({quem or 'sem pid anotado'}). Reinicie o PC ou "
+                         "feche o python.exe no Gerenciador de Tarefas.")
+    try:
+        (REELS / ".reels_rodando").unlink(missing_ok=True)
+    except OSError:
+        pass
+    P.log(f"reels: destravei ({', '.join(map(str, mortos)) or 'ninguém estava rodando'})")
+    return {"ok": True, "msg": f"destravei ({len(mortos)} processo(s) encerrado(s)). Os links da lista voltam a andar."}
+
+
 def log_reels():
     """registro dos reels em modo ACRESCENTA (antes abria com "w" e apagava o motivo da falha anterior a cada
     disparo — por isso não dava para ver por que um link não virou reels). Passa de 2 MB, começa de novo."""
@@ -1221,7 +1385,13 @@ def laco_links():
     while True:
         try:
             t = TRABALHO["reels"]
-            if time.time() - ultimo_import > 600 and not (t and t.poll() is None):
+            if TRABALHO["reels_pendentes"] and not (t and t.poll() is None) and not reels_rodando():
+                ped = TRABALHO["reels_pendentes"].pop(0)
+                reels_roda(ped["args"], ped.get("o_que", ""))
+                P.log(f"reels: comecei o pedido que estava esperando ({ped.get('o_que', '')})")
+                time.sleep(45)
+                continue
+            if time.time() - ultimo_import > 600 and not (t and t.poll() is None) and not reels_rodando():
                 ultimo_import = time.time()
                 exe, extra = py_filho()
                 logf = log_reels()
@@ -1234,7 +1404,9 @@ def laco_links():
             f = REELS / "links.txt"
             t = TRABALHO["reels"]
             tem = f.exists() and any(l.strip().startswith("http") for l in f.read_text(encoding="utf-8").splitlines())
-            if rc.get("auto_links", True) and tem and not (t and t.poll() is None) and not cfg().get("pausado"):
+            # FAZER o reel não depende da POSTAGEM estar pausada (26/nov): a pausa é para não postar; com ela ligada
+            # os links ficavam parados na lista e "não criava mais nada". O reel pronto espera na fila.
+            if rc.get("auto_links", True) and tem and not (t and t.poll() is None):
                 # a trava é de OUTRO reels.py (a tarefa do Windows, ou um que ficou aberto): disparar aqui só fazia
                 # o filho morrer na hora ("outro reels.py já está rodando") e o laço repetia isso a cada 45 s sem
                 # fazer link nenhum — era por isso que links enviados nunca ficavam prontos (26/out)
@@ -1354,6 +1526,7 @@ def main():
         webbrowser.open(f"http://localhost:{PORTA}/")
         return
     cfg()
+    carrega_chaves_ia()
     REELS.mkdir(parents=True, exist_ok=True)
     EDI.ED.mkdir(parents=True, exist_ok=True)
     srv.daemon_threads = True
@@ -1368,6 +1541,7 @@ def main():
                      daemon=True).start()
     threading.Thread(target=CAN.laco, kwargs={"log": P.log, "edicao_ocupada": lambda: bool(EDI.PROC["p"] and EDI.PROC["p"].poll() is None) or SHP.rodando()},
                      daemon=True).start()
+    AUTO.REELS_PASTA["p"] = REELS
     threading.Thread(target=AUTO.laco, kwargs={
         "CAN": CAN, "SHP": SHP, "EDI": EDI, "versao": PAINEL_VERSAO, "drive_raiz": EDI.drive_raiz,
         "detto": lambda: CAN._raiz(), "cfg_painel": lambda: (P.le_json(BASE / "config.json", {}).get("painel") or {}),

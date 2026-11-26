@@ -239,7 +239,7 @@ PROVEDORES = [
 
 
 RESERVAS = {
-    "GROQ_API_KEY": ["llama-3.3-70b-versatile", "openai/gpt-oss-20b", "llama-3.1-8b-instant", "qwen/qwen3-32b"],
+    "GROQ_API_KEY": ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "openai/gpt-oss-20b"],
     "CEREBRAS_API_KEY": ["llama-3.3-70b", "gpt-oss-120b", "qwen-3-32b"],
     "OPENROUTER_API_KEY": ["openai/gpt-oss-20b:free", "meta-llama/llama-3.3-70b-instruct:free"],
 }
@@ -259,6 +259,39 @@ def _modelo_grande(base, chave):
     return None
 
 
+NAO_TEXTO = ("whisper", "tts", "guard", "embed", "vision-preview", "playai", "orpheus", "distil", "compound", "prompt-guard",
+             "moderation", "audio", "image", "rerank")
+_LISTA_MODELOS = {}
+
+
+def _todos_os_modelos(base, chave):
+    """TODOS os modelos de texto que a chave enxerga, do maior para o menor (26/nov). A lista fixa de reservas
+    envelhecia calada: no PC dele o Groq deu 429 nos dois gpt-oss e 404 no llama-3.1-8b-instant e no qwen3-32b
+    (modelos que o Groq tirou) — e a rodada desistia com outros modelos LIVRES na mesma conta. Cada modelo do Groq
+    tem cota diária PRÓPRIA, então vale passar por todos antes de desistir. Cache de 1 h."""
+    import time as _t
+    k = (base, chave[-6:])
+    c = _LISTA_MODELOS.get(k)
+    if c and _t.time() - c[0] < 3600:
+        return list(c[1])
+    try:
+        req = urllib.request.Request(f"{base}/models", headers={"Authorization": f"Bearer {chave}", "User-Agent": UA_NAVEGADOR})
+        dados = json.loads(urllib.request.urlopen(req, timeout=30).read()).get("data", [])
+    except Exception:  # noqa: BLE001
+        return []
+    ids = [str(m.get("id", "")) for m in dados if m.get("active", True) is not False]
+    ids = [i for i in ids if i and not any(x in i.lower() for x in NAO_TEXTO)]
+    if "openrouter" in base:
+        ids = [i for i in ids if i.endswith(":free")]
+
+    def tamanho(i):
+        m = re.search(r"(\d+(?:\.\d+)?)b\b", i.lower())
+        return float(m.group(1)) if m else (50.0 if any(x in i.lower() for x in ("large", "kimi", "maverick")) else 10.0)
+    ids.sort(key=tamanho, reverse=True)
+    _LISTA_MODELOS[k] = (_t.time(), ids)
+    return list(ids)
+
+
 def texto_gratis(prompt, json_mode=False, log=print):
     """pergunta às IAs grátis de TEXTO (Cerebras, Groq, Mistral, OpenRouter) — só as que têm chave. Devolve o texto ou None.
     Para roteiro/narração/legenda (texto puro); vídeo e foto continuam no Gemini."""
@@ -269,8 +302,9 @@ def texto_gratis(prompt, json_mode=False, log=print):
         modelo = os.environ.get(env_modelo) or padrao
         # 429 (limite de tokens/min ou dia de UM modelo): os outros modelos do mesmo provedor têm cota própria
         reserva = [m for m in RESERVAS.get(env, []) if m != modelo]
+        buscou_lista, tentados = False, {modelo}
         quer_json, tentou_modelo_grande = json_mode, False
-        for vez in range(4 + 2 * len(reserva)):
+        for vez in range(40):
             corpo = {"model": modelo, "messages": [{"role": "user", "content": prompt}], "temperature": 0.5}
             if quer_json:
                 corpo["response_format"] = {"type": "json_object"}
@@ -294,19 +328,30 @@ def texto_gratis(prompt, json_mode=False, log=print):
                 if e.code in (400, 404) and "model" in det.lower() and not tentou_modelo_grande:
                     tentou_modelo_grande = True
                     novo = _modelo_grande(base, chave)
-                    if novo and novo != modelo:
+                    if novo and novo not in tentados:
                         modelo = novo
+                        tentados.add(novo)
                         continue
+                reserva = [m for m in reserva if m not in tentados]
+                if not reserva and not buscou_lista and e.code in (400, 404, 413, 429, 500, 502, 503):
+                    # acabaram as reservas fixas: TODOS os modelos de texto da conta (cada um com cota própria)
+                    buscou_lista = True
+                    reserva = [m for m in _todos_os_modelos(base, chave) if m not in tentados][:12]
+                    if reserva:
+                        log(f"   {quem}: as reservas acabaram; tento os outros {len(reserva)} modelo(s) da sua conta")
                 # cota (429), modelo fora do ar ou pedido grande demais: os outros modelos têm cota própria
                 if reserva and e.code in (400, 404, 413, 429, 500, 502, 503):
                     log(f"   {quem}: {e.code} em {modelo}; tento {reserva[0]}")
                     modelo, quer_json = reserva.pop(0), json_mode
+                    tentados.add(modelo)
                     continue
                 log(f"   {quem}: {e.code} {det}")
             except Exception as e:
                 log(f"   {env.split('_')[0].title()}: {str(e)[:120]}")
+                reserva = [m for m in reserva if m not in tentados]
                 if reserva:
                     modelo, quer_json = reserva.pop(0), json_mode
+                    tentados.add(modelo)
                     continue
             break
     return None

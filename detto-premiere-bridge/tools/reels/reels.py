@@ -1430,8 +1430,18 @@ def le_texto_duplo(png, quadro_original=None):
                 log(f"   conferência de letra: o recorte pegou SÓ O COMEÇO do texto — falta {n2[len(n1):].strip()!r}")
             else:
                 log(f"   conferência de letra: leituras diferentes (pode ser o OCR) — PNG: {l1!r} × tela: {l2!r}")
-        return (l2 if len(l2) >= len(l1) * 0.8 else l1), ok
-    return (l1 or l2), bool(l1 or l2)
+        # a leitura da TELA (IA olhando o quadro) vence sempre que existe: o OCR do PNG lê contorno e sombra como
+        # letra e saía "…primeiro lance faz isso . MF E A m- = Mm > .. ca e em" no texto e no NOME do arquivo (26/nov)
+        return (l2 or l1), ok
+    return (l2 or _limpa_ocr(l1)), bool(l1 or l2)
+
+
+def _limpa_ocr(t):
+    """tira o lixo típico do OCR no fim/meio do texto (pedaços de 1–2 letras soltas, símbolos)"""
+    pal = re.sub(r"[^\wÀ-ÿ?!,.:'\s-]", " ", str(t or "")).split()
+    boas = [w for w in pal if len(w) > 2 or w.lower() in {"a", "o", "e", "é", "q", "de", "do", "da", "no", "na", "em", "eu",
+                                                           "tu", "ta", "tá", "se", "me", "te", "um", "ou", "pq", "vc", "já", "os", "as", "ao", "só"}]
+    return re.sub(r"\s+([?!,.:])", r"\1", " ".join(boas)).strip(" .-")
 
 
 def _cala_opencv():
@@ -1890,6 +1900,7 @@ def main():
     if not TRAVA:
         log("outro reels.py já está rodando (painel ou tarefa do Windows) — saio para não fazer o mesmo link duas vezes")
         return
+    relogio_da_rodada(cfg, a.importar)
     global SDR_DIR
     SDR_DIR = base / "sdr"
     (base / "tmp").mkdir(exist_ok=True)
@@ -1953,11 +1964,18 @@ def main():
             log(f"   {len(fila)} candidatos")
             continue
         c = fila.pop(0)
-        if c.get("chave") and c["chave"] in hist["usados"]:
+        # PEDIDO EXPLÍCITO (--clip, o "Fazer o 1º agora" do painel) é feito mesmo que o vídeo já tenha virado reel
+        # antes: antes ele era pulado CALADO e a rodada terminava "0 reel(s)" sem dizer por quê (26/nov)
+        if c.get("chave") and c["chave"] in hist["usados"] and not a.clip:
+            log(f"   já virou reel antes ({c['chave']}); pulei")
             continue
         if c.get("arquivo"):
             clip, info = Path(c["arquivo"]), {"title": Path(c["arquivo"]).stem}
         else:
+            if c.get("seu") and _conta_tentativa(base, c["url"]) > 3:
+                log(f"\n{c['url']}: já tentei 3 vezes e a rodada travou/encerrou em todas — tiro da lista")
+                _tira_link(base, c["url"], ok=False, motivo="travou 3 vezes seguidas (download ou montagem sem terminar)")
+                continue
             log(f"\nbaixando {c['url']}")
             clip, info = baixa(c["url"], base / "baixados", a.cookies, base / "cookies.txt")
             if not clip:
@@ -1966,7 +1984,8 @@ def main():
                     _tira_link(base, c["url"], ok=False, motivo=f"não baixou: {str(info)[:160]}")
                 continue
         chave = c.get("chave") or chave_de(info, c.get("url"))
-        if chave in hist["usados"] and not c.get("arquivo"):
+        if chave in hist["usados"] and not c.get("arquivo") and not a.clip:
+            log(f"   esse vídeo já virou reel em {hist['usados'][chave].get('dia', '?')}; pulei (use \"Fazer o 1º agora\" para refazer)")
             if c.get("seu"):
                 _tira_link(base, c["url"], ok=True, hist=hist)
             continue
@@ -2169,6 +2188,27 @@ def main():
     log(f"\n{feitos} reel(s) em {destino}")
 
 
+def relogio_da_rodada(cfg, so_importar=False):
+    """NADA RODA SEM PRAZO (26/nov, "o reels automático não está criando mais, sempre dá erro"): um reels.py preso
+    (download que não termina, IA que não responde) segurava a trava `.reels_rodando` para sempre — e aí os links
+    da lista esperavam a vez e o botão Gerar respondia "outro reels.py está rodando". Passado o prazo
+    (`max_minutos_rodada`, 90; importar começos: 20), a rodada é encerrada e a trava some junto com o processo."""
+    import threading
+    minutos = 20 if so_importar else float(cfg.get("max_minutos_rodada", 90))
+
+    def fim():
+        log(f"NÃO TERMINEI: a rodada passou de {minutos:.0f} min e foi encerrada para não prender a fila "
+            "(o link que estava sendo feito volta na próxima)")
+        try:
+            sys.stdout.flush()
+        finally:
+            os._exit(3)
+    t = threading.Timer(minutos * 60, fim)
+    t.daemon = True
+    t.start()
+    return t
+
+
 def destinos_reels(cfg, base):
     """para onde vai cada reel: a lista do config; "todas" = toda conta ligada da postagem (Instagram, TikTok, YouTube
     Shorts e Kwai), menos as marcadas com "reels": false"""
@@ -2238,7 +2278,24 @@ def links_ja_feitos(base, hist):
     return feitos
 
 
+def _conta_tentativa(base, url):
+    """quantas vezes este link já COMEÇOU a ser feito sem sair da lista (rodada que trava não chega a tirar o link)"""
+    f = Path(base) / "tentativas_links.json"
+    d = le_json(f, {})
+    k = chave_link(url)
+    d[k] = int(d.get(k, 0)) + 1
+    grava_json(f, d)
+    return d[k]
+
+
 def _tira_link(base, url, ok, hist=None, motivo=""):
+    try:
+        f_ = Path(base) / "tentativas_links.json"
+        d_ = le_json(f_, {})
+        if d_.pop(chave_link(url), None) is not None:
+            grava_json(f_, d_)
+    except Exception:  # noqa: BLE001
+        pass
     f = base / "links.txt"
     linhas = [l for l in f.read_text(encoding="utf-8").splitlines() if l.strip() != url]
     f.write_text("\n".join(linhas) + "\n", encoding="utf-8")

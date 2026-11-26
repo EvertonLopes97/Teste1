@@ -400,8 +400,52 @@ def roteiro_sem_ia(produto, mid=()):
             "tags": ["#achadinhos", "#tiktokshop", "#" + re.sub(r"\W+", "", nome.lower())[:24]]}
 
 
+ROTEIRO_DELE = {"texto": ""}   # --roteiro-arquivo (painel → TikTok Shop → "Meu roteiro"): narrado IGUAL
+
+
+def roteiro_do_texto(texto, produto, mid=()):
+    """o roteiro DELE (26/nov): cada frase vira uma cena, falada IGUAL; a tela leva as 3–4 primeiras palavras.
+    Nada é acrescentado ao que ele escreveu (vídeo de afiliado com informação inventada derruba a conta)."""
+    frases = [" ".join(f.split()) for f in re.split(r"(?<=[.!?])\s+|\n+", texto) if len(f.split()) >= 2]
+    if len(frases) < 2:
+        raise RuntimeError("o seu roteiro precisa de pelo menos 2 frases")
+    # cenas de 3 a 7 s: frase curta junta com a seguinte
+    cenas_txt, buf = [], ""
+    for f in frases:
+        buf = (buf + " " + f).strip()
+        if len(buf.split()) >= 8:
+            cenas_txt.append(buf)
+            buf = ""
+    if buf:
+        if cenas_txt and len(buf.split()) < 5:
+            cenas_txt[-1] += " " + buf
+        else:
+            cenas_txt.append(buf)
+    midias = [m.split(" ")[0] for m in mid] or ["foto1"]
+    movs = ["zoom", "afasta", "direita", "esquerda"]
+    sfx = ["whoosh", "pop", "click", "pop", "click", "ding"]
+    cenas = []
+    for i, f in enumerate(cenas_txt[:9]):
+        palavras = [w.strip(",.!?") for w in f.split()]
+        tela_p = palavras[:4]
+        while len(tela_p) > 2 and tela_p[-1].lower() in {"e", "de", "do", "da", "o", "a", "os", "as", "com", "em", "no", "na", "que", "um", "uma"}:
+            tela_p.pop()
+        tela = " ".join(tela_p).upper()
+        cenas.append({"fala": f, "tela": tela, "midia": midias[i % len(midias)], "movimento": movs[i % 4], "sfx": sfx[i % len(sfx)]})
+    nome = (produto.get("nome") or "").strip()
+    return {"gancho": cenas[0]["tela"], "cenas": cenas, "vantagens": [], "selo": "", "fim": "TÁ NA MINHA *VITRINE*",
+            "legenda": (cenas_txt[0][:140] + (f" — {nome}" if nome else "") + " 👆 link na vitrine"),
+            "tags": ["#achadinhos", "#tiktokshop"] + (["#" + re.sub(r"\W+", "", nome.lower())[:24]] if nome else [])}
+
+
 def roteiro(produto, modo, cfg, log=log):
     from reels import gemini_json
+
+    if ROTEIRO_DELE["texto"] or str(produto.get("roteiro") or "").strip():
+        mid_ = (["eu"] if produto.get("eu") and modo == "eu" else []) + (["video"] if produto.get("video") else []) \
+            + [f"foto{i + 1}" for i in range(len(produto.get("fotos") or []))]
+        log("   roteiro: o SEU texto (narrado igual)")
+        return roteiro_do_texto(ROTEIRO_DELE["texto"] or str(produto["roteiro"]), produto, mid_)
 
     mid = []
     if produto.get("eu") and modo == "eu":
@@ -1055,7 +1099,10 @@ def main():
     ap.add_argument("--modo", choices=["ia", "eu", "vendedor"], help="o que entra na imagem")
     ap.add_argument("--cookies", help="chrome, edge ou firefox (TikTok/Instagram pedindo login)")
     ap.add_argument("--nao-postar", action="store_true", help="não põe na fila de postagem")
+    ap.add_argument("--roteiro-arquivo", help="o roteiro DELE (.txt): cada frase vira uma cena, narrada igual")
     a = ap.parse_args()
+    if a.roteiro_arquivo:
+        ROTEIRO_DELE["texto"] = Path(a.roteiro_arquivo).read_text(encoding="utf-8-sig").strip()
 
     base = Path(a.pasta)
     cfg = prepara(base)
